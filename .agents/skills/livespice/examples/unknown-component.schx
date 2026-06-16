@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Schematic Name="Unknown Component Fixture" Description="Unsupported _Type must remain visible and diagnostic." PartNumber="">
+  <Element Type="Circuit.Symbol, Circuit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" Rotation="3" Flip="true" Position="10,20" SourceOnlyAttribute="preserve-me">
+    <Component _Type="Circuit.DoesNotExist, Circuit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" Name="X_UNKNOWN" MysteryValue="42" />
+  </Element>
+  <Element Type="Circuit.Wire, Circuit, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null" A="10,20" B="60,20" SourceWireAttribute="preserve-me-too" />
+</Schematic>

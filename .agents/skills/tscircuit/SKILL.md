@@ -1,111 +1,163 @@
 ---
 name: tscircuit
-description: Create, review, and adapt tscircuit React/TypeScript electronics code for PCB, schematic, 3D, BOM, fabrication-file, KiCad, JLCPCB, Circuit JSON, and browser-preview workflows. Use when Codex needs to generate tscircuit HTML previews, evaluate whether tscircuit fits an electronics/PCB task, or integrate tscircuit ideas with this guitar pedal platform without replacing the .schx audio-simulation source of truth.
+description: Build, modify, and debug tscircuit (React/TypeScript) PCB designs. Use when working with tsci CLI (init/dev/search/add/import/build/export/snapshot/push), choosing footprints, placing parts, wiring nets/traces, or preparing fabrication outputs (Gerbers/BOM/PnP).
+allowed-tools: Read, Write, Grep, Glob, Bash
 ---
 
 # tscircuit
 
-Use tscircuit for code-first electronics boards and previews: PCB layout, schematic rendering, 3D previews, footprints, BOM/manufacturing metadata, fabrication outputs, KiCad-adjacent workflows, and fast AI-generated circuit sketches.
+You are helping the user design electronics using tscircuit (React/TypeScript) and the `tsci` CLI.
 
-For this audio-engine repo, treat tscircuit as an adjunct for PCB visualization/prototyping and hardware-facing design artifacts. Keep `.schx` as the canonical source for editable audio circuits and WASM DSP compilation.
+When this Skill is active:
 
-## Fit Rules
+- Prefer tscircuit’s documented primitives and CLI behavior. If something is unclear, confirm by:
+  - Reading local files in the repo (e.g., `tscircuit.config.json`, `index.circuit.tsx`, `package.json`)
+  - Running `tsci --help` or the specific subcommand’s `--help`
+- Avoid “inventing” JSX props or CLI flags.
 
-- Use tscircuit for PCB/module sketches, schematic/PCB/3D preview artifacts, fabrication-file planning, BOM/part metadata, footprints, connectors, headers, enclosures/holes/cutouts, and manufacturing-facing board work.
-- Use `.schx` for white-box pedal circuits that must compile into the browser/native/WASM audio engine.
-- Do not replace the `.schx` circuit editor, `.schx` parser/compiler, or real-time audio DSP path with tscircuit.
-- Do not claim tscircuit SPICE simulation validates this repo's real-time WASM MNA behavior. Treat it as a separate offline/reference-style electronics tool unless a deliberate bridge is implemented.
-- Do not add tscircuit package dependencies to this repo unless the user explicitly asks. Prefer standalone HTML previews or an isolated tscircuit project.
+## Default workflow
 
-## HTML Preview Pattern
+1) Clarify requirements (if not already given)
+- Board form factor / size constraints
+- Power sources and voltage rails
+- I/O: connectors, headers, mounting holes, mechanical constraints
+- Target manufacturer constraints (trace/space, assembly, supplier)
 
-When creating tscircuit code for a ChatGPT-style answer, create it inside an HTML canvas/artifact tool when available. If the current environment has no canvas/artifact tool, create a standalone `.html` preview file using the same structure and state that it is the fallback.
+2) Choose a starting point
+- If the repo is not a tscircuit project, recommend:
+  - Install CLI, then `tsci init` to bootstrap a project.
+- If a form-factor template is appropriate (Arduino Shield, Raspberry Pi HAT, etc.), prefer `@tscircuit/common` templates.
 
-Use the global browser preview script. Do not import components for these quick previews; use built-in tscircuit elements.
+3) Find and install components
+- Use `tsci search "<query>"` to discover footprints and tscircuit registry packages.
+- For USB-C receptacles/connectors, prefer builtin syntax with `<connector standard="usb_c" />` instead of importing from JLCPCB.
+- Use one of:
+  - `tsci add <author/pkg>` for registry packages (installs `@tsci/*` packages)
+  - `tsci import <query>` when you need to import a component from JLCPCB or the registry.
 
-```html
-<html>
-  <head>
-    <script src="https://unpkg.com/@tscircuit/circuit-preview@latest/dist/index.global.js"></script>
-    <script type="text/babel">
-      window.tscircuit.render(
-        <board pcbPack>
-          <resistor name="R1" resistance="1k" footprint="0805" />
-          <capacitor name="C1" capacitance="100nF" footprint="0805" />
-          <trace from="R1.pin1" to="net.IN" />
-          <trace from="R1.pin2" to="C1.pin1" />
-          <trace from="C1.pin2" to="net.GND" />
-        </board>
-      )
-    </script>
-  </head>
-  <body></body>
-</html>
-```
+4) Write/modify TSX circuit code
+- Keep circuits as a default-exported function that returns JSX.
+- Use layout props intentionally:
+  - PCB: `pcbX`, `pcbY`, `pcbRotation`, `layer`
+  - Schematic: `schX`, `schY`, `schRotation`, `schOrientation`
+- On large projects (5+ components), use `<schematicsection />` to group components by function (e.g. "Power", "MCU", "IO"). This is one of the most important things for schematic readability. Assign each component a `schSectionName` and manually position all members of a section in close proximity using `schX`/`schY`.
+- Use `<trace />` for connectivity; prefer net connections (`net.GND`, `net.VCC`, etc.) for power/ground.
 
-## Authoring Rules
+5) Build and iterate
+- Run `tsci check netlist` before `tsci check schematic-placement`, `tsci check placement`, and `tsci build` to catch connectivity issues early.
+- Use `tsci check schematic-placement` to validate schematic-side placement before checking PCB placement.
+- Do not finalize unless both `tsci check schematic-placement` and `tsci check placement` pass with no actionable placement violations; if violations exist, fix layout and rerun until clean.
+- Use `tsci check trace-length` to check for long straight line distances (before routing) or long routes (after routing)
+- Run `tsci build --pcb-png [file]` to inspect placement before checking routing.
+- Run `tsci check routing-difficulty` after placement to identify potential areas of congestion.
+- Run `tsci build` to compile and validate the circuit.
+- DRC (Design Rule Check) errors can often be ignored during development—focus on getting the circuit correct first.
+- If routing struggles, reduce density, use `<group />` for sub-layouts, or change autorouter settings.
+- Use `tsci dev` only when you need interactive visual feedback (not typical for AI-driven iteration).
 
-- Use `<board />` as the root.
-- Give every normal element a stable `name`.
-- Give every normal element a `footprint` unless the element docs clearly say otherwise.
-- Connect both sides of passives with `<trace />` or `connections={{ ... }}`.
-- Use selectors in the form `"U1.VCC"`, `"R1.pin1"`, `"C1.pos"`, or `"net.GND"`.
-- Prefer `connections` for concise pin-to-net hookups; prefer explicit `<trace />` when readability matters.
-- For generic ICs, use `<chip />` with `pinLabels` and `schPinArrangement`.
-- Use `schPinArrangement`; avoid the deprecated `schPortArrangement` alias.
-- Use built-in primitives before custom components in quick-preview work.
-- Use `supplierPartNumbers`, `manufacturerPartNumber`, and `pcbPinLabels` only when part identity matters.
+6) Validate and export
+- Run `tsci check netlist` before `tsci check schematic-placement`, `tsci check placement`, and `tsci build` when preparing to share/publish.
+- Run `tsci build` (and optionally `tsci snapshot`) before sharing/publishing.
+- Use `tsci export` for SVG/netlist/DSN/3D/library outputs.
+- For manufacturing, obtain fabrication outputs (Gerbers/BOM/PnP) from the export UI after `tsci dev`.
 
-## Common Built-ins
+## Safety and non-goals
 
-Normal elements: `<board />`, `<group />`, `<chip />`, `<resistor />`, `<capacitor />`, `<inductor />`, `<led />`, `<diode />`, `<transistor />`, `<mosfet />`, `<opamp />`, `<battery />`, `<switch />`, `<pushbutton />`, `<pinheader />`, `<jumper />`, `<fuse />`, `<crystal />`, `<connector />`, `<testpoint />`, `<hole />`, `<via />`, `<cutout />`, `<net />`, `<netlabel />`, `<trace />`.
+- Treat electrical safety, regulatory compliance, and manufacturability as user-owned responsibilities.
+- Do not publish (`tsci push`) or place orders unless the user explicitly requests it.
 
-Simulation/reference elements: `<analogsimulation />`, `<voltagesource />`, `<voltageprobe />`, `<spicemodel />`, `<subcircuit />`.
+## Local references bundled with this Skill
 
-Footprint/layout elements: `<footprint />`, `<smtpad />`, `<platedhole />`, `<copperpour />`, `<coppertext />`, `<silkscreenline />`, `<silkscreentext />`, `<silkscreenrect />`, `<schematicline />`, `<schematicrect />`, `<schematicpath />`, `<schematictext />`, `<cadmodel />`.
+- CLI primer: `CLI.md`
+- Syntax primer: `SYNTAX.md`
+- Workflow patterns: `WORKFLOW.md`
+- Pre-export checklist: `CHECKLIST.md`
+- Ready-to-copy templates: `templates/`
+- Helper scripts: `scripts/`
 
-Common footprints: `"0402"`, `"0603"`, `"0805"`, `"1206"`, `"1210"`, `"dip8"`, `"dip16"`, `"soic8"`, `"tssop8"`, `"sot23"`, `"sot23_5"`, `"sot223"`, `"to92"`, `"to220"`, `"pinrow2"`, `"pinrow3"`, `"pinrow6"`, `"axial"`.
+## Builtin Elements
 
-## IC Pattern
-
-```tsx
-<chip
-  name="U1"
-  footprint="soic8"
-  pinLabels={{
-    pin1: "GND",
-    pin2: "TRIG",
-    pin3: "OUT",
-    pin4: "RESET",
-    pin5: "CTRL",
-    pin6: "THRES",
-    pin7: "DISCH",
-    pin8: "VCC",
-  }}
-  schPinArrangement={{
-    leftSide: { direction: "top-to-bottom", pins: ["RESET", "CTRL", "THRES", "TRIG"] },
-    rightSide: { direction: "top-to-bottom", pins: ["VCC", "OUT", "DISCH", "GND"] },
-  }}
-  connections={{
-    VCC: "net.VCC",
-    GND: "net.GND",
-  }}
-/>
-```
-
-## Checks
-
-- Verify each selector references an existing component pin or `net.*`.
-- Verify passives are not floating unless intentionally view-only.
-- Verify footprint strings are plausible before mentioning fabrication.
-- Keep generated examples small enough to inspect.
-- For repo integration, explicitly document whether the tscircuit artifact is visual/manufacturing metadata or whether a separate `.schx` circuit remains responsible for audio behavior.
-
-## Sources
-
-Prefer current official docs when details matter:
-
-- https://docs.tscircuit.com/
-- https://docs.tscircuit.com/intro/quickstart-ChatGPT
-- https://docs.tscircuit.com/guides/spice-simulation/introduction
-- https://docs.tscircuit.com/guides/understanding-fabrication-files
+- [`<analogsimulation />`](./elements/analogsimulation.md)
+- [`<battery />`](./elements/battery.md)
+- [`<board />`](./elements/board.md)
+- [`<breakout />`](./elements/breakout.md)
+- [`<breakoutpoint />`](./elements/breakoutpoint.md)
+- [`<cadassembly />`](./elements/cadassembly.md)
+- [`<cadmodel />`](./elements/cadmodel.md)
+- [`<capacitor />`](./elements/capacitor.md)
+- [`<chip />`](./elements/chip.md)
+- [`<connector />`](./elements/connector.md)
+- [`<constraint />`](./elements/constraint.md)
+- [`<copperpour />`](./elements/copperpour.md)
+- [`<coppertext />`](./elements/coppertext.md)
+- [`<courtyardcircle />`](./elements/courtyardcircle.md)
+- [`<courtyardoutline />`](./elements/courtyardoutline.md)
+- [`<courtyardpill />`](./elements/courtyardpill.md)
+- [`<courtyardrect />`](./elements/courtyardrect.md)
+- [`<crystal />`](./elements/crystal.md)
+- [`<currentsource />`](./elements/currentsource.md)
+- [`<cutout />`](./elements/cutout.md)
+- [`<diode />`](./elements/diode.md)
+- [`<fabricationnotedimension />`](./elements/fabricationnotedimension.md)
+- [`<fabricationnotepath />`](./elements/fabricationnotepath.md)
+- [`<fabricationnoterect />`](./elements/fabricationnoterect.md)
+- [`<fabricationnotetext />`](./elements/fabricationnotetext.md)
+- [`<fiducial />`](./elements/fiducial.md)
+- [`<footprint />`](./elements/footprint.md)
+- [`<fuse />`](./elements/fuse.md)
+- [`<group />`](./elements/group.md)
+- [`<hole />`](./elements/hole.md)
+- [`<inductor />`](./elements/inductor.md)
+- [`<jumper />`](./elements/jumper.md)
+- [`<led />`](./elements/led.md)
+- [`<mosfet />`](./elements/mosfet.md)
+- [`<mountedboard />`](./elements/mountedboard.md)
+- [`<net />`](./elements/net.md)
+- [`<netalias />`](./elements/netalias.md)
+- [`<netlabel />`](./elements/netlabel.md)
+- [`<opamp />`](./elements/opamp.md)
+- [`<panel />`](./elements/panel.md)
+- [`<pcbkeepout />`](./elements/pcbkeepout.md)
+- [`<pcbnotedimension />`](./elements/pcbnotedimension.md)
+- [`<pcbnoteline />`](./elements/pcbnoteline.md)
+- [`<pcbnotepath />`](./elements/pcbnotepath.md)
+- [`<pcbnoterect />`](./elements/pcbnoterect.md)
+- [`<pcbnotetext />`](./elements/pcbnotetext.md)
+- [`<pcbtrace />`](./elements/pcbtrace.md)
+- [`<pinheader />`](./elements/pinheader.md)
+- [`<pinout />`](./elements/pinout.md)
+- [`<platedhole />`](./elements/platedhole.md)
+- [`<port />`](./elements/port.md)
+- [`<potentiometer />`](./elements/potentiometer.md)
+- [`<pushbutton />`](./elements/pushbutton.md)
+- [`<resistor />`](./elements/resistor.md)
+- [`<resonator />`](./elements/resonator.md)
+- [`<schematicarc />`](./elements/schematicarc.md)
+- [`<schematicbox />`](./elements/schematicbox.md)
+- [`<schematiccell />`](./elements/schematiccell.md)
+- [`<schematiccircle />`](./elements/schematiccircle.md)
+- [`<schematicline />`](./elements/schematicline.md)
+- [`<schematicpath />`](./elements/schematicpath.md)
+- [`<schematicrect />`](./elements/schematicrect.md)
+- [`<schematicrow />`](./elements/schematicrow.md)
+- [`<schematicsection />`](./elements/schematicsection.md)
+- [`<schematictable />`](./elements/schematictable.md)
+- [`<schematictext />`](./elements/schematictext.md)
+- [`<silkscreencircle />`](./elements/silkscreencircle.md)
+- [`<silkscreenline />`](./elements/silkscreenline.md)
+- [`<silkscreenpath />`](./elements/silkscreenpath.md)
+- [`<silkscreenrect />`](./elements/silkscreenrect.md)
+- [`<silkscreentext />`](./elements/silkscreentext.md)
+- [`<smtpad />`](./elements/smtpad.md)
+- [`<solderjumper />`](./elements/solderjumper.md)
+- [`<subcircuit />`](./elements/subcircuit.md)
+- [`<subpanel />`](./elements/subpanel.md)
+- [`<switch />`](./elements/switch.md)
+- [`<symbol />`](./elements/symbol.md)
+- [`<testpoint />`](./elements/testpoint.md)
+- [`<trace />`](./elements/trace.md)
+- [`<tracehint />`](./elements/tracehint.md)
+- [`<transistor />`](./elements/transistor.md)
+- [`<via />`](./elements/via.md)
+- [`<voltageprobe />`](./elements/voltageprobe.md)
+- [`<voltagesource />`](./elements/voltagesource.md)

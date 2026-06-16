@@ -1,4 +1,0 @@
-interface:
-  display_name: "tscircuit"
-  short_description: "Create and review tscircuit electronics code and previews."
-  default_prompt: "Create a tscircuit preview for this circuit."
