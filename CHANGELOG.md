@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.3
+
+- Fix the exported `VERSION` constant in source and built package artifacts so it matches the published package manifest.
+
+## 0.6.2
+
+- Preserve `SourceOnly`, runtime ownership, source boundary, rail, source reference, and can-cap section metadata through schema-valid Circuit JSON source-property sidecars.
+- Represent multi-section can capacitors as ordinary capacitor source components grouped with Vessel DSP `source_group` metadata, and restore those groups on Circuit JSON import without treating generic groups or non-capacitors as can caps.
+- Include source-only R/C parts and deterministic metadata comments in SPICE source/reference exports.
+
 ## 0.6.1
 
 - Fix npm packaging so published tarballs build and ship `dist/` artifacts, omit `src/`, and keep all runtime export conditions pointed at compiled files.

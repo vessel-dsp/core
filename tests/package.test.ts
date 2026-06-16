@@ -60,6 +60,14 @@ async function readChangelog(): Promise<string> {
     return Bun.file(new URL('../CHANGELOG.md', import.meta.url)).text();
 }
 
+async function readCoreDistIndexJs(): Promise<string> {
+    return Bun.file(new URL('../packages/core/dist/index.js', import.meta.url)).text();
+}
+
+async function readCoreDistIndexDts(): Promise<string> {
+    return Bun.file(new URL('../packages/core/dist/index.d.ts', import.meta.url)).text();
+}
+
 function shouldScanRepositoryPath(path: string): boolean {
     return !(
         path.startsWith('.git/') ||
@@ -356,10 +364,14 @@ describe('release metadata', () => {
     test('pins the current package release and changelog entry', async () => {
         const core = await readPackageJson('core');
         const changelog = await readChangelog();
+        const distIndex = await readCoreDistIndexJs();
+        const distTypes = await readCoreDistIndexDts();
 
-        expect(core.version).toBe('0.6.1');
-        expect(VERSION).toBe('0.6.1');
-        expect(changelog).toStartWith('# Changelog\n\n## 0.6.1\n\n');
+        expect(core.version).toBe('0.6.3');
+        expect(VERSION).toBe('0.6.3');
+        expect(distIndex).toContain("export const VERSION = '0.6.3';");
+        expect(distTypes).toContain('export declare const VERSION = "0.6.3";');
+        expect(changelog).toStartWith('# Changelog\n\n## 0.6.3\n\n');
     });
 });
 
