@@ -14,7 +14,7 @@ export function serializeSpiceNetlist(doc: CircuitDocument): string {
     for (const entry of view.components) {
         const formatted = formatComponent(entry);
         if (formatted !== null) {
-            lines.push(formatted);
+            lines.push(...formatted);
         }
     }
 
@@ -26,18 +26,29 @@ export function serializeSpiceNetlist(doc: CircuitDocument): string {
     return `${lines.join('\n')}\n`;
 }
 
-function formatComponent(entry: NetlistComponent): string | null {
+function formatComponent(entry: NetlistComponent): readonly string[] | null {
     if (entry.spiceLetter === null) {
-        return `* ${entry.id} (${entry.kind}) skipped — needs subcircuit expansion`;
+        return [`* ${entry.id} (${entry.kind}) skipped — needs subcircuit expansion`];
     }
     const id = ensurePrefix(entry.id, entry.spiceLetter);
     const nodes = entry.nodes.join(' ');
     const tail = entry.model ?? entry.value?.raw ?? '';
     const extras = entry.extras.spiceExtras ?? '';
     const parts = [id, nodes, tail, extras].filter((s) => typeof s === 'string' && s.length > 0);
-    return parts.join(' ').trim();
+    return [...metadataCommentLines(entry), parts.join(' ').trim()];
 }
 
 function ensurePrefix(id: string, letter: string): string {
     return id.charAt(0).toUpperCase() === letter ? id : `${letter}${id}`;
+}
+
+function metadataCommentLines(entry: NetlistComponent): readonly string[] {
+    return Object.entries(entry.extras)
+        .filter(([key]) => key !== 'spiceExtras')
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, value]) => `* ${entry.id} ${key}=${formatMetadataCommentValue(value)}`);
+}
+
+function formatMetadataCommentValue(value: string): string {
+    return value.replace(/\s+/g, ' ').trim();
 }

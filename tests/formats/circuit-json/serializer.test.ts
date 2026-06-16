@@ -314,6 +314,140 @@ describe('serializeCircuitJsonDocument', () => {
         ]);
     });
 
+    test('exports source-only metadata sidecars and can-cap source groups', () => {
+        const doc = withParts([
+            makeComponent('C_MAIN_A', 'capacitor', [
+                ['a', 0, 0],
+                ['b', 0, 20],
+            ], {
+                C: '16uF',
+                SourceOnly: 'true',
+                RuntimeOwnership: 'source-reference',
+                CanCapGroupId: 'C_MAIN',
+                CanCapSection: 'A',
+                SourceBoundaryRole: 'reservoir-filter-section',
+                RailLabel: 'B+1',
+                SourcePartRef: 'C1A',
+            }),
+            makeComponent('R_SCREEN', 'resistor', [
+                ['a', 20, 0],
+                ['b', 40, 0],
+            ], {
+                R: '470 ohm',
+                SourceOnly: 'true',
+                RuntimeOwnership: 'source-reference',
+                SourceBoundaryRole: 'power-tube-screen-grid',
+            }),
+        ]);
+
+        const circuitJson = serializeCircuitJsonDocument(doc);
+
+        expect(recordsOfType(circuitJson.elements, 'source_group')).toEqual([
+            {
+                type: 'source_group',
+                source_group_id: 'source_group:vessel-dsp-can-cap:C_MAIN',
+                show_as_schematic_box: true,
+                name: 'C_MAIN',
+            },
+        ]);
+        expect(recordsOfType(circuitJson.elements, 'source_component')).toContainEqual({
+            type: 'source_component',
+            ftype: 'simple_capacitor',
+            source_component_id: 'source_component:C_MAIN_A',
+            source_group_id: 'source_group:vessel-dsp-can-cap:C_MAIN',
+            name: 'C_MAIN_A',
+            display_name: 'C_MAIN_A',
+            capacitance: 0.000016,
+            display_capacitance: '16uF',
+            display_value: '16uF',
+        });
+        expect(recordsOfType(circuitJson.elements, 'source_component')).toContainEqual({
+            type: 'source_component',
+            ftype: 'simple_resistor',
+            source_component_id: 'source_component:R_SCREEN',
+            name: 'R_SCREEN',
+            display_name: 'R_SCREEN',
+            resistance: 470,
+            display_resistance: '470 ohm',
+            display_value: '470 ohm',
+        });
+        expect(recordsOfType(circuitJson.elements, 'source_property_ignored_warning')).toEqual([
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:C_MAIN_A:SourceOnly',
+                source_component_id: 'source_component:C_MAIN_A',
+                property_name: 'SourceOnly',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"SourceOnly","value":"true"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:C_MAIN_A:RuntimeOwnership',
+                source_component_id: 'source_component:C_MAIN_A',
+                property_name: 'RuntimeOwnership',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"RuntimeOwnership","value":"source-reference"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:C_MAIN_A:CanCapSection',
+                source_component_id: 'source_component:C_MAIN_A',
+                property_name: 'CanCapSection',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"CanCapSection","value":"A"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:C_MAIN_A:SourceBoundaryRole',
+                source_component_id: 'source_component:C_MAIN_A',
+                property_name: 'SourceBoundaryRole',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"SourceBoundaryRole","value":"reservoir-filter-section"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:C_MAIN_A:RailLabel',
+                source_component_id: 'source_component:C_MAIN_A',
+                property_name: 'RailLabel',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"RailLabel","value":"B+1"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:C_MAIN_A:SourcePartRef',
+                source_component_id: 'source_component:C_MAIN_A',
+                property_name: 'SourcePartRef',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"SourcePartRef","value":"C1A"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:R_SCREEN:SourceOnly',
+                source_component_id: 'source_component:R_SCREEN',
+                property_name: 'SourceOnly',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"SourceOnly","value":"true"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:R_SCREEN:RuntimeOwnership',
+                source_component_id: 'source_component:R_SCREEN',
+                property_name: 'RuntimeOwnership',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"RuntimeOwnership","value":"source-reference"}',
+            },
+            {
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: 'vessel_dsp_property:source_component:R_SCREEN:SourceBoundaryRole',
+                source_component_id: 'source_component:R_SCREEN',
+                property_name: 'SourceBoundaryRole',
+                error_type: 'source_property_ignored_warning',
+                message: 'vessel-dsp-property-json:{"property":"SourceBoundaryRole","value":"power-tube-screen-grid"}',
+            },
+        ]);
+        expect(circuitJson.warnings).toEqual([]);
+    });
+
     test('wire-only nodes become nets with traces but warn when no exported ports reference them', () => {
         const doc = withParts([], [
             makeWire('w1', { x: 0, y: 0 }, { x: 20, y: 0 }),

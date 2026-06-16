@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { parseLtspiceAsc } from '../../../packages/core/src/formats/ltspice/parser';
 import { serializeLtspiceAsc } from '../../../packages/core/src/formats/ltspice/serializer';
 import { resolveConnectivity, getPinNode } from '../../../packages/core/src/model/connectivity';
+import { EMPTY_DOCUMENT, type CircuitDocument } from '../../../packages/core/src/model/types';
 
 const SIMPLE_ASC_URL = new URL('../../fixtures/asc/simple-rc.asc', import.meta.url);
 
@@ -29,5 +30,65 @@ describe('serializeLtspiceAsc', () => {
         expect(getPinNode(connectivity, { componentId: 'C1', terminalName: 'b' })).toBe(
             getPinNode(connectivity, { componentId: 'GND', terminalName: 't' }),
         );
+    });
+
+    test('source/reference export includes source-only R/C parts and metadata SYMATTRs', () => {
+        const doc: CircuitDocument = {
+            ...EMPTY_DOCUMENT,
+            components: [
+                {
+                    id: 'R_SCREEN',
+                    kind: 'resistor',
+                    name: 'R_SCREEN',
+                    origin: { x: 0, y: 0 },
+                    rotation: 0,
+                    flipped: false,
+                    terminals: [
+                        { name: 'a', position: { x: -10, y: 0 } },
+                        { name: 'b', position: { x: 10, y: 0 } },
+                    ],
+                    properties: {
+                        R: '470 ohm',
+                        SourceOnly: 'true',
+                        RuntimeOwnership: 'source-reference',
+                        SourceBoundaryRole: 'power-tube-screen-grid',
+                    },
+                    sourceTypeName: 'Circuit.Resistor',
+                },
+                {
+                    id: 'C_MAIN_A',
+                    kind: 'capacitor',
+                    name: 'C_MAIN_A',
+                    origin: { x: 40, y: 0 },
+                    rotation: 0,
+                    flipped: false,
+                    terminals: [
+                        { name: 'a', position: { x: 30, y: 0 } },
+                        { name: 'b', position: { x: 50, y: 0 } },
+                    ],
+                    properties: {
+                        C: '16uF',
+                        SourceOnly: 'true',
+                        RuntimeOwnership: 'source-reference',
+                        CanCapGroupId: 'C_MAIN',
+                        CanCapSection: 'A',
+                    },
+                    sourceTypeName: 'Circuit.Capacitor',
+                },
+            ],
+        };
+
+        const asc = serializeLtspiceAsc(doc);
+
+        expect(asc).toContain('SYMBOL res');
+        expect(asc).toContain('SYMATTR InstName R_SCREEN');
+        expect(asc).toContain('SYMATTR Value 470 ohm');
+        expect(asc).toContain('SYMATTR SourceOnly true');
+        expect(asc).toContain('SYMATTR RuntimeOwnership source-reference');
+        expect(asc).toContain('SYMATTR SourceBoundaryRole power-tube-screen-grid');
+        expect(asc).toContain('SYMBOL cap');
+        expect(asc).toContain('SYMATTR InstName C_MAIN_A');
+        expect(asc).toContain('SYMATTR CanCapGroupId C_MAIN');
+        expect(asc).toContain('SYMATTR CanCapSection A');
     });
 });

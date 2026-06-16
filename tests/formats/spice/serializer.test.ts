@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { parseSpiceNetlist } from '../../../packages/core/src/formats/spice/parser';
 import { serializeSpiceNetlist } from '../../../packages/core/src/formats/spice/serializer';
-import { EMPTY_DOCUMENT } from '../../../packages/core/src/model/types';
+import { EMPTY_DOCUMENT, type CircuitDocument } from '../../../packages/core/src/model/types';
 
 describe('serializeSpiceNetlist', () => {
     test('emits a placeholder comment when there is no title', () => {
@@ -44,5 +44,63 @@ describe('serializeSpiceNetlist', () => {
         expect(doc2.components.filter((c) => c.kind === 'resistor')).toHaveLength(1);
         expect(doc2.components.filter((c) => c.kind === 'capacitor')).toHaveLength(1);
         expect(doc2.components.filter((c) => c.kind === 'voltage-source')).toHaveLength(1);
+    });
+
+    test('source/reference export includes source-only R/C parts and deterministic metadata comments', () => {
+        const doc: CircuitDocument = {
+            ...EMPTY_DOCUMENT,
+            components: [
+                {
+                    id: 'R_SCREEN',
+                    kind: 'resistor',
+                    name: 'R_SCREEN',
+                    origin: { x: 0, y: 0 },
+                    rotation: 0,
+                    flipped: false,
+                    terminals: [
+                        { name: 'a', position: { x: 0, y: 0 } },
+                        { name: 'b', position: { x: 20, y: 0 } },
+                    ],
+                    properties: {
+                        R: '470 ohm',
+                        SourceOnly: 'true',
+                        RuntimeOwnership: 'source-reference',
+                        SourceBoundaryRole: 'power-tube-screen-grid',
+                    },
+                    sourceTypeName: 'Circuit.Resistor',
+                },
+                {
+                    id: 'C_MAIN_A',
+                    kind: 'capacitor',
+                    name: 'C_MAIN_A',
+                    origin: { x: 20, y: 20 },
+                    rotation: 0,
+                    flipped: false,
+                    terminals: [
+                        { name: 'a', position: { x: 20, y: 0 } },
+                        { name: 'b', position: { x: 20, y: 20 } },
+                    ],
+                    properties: {
+                        C: '16uF',
+                        SourceOnly: 'true',
+                        RuntimeOwnership: 'source-reference',
+                        CanCapGroupId: 'C_MAIN',
+                        CanCapSection: 'A',
+                    },
+                    sourceTypeName: 'Circuit.Capacitor',
+                },
+            ],
+        };
+
+        const text = serializeSpiceNetlist(doc);
+
+        expect(text).toMatch(/^\* R_SCREEN RuntimeOwnership=source-reference$/m);
+        expect(text).toMatch(/^\* R_SCREEN SourceBoundaryRole=power-tube-screen-grid$/m);
+        expect(text).toMatch(/^\* R_SCREEN SourceOnly=true$/m);
+        expect(text).toMatch(/^R_SCREEN \d+ \d+ 470 ohm$/m);
+        expect(text).toMatch(/^\* C_MAIN_A CanCapGroupId=C_MAIN$/m);
+        expect(text).toMatch(/^\* C_MAIN_A CanCapSection=A$/m);
+        expect(text).toMatch(/^\* C_MAIN_A SourceOnly=true$/m);
+        expect(text).toMatch(/^C_MAIN_A \d+ \d+ 16uF$/m);
     });
 });

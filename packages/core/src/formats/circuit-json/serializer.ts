@@ -42,6 +42,7 @@ export type CircuitJsonSourceComponent = Readonly<{
     type: 'source_component';
     source_component_id: string;
     name: string;
+    source_group_id?: string;
     ftype?: string;
     display_name?: string;
     display_value?: string;
@@ -83,6 +84,22 @@ export type CircuitJsonSourceTrace = Readonly<{
     display_name?: string;
 }>;
 
+export type CircuitJsonSourceGroup = Readonly<{
+    type: 'source_group';
+    source_group_id: string;
+    show_as_schematic_box?: boolean;
+    name?: string;
+}>;
+
+export type CircuitJsonSourcePropertyIgnoredWarning = Readonly<{
+    type: 'source_property_ignored_warning';
+    source_property_ignored_warning_id: string;
+    source_component_id: string;
+    property_name: string;
+    error_type: 'source_property_ignored_warning';
+    message: string;
+}>;
+
 export type CircuitJsonElement =
     AnyCircuitElement;
 
@@ -122,6 +139,7 @@ type SourceComponentRecord = Readonly<{
     componentId: string;
     name: string;
     ftype: string | null;
+    sourceGroupId: string | null;
     record: JsonRecord;
 }>;
 
@@ -140,6 +158,17 @@ type SchematicComponentRecord = Readonly<{
 type SchematicPortRecord = Readonly<{
     sourcePortId: string;
     center: Point;
+}>;
+
+type SourceGroupRecord = Readonly<{
+    sourceGroupId: string;
+    name: string | null;
+}>;
+
+type SourcePropertySidecar = Readonly<{
+    sourceComponentId: string;
+    propertyName: string;
+    value: PropertyValue;
 }>;
 
 type MutableComponentBuild = {
@@ -204,6 +233,10 @@ const SOURCE_ONLY_NET_NAME_KINDS: ReadonlySet<ComponentKind> = new Set<Component
     'named-wire',
 ]);
 
+const VESSEL_CAN_CAP_SOURCE_GROUP_PREFIX = 'source_group:vessel-dsp-can-cap:';
+const VESSEL_DSP_PROPERTY_JSON_PREFIX = 'vessel-dsp-property-json:';
+const VESSEL_DSP_PROPERTY_SIDECAR_ID_PREFIX = 'vessel_dsp_property:';
+
 const TSCIRCUIT_SCHEMATIC_COORD_SCALE = 0.02;
 const DEFAULT_SCHEMATIC_COMPONENT_SIZE = { width: 1.2, height: 0.8 };
 
@@ -219,6 +252,7 @@ export function serializeCircuitJsonDocument(
     const powerNodes = railNodeIds(doc, connectivity);
 
     const nets = sourceNetElements(connectivity, names, powerNodes);
+    const groups = sourceGroupElements(doc);
     const components: CircuitJsonSourceComponent[] = [];
     const ports: CircuitJsonSourcePort[] = [];
 
@@ -246,7 +280,8 @@ export function serializeCircuitJsonDocument(
     const traces = sourceTraceElements(connectivity, names, sourcePortIdsByNode, warnings);
     warnings.push(...sourceOnlyWarnings(doc, exportedComponentIds));
 
-    const sourceElements = [...sourceProjectMetadataElements(doc), ...nets, ...components, ...ports, ...traces];
+    const sidecars = sourcePropertySidecarElements(doc, exportedComponentIds);
+    const sourceElements = [...sourceProjectMetadataElements(doc), ...nets, ...groups, ...components, ...ports, ...traces, ...sidecars];
     return {
         elements: normalizeCircuitJsonElements([...sourceElements, ...schematicElements(doc, traces)]),
         warnings,
@@ -305,6 +340,8 @@ export function parseCircuitJsonDocument(
 
     const sourceComponents = new Map<string, SourceComponentRecord>();
     const sourcePorts = new Map<string, SourcePortRecord>();
+    const sourceGroups = new Map<string, SourceGroupRecord>();
+    const sourcePropertySidecars = new Map<string, SourcePropertySidecar[]>();
     const schematicComponents = new Map<string, SchematicComponentRecord>();
     const schematicPorts = new Map<string, SchematicPortRecord>();
     const sourceTraces: JsonRecord[] = [];
@@ -324,8 +361,34 @@ export function parseCircuitJsonDocument(
                     componentId: stripKnownPrefix(sourceComponentId, 'source_component:') ?? sanitizeId(stringField(record, 'name') ?? sourceComponentId),
                     name: stringField(record, 'name') ?? stripKnownPrefix(sourceComponentId, 'source_component:') ?? sourceComponentId,
                     ftype: stringField(record, 'ftype'),
+                    sourceGroupId: stringField(record, 'source_group_id'),
                     record,
                 });
+                break;
+            }
+            case 'source_group': {
+                const sourceGroupId = requiredStringField(record, 'source_group_id');
+                sourceGroups.set(sourceGroupId, {
+                    sourceGroupId,
+                    name: stringField(record, 'name'),
+                });
+                break;
+            }
+            case 'source_property_ignored_warning': {
+                const sidecar = vesselDspPropertySidecar(record);
+                if (sidecar === null) {
+                    warnings.push({
+                        code: 'circuit-json-source-property-ignored',
+                        message: `Circuit JSON source property "${stringField(record, 'property_name') ?? ''}" was ignored`,
+                    });
+                    break;
+                }
+                const existing = sourcePropertySidecars.get(sidecar.sourceComponentId);
+                if (existing === undefined) {
+                    sourcePropertySidecars.set(sidecar.sourceComponentId, [sidecar]);
+                } else {
+                    existing.push(sidecar);
+                }
                 break;
             }
             case 'source_port': {
@@ -394,7 +457,8 @@ export function parseCircuitJsonDocument(
 
     const componentBuilds = Array.from(sourceComponents.values()).map((sourceComponent, index) => {
         const ports = portsByComponent.get(sourceComponent.sourceComponentId) ?? [];
-        return buildComponentFromCircuitJson(sourceComponent, ports, schematicComponents, schematicPorts, index);
+        const sidecars = sourcePropertySidecars.get(sourceComponent.sourceComponentId) ?? [];
+        return buildComponentFromCircuitJson(sourceComponent, ports, schematicComponents, schematicPorts, sourceGroups, sidecars, index);
     });
     const components = componentBuilds.map((build) => build.component);
     const terminalPositions = terminalPositionMap(componentBuilds);
@@ -453,6 +517,26 @@ function sourceNetElements(
     }
 
     return elements;
+}
+
+function sourceGroupElements(doc: CircuitDocument): readonly CircuitJsonSourceGroup[] {
+    const byGroupId = new Map<string, CircuitJsonSourceGroup>();
+
+    for (const component of doc.components) {
+        const groupId = canCapGroupProperty(component);
+        if (groupId === null || byGroupId.has(groupId)) {
+            continue;
+        }
+        const packageName = firstStringProperty(component, ['CanCapPackageName', 'PackageName']);
+        byGroupId.set(groupId, {
+            type: 'source_group',
+            source_group_id: canCapSourceGroupId(groupId),
+            show_as_schematic_box: true,
+            name: packageName ?? groupId,
+        });
+    }
+
+    return Array.from(byGroupId.values());
 }
 
 function sourceComponentElement(
@@ -650,12 +734,102 @@ function sourceComponentElement(
 }
 
 function sourceComponentBase(component: Component): CircuitJsonSourceComponent {
+    const groupId = canCapGroupProperty(component);
     return {
         type: 'source_component',
         source_component_id: sourceComponentId(component.id),
         name: component.name,
         display_name: component.name,
+        ...(groupId === null ? {} : { source_group_id: canCapSourceGroupId(groupId) }),
     };
+}
+
+function canCapGroupProperty(component: Component): string | null {
+    if (component.kind !== 'capacitor') {
+        return null;
+    }
+    const value = propertyStringValue(component.properties.CanCapGroupId);
+    return value === null || value.trim().length === 0 ? null : value.trim();
+}
+
+function canCapSourceGroupId(groupId: string): string {
+    return `${VESSEL_CAN_CAP_SOURCE_GROUP_PREFIX}${groupId}`;
+}
+
+function canCapGroupIdFromSourceGroupId(sourceGroupId: string): string | null {
+    return stripKnownPrefix(sourceGroupId, VESSEL_CAN_CAP_SOURCE_GROUP_PREFIX);
+}
+
+function sourcePropertySidecarElements(
+    doc: CircuitDocument,
+    exportedComponentIds: ReadonlySet<string>,
+): readonly CircuitJsonSourcePropertyIgnoredWarning[] {
+    const sidecars: CircuitJsonSourcePropertyIgnoredWarning[] = [];
+    for (const component of doc.components) {
+        if (!exportedComponentIds.has(component.id)) {
+            continue;
+        }
+        const consumed = circuitJsonConsumedPropertyKeys(component);
+        for (const [propertyName, value] of Object.entries(component.properties)) {
+            if (consumed.has(propertyName)) {
+                continue;
+            }
+            const sourceComponentIdValue = sourceComponentId(component.id);
+            sidecars.push({
+                type: 'source_property_ignored_warning',
+                source_property_ignored_warning_id: `${VESSEL_DSP_PROPERTY_SIDECAR_ID_PREFIX}${sourceComponentIdValue}:${propertyName}`,
+                source_component_id: sourceComponentIdValue,
+                property_name: propertyName,
+                error_type: 'source_property_ignored_warning',
+                message: `${VESSEL_DSP_PROPERTY_JSON_PREFIX}${stableJsonStringify({
+                    property: propertyName,
+                    value,
+                })}`,
+            });
+        }
+    }
+    return sidecars;
+}
+
+function circuitJsonConsumedPropertyKeys(component: Component): ReadonlySet<string> {
+    const consumed = new Set<string>();
+    const quantityKey = quantityKeyForComponent(component.kind);
+    if (quantityKey !== null) {
+        for (const name of VALUE_PROPERTY_NAMES[quantityKey]) {
+            consumed.add(name);
+        }
+    }
+    for (const name of MODEL_PROPERTY_NAMES) {
+        consumed.add(name);
+    }
+    consumed.add('ftype');
+    if (canCapGroupProperty(component) !== null) {
+        consumed.add('CanCapGroupId');
+        consumed.add('CanCapPackageName');
+        consumed.add('PackageName');
+    }
+    return consumed;
+}
+
+function quantityKeyForComponent(kind: ComponentKind): QuantityKey | null {
+    switch (kind) {
+        case 'resistor':
+        case 'variable-resistor':
+        case 'potentiometer':
+            return 'resistance';
+        case 'capacitor':
+            return 'capacitance';
+        case 'inductor':
+            return 'inductance';
+        case 'voltage-source':
+        case 'battery':
+        case 'rail':
+            return 'voltage';
+        case 'current-source':
+            return 'current';
+        default:
+            return null;
+    }
 }
 
 function sourcePortElement(component: Component, terminalName: string): CircuitJsonSourcePort {
@@ -1142,6 +1316,41 @@ function checkedRecord(value: unknown): JsonRecord {
     return Object.fromEntries(Object.entries(value));
 }
 
+function vesselDspPropertySidecar(record: JsonRecord): SourcePropertySidecar | null {
+    const sourceComponentIdValue = stringField(record, 'source_component_id');
+    const propertyName = stringField(record, 'property_name');
+    const message = stringField(record, 'message');
+    if (sourceComponentIdValue === null || propertyName === null || message === null) {
+        return null;
+    }
+    if (!message.startsWith(VESSEL_DSP_PROPERTY_JSON_PREFIX)) {
+        return null;
+    }
+
+    const payload = parseJsonRecord(message.slice(VESSEL_DSP_PROPERTY_JSON_PREFIX.length));
+    if (payload === null || payload.property !== propertyName) {
+        return null;
+    }
+    const value = payload.value;
+    if (!isPropertyValue(value)) {
+        return null;
+    }
+    return {
+        sourceComponentId: sourceComponentIdValue,
+        propertyName,
+        value,
+    };
+}
+
+function parseJsonRecord(source: string): JsonRecord | null {
+    try {
+        const parsed: unknown = JSON.parse(source);
+        return isJsonRecord(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
 function stringField(record: JsonRecord, key: string): string | null {
     const value = record[key];
     return typeof value === 'string' ? value : null;
@@ -1185,6 +1394,46 @@ function sanitizeId(value: string): string {
     return sanitized.length > 0 ? sanitized : 'component';
 }
 
+function stableJsonStringify(value: unknown): string {
+    return JSON.stringify(stableJsonValue(value)) ?? 'null';
+}
+
+function stableJsonValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map(stableJsonValue);
+    }
+    if (!isJsonRecord(value)) {
+        return value;
+    }
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value).sort()) {
+        out[key] = stableJsonValue(value[key]);
+    }
+    return out;
+}
+
+function isPropertyValue(value: unknown): value is PropertyValue {
+    if (
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value))
+    ) {
+        return true;
+    }
+    if (Array.isArray(value)) {
+        return value.every(isPropertyValue);
+    }
+    if (!isJsonRecord(value)) {
+        return false;
+    }
+    return Object.values(value).every(isPropertyValue);
+}
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function terminalNameFromSourcePortId(sourcePortIdValue: string): string {
     const parsed = parseSourcePortId(sourcePortIdValue);
     return parsed?.terminalName ?? sanitizeId(sourcePortIdValue);
@@ -1210,6 +1459,8 @@ function buildComponentFromCircuitJson(
     ports: readonly SourcePortRecord[],
     schematicComponents: ReadonlyMap<string, SchematicComponentRecord>,
     schematicPorts: ReadonlyMap<string, SchematicPortRecord>,
+    sourceGroups: ReadonlyMap<string, SourceGroupRecord>,
+    sidecars: readonly SourcePropertySidecar[],
     index: number,
 ): MutableComponentBuild & { readonly component: Component } {
     const origin = schematicComponents.get(sourceComponent.sourceComponentId)?.center ?? synthesizedOrigin(index);
@@ -1217,6 +1468,8 @@ function buildComponentFromCircuitJson(
         name: port.terminalName,
         position: schematicPorts.get(port.sourcePortId)?.center ?? synthesizedTerminalPosition(origin, ports.length, portIndex),
     }));
+    const sidecarProperties = propertiesFromSidecars(sidecars);
+    const groupedProperties = canCapPropertiesFromSourceGroup(sourceComponent, sourceGroups, sidecarProperties);
     const component: Component = {
         id: sourceComponent.componentId,
         kind: kindFromCircuitJsonFtype(sourceComponent.ftype),
@@ -1225,10 +1478,50 @@ function buildComponentFromCircuitJson(
         rotation: 0,
         flipped: false,
         terminals,
-        properties: propertiesFromCircuitJsonComponent(sourceComponent.record),
+        properties: {
+            ...propertiesFromCircuitJsonComponent(sourceComponent.record),
+            ...sidecarProperties,
+            ...groupedProperties,
+        },
         sourceTypeName: sourceComponent.ftype === null ? 'circuit-json:source_component' : `circuit-json:${sourceComponent.ftype}`,
     };
     return { sourceComponent, ports, origin, terminals, component };
+}
+
+function propertiesFromSidecars(sidecars: readonly SourcePropertySidecar[]): Readonly<Record<string, PropertyValue>> {
+    const properties: Record<string, PropertyValue> = {};
+    for (const sidecar of sidecars) {
+        properties[sidecar.propertyName] = sidecar.value;
+    }
+    return properties;
+}
+
+function canCapPropertiesFromSourceGroup(
+    sourceComponent: SourceComponentRecord,
+    sourceGroups: ReadonlyMap<string, SourceGroupRecord>,
+    sidecarProperties: Readonly<Record<string, PropertyValue>>,
+): Readonly<Record<string, PropertyValue>> {
+    const sourceGroupId = sourceComponent.sourceGroupId;
+    if (sourceGroupId === null) {
+        return {};
+    }
+    if (kindFromCircuitJsonFtype(sourceComponent.ftype) !== 'capacitor') {
+        return {};
+    }
+
+    const discriminatorGroupId = canCapGroupIdFromSourceGroupId(sourceGroupId);
+    const hasCanCapSection = sidecarProperties.CanCapSection !== undefined;
+    if (discriminatorGroupId === null && !hasCanCapSection) {
+        return {};
+    }
+
+    const group = sourceGroups.get(sourceGroupId);
+    const fallbackGroupId = stripKnownPrefix(sourceGroupId, 'source_group:') ?? sourceGroupId;
+    const canCapGroupId = discriminatorGroupId ?? fallbackGroupId;
+    return {
+        CanCapGroupId: canCapGroupId,
+        ...(group?.name === null || group?.name === undefined ? {} : { CanCapPackageName: group.name }),
+    };
 }
 
 function synthesizedOrigin(index: number): Point {
