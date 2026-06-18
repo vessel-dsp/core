@@ -3,8 +3,8 @@ import { defineConfig } from "astro/config";
 import starlightTypeDoc, { typeDocSidebarGroup } from "starlight-typedoc";
 
 export default defineConfig({
-	site: "https://vessel-dsp.github.io/docs/",
-	base: "/docs",
+	site: "https://vessel-dsp.github.io/core/",
+	base: "/core",
 	srcDir: "./docs/src",
 	publicDir: "./docs/public",
 	outDir: "./gh-pages",

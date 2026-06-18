@@ -36,8 +36,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain("starlight");
 		expect(astroConfig).toContain("starlightTypeDoc");
 		expect(astroConfig).toContain("typeDocSidebarGroup");
-		expect(astroConfig).toContain('site: "https://vessel-dsp.github.io/docs/"');
-		expect(astroConfig).toContain('base: "/docs"');
+		expect(astroConfig).toContain('site: "https://vessel-dsp.github.io/core/"');
+		expect(astroConfig).toContain('base: "/core"');
 		expect(astroConfig).toContain('srcDir: "./docs/src"');
 		expect(astroConfig).toContain('publicDir: "./docs/public"');
 		expect(astroConfig).toContain('outDir: "./gh-pages"');
@@ -65,7 +65,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("@vessel-dsp/core");
 		expect(landingPage).toContain("@vessel-dsp/stompbox");
 		expect(landingPage).toContain("CircuitDocument");
-		expect(landingPage).toContain("/docs/reference/api/readme/");
+		expect(landingPage).toContain("/core/reference/api/readme/");
 		expect(landingPage).not.toMatch(/playground|workbench|custom editor/i);
 
 		const gettingStarted = readRepoFile("docs/src/content/docs/guides/getting-started.mdx");
@@ -90,17 +90,17 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("createStompboxAppearancePatch");
 		expect(stompboxPage).toContain("resolveStompboxAppearance");
 		expect(stompboxPage).toContain("createStompboxDrillTemplateSvgFromVdsp");
-		expect(stompboxPage).toContain("/docs/examples/stompbox-mxr-style-preview-top.svg");
-		expect(stompboxPage).toContain("/docs/examples/stompbox-mxr-style-preview.glb");
-		expect(stompboxPage).toContain("/docs/examples/stompbox-mxr-style-drill-template-preview.svg");
-		expect(stompboxPage).toContain("/docs/examples/stompbox-mxr-style-drill-layout.json");
+		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview-top.svg");
+		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview.glb");
+		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-template-preview.svg");
+		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-layout.json");
 		expect(stompboxPage).toContain('import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";');
-		expect(stompboxPage).toContain('<StompboxGlbViewer src="/docs/examples/stompbox-mxr-style-preview.glb"');
+		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb"');
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
 		expect(viewer).toContain("data-stompbox-glb-viewer");
-		expect(viewer).toContain('"three": "/docs/vendor/three/build/three.module.js"');
-		expect(viewer).toContain('src="/docs/stompbox-glb-viewer.js"');
+		expect(viewer).toContain('"three": "/core/vendor/three/build/three.module.js"');
+		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
 
 		const viewerRuntime = readRepoFile("docs/public/stompbox-glb-viewer.js");
 		expect(viewerRuntime).toContain('import * as THREE from "three";');
@@ -140,7 +140,7 @@ describe("GitHub Pages documentation site", () => {
 		const examplesPage = readRepoFile("docs/src/content/docs/examples/pro-co-rat.mdx");
 		expect(examplesPage).toContain("title: Pro Co Rat Schematic");
 		expect(examplesPage).toContain("tests/fixtures/schx/livespice-examples/Pro Co Rat.schx");
-		expect(examplesPage).toContain("/docs/examples/pro-co-rat-schematic.svg");
+		expect(examplesPage).toContain("/core/examples/pro-co-rat-schematic.svg");
 		expect(examplesPage).toContain("LM308");
 		expect(examplesPage).toContain("1N914");
 		expect(examplesPage).toContain("hard clipping");

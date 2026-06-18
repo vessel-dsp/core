@@ -50,10 +50,10 @@ document helpers when the caller has already parsed or edited a
 
 Generated docs examples are published at:
 
-- 2D preview SVG: `/docs/examples/stompbox-mxr-style-preview-top.svg`
-- 3D preview GLB: `/docs/examples/stompbox-mxr-style-preview.glb`
-- Drill-template preview SVG: `/docs/examples/stompbox-mxr-style-drill-template-preview.svg`
-- Drill-layout JSON: `/docs/examples/stompbox-mxr-style-drill-layout.json`
+- 2D preview SVG: `/core/examples/stompbox-mxr-style-preview-top.svg`
+- 3D preview GLB: `/core/examples/stompbox-mxr-style-preview.glb`
+- Drill-template preview SVG: `/core/examples/stompbox-mxr-style-drill-template-preview.svg`
+- Drill-layout JSON: `/core/examples/stompbox-mxr-style-drill-layout.json`
 
 ## Appearance customization
 
