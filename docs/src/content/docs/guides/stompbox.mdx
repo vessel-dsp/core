@@ -13,9 +13,9 @@ It stays headless. It must not import React, React DOM, Three.js, browser render
 
 - Drill-layout manifests.
 - Drill-template SVG strings for `preview` and A4 `print` modes.
-- Orthographic preview SVG views for `top`, `bottom`, `left`, and `right`.
+- Orthographic preview SVG views for `top`, `bottom`, `left`, `right`, and `back`.
 - Mesh-backed preview GLB bytes assembled from caller-provided CAD part GLBs and STEP companions.
-- Optional text or SVG decal metadata for brand, model, and sticker artwork.
+- Optional text, SVG, or image decal metadata for brand, model, and sticker artwork.
 
 ## Hardware profile boundary
 
@@ -97,6 +97,102 @@ const glb = createStompboxPreviewGlbFromVdsp(vdspSource, {
 
 Drill-template holes use fabrication clearance diameters from part profiles. Preview views and collision checks may use larger visible geometry such as jack rings, bushings, nuts, and bezels.
 
+## Stickers and decals
+
+Pass `decals` to preview and drill-template helpers when a frontend needs
+adjustable stickers. Decals can target the `top`, `left`, `right`, `back`, or
+`bottom` plane. Grid placement snaps every sticker to the center of a face-local
+cell, and `subgrid: 2` divides each column and row in half for tighter
+positioning while keeping alignment centered.
+
+Text decals carry editable text color plus `fontFamily`, so a consuming app can
+load the matching Google Font in its own page. SVG decals can use
+`currentColor` and a decal `color`. Image decals use caller-provided URLs or
+data URIs through `href`.
+
+```ts
+const decals = [
+	{
+		id: "brand-label",
+		kind: "text",
+		text: "FUZZ LAB",
+		face: "top",
+		color: "#2563eb",
+		fontFamily: '"Roboto", sans-serif',
+		placement: { kind: "grid", columns: 4, rows: 4, subgrid: 2, column: 4, row: 2 },
+		sizeMm: { widthMm: 28, heightMm: 7 },
+	},
+	{
+		id: "side-vector",
+		kind: "svg",
+		face: "left",
+		svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 5 H9" stroke="currentColor"/></svg>',
+		color: "#ef4444",
+		placement: { kind: "grid", columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+		sizeMm: { widthMm: 10, heightMm: 8 },
+	},
+	{
+		id: "back-image",
+		kind: "image",
+		face: "back",
+		href: "/artwork/sticker.png",
+		placement: { kind: "grid", columns: 4, rows: 1, subgrid: 2, column: 7, row: 1 },
+		sizeMm: { widthMm: 16, heightMm: 8 },
+	},
+] as const;
+
+const preview = createStompboxPreviewFromVdsp(vdspSource, {
+	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	decals,
+});
+```
+
+## 2D and 3D model previews
+
+Use `createStompboxPreviewSvgViewsFromVdsp()` or
+`createStompboxPreviewSvgViews()` when you need static 2D SVG views. Use
+`createStompboxPreviewGlbFromVdsp()` or `createStompboxPreviewGlb()` when a
+frontend needs model-backed 2D or interactive 3D preview.
+
+Keep Three.js in the consuming app. `@vessel-dsp/stompbox` creates the GLB bytes
+and metadata; the viewer loads that GLB, chooses a perspective or orthographic
+camera, renders decal metadata into textures, and applies display-only effects
+such as CAD-style linework. The GLB is in millimeters and includes stable node
+names such as `enclosure-box-1590b`, `part-knob-GAIN`, and
+`hole-backing-jack-IN`.
+
+The docs viewer uses an orthographic camera for the top preview and a
+perspective camera with orbit controls for the 3D preview. Pass
+`linework={true}` and `lineworkColor` to enable CAD-style border linework with
+Three.js `EdgesGeometry` after the GLB loads:
+
+```ts
+function addCadLinework(root: THREE.Object3D, lineworkColor = "#111827") {
+	const meshes: THREE.Mesh[] = [];
+	const material = new THREE.LineBasicMaterial({
+		color: new THREE.Color(lineworkColor),
+		transparent: true,
+		opacity: 0.85,
+		depthTest: true,
+		depthWrite: false,
+	});
+
+	root.traverse((object) => {
+		if (object instanceof THREE.Mesh && object.userData?.kind !== "decal") {
+			meshes.push(object);
+		}
+	});
+
+	for (const mesh of meshes) {
+		const edges = new THREE.EdgesGeometry(mesh.geometry, 35);
+		const lines = new THREE.LineSegments(edges, material);
+		lines.name = `${mesh.name || "mesh"}-cad-linework`;
+		lines.renderOrder = 30;
+		mesh.add(lines);
+	}
+}
+```
+
 ## Helper reference
 
 Use the `FromVdsp` helpers when your frontend is holding serialized `.vdsp`
@@ -126,7 +222,7 @@ demo MXR-style hardware profile with two large knobs and custom appearance color
 
 ### Orthographic GLB top preview
 
-<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" />
+<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" linework={true} lineworkColor="#0f172a" />
 
 This uses the generated GLB with an orthographic top camera, so side-mounted
 audio jacks and the 9V DC connector stay side-facing in the preview instead of
@@ -134,7 +230,7 @@ being redrawn as top-facing circles.
 
 ### 3D stompbox preview
 
-<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" />
+<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" linework={true} lineworkColor="#0f172a" />
 
 [Download the GLB preview](/core/examples/stompbox-mxr-style-preview.glb)
 
@@ -155,6 +251,9 @@ The SVG above is produced by `createStompboxDrillTemplateSvgFromVdsp()` in
 Use `appearance` when a frontend needs to recolor the stompbox, knobs, LED,
 labels, or drill-template ink without changing physical placement. Keep
 `state` for live control values such as knob position or LED on/off state.
+Knob pointer colors default to automatic contrast: light knob colors get a dark
+pointer, and dark knob colors get a light pointer. Set `indicatorColor` on a
+knob appearance when the pointer color needs to be explicit.
 
 ```ts
 import {
@@ -181,13 +280,13 @@ const appearance = {
 		centerDotColor: "#581c87",
 	},
 	defaults: {
-		knob: { color: "#111827", indicatorColor: "#f8fafc" },
+		knob: { color: "#111827" },
 		led: { color: "#ef4444", offColor: "#fee2e2" },
 		label: { color: "#111827" },
 	},
 	controls: {
 		GAIN: {
-			knob: { color: "#facc15", indicatorColor: "#111827" },
+			knob: { color: "#facc15" },
 			label: { text: "DRIVE", color: "#ffffff" },
 		},
 		LED1: {

@@ -24,6 +24,8 @@ function initStompboxViewer(viewer) {
 	const src = viewer.dataset.glbSrc;
 	const viewMode = viewer.dataset.viewMode === "top" ? "top" : "orbit";
 	const interactive = viewer.dataset.interactive !== "false";
+	const lineworkEnabled = viewer.dataset.linework === "true";
+	const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";
 	if (!(canvas instanceof HTMLCanvasElement) || src === undefined) {
 		return;
 	}
@@ -84,7 +86,7 @@ function initStompboxViewer(viewer) {
 				}
 				child.castShadow = false;
 				child.receiveShadow = true;
-				applyTextDecalMaterial(child);
+				applyDecalMaterial(child);
 				applyFlatAppearanceColorMaterial(child);
 				const materials = Array.isArray(child.material) ? child.material : [child.material];
 				for (const material of materials) {
@@ -96,6 +98,9 @@ function initStompboxViewer(viewer) {
 					}
 				}
 			});
+			if (lineworkEnabled) {
+				addCadLinework(model, lineworkColor);
+			}
 			modelRoot.add(model);
 			const aspect = Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
 			orthographicTopSize = frameModel(model, camera, controls, viewMode, aspect);
@@ -196,6 +201,34 @@ function frameOrthographicTopModel(model, camera, controls, aspect, enclosureSiz
 	return size;
 }
 
+function addCadLinework(root, lineworkColor = "#111827") {
+	const meshes = [];
+	const material = new THREE.LineBasicMaterial({
+		color: new THREE.Color(lineworkColor),
+		transparent: true,
+		opacity: 0.85,
+		depthTest: true,
+		depthWrite: false,
+	});
+
+	root.traverse((object) => {
+		if (object.isMesh && object.userData?.kind !== "decal") {
+			meshes.push(object);
+		}
+	});
+
+	for (const mesh of meshes) {
+		if (mesh.geometry === undefined) {
+			continue;
+		}
+		const edges = new THREE.EdgesGeometry(mesh.geometry, 35);
+		const lines = new THREE.LineSegments(edges, material);
+		lines.name = `${mesh.name || "mesh"}-cad-linework`;
+		lines.renderOrder = 30;
+		mesh.add(lines);
+	}
+}
+
 function findEnclosureFrame(model) {
 	let enclosure;
 	model.traverse((object) => {
@@ -239,13 +272,16 @@ function updateOrthographicTopFrustum(camera, size, aspect) {
 	camera.updateProjectionMatrix();
 }
 
-function applyTextDecalMaterial(mesh) {
+function applyDecalMaterial(mesh) {
 	const decal = mesh.userData;
-	if (decal?.kind !== "decal" || decal.decalKind !== "text" || typeof decal.text !== "string") {
+	if (decal?.kind !== "decal") {
 		return;
 	}
-	ensureTextDecalUv(mesh);
-	const texture = createTextDecalTexture(decal);
+	const texture = createDecalTexture(decal);
+	if (texture === undefined) {
+		return;
+	}
+	ensureDecalUv(mesh);
 	mesh.material = new THREE.MeshBasicMaterial({
 		map: texture,
 		transparent: true,
@@ -254,6 +290,19 @@ function applyTextDecalMaterial(mesh) {
 		toneMapped: false,
 	});
 	mesh.renderOrder = 20;
+}
+
+function createDecalTexture(decal) {
+	if (decal.decalKind === "text" && typeof decal.text === "string") {
+		return createTextDecalTexture(decal);
+	}
+	if (decal.decalKind === "svg" && typeof decal.svg === "string") {
+		return createImageDecalTexture(svgDataUri(colorizedSvg(decal.svg, decal.color)));
+	}
+	if (decal.decalKind === "image" && typeof decal.href === "string") {
+		return createImageDecalTexture(decal.href);
+	}
+	return undefined;
 }
 
 function applyFlatAppearanceColorMaterial(mesh) {
@@ -284,7 +333,7 @@ function flatAppearanceMaterial(material) {
 	return flatMaterial;
 }
 
-function ensureTextDecalUv(mesh) {
+function ensureDecalUv(mesh) {
 	if (mesh.geometry.getAttribute("uv") !== undefined) {
 		return;
 	}
@@ -314,8 +363,23 @@ function createTextDecalTexture(decal) {
 	return texture;
 }
 
+function createImageDecalTexture(href) {
+	const texture = new THREE.TextureLoader().load(href);
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.flipY = false;
+	return texture;
+}
+
 function textDecalFont(decal, pixelScale) {
 	const sizePx = Math.max(10, (decal.fontSizeMm ?? 3) * pixelScale);
 	const family = decal.fontFamily ?? "Arial, sans-serif";
 	return `600 ${sizePx}px ${family}`;
+}
+
+function svgDataUri(svg) {
+	return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function colorizedSvg(svg, color) {
+	return typeof color === "string" ? svg.replaceAll("currentColor", color) : svg;
 }

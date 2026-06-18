@@ -5,12 +5,16 @@ type Props = {
 	height?: string;
 	view?: "orbit" | "top";
 	interactive?: boolean;
+	linework?: boolean;
+	lineworkColor?: string;
 };
 
 const props = Astro.props;
 const src = props.src;
 const view = props.view ?? "orbit";
 const interactive = props.interactive ?? view !== "top";
+const linework = props.linework ?? false;
+const lineworkColor = props.lineworkColor ?? "#111827";
 const label = props.label ?? (
 	view === "top"
 		? "Orthographic top stompbox preview"
@@ -25,6 +29,8 @@ const height = props.height ?? "360px";
 	data-glb-src={src}
 	data-view-mode={view}
 	data-interactive={interactive ? "true" : "false"}
+	data-linework={linework ? "true" : "false"}
+	data-linework-color={lineworkColor}
 	style={`--stompbox-viewer-height: ${height};`}
 >
 	<canvas aria-label={label}></canvas>

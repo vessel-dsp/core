@@ -92,18 +92,36 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("createStompboxAppearancePatch");
 		expect(stompboxPage).toContain("resolveStompboxAppearance");
 		expect(stompboxPage).toContain("createStompboxDrillTemplateSvgFromVdsp");
+		expect(stompboxPage).toContain("Optional text, SVG, or image decal metadata");
+		expect(stompboxPage).toContain("Stickers and decals");
+		expect(stompboxPage).toContain('placement: { kind: "grid"');
+		expect(stompboxPage).toContain('kind: "image"');
+		expect(stompboxPage).toContain('face: "back"');
+		expect(stompboxPage).toContain('subgrid: 2');
+		expect(stompboxPage).toContain('fontFamily: \'"Roboto", sans-serif\'');
+		expect(stompboxPage).toContain("Google Font");
+		expect(stompboxPage).toContain("Knob pointer colors default to automatic contrast");
+		expect(stompboxPage).toContain("indicatorColor");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview.glb");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-template-preview.svg");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-layout.json");
 		expect(stompboxPage).toContain('import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";');
 		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top"');
 		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb"');
+		expect(stompboxPage).toContain('linework={true}');
+		expect(stompboxPage).toContain('lineworkColor="#0f172a"');
 		expect(stompboxPage).toContain("orthographic top camera");
+		expect(stompboxPage).toContain("CAD-style linework");
+		expect(stompboxPage).toContain("EdgesGeometry");
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
 		expect(viewer).toContain("data-stompbox-glb-viewer");
 		expect(viewer).toContain("data-view-mode");
 		expect(viewer).toContain("data-interactive");
+		expect(viewer).toContain("linework?: boolean;");
+		expect(viewer).toContain("lineworkColor?: string;");
+		expect(viewer).toContain("data-linework");
+		expect(viewer).toContain("data-linework-color");
 		expect(viewer).toContain('"three": "/core/vendor/three/build/three.module.js"');
 		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
 
@@ -114,15 +132,28 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("THREE.OrthographicCamera");
 		expect(viewerRuntime).toContain("frameOrthographicTopModel");
 		expect(viewerRuntime).toContain("findEnclosureFrame");
-		expect(viewerRuntime).toContain("applyTextDecalMaterial");
-		expect(viewerRuntime).toContain("ensureTextDecalUv");
+		expect(viewerRuntime).toContain("applyDecalMaterial");
+		expect(viewerRuntime).toContain("createDecalTexture");
+		expect(viewerRuntime).toContain('decal.decalKind === "svg"');
+		expect(viewerRuntime).toContain("createImageDecalTexture");
+		expect(viewerRuntime).toContain("decal.decalKind === \"image\"");
+		expect(viewerRuntime).toContain("ensureDecalUv");
 		expect(viewerRuntime).toContain("TEXT_DECAL_UVS");
 		expect(viewerRuntime).toContain("THREE.CanvasTexture");
+		expect(viewerRuntime).toContain("THREE.TextureLoader");
+		expect(viewerRuntime).toContain("colorizedSvg");
 		expect(viewerRuntime).toContain("texture.flipY = false");
 		expect(viewerRuntime).toContain("preserveDrawingBuffer: true");
 		expect(viewerRuntime).toContain("applyFlatAppearanceColorMaterial");
 		expect(viewerRuntime).toContain("renderColorMode");
 		expect(viewerRuntime).toContain("THREE.MeshBasicMaterial");
+		expect(viewerRuntime).toContain("addCadLinework");
+		expect(viewerRuntime).toContain('const lineworkEnabled = viewer.dataset.linework === "true";');
+		expect(viewerRuntime).toContain('const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";');
+		expect(viewerRuntime).toContain("if (lineworkEnabled)");
+		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
+		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
+		expect(viewerRuntime).toContain("THREE.LineSegments");
 
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.module.js"))).toBe(true);
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.core.js"))).toBe(true);
@@ -153,6 +184,8 @@ describe("GitHub Pages documentation site", () => {
 
 		const glb = readRepoBytes("docs/public/examples/stompbox-mxr-style-preview.glb");
 		expect(glb.subarray(0, 4).toString("utf8")).toBe("glTF");
+		expect(glb.includes(Buffer.from("knob-indicator-knob-GAIN"))).toBe(true);
+		expect(glb.includes(Buffer.from("knob-indicator-knob-LEVEL"))).toBe(true);
 	});
 
 	test("includes a Pro Co Rat schematic example backed by the LiveSPICE fixture", () => {

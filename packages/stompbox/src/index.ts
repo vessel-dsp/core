@@ -21,7 +21,7 @@ export const DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT = fileURLToPath(new URL('../a
 
 export type StompboxUnits = 'mm';
 export type StompboxPlacementProvenance = 'vdsp-declared' | 'auto-generated';
-export type StompboxFaceId = 'top' | 'left' | 'right' | 'back' | (string & {});
+export type StompboxFaceId = 'top' | 'bottom' | 'left' | 'right' | 'back' | (string & {});
 export type StompboxTemplateMode = 'preview' | 'print';
 export type StompboxStyleProfileId = 'mxr-style' | 'boss-style';
 
@@ -76,10 +76,22 @@ export type StompboxSize2 = Readonly<{
     heightMm: number;
 }>;
 
+export type StompboxDecalGridPlacement = Readonly<{
+    kind: 'grid';
+    columns: number;
+    rows: number;
+    subgrid?: number;
+    column: number;
+    row: number;
+}>;
+
+export type StompboxDecalPlacement = StompboxDecalGridPlacement;
+
 export type StompboxDecalInputCommon = Readonly<{
     id: string;
     face?: StompboxFaceId;
     centerMm?: StompboxPoint2;
+    placement?: StompboxDecalPlacement;
     sizeMm?: StompboxSize2;
     rotationDeg?: number;
 }>;
@@ -95,9 +107,17 @@ export type StompboxTextDecalInput = StompboxDecalInputCommon & Readonly<{
 export type StompboxSvgDecalInput = StompboxDecalInputCommon & Readonly<{
     kind: 'svg';
     svg: string;
+    color?: string;
 }>;
 
-export type StompboxDecalInput = StompboxTextDecalInput | StompboxSvgDecalInput;
+export type StompboxImageDecalInput = StompboxDecalInputCommon & Readonly<{
+    kind: 'image';
+    href: string;
+    mimeType?: string;
+    color?: string;
+}>;
+
+export type StompboxDecalInput = StompboxTextDecalInput | StompboxSvgDecalInput | StompboxImageDecalInput;
 
 export type StompboxAssetRefs = Readonly<{
     glbRelativePath: string;
@@ -428,6 +448,7 @@ export type StompboxPreviewDecalCommon = Readonly<{
     id: string;
     face: StompboxFaceId;
     centerMm: StompboxPoint2;
+    placement?: StompboxDecalPlacement;
     sizeMm: StompboxSize2;
     rotationDeg: number;
 }>;
@@ -443,9 +464,17 @@ export type StompboxPreviewTextDecal = StompboxPreviewDecalCommon & Readonly<{
 export type StompboxPreviewSvgDecal = StompboxPreviewDecalCommon & Readonly<{
     kind: 'svg';
     svg: string;
+    color?: string;
 }>;
 
-export type StompboxPreviewDecal = StompboxPreviewTextDecal | StompboxPreviewSvgDecal;
+export type StompboxPreviewImageDecal = StompboxPreviewDecalCommon & Readonly<{
+    kind: 'image';
+    href: string;
+    mimeType?: string;
+    color?: string;
+}>;
+
+export type StompboxPreviewDecal = StompboxPreviewTextDecal | StompboxPreviewSvgDecal | StompboxPreviewImageDecal;
 
 export type StompboxPreviewEnclosure = Omit<StompboxEnclosureProfile, 'assets'> & Readonly<{
     assets: ResolvedStompboxAssetPaths;
@@ -462,7 +491,7 @@ export type StompboxPreview = Readonly<{
     diagnostics: readonly StompboxDiagnostic[];
 }>;
 
-export type StompboxPreviewSvgViewId = 'top' | 'bottom' | 'left' | 'right';
+export type StompboxPreviewSvgViewId = 'top' | 'bottom' | 'left' | 'right' | 'back';
 
 export type StompboxPreviewSvgViews = Readonly<{
     schema: 'stompbox-preview-svg-views/v1';
@@ -619,6 +648,8 @@ const STOMPBOX_LARGE_KNOB_DIAMETER_MM = 20;
 const STOMPBOX_SMALL_KNOB_DIAMETER_MM = 14.5;
 const STOMPBOX_LARGE_KNOB_MIN_PITCH_MM = 25;
 const STOMPBOX_HOLE_BACKING_OUTSET_MM = 0.12;
+const STOMPBOX_KNOB_INDICATOR_OUTSET_MM = 0.16;
+const STOMPBOX_DECAL_OUTSET_MM = 0.2;
 const STOMPBOX_1590B_MIN_WIDTH_MM = 55;
 
 export const DEMO_STOMPBOX_PART_CATALOG: StompboxPartProfileCatalog = {
@@ -923,7 +954,7 @@ export function createStompboxPreview(
         previewPartForHole(hole, drillLayout.enclosure, controlMetadata.get(hole.controlId ?? ''), options.state, resolveOptions, options.appearance)
     );
     const decals = [
-        ...normalizeDecals(options.decals),
+        ...normalizeDecals(options.decals, drillLayout.enclosure),
         ...controlLabelDecals(drillLayout, options.styleProfile ?? DEFAULT_DEMO_STOMPBOX_STYLE_PROFILE_ID, options.appearance),
     ];
     const enclosureMaterial = materialWithValues(options.appearance?.enclosure);
@@ -1020,7 +1051,7 @@ export function createStompboxDrillTemplate(
     options: StompboxDrillTemplateOptions,
 ): StompboxDrillTemplate {
     const previewCanvas = unfoldedDrillTemplateSize(layout.enclosure);
-    const decals = normalizeDecals(options.decals);
+    const decals = normalizeDecals(options.decals, layout.enclosure);
     if (options.mode === 'print') {
         const page: StompboxDrillTemplatePage = {
             paper: 'A4',
@@ -1111,6 +1142,7 @@ export function createStompboxPreviewSvgViews(
             bottom: previewViewSvg(preview, 'bottom'),
             left: previewViewSvg(preview, 'left'),
             right: previewViewSvg(preview, 'right'),
+            back: previewViewSvg(preview, 'back'),
         },
         diagnostics: preview.diagnostics,
     };
@@ -1648,8 +1680,11 @@ function previewPartForHole(
     };
 }
 
-function normalizeDecals(decals: readonly StompboxDecalInput[] | undefined): readonly StompboxPreviewDecal[] {
-    return decals?.map((decal) => normalizeDecal(decal)) ?? [];
+function normalizeDecals(
+    decals: readonly StompboxDecalInput[] | undefined,
+    enclosure: StompboxEnclosureProfile,
+): readonly StompboxPreviewDecal[] {
+    return decals?.map((decal) => normalizeDecal(decal, enclosure)) ?? [];
 }
 
 function controlLabelDecals(
@@ -1809,12 +1844,15 @@ function decalIdSegment(value: string): string {
     return value.trim().replace(/[^A-Za-z0-9_.:-]+/g, '-') || 'control';
 }
 
-function normalizeDecal(decal: StompboxDecalInput): StompboxPreviewDecal {
+function normalizeDecal(decal: StompboxDecalInput, enclosure: StompboxEnclosureProfile): StompboxPreviewDecal {
+    const face = decal.face ?? 'top';
     const sizeMm = decal.sizeMm ?? defaultDecalSize(decal.kind);
+    const placement = decal.placement === undefined ? undefined : normalizeDecalPlacement(decal.placement);
     const common = {
         id: decal.id,
-        face: decal.face ?? 'top',
-        centerMm: decal.centerMm ?? { x: 0, y: 0 },
+        face,
+        centerMm: decalCenterMm(decal.centerMm, placement, face, enclosure),
+        ...(placement === undefined ? {} : { placement }),
         sizeMm,
         rotationDeg: decal.rotationDeg ?? 0,
     };
@@ -1828,10 +1866,20 @@ function normalizeDecal(decal: StompboxDecalInput): StompboxPreviewDecal {
             fontSizeMm: roundMillimeters(decal.fontSizeMm ?? sizeMm.heightMm * 0.65),
         };
     }
+    if (decal.kind === 'image') {
+        return {
+            ...common,
+            kind: 'image',
+            href: decal.href,
+            ...(decal.mimeType === undefined ? {} : { mimeType: decal.mimeType }),
+            ...(decal.color === undefined ? {} : { color: decal.color }),
+        };
+    }
     return {
         ...common,
         kind: 'svg',
         svg: decal.svg,
+        ...(decal.color === undefined ? {} : { color: decal.color }),
     };
 }
 
@@ -1840,6 +1888,69 @@ function defaultDecalSize(kind: StompboxDecalInput['kind']): StompboxSize2 {
         return { widthMm: 36, heightMm: 8 };
     }
     return { widthMm: 24, heightMm: 16 };
+}
+
+function normalizeDecalPlacement(placement: StompboxDecalPlacement): StompboxDecalPlacement {
+    if (placement.kind === 'grid') {
+        const columns = positiveGridInteger(placement.columns);
+        const rows = positiveGridInteger(placement.rows);
+        const subgrid = positiveGridInteger(placement.subgrid ?? 1);
+        return {
+            kind: 'grid',
+            columns,
+            rows,
+            subgrid,
+            column: clampGridInteger(placement.column, columns * subgrid),
+            row: clampGridInteger(placement.row, rows * subgrid),
+        };
+    }
+    return placement;
+}
+
+function positiveGridInteger(value: number): number {
+    return Math.max(1, Math.trunc(Number.isFinite(value) ? value : 1));
+}
+
+function clampGridInteger(value: number, max: number): number {
+    return Math.min(Math.max(positiveGridInteger(value), 1), Math.max(1, max));
+}
+
+function decalCenterMm(
+    centerMm: StompboxPoint2 | undefined,
+    placement: StompboxDecalPlacement | undefined,
+    face: StompboxFaceId,
+    enclosure: StompboxEnclosureProfile,
+): StompboxPoint2 {
+    if (placement?.kind === 'grid') {
+        return decalGridCenterMm(placement, decalFaceSize(face, enclosure));
+    }
+    return centerMm ?? { x: 0, y: 0 };
+}
+
+function decalGridCenterMm(
+    placement: StompboxDecalGridPlacement,
+    faceSize: StompboxSize2,
+): StompboxPoint2 {
+    const subgrid = positiveGridInteger(placement.subgrid ?? 1);
+    const columns = positiveGridInteger(placement.columns) * subgrid;
+    const rows = positiveGridInteger(placement.rows) * subgrid;
+    const column = clampGridInteger(placement.column, columns);
+    const row = clampGridInteger(placement.row, rows);
+    return {
+        x: roundMillimeters(-faceSize.widthMm / 2 + faceSize.widthMm * ((column - 0.5) / columns)),
+        y: roundMillimeters(faceSize.heightMm / 2 - faceSize.heightMm * ((row - 0.5) / rows)),
+    };
+}
+
+function decalFaceSize(face: StompboxFaceId, enclosure: StompboxEnclosureProfile): StompboxSize2 {
+    const { widthMm, lengthMm, depthMm } = enclosure.dimensionsMm;
+    if (face === 'left' || face === 'right') {
+        return { widthMm: depthMm, heightMm: lengthMm };
+    }
+    if (face === 'back' || face === 'bottom') {
+        return { widthMm, heightMm: depthMm };
+    }
+    return { widthMm, heightMm: lengthMm };
 }
 
 function materialForPart(
@@ -1878,12 +1989,12 @@ function partAppearanceFor(
     }
     const key = partAppearanceKey(hole.partFamily);
     const controlAppearance = hole.controlId === undefined ? undefined : appearance.controls?.[hole.controlId]?.[key];
-    return mergeMaterials(
+    return materialWithFamilyDefaults(hole.partFamily, mergeMaterials(
         appearance.defaults?.[key],
         controlAppearance,
         appearance.parts?.[hole.id],
         appearance.parts?.[`part-${hole.id}`],
-    );
+    ));
 }
 
 function previewPartAppearanceFor(
@@ -1895,12 +2006,12 @@ function previewPartAppearanceFor(
     }
     const key = partAppearanceKey(part.family);
     const controlAppearance = part.controlId === undefined ? undefined : appearance.controls?.[part.controlId]?.[key];
-    return mergeMaterials(
+    return materialWithFamilyDefaults(part.family, mergeMaterials(
         appearance.defaults?.[key],
         controlAppearance,
         appearance.parts?.[part.id],
         appearance.parts?.[`part-${part.id}`],
-    );
+    ));
 }
 
 function partAppearanceKey(family: StompboxPartProfile['family']): 'knob' | 'led' | 'footswitch' | 'audioJack' | 'dcJack' {
@@ -1959,6 +2070,55 @@ function mergeMaterials(...materials: readonly (StompboxPreviewMaterial | undefi
     return Object.keys(merged).length === 0 ? undefined : merged;
 }
 
+function materialWithFamilyDefaults(
+    family: StompboxPartProfile['family'],
+    material: StompboxPreviewMaterial | undefined,
+): StompboxPreviewMaterial | undefined {
+    if (family !== 'knob' || material?.color === undefined || material.indicatorColor !== undefined) {
+        return material;
+    }
+    const indicatorColor = contrastKnobIndicatorColor(material.color);
+    return indicatorColor === undefined
+        ? material
+        : mergeMaterials(material, { indicatorColor });
+}
+
+function contrastKnobIndicatorColor(color: string): string | undefined {
+    const rgb = parseHexRgb(color);
+    if (rgb === undefined) {
+        return undefined;
+    }
+    const luminance = relativeLuminance(rgb);
+    return luminance > 0.179 ? '#111827' : '#f8fafc';
+}
+
+function parseHexRgb(color: string): readonly [number, number, number] | undefined {
+    const match = /^#([0-9a-f]{6})$/i.exec(color);
+    if (match?.[1] === undefined) {
+        return undefined;
+    }
+    const value = match[1];
+    return [
+        Number.parseInt(value.slice(0, 2), 16),
+        Number.parseInt(value.slice(2, 4), 16),
+        Number.parseInt(value.slice(4, 6), 16),
+    ];
+}
+
+function relativeLuminance(rgb: readonly [number, number, number]): number {
+    const red = relativeLuminanceChannel(rgb[0]);
+    const green = relativeLuminanceChannel(rgb[1]);
+    const blue = relativeLuminanceChannel(rgb[2]);
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function relativeLuminanceChannel(channel: number): number {
+    const normalized = channel / 255;
+    return normalized <= 0.03928
+        ? normalized / 12.92
+        : ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
 function materialWithValues(material: StompboxPreviewMaterial | undefined): StompboxPreviewMaterial | undefined {
     return mergeMaterials(material);
 }
@@ -2010,6 +2170,9 @@ function baseRotationForFace(face: StompboxFaceId): StompboxRotationDeg {
     }
     if (face === 'back') {
         return { x: -90, y: 0, z: 0 };
+    }
+    if (face === 'bottom') {
+        return { x: 90, y: 0, z: 0 };
     }
     return { x: 0, y: 0, z: 0 };
 }
@@ -2414,7 +2577,7 @@ function drillTemplateDecalOutlineSvg(
     layout: DrillTemplateOutsideLayout,
     enclosure: StompboxEnclosureProfile,
 ): string {
-    const center = drillTemplateCenterForPlacement(decal.face, decal.centerMm, layout, enclosure);
+    const center = drillTemplateCenterForDecal(decal.face, decal.centerMm, layout, enclosure);
     return [
         `<g ${svgAttributes([
             ['data-decal-outline', true],
@@ -2475,7 +2638,7 @@ function previewViewSvg(preview: StompboxPreview, view: StompboxPreviewSvgViewId
         .join('');
     const decals = preview.decals
         .filter((decal) => decalVisibleInView(decal, view))
-        .map((decal) => previewDecalSvg(preview, decal, view, canvas))
+        .map((decal) => previewDecalSvg(decal, canvas))
         .join('');
     return [
         `<svg ${attrs}>`,
@@ -2497,6 +2660,12 @@ function previewViewCanvas(
         return {
             widthMm: preview.enclosure.dimensionsMm.depthMm,
             heightMm: preview.enclosure.dimensionsMm.lengthMm,
+        };
+    }
+    if (view === 'back' || view === 'bottom') {
+        return {
+            widthMm: preview.enclosure.dimensionsMm.widthMm,
+            heightMm: preview.enclosure.dimensionsMm.depthMm,
         };
     }
     return {
@@ -2548,12 +2717,10 @@ function previewPartSvg(
 }
 
 function previewDecalSvg(
-    preview: StompboxPreview,
     decal: StompboxPreviewDecal,
-    view: StompboxPreviewSvgViewId,
     canvas: Readonly<{ widthMm: number; heightMm: number }>,
 ): string {
-    const point = previewPointForDecal(preview, decal, view, canvas);
+    const point = previewPointForDecal(decal, canvas);
     const bounds = decal.id.startsWith('label-')
         ? ''
         : `<rect class="decal-bounds" x="${svgNumber(-decal.sizeMm.widthMm / 2)}" y="${svgNumber(-decal.sizeMm.heightMm / 2)}" width="${svgNumber(decal.sizeMm.widthMm)}" height="${svgNumber(decal.sizeMm.heightMm)}" rx=".8"/>`;
@@ -2574,7 +2741,10 @@ function previewDecalContentSvg(decal: StompboxPreviewDecal): string {
     if (decal.kind === 'text') {
         return `<text class="label-text" x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="${escapeAttribute(decal.fontFamily)}" font-size="${svgNumber(decal.fontSizeMm)}" fill="${escapeAttribute(decal.color)}">${escapeText(decal.text)}</text>`;
     }
-    return `<image href="${escapeAttribute(svgDataUri(decal.svg))}" x="${svgNumber(-decal.sizeMm.widthMm / 2)}" y="${svgNumber(-decal.sizeMm.heightMm / 2)}" width="${svgNumber(decal.sizeMm.widthMm)}" height="${svgNumber(decal.sizeMm.heightMm)}" preserveAspectRatio="xMidYMid meet"/>`;
+    const href = decal.kind === 'svg'
+        ? svgDataUri(colorizedSvg(decal.svg, decal.color))
+        : decal.href;
+    return `<image href="${escapeAttribute(href)}" x="${svgNumber(-decal.sizeMm.widthMm / 2)}" y="${svgNumber(-decal.sizeMm.heightMm / 2)}" width="${svgNumber(decal.sizeMm.widthMm)}" height="${svgNumber(decal.sizeMm.heightMm)}" preserveAspectRatio="xMidYMid meet"/>`;
 }
 
 function previewPartShapeSvg(
@@ -2647,21 +2817,18 @@ function previewPointForPart(
 }
 
 function previewPointForDecal(
-    preview: StompboxPreview,
     decal: StompboxPreviewDecal,
-    view: StompboxPreviewSvgViewId,
     canvas: Readonly<{ widthMm: number; heightMm: number }>,
 ): StompboxPoint2 {
-    if (view === 'left' || view === 'right') {
-        return {
-            x: canvas.widthMm / 2,
-            y: canvas.heightMm / 2 - decal.centerMm.y,
-        };
-    }
+    const center = decalFaceLocalCenterMm(decal);
     return {
-        x: preview.enclosure.dimensionsMm.widthMm / 2 + decal.centerMm.x,
-        y: preview.enclosure.dimensionsMm.lengthMm / 2 - decal.centerMm.y,
+        x: canvas.widthMm / 2 + center.x,
+        y: canvas.heightMm / 2 - center.y,
     };
+}
+
+function decalUsesFaceLocalCoordinates(decal: StompboxPreviewDecal): boolean {
+    return decal.placement !== undefined || !decal.id.startsWith('label-');
 }
 
 function partVisibleInView(part: StompboxPreviewPart, view: StompboxPreviewSvgViewId): boolean {
@@ -2673,6 +2840,9 @@ function partVisibleInView(part: StompboxPreviewPart, view: StompboxPreviewSvgVi
     }
     if (view === 'right') {
         return part.face === 'right';
+    }
+    if (view === 'back') {
+        return part.face === 'back';
     }
     return part.face === 'bottom';
 }
@@ -2686,6 +2856,9 @@ function decalVisibleInView(decal: StompboxPreviewDecal, view: StompboxPreviewSv
     }
     if (view === 'right') {
         return decal.face === 'right';
+    }
+    if (view === 'back') {
+        return decal.face === 'back';
     }
     return decal.face === 'bottom';
 }
@@ -2717,6 +2890,10 @@ function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions
         rootChildren.push(appendAssemblySource(state, source));
     }
     for (const part of preview.parts) {
+        const knobIndicator = appendKnobIndicatorForPart(state, part);
+        if (knobIndicator !== undefined) {
+            rootChildren.push(knobIndicator);
+        }
         const holeBacking = appendHoleBackingDiscForPart(state, part);
         if (holeBacking !== undefined) {
             rootChildren.push(holeBacking);
@@ -2883,15 +3060,45 @@ function previewDecalJson(decal: StompboxPreviewDecal): JsonObject {
             heightMm: decal.sizeMm.heightMm,
         },
         rotationDeg: decal.rotationDeg,
-        ...(decal.kind === 'text'
-            ? {
-                text: decal.text,
-                color: decal.color,
-                fontFamily: decal.fontFamily,
-                fontSizeMm: decal.fontSizeMm,
-            }
-            : { svg: decal.svg }),
+        ...(decal.placement === undefined ? {} : { placement: previewDecalPlacementJson(decal.placement) }),
+        ...previewDecalContentJson(decal),
     };
+}
+
+function previewDecalContentJson(decal: StompboxPreviewDecal): JsonObject {
+    if (decal.kind === 'text') {
+        return {
+            text: decal.text,
+            color: decal.color,
+            fontFamily: decal.fontFamily,
+            fontSizeMm: decal.fontSizeMm,
+        };
+    }
+    if (decal.kind === 'image') {
+        return {
+            href: decal.href,
+            ...(decal.mimeType === undefined ? {} : { mimeType: decal.mimeType }),
+            ...(decal.color === undefined ? {} : { color: decal.color }),
+        };
+    }
+    return {
+        svg: decal.svg,
+        ...(decal.color === undefined ? {} : { color: decal.color }),
+    };
+}
+
+function previewDecalPlacementJson(placement: StompboxDecalPlacement): JsonObject {
+    if (placement.kind === 'grid') {
+        return {
+            kind: 'grid',
+            columns: placement.columns,
+            rows: placement.rows,
+            ...(placement.subgrid === undefined ? {} : { subgrid: placement.subgrid }),
+            column: placement.column,
+            row: placement.row,
+        };
+    }
+    return {};
 }
 
 function appendDecalPlane(
@@ -2974,6 +3181,69 @@ function appendHoleBackingDiscForPart(
     return nodeIndex;
 }
 
+function appendKnobIndicatorForPart(
+    state: GltfMergeState,
+    part: StompboxPreviewPart,
+): number | undefined {
+    if (part.geometry.kind !== 'knob' || part.face !== 'top') {
+        return undefined;
+    }
+    const color = part.material?.indicatorColor
+        ?? contrastKnobIndicatorColor(part.material?.color ?? '#334155')
+        ?? '#f8fafc';
+    const materialIndex = state.materials.length;
+    state.materials.push({
+        name: `knob-indicator-${part.id}/material`,
+        doubleSided: true,
+        pbrMetallicRoughness: {
+            baseColorFactor: [...hexColorToRgb(color), 1],
+            metallicFactor: 0,
+            roughnessFactor: 0.8,
+        },
+        extras: {
+            kind: 'knob-indicator-material',
+            partId: part.id,
+            ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
+            color,
+        },
+    });
+
+    const meshIndex = state.meshes.length;
+    state.meshes.push({
+        name: `knob-indicator-${part.id}/rect`,
+        primitives: [{
+            attributes: { POSITION: appendKnobIndicatorPositionAccessor(state, part.geometry.diameterMm / 2) },
+            indices: appendDecalIndexAccessor(state),
+            material: materialIndex,
+            mode: 4,
+        }],
+    });
+
+    const nodeIndex = state.nodes.length;
+    state.nodes.push({
+        name: `knob-indicator-${part.id}`,
+        mesh: meshIndex,
+        translation: point3Array({
+            x: part.transform.translationMm.x,
+            y: part.transform.translationMm.y,
+            z: part.transform.translationMm.z + part.geometry.depthMm + STOMPBOX_KNOB_INDICATOR_OUTSET_MM,
+        }),
+        rotation: quaternionFromEulerDeg(part.transform.rotationDeg),
+        extras: {
+            kind: 'knob-indicator',
+            partId: part.id,
+            sourcePartId: part.partId,
+            ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
+            face: part.face,
+            color,
+            diameterMm: part.geometry.diameterMm,
+            depthMm: part.geometry.depthMm,
+            outsetMm: STOMPBOX_KNOB_INDICATOR_OUTSET_MM,
+        },
+    });
+    return nodeIndex;
+}
+
 function holeBackingMaterialIndex(state: GltfMergeState): number {
     const existingIndex = state.materials.findIndex((material) => material.name === 'hole-backing/material');
     if (existingIndex >= 0) {
@@ -3023,6 +3293,35 @@ function appendDiscPositionAccessor(state: GltfMergeState, radiusMm: number, zMm
         type: 'VEC3',
         min: [-radiusMm, -radiusMm, zMm],
         max: [radiusMm, radiusMm, zMm],
+    });
+    return accessorIndex;
+}
+
+function appendKnobIndicatorPositionAccessor(state: GltfMergeState, radiusMm: number): number {
+    const halfWidthMm = Math.max(0.45, Math.min(0.8, radiusMm * 0.07));
+    const outerY = -Math.max(1.4, radiusMm - 2);
+    const innerY = -Math.max(0.9, radiusMm * 0.22);
+    const positions = new Float32Array([
+        -halfWidthMm, outerY, 0,
+        halfWidthMm, outerY, 0,
+        halfWidthMm, innerY, 0,
+        -halfWidthMm, innerY, 0,
+    ]);
+    const bufferViewIndex = state.bufferViews.length;
+    state.bufferViews.push({
+        buffer: 0,
+        byteOffset: appendBinaryChunk(state, typedArrayBytes(positions)),
+        byteLength: positions.byteLength,
+        target: 34962,
+    });
+    const accessorIndex = state.accessors.length;
+    state.accessors.push({
+        bufferView: bufferViewIndex,
+        componentType: 5126,
+        count: 4,
+        type: 'VEC3',
+        min: [-halfWidthMm, outerY, 0],
+        max: [halfWidthMm, innerY, 0],
     });
     return accessorIndex;
 }
@@ -3107,18 +3406,70 @@ function decalTransform(
     translationMm: StompboxPoint3;
     rotationDeg: StompboxRotationDeg;
 }> {
-    const translation = translationForFace(decal.face, decal.centerMm, enclosure);
-    const rotation = baseRotationForFace(decal.face);
+    const translation = decalTranslationForFace(decal, enclosure);
+    const rotation = decalBaseRotationForFace(decal.face);
     return {
-        translationMm: {
-            ...translation,
-            z: translation.z + 0.2,
-        },
+        translationMm: translation,
         rotationDeg: {
             ...rotation,
             z: rotation.z + decal.rotationDeg,
         },
     };
+}
+
+function decalTranslationForFace(
+    decal: StompboxPreviewDecal,
+    enclosure: StompboxPreviewEnclosure,
+): StompboxPoint3 {
+    const { widthMm, lengthMm, depthMm } = enclosure.dimensionsMm;
+    const center = decalFaceLocalCenterMm(decal);
+    if (decal.face === 'left') {
+        return {
+            x: -widthMm / 2 - STOMPBOX_DECAL_OUTSET_MM,
+            y: center.y,
+            z: center.x,
+        };
+    }
+    if (decal.face === 'right') {
+        return {
+            x: widthMm / 2 + STOMPBOX_DECAL_OUTSET_MM,
+            y: center.y,
+            z: center.x,
+        };
+    }
+    if (decal.face === 'back') {
+        return {
+            x: center.x,
+            y: lengthMm / 2 + STOMPBOX_DECAL_OUTSET_MM,
+            z: center.y,
+        };
+    }
+    if (decal.face === 'bottom') {
+        return {
+            x: center.x,
+            y: -lengthMm / 2 - STOMPBOX_DECAL_OUTSET_MM,
+            z: center.y,
+        };
+    }
+    return {
+        x: center.x,
+        y: center.y,
+        z: depthMm / 2 + STOMPBOX_DECAL_OUTSET_MM,
+    };
+}
+
+function decalBaseRotationForFace(face: StompboxFaceId): StompboxRotationDeg {
+    if (face === 'bottom') {
+        return { x: 90, y: 0, z: 0 };
+    }
+    return baseRotationForFace(face);
+}
+
+function decalFaceLocalCenterMm(decal: StompboxPreviewDecal): StompboxPoint2 {
+    if ((decal.face === 'left' || decal.face === 'right') && !decalUsesFaceLocalCoordinates(decal)) {
+        return { x: 0, y: decal.centerMm.y };
+    }
+    return decal.centerMm;
 }
 
 function hexColorToRgb(color: string): readonly [number, number, number] {
@@ -3571,6 +3922,10 @@ function svgDataUri(svg: string): string {
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+function colorizedSvg(svg: string, color: string | undefined): string {
+    return color === undefined ? svg : svg.replaceAll('currentColor', color);
+}
+
 function svgNumber(value: number): string {
     const rounded = Math.round(value * 1_000_000) / 1_000_000;
     if (Object.is(rounded, -0)) {
@@ -3636,6 +3991,48 @@ function drillTemplateCenterForPlacement(
         };
     }
 
+    const panel = layout.panels.top;
+    return {
+        x: panel.x + widthMm / 2 + centerMm.x,
+        y: panel.y + lengthMm / 2 - centerMm.y,
+    };
+}
+
+function drillTemplateCenterForDecal(
+    face: StompboxFaceId,
+    centerMm: StompboxPoint2,
+    layout: DrillTemplateOutsideLayout,
+    enclosure: StompboxEnclosureProfile,
+): StompboxPoint2 {
+    const { widthMm, lengthMm, depthMm } = enclosure.dimensionsMm;
+    if (face === 'left') {
+        const panel = layout.panels.left;
+        return {
+            x: panel.x + depthMm / 2 + centerMm.x,
+            y: panel.y + lengthMm / 2 - centerMm.y,
+        };
+    }
+    if (face === 'right') {
+        const panel = layout.panels.right;
+        return {
+            x: panel.x + depthMm / 2 + centerMm.x,
+            y: panel.y + lengthMm / 2 - centerMm.y,
+        };
+    }
+    if (face === 'back') {
+        const panel = layout.panels.back;
+        return {
+            x: panel.x + widthMm / 2 + centerMm.x,
+            y: panel.y + depthMm / 2 - centerMm.y,
+        };
+    }
+    if (face === 'bottom') {
+        const panel = layout.panels.bottom;
+        return {
+            x: panel.x + widthMm / 2 + centerMm.x,
+            y: panel.y + depthMm / 2 - centerMm.y,
+        };
+    }
     const panel = layout.panels.top;
     return {
         x: panel.x + widthMm / 2 + centerMm.x,

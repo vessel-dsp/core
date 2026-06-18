@@ -10,8 +10,9 @@ tools can display or save:
 - drill-template SVG strings in `preview` and A4 `print` modes;
 - mesh-backed stompbox preview GLB bytes assembled from caller-provided CAD
   part GLBs and STEP companions via `hardwareProfile` plus `basePath`;
-- orthographic preview SVG views for `top`, `bottom`, `left`, and `right`.
-- optional text or SVG decals for brand/model/custom sticker artwork.
+- orthographic preview SVG views for `top`, `bottom`, `left`, `right`, and
+  `back`;
+- optional text, SVG, or image decals for brand/model/custom sticker artwork.
 
 Applications own production part profiles, enclosure profiles, and asset roots.
 The package exports `DEMO_STOMPBOX_HARDWARE_PROFILE` and
@@ -29,11 +30,48 @@ generates deterministic `auto-generated` placements for knobs, status LED,
 bypass footswitch, input/output jacks, and the 9V connector. Set
 `includePowerJack: false` to omit the synthesized 9V connector.
 
-Pass `decals` to preview or drill-template helpers to place custom text or SVG
-artwork on the enclosure. Preview SVG views render the decal content on the box,
-preview GLB output includes decal plane nodes with text/SVG metadata, drill
-template preview mode shows only decal outlines, and A4 print mode places the
+Pass `decals` to preview or drill-template helpers to place custom text, SVG,
+or image artwork on the enclosure. Preview SVG views render the decal content
+on the box, preview GLB output includes decal plane nodes with sticker metadata,
+drill template preview mode shows decal outlines, and A4 print mode places the
 decals in a separate sticker sheet area.
+
+Decals can target the `top`, `left`, `right`, `back`, or `bottom` plane. Use
+`placement: { kind: "grid" }` when the sticker should snap to the center of a
+face grid cell. `subgrid: 2` divides each column and row in half, so `column`
+and `row` address those half-cells while alignment remains centered.
+
+```ts
+const decals = [
+  {
+    id: "brand-label",
+    kind: "text",
+    text: "FUZZ LAB",
+    face: "top",
+    color: "#2563eb",
+    fontFamily: '"Roboto", sans-serif',
+    placement: { kind: "grid", columns: 4, rows: 4, subgrid: 2, column: 4, row: 2 },
+    sizeMm: { widthMm: 28, heightMm: 7 },
+  },
+  {
+    id: "side-vector",
+    kind: "svg",
+    face: "left",
+    svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 5 H9" stroke="currentColor"/></svg>',
+    color: "#ef4444",
+    placement: { kind: "grid", columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+    sizeMm: { widthMm: 10, heightMm: 8 },
+  },
+  {
+    id: "back-image",
+    kind: "image",
+    face: "back",
+    href: "/artwork/sticker.png",
+    placement: { kind: "grid", columns: 4, rows: 1, subgrid: 2, column: 7, row: 1 },
+    sizeMm: { widthMm: 16, heightMm: 8 },
+  },
+] as const;
+```
 
 ## Helper map
 
@@ -127,12 +165,115 @@ The example above reads `/absolute/path/to/cad-assets/parts/my-knob.glb` and
 preview references; use `basePath` when assembling a GLB because the files are
 read from the filesystem.
 
+## 2D and 3D preview viewers
+
+For static 2D previews, use `createStompboxPreviewSvgViewsFromVdsp()` or
+`createStompboxPreviewSvgViews()` and display the returned `top`, `bottom`,
+`left`, `right`, or `back` SVG string directly in the consuming app.
+
+For model-backed 2D or interactive 3D previews, keep Three.js in the consuming
+app. `@vessel-dsp/stompbox` should only create the preview GLB bytes and
+metadata; the app can load that GLB, choose a camera, and add viewer-only
+effects such as CAD-style linework.
+
+```ts
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { createStompboxPreviewGlbFromVdsp } from "@vessel-dsp/stompbox";
+
+const assembly = createStompboxPreviewGlbFromVdsp(vdspSource, {
+  hardwareProfile,
+  basePath: "/absolute/path/to/cad-assets",
+});
+
+const previewUrl = URL.createObjectURL(
+  new Blob([assembly.bytes], { type: assembly.mimeType }),
+);
+const gltf = await new GLTFLoader().loadAsync(previewUrl);
+scene.add(gltf.scene);
+```
+
+Use a perspective camera and orbit controls for a 3D preview. For a 2D
+model-backed preview, use an orthographic camera aimed at the desired face.
+The assembled GLB uses millimeters and stable node names such as
+`enclosure-box-1590b`, `part-knob-GAIN`, and `hole-backing-jack-IN`, so the
+viewer can frame or select individual parts without parsing source documents.
+
+```ts
+function setTopPreviewCamera(
+  camera: THREE.OrthographicCamera,
+  dimensionsMm: { widthMm: number; lengthMm: number },
+) {
+  const marginMm = 12;
+
+  camera.left = -dimensionsMm.widthMm / 2 - marginMm;
+  camera.right = dimensionsMm.widthMm / 2 + marginMm;
+  camera.top = dimensionsMm.lengthMm / 2 + marginMm;
+  camera.bottom = -dimensionsMm.lengthMm / 2 - marginMm;
+  camera.near = 0.1;
+  camera.far = 500;
+  camera.position.set(0, 0, 220);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+}
+
+setTopPreviewCamera(camera, assembly.preview.enclosure.dimensionsMm);
+```
+
+To render CAD-style border linework, expose a viewer option such as `linework`
+and `lineworkColor`, then add an `EdgesGeometry` overlay after loading the GLB.
+This is a display-only effect and should not be written back into the stompbox
+artifact.
+
+```ts
+function addCadLinework(root: THREE.Object3D, lineworkColor = "#111827") {
+  const meshes: THREE.Mesh[] = [];
+  const material = new THREE.LineBasicMaterial({
+    color: new THREE.Color(lineworkColor),
+    transparent: true,
+    opacity: 0.85,
+    depthTest: true,
+  });
+
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+      meshes.push(object);
+    }
+  });
+
+  for (const object of meshes) {
+    if (!(object.geometry instanceof THREE.BufferGeometry)) continue;
+    const edges = new THREE.EdgesGeometry(object.geometry, 35);
+    const lines = new THREE.LineSegments(edges, material);
+
+    lines.name = `${object.name || "mesh"}-cad-linework`;
+    lines.renderOrder = 10;
+    object.add(lines);
+  }
+}
+
+const linework = true;
+const lineworkColor = "#0f172a";
+
+if (linework) {
+  addCadLinework(gltf.scene, lineworkColor);
+}
+```
+
+`LineBasicMaterial` is usually limited to one device pixel in WebGL. If the
+viewer needs heavier strokes, use Three.js `LineSegments2` and `LineMaterial`
+from `three/addons/lines` in the application layer.
+
 ## Appearance customization
 
 Pass `appearance` to preview, GLB, SVG-view, or drill-template helpers to style
 the generated artifacts without changing `.vdsp` placement data. `state` remains
 for live values such as knob position, LED on/off, and footswitch pressed state;
 `appearance` is for colors, label text, and material hints.
+Knob pointer colors default to automatic contrast: light knob colors get a dark
+pointer, and dark knob colors get a light pointer. Set `indicatorColor` on a
+knob appearance when the pointer color needs to be explicit.
 
 ```ts
 import {
@@ -152,13 +293,13 @@ const appearance = {
     centerDotColor: "#581c87",
   },
   defaults: {
-    knob: { color: "#111827", indicatorColor: "#f8fafc" },
+    knob: { color: "#111827" },
     led: { color: "#ef4444", offColor: "#fee2e2" },
     label: { color: "#111827" },
   },
   controls: {
     GAIN: {
-      knob: { color: "#facc15", indicatorColor: "#111827" },
+      knob: { color: "#facc15" },
       label: { text: "DRIVE", color: "#ffffff" },
     },
     LED1: {

@@ -80,6 +80,9 @@ type GltfExtras = Readonly<{
     svg?: string;
     glb?: string;
     step?: string;
+    partId?: string;
+    controlId?: string;
+    color?: string;
     sourceAssets?: readonly Readonly<{
         id?: string;
         glb?: string;
@@ -2061,6 +2064,199 @@ describe('stompbox preview manifest', () => {
             kind: 'text',
             text: 'OUTPUT',
             face: 'top',
+        }));
+    });
+
+    test('derives knob pointer color from knob body contrast when not explicitly set', () => {
+        const appearance = {
+            defaults: {
+                knob: { color: '#facc15' },
+            },
+            controls: {
+                LEVEL: {
+                    knob: { color: '#111827' },
+                },
+            },
+        } as const;
+        const preview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, {
+            appearance,
+        });
+        const views = createStompboxPreviewSvgViewsFromVdsp(vdspWithoutPhysicalPlacement, {
+            appearance,
+        });
+        const assembly = createStompboxPreviewGlbFromVdsp(vdspWithoutPhysicalPlacement, {
+            appearance,
+            basePath: DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+        });
+        const gltf = parseJsonChunkFromGlb(assembly.bytes);
+        const patch = createStompboxAppearancePatch(preview);
+
+        expect(preview.parts.find((part) => part.id === 'knob-GAIN')?.material).toEqual({
+            color: '#facc15',
+            indicatorColor: '#111827',
+        });
+        expect(preview.parts.find((part) => part.id === 'knob-LEVEL')?.material).toEqual({
+            color: '#111827',
+            indicatorColor: '#f8fafc',
+        });
+        expect(patch.parts['part-knob-GAIN']?.indicatorColor).toBe('#111827');
+        expect(patch.parts['part-knob-LEVEL']?.indicatorColor).toBe('#f8fafc');
+        expect(views.views.top).toContain('class="knob-indicator"');
+        expect(views.views.top).toContain('stroke="#111827"');
+        expect(views.views.top).toContain('stroke="#f8fafc"');
+        expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'part-knob-GAIN')?.extras).material).toEqual({
+            color: '#facc15',
+            indicatorColor: '#111827',
+        });
+        expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'part-knob-LEVEL')?.extras).material).toEqual({
+            color: '#111827',
+            indicatorColor: '#f8fafc',
+        });
+        const gainIndicatorNode = gltf.nodes?.find((node) => node.name === 'knob-indicator-knob-GAIN');
+        const gainIndicatorMaterial = gltf.materials?.find((material) => material.name === 'knob-indicator-knob-GAIN/material');
+        expect(gainIndicatorNode?.mesh).toBeDefined();
+        expect(gltfExtras(gainIndicatorNode?.extras)).toEqual(expect.objectContaining({
+            kind: 'knob-indicator',
+            partId: 'knob-GAIN',
+            controlId: 'GAIN',
+            color: '#111827',
+        }));
+        expect(gainIndicatorMaterial?.pbrMetallicRoughness?.baseColorFactor).toEqual([17 / 255, 24 / 255, 39 / 255, 1]);
+
+        const explicitPreview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, {
+            appearance: {
+                controls: {
+                    GAIN: {
+                        knob: { color: '#facc15', indicatorColor: '#ef4444' },
+                    },
+                },
+            },
+        });
+        expect(explicitPreview.parts.find((part) => part.id === 'knob-GAIN')?.material).toEqual({
+            color: '#facc15',
+            indicatorColor: '#ef4444',
+        });
+    });
+
+    test('places text, vector, and image stickers on the five enclosure planes with centered subgrid alignment', () => {
+        const decals = [
+            {
+                id: 'grid-top-label',
+                kind: 'text',
+                text: 'TOP',
+                face: 'top',
+                placement: { kind: 'grid', columns: 4, rows: 4, subgrid: 2, column: 3, row: 5 },
+                sizeMm: { widthMm: 18, heightMm: 6 },
+                color: '#2563eb',
+                fontFamily: '"Roboto", sans-serif',
+                fontSizeMm: 3.5,
+            },
+            {
+                id: 'grid-left-image',
+                kind: 'image',
+                href: 'data:image/png;base64,AAAA',
+                face: 'left',
+                placement: { kind: 'grid', columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+                sizeMm: { widthMm: 8, heightMm: 10 },
+            },
+            {
+                id: 'grid-right-vector',
+                kind: 'svg',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 5 H9" stroke="currentColor"/></svg>',
+                color: '#ef4444',
+                face: 'right',
+                placement: { kind: 'grid', columns: 2, rows: 4, subgrid: 2, column: 3, row: 3 },
+                sizeMm: { widthMm: 10, heightMm: 8 },
+            },
+            {
+                id: 'grid-back-label',
+                kind: 'text',
+                text: 'BACK',
+                face: 'back',
+                placement: { kind: 'grid', columns: 4, rows: 1, subgrid: 2, column: 8, row: 1 },
+                sizeMm: { widthMm: 16, heightMm: 5 },
+                color: '#0f172a',
+                fontFamily: '"Inter", sans-serif',
+            },
+            {
+                id: 'grid-bottom-label',
+                kind: 'text',
+                text: 'BOTTOM',
+                face: 'bottom',
+                placement: { kind: 'grid', columns: 4, rows: 2, subgrid: 2, column: 4, row: 3 },
+                sizeMm: { widthMm: 22, heightMm: 5 },
+                color: '#f97316',
+            },
+        ] as const;
+        const preview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, { decals });
+        const views = createStompboxPreviewSvgViewsFromVdsp(vdspWithoutPhysicalPlacement, { decals });
+        const templateSvg = createStompboxDrillTemplateSvgFromVdsp(vdspWithoutPhysicalPlacement, {
+            decals,
+            mode: 'preview',
+        });
+        const assembly = createStompboxPreviewGlbFromVdsp(vdspWithoutPhysicalPlacement, {
+            decals,
+            basePath: DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+        });
+        const gltf = parseJsonChunkFromGlb(assembly.bytes);
+
+        expect(preview.decals.find((decal) => decal.id === 'grid-top-label')).toEqual(expect.objectContaining({
+            kind: 'text',
+            face: 'top',
+            centerMm: { x: -11.344, y: -6.969 },
+            color: '#2563eb',
+            fontFamily: '"Roboto", sans-serif',
+            fontSizeMm: 3.5,
+            placement: { kind: 'grid', columns: 4, rows: 4, subgrid: 2, column: 3, row: 5 },
+        }));
+        expect(preview.decals.find((decal) => decal.id === 'grid-left-image')).toEqual(expect.objectContaining({
+            kind: 'image',
+            face: 'left',
+            centerMm: { x: -3.875, y: 20.906 },
+            href: 'data:image/png;base64,AAAA',
+        }));
+        expect(preview.decals.find((decal) => decal.id === 'grid-right-vector')).toEqual(expect.objectContaining({
+            kind: 'svg',
+            face: 'right',
+            centerMm: { x: 3.875, y: 20.906 },
+            color: '#ef4444',
+        }));
+        expect(preview.decals.find((decal) => decal.id === 'grid-back-label')).toEqual(expect.objectContaining({
+            face: 'back',
+            centerMm: { x: 26.469, y: 7.75 },
+        }));
+        expect(preview.decals.find((decal) => decal.id === 'grid-bottom-label')).toEqual(expect.objectContaining({
+            face: 'bottom',
+            centerMm: { x: -3.781, y: -3.875 },
+        }));
+
+        expect(views.views.top).toContain('data-decal-id="grid-top-label"');
+        expect(views.views.top).toContain('font-family="&quot;Roboto&quot;, sans-serif"');
+        expect(views.views.left).toContain('data-decal-id="grid-left-image"');
+        expect(views.views.left).toContain('transform="translate(11.625 34.844) rotate(0)"');
+        expect(views.views.left).toContain('href="data:image/png;base64,AAAA"');
+        expect(views.views.right).toContain('data-decal-id="grid-right-vector"');
+        expect(views.views.right).toContain('transform="translate(19.375 34.844) rotate(0)"');
+        expect(views.views.right).toContain('%23ef4444');
+        expect(views.views.back).toContain('data-view="back"');
+        expect(views.views.back).toContain('data-decal-id="grid-back-label"');
+        expect(views.views.back).toContain('transform="translate(56.719 7.75) rotate(0)"');
+        expect(views.views.bottom).toContain('data-decal-id="grid-bottom-label"');
+
+        expect(templateSvg).toContain('data-decal-id="grid-bottom-label"');
+        expect(templateSvg).toContain('data-decal-kind="image"');
+        expect(templateSvg).toContain('data-face="left"');
+
+        expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'decal-grid-left-image')?.extras)).toEqual(expect.objectContaining({
+            kind: 'decal',
+            decalKind: 'image',
+            face: 'left',
+            href: 'data:image/png;base64,AAAA',
+            placement: { kind: 'grid', columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+        }));
+        expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'decal-grid-right-vector')?.extras)).toEqual(expect.objectContaining({
+            decalKind: 'svg',
+            color: '#ef4444',
         }));
     });
 
