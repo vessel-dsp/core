@@ -433,6 +433,7 @@ describe('GitHub Pages workflow', () => {
         expect(workflow).toContain('name: Deploy documentation to GitHub Pages');
         expect(workflow).toContain('bun run build:pages');
         expect(workflow).toContain('path: gh-pages');
+        expect(workflow.indexOf('bun run build')).toBeLessThan(workflow.indexOf('bun test'));
         expect(workflow).not.toContain('build:playground');
         expect(workflow).not.toContain('vite');
         expect(workflow).not.toContain('playground');
