@@ -41,6 +41,13 @@
       "assets": {
         "glbRelativePath": "knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb",
         "stepRelativePath": "knob-mxr-style-fluted/tayda-a1829-tymf-b00.step"
+      },
+      "partFamily": "knob",
+      "partGeometry": {
+        "kind": "knob",
+        "diameterMm": 20,
+        "depthMm": 11.45,
+        "shaftDiameterMm": 6.35
       }
     },
     {
@@ -61,28 +68,44 @@
       "assets": {
         "glbRelativePath": "knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb",
         "stepRelativePath": "knob-mxr-style-fluted/tayda-a1829-tymf-b00.step"
+      },
+      "partFamily": "knob",
+      "partGeometry": {
+        "kind": "knob",
+        "diameterMm": 20,
+        "depthMm": 11.45,
+        "shaftDiameterMm": 6.35
       }
     },
     {
-      "id": "led-status",
+      "id": "led-LED1",
       "face": "top",
       "centerMm": {
         "x": 0,
         "y": -5.075
       },
-      "drillDiameterMm": 3.175,
-      "drillHoleProfileId": "three-mm-led-1-8",
-      "partId": "led-3mm-red-kento-5408urc",
-      "partLabel": "Kento 5408URC scaled 3 mm Red LED generated panel-visible CAD stub",
+      "drillDiameterMm": 7.9375,
+      "drillHoleProfileId": "metal-5mm-led-bezel-5-16",
+      "partId": "led-bezel-lh5",
+      "partLabel": "Pedal Parts and Kits BZL-5MM-P 5 mm Metal LED Bezel generated panel-visible CAD stub",
+      "controlId": "LED1",
+      "componentId": "LED1",
       "label": "Status",
       "provenance": "auto-generated",
       "assets": {
-        "glbRelativePath": "led-5mm-red-kento-5408urc/.kento-5408urc.step.glb",
-        "stepRelativePath": "led-5mm-red-kento-5408urc/kento-5408urc.step"
+        "glbRelativePath": "led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
+        "stepRelativePath": "led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step"
+      },
+      "partFamily": "led",
+      "partGeometry": {
+        "kind": "led-bezel",
+        "outerDiameterMm": 9.2,
+        "innerDiameterMm": 5,
+        "depthMm": 5.35
       }
     },
     {
-      "id": "switch-bypass",
+      "id": "switch-SW1",
       "face": "top",
       "centerMm": {
         "x": 0,
@@ -92,14 +115,25 @@
       "drillHoleProfileId": "dc-jack-3pdt-1-2",
       "partId": "switch-3pdt-pic-pbs24302",
       "partLabel": "PIC PBS24302 3PDT Latching Stomp Footswitch generated panel-visible CAD stub",
+      "controlId": "SW1",
+      "componentId": "SW1",
       "provenance": "auto-generated",
       "assets": {
         "glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
         "stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
+      },
+      "partFamily": "footswitch",
+      "partGeometry": {
+        "kind": "footswitch",
+        "buttonDiameterMm": 12,
+        "nutOuterDiameterMm": 18,
+        "ringHeightMm": 1.8,
+        "buttonHeightMm": 5.5,
+        "pressedTravelMm": 1.2
       }
     },
     {
-      "id": "jack-input",
+      "id": "jack-IN",
       "face": "right",
       "centerMm": {
         "x": 30.25,
@@ -109,15 +143,24 @@
       "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
       "partId": "jack-ts-pj629han",
       "partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm Mono Phone Jack generated exterior-ring CAD stub",
+      "controlId": "IN",
+      "componentId": "IN",
       "label": "Input",
       "provenance": "auto-generated",
       "assets": {
         "glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
         "stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+      },
+      "partFamily": "audio-jack",
+      "partGeometry": {
+        "kind": "ring",
+        "outerDiameterMm": 11,
+        "innerDiameterMm": 6.43,
+        "depthMm": 1.4
       }
     },
     {
-      "id": "jack-output",
+      "id": "jack-OUT",
       "face": "left",
       "centerMm": {
         "x": -30.25,
@@ -127,11 +170,20 @@
       "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
       "partId": "jack-ts-pj629han",
       "partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm Mono Phone Jack generated exterior-ring CAD stub",
+      "controlId": "OUT",
+      "componentId": "OUT",
       "label": "Output",
       "provenance": "auto-generated",
       "assets": {
         "glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
         "stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+      },
+      "partFamily": "audio-jack",
+      "partGeometry": {
+        "kind": "ring",
+        "outerDiameterMm": 11,
+        "innerDiameterMm": 6.43,
+        "depthMm": 1.4
       }
     },
     {
@@ -150,6 +202,13 @@
       "assets": {
         "glbRelativePath": "dc-socket-dc099/.dc099.step.glb",
         "stepRelativePath": "dc-socket-dc099/dc099.step"
+      },
+      "partFamily": "dc-jack",
+      "partGeometry": {
+        "kind": "ring",
+        "outerDiameterMm": 14.1,
+        "innerDiameterMm": 8,
+        "depthMm": 1.4
       }
     }
   ],
@@ -170,26 +229,30 @@
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"led-status\"",
-      "placementId": "led-status",
+      "message": "Auto-generated stompbox placement for \"led-LED1\"",
+      "controlId": "LED1",
+      "placementId": "led-LED1",
       "face": "top"
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"switch-bypass\"",
-      "placementId": "switch-bypass",
+      "message": "Auto-generated stompbox placement for \"switch-SW1\"",
+      "controlId": "SW1",
+      "placementId": "switch-SW1",
       "face": "top"
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"jack-input\"",
-      "placementId": "jack-input",
+      "message": "Auto-generated stompbox placement for \"jack-IN\"",
+      "controlId": "IN",
+      "placementId": "jack-IN",
       "face": "right"
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"jack-output\"",
-      "placementId": "jack-output",
+      "message": "Auto-generated stompbox placement for \"jack-OUT\"",
+      "controlId": "OUT",
+      "placementId": "jack-OUT",
       "face": "left"
     },
     {

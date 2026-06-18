@@ -8,6 +8,7 @@ import {
     validateCircuitJsonDocument,
 } from '@vessel-dsp/core';
 import {
+    DEMO_STOMPBOX_HARDWARE_PROFILE,
     createStompboxAppearancePatch,
     createStompboxDrillLayoutFromVdsp,
     createStompboxDrillTemplateFromVdsp,
@@ -236,6 +237,8 @@ describe('workspace package contract', () => {
         expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
         expect(typeof createStompboxAppearancePatch).toBe('function');
         expect(typeof resolveStompboxAppearance).toBe('function');
+        expect(DEMO_STOMPBOX_HARDWARE_PROFILE.id).toBe('demo-mxr-style');
+        expect(DEMO_STOMPBOX_HARDWARE_PROFILE.partProfiles).toBeDefined();
     });
 
     test('removed React and simulation packages are not workspace deliverables', async () => {
@@ -322,7 +325,7 @@ describe('workspace package contract', () => {
         }
     });
 
-    test('stompbox publishes bundled CAD assets for local preview assembly', async () => {
+    test('stompbox publishes demo CAD assets for example preview assembly', async () => {
         const pkg = await readPackageJson('stompbox');
         const files = Array.isArray(pkg.files) ? pkg.files : [];
 

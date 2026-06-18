@@ -84,21 +84,26 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("vdsp-declared");
 		expect(stompboxPage).toContain("auto-generated");
 		expect(stompboxPage).toContain("includePowerJack: false");
+		expect(stompboxPage).toContain("hardwareProfile");
+		expect(stompboxPage).toContain("DEMO_STOMPBOX_HARDWARE_PROFILE");
 		expect(stompboxPage).toContain("minPartClearanceMm");
 		expect(stompboxPage).toContain("placement-clearance");
 		expect(stompboxPage).toContain("createStompboxPreviewGlb");
 		expect(stompboxPage).toContain("createStompboxAppearancePatch");
 		expect(stompboxPage).toContain("resolveStompboxAppearance");
 		expect(stompboxPage).toContain("createStompboxDrillTemplateSvgFromVdsp");
-		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview-top.svg");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview.glb");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-template-preview.svg");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-layout.json");
 		expect(stompboxPage).toContain('import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";');
+		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top"');
 		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb"');
+		expect(stompboxPage).toContain("orthographic top camera");
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
 		expect(viewer).toContain("data-stompbox-glb-viewer");
+		expect(viewer).toContain("data-view-mode");
+		expect(viewer).toContain("data-interactive");
 		expect(viewer).toContain('"three": "/core/vendor/three/build/three.module.js"');
 		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
 
@@ -106,7 +111,18 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain('import * as THREE from "three";');
 		expect(viewerRuntime).toContain('import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";');
 		expect(viewerRuntime).toContain('import { OrbitControls } from "three/addons/controls/OrbitControls.js";');
+		expect(viewerRuntime).toContain("THREE.OrthographicCamera");
+		expect(viewerRuntime).toContain("frameOrthographicTopModel");
+		expect(viewerRuntime).toContain("findEnclosureFrame");
+		expect(viewerRuntime).toContain("applyTextDecalMaterial");
+		expect(viewerRuntime).toContain("ensureTextDecalUv");
+		expect(viewerRuntime).toContain("TEXT_DECAL_UVS");
+		expect(viewerRuntime).toContain("THREE.CanvasTexture");
+		expect(viewerRuntime).toContain("texture.flipY = false");
 		expect(viewerRuntime).toContain("preserveDrawingBuffer: true");
+		expect(viewerRuntime).toContain("applyFlatAppearanceColorMaterial");
+		expect(viewerRuntime).toContain("renderColorMode");
+		expect(viewerRuntime).toContain("THREE.MeshBasicMaterial");
 
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.module.js"))).toBe(true);
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.core.js"))).toBe(true);
@@ -119,11 +135,14 @@ describe("GitHub Pages documentation site", () => {
 		expect(topPreview).toContain("<svg");
 		expect(topPreview).toContain("Stompbox preview top view");
 		expect(topPreview).toContain("data-control-id");
+		expect(topPreview).not.toContain('data-top-edge-projection');
 
 		const drillPreview = readRepoFile("docs/public/examples/stompbox-mxr-style-drill-template-preview.svg");
 		expect(drillPreview).toContain("<svg");
 		expect(drillPreview).toContain("Stompbox drill template preview");
 		expect(drillPreview).toContain("drill-hole-center-dot");
+		expect(drillPreview).toContain(".hole{fill:none;");
+		expect(drillPreview).not.toContain('fill="#faf5ff"');
 
 		const layout = JSON.parse(readRepoFile("docs/public/examples/stompbox-mxr-style-drill-layout.json")) as {
 			schema?: string;

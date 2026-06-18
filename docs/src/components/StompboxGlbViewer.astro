@@ -3,19 +3,28 @@ type Props = {
 	src: string;
 	label?: string;
 	height?: string;
+	view?: "orbit" | "top";
+	interactive?: boolean;
 };
 
-const {
-	src,
-	label = "Interactive 3D stompbox preview",
-	height = "360px",
-} = Astro.props;
+const props = Astro.props;
+const src = props.src;
+const view = props.view ?? "orbit";
+const interactive = props.interactive ?? view !== "top";
+const label = props.label ?? (
+	view === "top"
+		? "Orthographic top stompbox preview"
+		: "Interactive 3D stompbox preview"
+);
+const height = props.height ?? "360px";
 ---
 
 <figure
 	class="stompbox-glb-viewer"
 	data-stompbox-glb-viewer
 	data-glb-src={src}
+	data-view-mode={view}
+	data-interactive={interactive ? "true" : "false"}
 	style={`--stompbox-viewer-height: ${height};`}
 >
 	<canvas aria-label={label}></canvas>

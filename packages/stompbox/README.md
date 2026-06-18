@@ -8,10 +8,14 @@ tools can display or save:
 
 - drill-layout manifests;
 - drill-template SVG strings in `preview` and A4 `print` modes;
-- mesh-backed stompbox preview GLB bytes assembled from bundled CAD part GLBs
-  and STEP companions, or from a caller-provided `basePath`;
+- mesh-backed stompbox preview GLB bytes assembled from caller-provided CAD
+  part GLBs and STEP companions via `hardwareProfile` plus `basePath`;
 - orthographic preview SVG views for `top`, `bottom`, `left`, and `right`.
 - optional text or SVG decals for brand/model/custom sticker artwork.
+
+Applications own production part profiles, enclosure profiles, and asset roots.
+The package exports `DEMO_STOMPBOX_HARDWARE_PROFILE` and
+`DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT` only for examples and tests.
 
 Drill-template holes are fabrication holes: their circle diameters come from
 each part profile's panel drill clearance, such as the PJ-629HAN 9.5 mm drill
@@ -55,6 +59,74 @@ Generated docs examples are published at:
 - Drill-template preview SVG: `/core/examples/stompbox-mxr-style-drill-template-preview.svg`
 - Drill-layout JSON: `/core/examples/stompbox-mxr-style-drill-layout.json`
 
+## Providing CAD assets for 3D preview
+
+`createStompboxPreviewGlbFromVdsp()` and `createStompboxPreviewGlb()` read GLB
+files from disk. Put each part and enclosure GLB under an application-owned
+asset root, reference those files from `hardwareProfile`, and pass that root as
+`basePath`.
+
+```ts
+import {
+  createStompboxPreviewGlbFromVdsp,
+  type StompboxHardwareProfile,
+} from "@vessel-dsp/stompbox";
+
+const hardwareProfile: StompboxHardwareProfile = {
+  id: "my-app-hardware",
+  label: "My app hardware",
+  defaultEnclosureId: "box-1590b",
+  defaultPartIds: {
+    knob: "my-knob",
+    largeKnob: "my-knob",
+    smallKnob: "my-knob",
+    led: "my-led",
+    footswitch: "my-footswitch",
+    audioJack: "my-audio-jack",
+    dcJack: "my-dc-jack",
+  },
+  enclosureProfiles: {
+    "box-1590b": {
+      variantId: "box-1590b",
+      label: "1590B enclosure",
+      dimensionsMm: { widthMm: 60.5, lengthMm: 111.5, depthMm: 31 },
+      topFace: { usableRectMm: { x: -25.25, y: -50.75, width: 50.5, height: 101.5 } },
+      assets: {
+        glbRelativePath: "enclosures/1590b.glb",
+        stepRelativePath: "enclosures/1590b.step",
+      },
+    },
+  },
+  partProfiles: {
+    "my-knob": {
+      id: "my-knob",
+      label: "My knob",
+      family: "knob",
+      level: "exterior",
+      status: "generated-stub",
+      panelHoleDrillMm: 7.14375,
+      drillHoleProfileId: "sixteen-mm-pot-9-32",
+      geometry: { kind: "knob", diameterMm: 20, depthMm: 11, shaftDiameterMm: 6.35 },
+      assets: {
+        glbRelativePath: "parts/my-knob.glb",
+        stepRelativePath: "parts/my-knob.step",
+      },
+    },
+    // Add my-led, my-footswitch, my-audio-jack, and my-dc-jack.
+  },
+};
+
+const glb = createStompboxPreviewGlbFromVdsp(vdspSource, {
+  hardwareProfile,
+  basePath: "/absolute/path/to/cad-assets",
+});
+```
+
+The example above reads `/absolute/path/to/cad-assets/parts/my-knob.glb` and
+`/absolute/path/to/cad-assets/enclosures/1590b.glb`. Use `baseUrl` for served
+preview references; use `basePath` when assembling a GLB because the files are
+read from the filesystem.
+
 ## Appearance customization
 
 Pass `appearance` to preview, GLB, SVG-view, or drill-template helpers to style
@@ -65,6 +137,7 @@ for live values such as knob position, LED on/off, and footswitch pressed state;
 ```ts
 import {
   createStompboxAppearancePatch,
+  DEMO_STOMPBOX_HARDWARE_PROFILE,
   createStompboxPreviewFromVdsp,
   createStompboxPreviewSvgViewsFromVdsp,
 } from "@vessel-dsp/stompbox";
@@ -95,8 +168,14 @@ const appearance = {
   },
 } as const;
 
-const preview = createStompboxPreviewFromVdsp(vdspSource, { appearance });
-const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, { appearance });
+const preview = createStompboxPreviewFromVdsp(vdspSource, {
+  hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+  appearance,
+});
+const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, {
+  hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+  appearance,
+});
 const patch = createStompboxAppearancePatch(preview);
 ```
 
