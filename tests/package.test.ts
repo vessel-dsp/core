@@ -6,6 +6,14 @@ import {
     serializeCircuitJsonDocument,
     validateCircuitJsonDocument,
 } from '@vessel-dsp/core';
+import {
+    createStompboxDrillLayoutFromVdsp,
+    createStompboxDrillTemplateFromVdsp,
+    createStompboxDrillTemplateSvgFromVdsp,
+    createStompboxPreviewGlbFromVdsp,
+    createStompboxPreviewFromVdsp,
+    createStompboxPreviewSvgViewsFromVdsp,
+} from '@vessel-dsp/stompbox';
 import { fileURLToPath } from 'node:url';
 import { rewriteRelativeEsmSpecifiers } from '../scripts/fix-dist-imports';
 
@@ -68,11 +76,20 @@ async function readCoreDistIndexDts(): Promise<string> {
     return Bun.file(new URL('../packages/core/dist/index.d.ts', import.meta.url)).text();
 }
 
+async function readStompboxDistIndexJs(): Promise<string> {
+    return Bun.file(new URL('../packages/stompbox/dist/index.js', import.meta.url)).text();
+}
+
+async function readStompboxDistIndexDts(): Promise<string> {
+    return Bun.file(new URL('../packages/stompbox/dist/index.d.ts', import.meta.url)).text();
+}
+
 function shouldScanRepositoryPath(path: string): boolean {
     return !(
         path.startsWith('.git/') ||
         path.startsWith('node_modules/') ||
         path.startsWith('packages/core/dist/') ||
+        path.startsWith('packages/stompbox/dist/') ||
         path.startsWith('gh-pages/') ||
         path === 'bun.lock'
     );
@@ -138,7 +155,7 @@ function collectExportTargets(value: unknown): readonly string[] {
 }
 
 describe('workspace package contract', () => {
-    test('root manifest is a private Bun workspace for the core package only', async () => {
+    test('root manifest is a private Bun workspace for headless packages', async () => {
         const pkg = await readRootPackageJson();
         const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
 
@@ -150,6 +167,7 @@ describe('workspace package contract', () => {
         expect(pkg.files).toBeUndefined();
         expect(pkg.workspaces).toEqual(['packages/*']);
         expect(scripts.build).toContain('packages/core');
+        expect(scripts.build).toContain('packages/stompbox');
         for (const packageDir of removedWorkspacePackageDirs) {
             expect(scripts.build).not.toContain(packageDir);
         }
@@ -158,6 +176,7 @@ describe('workspace package contract', () => {
         expect(scripts.dev).toBeUndefined();
         expect(scripts.preview).toBeUndefined();
         expect(scripts['pack:dry-run']).toContain('packages/core');
+        expect(scripts['pack:dry-run']).toContain('packages/stompbox');
         for (const packageDir of removedWorkspacePackageDirs) {
             expect(scripts['pack:dry-run']).not.toContain(packageDir);
         }
@@ -183,6 +202,32 @@ describe('workspace package contract', () => {
         expect(deps.zod).toBeDefined();
         expectNoReactRuntimeDependency(pkg);
         expect(typeof convertCircuitDocumentFileWithReport).toBe('function');
+    });
+
+    test('stompbox package publishes headless drill layout and preview manifest APIs', async () => {
+        const pkg = await readPackageJson('stompbox');
+        const deps = runtimeDependencies(pkg);
+
+        expect(pkg.name).toBe('@vessel-dsp/stompbox');
+        expect(pkg.version).toBe(VERSION);
+        expect(pkg.private).not.toBe(true);
+        expect(pkg.type).toBe('module');
+        expect(pkg.sideEffects).toBe(false);
+        expect(pkg.main).toBe('./dist/index.js');
+        expect(pkg.module).toBe('./dist/index.js');
+        expect(pkg.types).toBe('./dist/index.d.ts');
+        expectExport(pkg.exports, '.', {
+            importPath: './dist/index.js',
+            typesPath: './dist/index.d.ts',
+        });
+        expect(deps['@vessel-dsp/core']).toBe(VERSION);
+        expectNoReactRuntimeDependency(pkg);
+        expect(typeof createStompboxDrillLayoutFromVdsp).toBe('function');
+        expect(typeof createStompboxPreviewFromVdsp).toBe('function');
+        expect(typeof createStompboxDrillTemplateFromVdsp).toBe('function');
+        expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe('function');
+        expect(typeof createStompboxPreviewGlbFromVdsp).toBe('function');
+        expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
     });
 
     test('removed React and simulation packages are not workspace deliverables', async () => {
@@ -220,10 +265,15 @@ describe('workspace package contract', () => {
         expect(matches).toEqual([]);
     });
 
-    test('core tsconfig stays DOM-free', async () => {
+    test('headless package tsconfigs stay DOM-free', async () => {
         const tsconfig = await readPackageTsconfig('core');
         const compilerOptions = isRecord(tsconfig.compilerOptions) ? tsconfig.compilerOptions : {};
+        const stompboxTsconfig = await readPackageTsconfig('stompbox');
+        const stompboxCompilerOptions = isRecord(stompboxTsconfig.compilerOptions)
+            ? stompboxTsconfig.compilerOptions
+            : {};
         expect(compilerOptions.lib).toEqual(['ES2022']);
+        expect(stompboxCompilerOptions.lib).toEqual(['ES2022']);
     });
 
     test('Circuit JSON schema tooling is a core runtime dependency, not root-only test plumbing', async () => {
@@ -254,51 +304,71 @@ describe('workspace package contract', () => {
         expect(rootDevDeps['radix-ui']).toBeUndefined();
     });
 
-    test('declares the MIT license and includes docs in the publishable package', async () => {
-        const pkg = await readPackageJson('core');
-        expect(pkg.license).toBe('MIT');
-        expect(Array.isArray(pkg.files)).toBe(true);
-        expect(pkg.files).toContain('LICENSE.md');
-        expect(pkg.files).toContain('README.md');
+    test('declares the MIT license and includes docs in publishable packages', async () => {
+        for (const packageDir of ['core', 'stompbox']) {
+            const pkg = await readPackageJson(packageDir);
+            expect(pkg.license).toBe('MIT');
+            expect(Array.isArray(pkg.files)).toBe(true);
+            expect(pkg.files).toContain('LICENSE.md');
+            expect(pkg.files).toContain('README.md');
+        }
     });
 
-    test('core package publishes built dist artifacts without source fallback', async () => {
-        const pkg = await readPackageJson('core');
+    test('stompbox publishes bundled CAD assets for local preview assembly', async () => {
+        const pkg = await readPackageJson('stompbox');
         const files = Array.isArray(pkg.files) ? pkg.files : [];
-        const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
-        const entryTargets = [
-            pkg.main,
-            pkg.module,
-            pkg.types,
-            ...collectExportTargets(pkg.exports),
-        ].filter((target): target is string => typeof target === 'string');
 
-        expect(files).toContain('dist');
-        expect(files).not.toContain('src');
-        expect(scripts.prepack).toContain('bun run build');
+        expect(files).toContain('assets');
+        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/box-1590b/.tayda-a6619.step.glb', import.meta.url)).exists()).toBe(true);
+        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/box-1590b/tayda-a6619.step', import.meta.url)).exists()).toBe(true);
+        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/dc-socket-dc099/.dc099.step.glb', import.meta.url)).exists()).toBe(true);
+        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/dc-socket-dc099/dc099.step', import.meta.url)).exists()).toBe(true);
+    });
 
-        for (const target of entryTargets) {
-            if (target === './package.json') {
-                continue;
+    test('publishable packages publish built dist artifacts without source fallback', async () => {
+        for (const packageDir of ['core', 'stompbox']) {
+            const pkg = await readPackageJson(packageDir);
+            const files = Array.isArray(pkg.files) ? pkg.files : [];
+            const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
+            const entryTargets = [
+                pkg.main,
+                pkg.module,
+                pkg.types,
+                ...collectExportTargets(pkg.exports),
+            ].filter((target): target is string => typeof target === 'string');
+
+            expect(files).toContain('dist');
+            expect(files).not.toContain('src');
+            expect(scripts.prepack).toContain('bun run build');
+
+            for (const target of entryTargets) {
+                if (target === './package.json') {
+                    continue;
+                }
+                expect(target).toStartWith('./dist/');
             }
-            expect(target).toStartWith('./dist/');
         }
     });
 
     test('publishes package homepage and GitHub repository metadata for npm package pages', async () => {
-        const pkg = await readPackageJson('core');
+        const packages = [
+            await readPackageJson('core'),
+            await readPackageJson('stompbox'),
+        ];
 
-        expect(pkg.homepage).toBe('https://vessel-dsp.github.io/core/');
+        for (const pkg of packages) {
+            expect(pkg.homepage).toBe('https://vessel-dsp.github.io/core/');
 
-        expect(isRecord(pkg.repository)).toBe(true);
-        if (isRecord(pkg.repository)) {
-            expect(pkg.repository.type).toBe('git');
-            expect(pkg.repository.url).toBe('git+https://github.com/vessel-dsp/core.git');
-        }
+            expect(isRecord(pkg.repository)).toBe(true);
+            if (isRecord(pkg.repository)) {
+                expect(pkg.repository.type).toBe('git');
+                expect(pkg.repository.url).toBe('git+https://github.com/vessel-dsp/core.git');
+            }
 
-        expect(isRecord(pkg.bugs)).toBe(true);
-        if (isRecord(pkg.bugs)) {
-            expect(pkg.bugs.url).toBe('https://github.com/vessel-dsp/core/issues');
+            expect(isRecord(pkg.bugs)).toBe(true);
+            if (isRecord(pkg.bugs)) {
+                expect(pkg.bugs.url).toBe('https://github.com/vessel-dsp/core/issues');
+            }
         }
     });
 });
@@ -309,10 +379,19 @@ describe('published import surface', () => {
         expect(typeof parseCircuitJsonDocument).toBe('function');
         expect(typeof validateCircuitJsonDocument).toBe('function');
     });
+
+    test('stompbox exposes drill layout, drill template, and preview helpers', () => {
+        expect(typeof createStompboxDrillLayoutFromVdsp).toBe('function');
+        expect(typeof createStompboxDrillTemplateFromVdsp).toBe('function');
+        expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe('function');
+        expect(typeof createStompboxPreviewFromVdsp).toBe('function');
+        expect(typeof createStompboxPreviewGlbFromVdsp).toBe('function');
+        expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
+    });
 });
 
 describe('npm publish workflow', () => {
-    test('publishes only core', async () => {
+    test('publishes core and stompbox in dependency order', async () => {
         const workflow = await readPublishWorkflow();
 
         expect(workflow).toContain('name: Publish to npm');
@@ -329,6 +408,8 @@ describe('npm publish workflow', () => {
         expect(workflow).toContain('bun install --frozen-lockfile');
         expect(workflow).toContain('bun run pack:dry-run');
         expect(workflow).toContain('npm publish --workspace @vessel-dsp/core --access public --provenance');
+        expect(workflow).toContain('npm publish --workspace @vessel-dsp/stompbox --access public --provenance');
+        expect(workflow.indexOf('@vessel-dsp/core')).toBeLessThan(workflow.indexOf('@vessel-dsp/stompbox'));
         for (const packageName of removedScopedPackageNames) {
             expect(workflow).not.toContain(packageName);
         }
@@ -363,14 +444,26 @@ describe('README package metadata', () => {
 describe('release metadata', () => {
     test('pins the current package release and changelog entry', async () => {
         const core = await readPackageJson('core');
+        const stompbox = await readPackageJson('stompbox');
         const changelog = await readChangelog();
         const distIndex = await readCoreDistIndexJs();
         const distTypes = await readCoreDistIndexDts();
+        const stompboxDistIndex = await readStompboxDistIndexJs();
+        const stompboxDistTypes = await readStompboxDistIndexDts();
 
         expect(core.version).toBe('0.6.3');
+        expect(stompbox.version).toBe('0.6.3');
         expect(VERSION).toBe('0.6.3');
         expect(distIndex).toContain("export const VERSION = '0.6.3';");
         expect(distTypes).toContain('export declare const VERSION = "0.6.3";');
+        expect(stompboxDistIndex).toContain('createStompboxDrillLayoutFromVdsp');
+        expect(stompboxDistIndex).toContain('createStompboxDrillTemplateSvgFromVdsp');
+        expect(stompboxDistIndex).toContain('createStompboxPreviewGlbFromVdsp');
+        expect(stompboxDistIndex).toContain('createStompboxPreviewSvgViewsFromVdsp');
+        expect(stompboxDistTypes).toContain('createStompboxDrillLayoutFromVdsp');
+        expect(stompboxDistTypes).toContain('createStompboxDrillTemplateSvgFromVdsp');
+        expect(stompboxDistTypes).toContain('createStompboxPreviewGlbFromVdsp');
+        expect(stompboxDistTypes).toContain('createStompboxPreviewSvgViewsFromVdsp');
         expect(changelog).toStartWith('# Changelog\n\n## 0.6.3\n\n');
     });
 });

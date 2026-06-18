@@ -2,22 +2,22 @@
     "name": "@vessel-dsp/workspace",
     "version": "0.6.0",
     "private": true,
-    "description": "Workspace for Vessel DSP core Circuit JSON conversion tooling.",
+    "description": "Workspace for VesselDSP core and stompbox conversion tooling.",
     "license": "MIT",
     "type": "module",
     "workspaces": [
         "packages/*"
     ],
     "scripts": {
-        "build": "bun run --cwd packages/core build && bun run check:dist",
+        "build": "bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run check:dist",
         "build:pages": "bun run scripts/build-pages.ts",
         "check:dist": "node scripts/check-dist-entrypoints.mjs",
         "clean": "rm -rf packages/*/dist gh-pages",
         "clean:dist": "rm -rf packages/*/dist",
         "generate:symbols": "bun run scripts/generate-symbol-content.ts",
         "lint": "biome lint --diagnostic-level=error .",
-        "pack:dry-run": "bun run --cwd packages/core pack:dry-run",
         "prepack": "bun run clean:dist && bun run typecheck && bun test && bun run build",
+        "pack:dry-run": "bun run --cwd packages/core pack:dry-run && bun run --cwd packages/stompbox pack:dry-run",
         "test": "bun test",
         "typecheck": "tsc --noEmit"
     },

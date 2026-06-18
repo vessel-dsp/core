@@ -1,10 +1,10 @@
 {
-    "extends": "./tsconfig.base.json",
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "lib": [
             "ES2022"
         ],
-        "baseUrl": ".",
+        "baseUrl": "../..",
         "paths": {
             "@vessel-dsp/core": [
                 "packages/core/src/index.ts"
@@ -21,11 +21,6 @@
         }
     },
     "include": [
-        "packages/**/*",
-        "tests/**/*",
-        "examples/**/*",
-        "scripts/fix-dist-imports.ts",
-        "scripts/generate-symbol-content.ts",
-        "scripts/build-pages.ts"
+        "src/**/*"
     ]
 }

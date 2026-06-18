@@ -35,7 +35,12 @@ jobs:
             - name: Verify package
               run: bun run pack:dry-run
 
-            - name: Publish package
+            - name: Publish core package
               run: npm publish --workspace @vessel-dsp/core --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Publish stompbox package
+              run: npm publish --workspace @vessel-dsp/stompbox --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
