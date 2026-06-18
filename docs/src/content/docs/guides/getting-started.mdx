@@ -1,0 +1,71 @@
+---
+title: Getting Started
+description: Install VesselDSP packages and convert a circuit file through CircuitDocument and Circuit JSON.
+---
+
+Install the core conversion package:
+
+```bash
+npm install @vessel-dsp/core
+```
+
+Install the stompbox package when you need drill layouts or enclosure previews:
+
+```bash
+npm install @vessel-dsp/stompbox
+```
+
+The packages are published for downstream applications. Development inside this repository uses Bun, but library consumers can install with their normal package manager.
+
+## Parse a source file
+
+```ts
+import { parseCircuitDocumentFile } from "@vessel-dsp/core";
+
+const document = parseCircuitDocumentFile(sourceText, {
+	filename: "pedal.asc",
+});
+```
+
+`parseCircuitDocumentFile()` detects the source format from the filename and returns a `CircuitDocument`.
+
+## Export Circuit JSON
+
+```ts
+import { serializeCircuitJsonDocument } from "@vessel-dsp/core";
+
+const { elements, warnings } = serializeCircuitJsonDocument(document);
+```
+
+The `elements` array contains official tscircuit Circuit JSON. The `warnings` array reports synthesized, unsupported, or lossy conversion details.
+
+## Convert between files
+
+```ts
+import { convertCircuitDocumentFile } from "@vessel-dsp/core";
+
+const vdsp = convertCircuitDocumentFile(JSON.stringify(elements), {
+	inputFilename: "pedal.circuit.json",
+	outputFormat: "vdsp",
+	outputFilename: "pedal.vdsp",
+});
+```
+
+Cross-format conversion goes through `CircuitDocument`, then a target-specific serializer.
+
+## Intentional lossy export
+
+`.vdsp` v3 can carry physical build metadata that `.asc`, `.schx`, and Circuit JSON cannot fully preserve. Lossy export errors by default.
+
+```ts
+import { convertCircuitDocumentFileWithReport } from "@vessel-dsp/core";
+
+const report = convertCircuitDocumentFileWithReport(vdspSource, {
+	inputFilename: "pedal.vdsp",
+	outputFormat: "circuit-json",
+	outputFilename: "pedal.circuit.json",
+	lossPolicy: "drop-with-diagnostics",
+});
+```
+
+Use `drop-with-diagnostics` only when dropping v3 build data is intentional and caller-visible.

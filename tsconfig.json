@@ -25,7 +25,6 @@
         "tests/**/*",
         "examples/**/*",
         "scripts/fix-dist-imports.ts",
-        "scripts/generate-symbol-content.ts",
-        "scripts/build-pages.ts"
+        "scripts/generate-symbol-content.ts"
     ]
 }

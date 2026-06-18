@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { extractDeviceInterface, extractPanel } from '../../packages/core/src/panel';
+import { convertCircuitDocumentFile, parseCircuitDocumentFile } from '../../packages/core/src/formats/document';
 import { parseSchx } from '../../packages/core/src/formats/schx/parser';
 import { EMPTY_DOCUMENT, type CircuitDocument, type Component, type ComponentKind, type PropertyValue } from '../../packages/core/src/model/types';
 
@@ -39,6 +40,28 @@ describe('extractPanel', () => {
         expect(level.defaultPosition).toBeCloseTo(0.8);
         expect(level.gangGroup).toBe('Level');
         expect(level.resistance?.value).toBe(100_000);
+    });
+
+    test('extracts Pro Co Rat controls from generated VDSP', async () => {
+        const source = await Bun.file(
+            new URL('../fixtures/schx/livespice-examples/Pro Co Rat.schx', import.meta.url),
+        ).text();
+        const vdsp = convertCircuitDocumentFile(source, {
+            inputFilename: 'Pro Co Rat.schx',
+            outputFormat: 'vdsp',
+            outputFilename: 'Pro Co Rat.vdsp',
+        });
+        const doc = parseCircuitDocumentFile(vdsp, { filename: 'Pro Co Rat.vdsp' });
+
+        const panel = extractPanel(doc);
+
+        expect(panel.knobs.map((knob) => knob.id)).toEqual(['Distortion', 'Tone', 'Volume']);
+        expect(panel.knobs.map((knob) => knob.taper)).toEqual(['log', 'log', 'log']);
+        expect(panel.knobs.map((knob) => knob.defaultPosition)).toEqual([0.5, 0.5, 0.5]);
+        expect(panel.jacks.map((jack) => ({ id: jack.id, role: jack.role }))).toEqual([
+            { id: 'V1', role: 'input' },
+            { id: 'S1', role: 'output' },
+        ]);
     });
 
     test('extracts a 3PDT footswitch with 3 poles, 2 positions', async () => {

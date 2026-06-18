@@ -1,4 +1,4 @@
-# Vessel DSP Core Usage
+# VesselDSP Core Usage
 
 `@vessel-dsp/core` converts between audio-circuit source documents and
 tscircuit Circuit JSON. It does not ship a reusable React renderer, a custom

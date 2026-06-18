@@ -28,6 +28,8 @@ export type {
 export { PANEL_PROTOCOL_VERSION } from './types';
 export { extractDeviceInterface, extractPanel } from './extract';
 export { isKnobPositionOnStep, knobStepSize, nearestKnobStep, snapKnobPosition } from './knobs';
+export type { MovePanelElementOptions } from './placement';
+export { movePanelElement } from './placement';
 export {
     applyControlMessage,
     defaultControlState,

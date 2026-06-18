@@ -1,0 +1,48 @@
+---
+title: Supported Formats
+description: File formats supported by @vessel-dsp/core and their conversion boundaries.
+---
+
+`@vessel-dsp/core` converts source files through `CircuitDocument` and target-specific serializers.
+
+| Format | Extension | Support |
+| --- | --- | --- |
+| VesselDSP Source | `.vdsp`, `.yaml` | Project-native `circuit-interchange/v2` and `circuit-interchange/v3` YAML documents. |
+| LTspice | `.asc` | Parsed and serialized as schematic data. |
+| LiveSPICE | `.schx` | Parsed and serialized as schematic data. |
+| tscircuit Circuit JSON | `.circuit.json` | Imported and exported using official `circuit-json` schema validation. |
+| Legacy SPICE netlist | `.cir`, `.net`, `.spice` | Connectivity parser and serializer support outside the v1 bidirectional Circuit JSON contract. |
+
+`.vsdp` and `.asr` are treated as typos, not aliases.
+
+## Circuit JSON contract
+
+The v1 bidirectional Circuit JSON contract covers `.vdsp`, `.asc`, `.schx`, and `.circuit.json`.
+
+Supported Circuit JSON import elements include:
+
+- `source_project_metadata`
+- `source_component`
+- `source_port`
+- `source_net`
+- `source_trace`
+- `schematic_component`
+- `schematic_port`
+- `schematic_trace`
+- directive-style `schematic_text` values prefixed with `!`
+
+Unsupported PCB, fabrication, BOM, or simulation-only Circuit JSON elements must not be silently converted into schematic data. Import and export paths should emit diagnostics when data is unsupported, synthesized, or lossy.
+
+## VDSP v3 build data
+
+`.vdsp` v3 can preserve reviewed physical build metadata:
+
+- build scope
+- mechanical envelopes
+- BOM rows
+- embedded part profiles and board footprints
+- off-board wiring
+- panel drill placement
+- board realizations for stripboard, perfboard, breadboard-pattern protoboard, and fabricated PCB
+
+Converting v3 documents to formats that cannot preserve these fields errors by default. Use `convertCircuitDocumentFileWithReport()` with `lossPolicy: "drop-with-diagnostics"` only when lossy export is intentional.

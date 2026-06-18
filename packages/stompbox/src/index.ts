@@ -23,6 +23,36 @@ export type StompboxUnits = 'mm';
 export type StompboxPlacementProvenance = 'vdsp-declared' | 'auto-generated';
 export type StompboxFaceId = 'top' | 'left' | 'right' | 'back' | (string & {});
 export type StompboxTemplateMode = 'preview' | 'print';
+export type StompboxStyleProfileId = 'mxr-style' | 'boss-style';
+
+export type StompboxStyleProfile = Readonly<{
+    id: StompboxStyleProfileId;
+    label: string;
+    supportedKnobCounts: readonly number[];
+}>;
+
+export type StompboxStyleProfileFilter = Readonly<{
+    knobCount: number;
+}>;
+
+export const DEFAULT_STOMPBOX_STYLE_PROFILE_ID: StompboxStyleProfileId = 'mxr-style';
+
+export const STOMPBOX_STYLE_PROFILES: readonly StompboxStyleProfile[] = [
+    {
+        id: 'mxr-style',
+        label: 'MXR style',
+        supportedKnobCounts: [1, 2, 3, 4, 5, 6],
+    },
+    {
+        id: 'boss-style',
+        label: 'Boss style',
+        supportedKnobCounts: [2, 3, 4],
+    },
+];
+
+export function getAvailableStompboxStyleProfiles(filter: StompboxStyleProfileFilter): readonly StompboxStyleProfile[] {
+    return STOMPBOX_STYLE_PROFILES.filter((profile) => profile.supportedKnobCounts.includes(filter.knobCount));
+}
 
 export type StompboxPoint2 = Readonly<{
     x: number;
@@ -79,6 +109,75 @@ export type ResolvedStompboxAssetPaths = Readonly<{
     step: string;
 }>;
 
+export type StompboxDrillHoleMarker = 'ring-with-center-dot' | 'center-dot';
+
+export type StompboxDrillHoleProfile = Readonly<{
+    id: string;
+    label: string;
+    diameterMm: number;
+    fractionInches: string;
+    marker: StompboxDrillHoleMarker;
+}>;
+
+export const STOMPBOX_DRILL_HOLE_PROFILE_CATALOG: Readonly<Record<string, StompboxDrillHoleProfile>> = {
+    'dc-jack-3pdt-1-2': {
+        id: 'dc-jack-3pdt-1-2',
+        label: 'DC Jack / 3PDT',
+        diameterMm: 12.7,
+        fractionInches: '1/2"',
+        marker: 'ring-with-center-dot',
+    },
+    'audio-jack-24mm-pot-3-8': {
+        id: 'audio-jack-24mm-pot-3-8',
+        label: 'Audio Jacks / 24mm Pots',
+        diameterMm: 9.525,
+        fractionInches: '3/8"',
+        marker: 'ring-with-center-dot',
+    },
+    'metal-5mm-led-bezel-5-16': {
+        id: 'metal-5mm-led-bezel-5-16',
+        label: 'Metal 5mm LED Bezel',
+        diameterMm: 7.9375,
+        fractionInches: '5/16"',
+        marker: 'ring-with-center-dot',
+    },
+    'sixteen-mm-pot-9-32': {
+        id: 'sixteen-mm-pot-9-32',
+        label: '16mm Pots',
+        diameterMm: 7.14375,
+        fractionInches: '9/32"',
+        marker: 'ring-with-center-dot',
+    },
+    'mini-toggle-switch-1-4': {
+        id: 'mini-toggle-switch-1-4',
+        label: 'Mini Toggle Switch',
+        diameterMm: 6.35,
+        fractionInches: '1/4"',
+        marker: 'ring-with-center-dot',
+    },
+    'five-mm-led-13-64': {
+        id: 'five-mm-led-13-64',
+        label: '5mm LED',
+        diameterMm: 5.159375,
+        fractionInches: '13/64"',
+        marker: 'ring-with-center-dot',
+    },
+    'three-mm-led-1-8': {
+        id: 'three-mm-led-1-8',
+        label: '3mm LED',
+        diameterMm: 3.175,
+        fractionInches: '1/8"',
+        marker: 'ring-with-center-dot',
+    },
+    'pilot-hole-1-16': {
+        id: 'pilot-hole-1-16',
+        label: 'Pilot Hole',
+        diameterMm: 1.5875,
+        fractionInches: '1/16"',
+        marker: 'center-dot',
+    },
+};
+
 export type StompboxAssetResolveOptions = Readonly<{
     basePath?: string;
     baseUrl?: string;
@@ -125,6 +224,7 @@ export type StompboxPartProfile = Readonly<{
     level: 'exterior';
     status: 'generated-stub';
     panelHoleDrillMm: number;
+    drillHoleProfileId?: string;
     geometry: StompboxPartGeometry;
     assets: StompboxAssetRefs;
     assetScale?: number;
@@ -154,6 +254,7 @@ export type StompboxDiagnosticCode =
     | 'unsupported-control'
     | 'unknown-part-profile'
     | 'placement-collision'
+    | 'placement-clearance'
     | 'placement-out-of-bounds';
 
 export type StompboxDiagnostic = Readonly<{
@@ -169,6 +270,7 @@ export type StompboxDrillHole = Readonly<{
     face: StompboxFaceId;
     centerMm: StompboxPoint2;
     drillDiameterMm: number;
+    drillHoleProfileId?: string;
     partId: string;
     partLabel: string;
     controlId?: string;
@@ -189,8 +291,90 @@ export type StompboxDrillLayout = Readonly<{
 
 export type StompboxPreviewMaterial = Readonly<{
     color?: string;
+    strokeColor?: string;
+    indicatorColor?: string;
+    offColor?: string;
+    pressedColor?: string;
     emissive?: boolean;
     intensity?: number;
+    metallicFactor?: number;
+    roughnessFactor?: number;
+    opacity?: number;
+}>;
+
+export type StompboxLabelAppearance = Readonly<{
+    text?: string;
+    color?: string;
+    fontFamily?: string;
+    fontSizeMm?: number;
+}>;
+
+export type StompboxAppearance = Readonly<{
+    enclosure?: StompboxPreviewMaterial;
+    template?: StompboxPreviewMaterial & Readonly<{
+        guideColor?: string;
+        foldColor?: string;
+        holeStrokeColor?: string;
+        holeFillColor?: string;
+        centerDotColor?: string;
+    }>;
+    defaults?: Readonly<{
+        knob?: StompboxPreviewMaterial;
+        led?: StompboxPreviewMaterial;
+        label?: StompboxLabelAppearance;
+        footswitch?: StompboxPreviewMaterial;
+        audioJack?: StompboxPreviewMaterial;
+        dcJack?: StompboxPreviewMaterial;
+    }>;
+    controls?: Readonly<Record<string, Readonly<{
+        knob?: StompboxPreviewMaterial;
+        led?: StompboxPreviewMaterial;
+        label?: StompboxLabelAppearance;
+        footswitch?: StompboxPreviewMaterial;
+        audioJack?: StompboxPreviewMaterial;
+        dcJack?: StompboxPreviewMaterial;
+    }>>>;
+    parts?: Readonly<Record<string, StompboxPreviewMaterial>>;
+    labels?: Readonly<Record<string, StompboxLabelAppearance>>;
+}>;
+
+export type StompboxAppearancePatchTarget = Readonly<{
+    targetId: string;
+    color?: string;
+    strokeColor?: string;
+    indicatorColor?: string;
+    offColor?: string;
+    pressedColor?: string;
+    emissive?: boolean;
+    intensity?: number;
+    metallicFactor?: number;
+    roughnessFactor?: number;
+    opacity?: number;
+}>;
+
+export type StompboxPartAppearancePatchTarget = StompboxAppearancePatchTarget & Readonly<{
+    partId: string;
+    controlId?: string;
+    family: StompboxPartProfile['family'];
+}>;
+
+export type StompboxDecalAppearancePatchTarget = Readonly<{
+    targetId: string;
+    decalId: string;
+    kind: StompboxPreviewDecal['kind'];
+    face: StompboxFaceId;
+    text?: string;
+    color?: string;
+    fontFamily?: string;
+    fontSizeMm?: number;
+}>;
+
+export type StompboxResolvedAppearance = Readonly<{
+    schema: 'stompbox-appearance-patch/v1';
+    units: StompboxUnits;
+    enclosure?: StompboxAppearancePatchTarget;
+    parts: Readonly<Record<string, StompboxPartAppearancePatchTarget>>;
+    decals: Readonly<Record<string, StompboxDecalAppearancePatchTarget>>;
 }>;
 
 export type StompboxPreviewPart = Readonly<{
@@ -232,6 +416,7 @@ export type StompboxPreviewDecal = StompboxPreviewTextDecal | StompboxPreviewSvg
 
 export type StompboxPreviewEnclosure = Omit<StompboxEnclosureProfile, 'assets'> & Readonly<{
     assets: ResolvedStompboxAssetPaths;
+    material?: StompboxPreviewMaterial;
 }>;
 
 export type StompboxPreview = Readonly<{
@@ -296,6 +481,7 @@ export type StompboxDrillTemplate = Readonly<{
     enclosure: StompboxEnclosureProfile;
     holes: readonly StompboxDrillTemplateHole[];
     decals: readonly StompboxPreviewDecal[];
+    appearance?: StompboxAppearance;
     scaleMarks: readonly StompboxDrillTemplateScaleMark[];
     holeTable: readonly StompboxDrillHole[];
     diagnostics: readonly StompboxDiagnostic[];
@@ -304,6 +490,8 @@ export type StompboxDrillTemplate = Readonly<{
 export type StompboxLayoutOptions = Readonly<{
     enclosureId?: string;
     includePowerJack?: boolean;
+    minPartClearanceMm?: number;
+    styleProfile?: StompboxStyleProfileId;
 }>;
 
 export type StompboxFromVdspOptions = StompboxLayoutOptions & Readonly<{
@@ -314,7 +502,11 @@ export type StompboxDecalOptions = Readonly<{
     decals?: readonly StompboxDecalInput[];
 }>;
 
-export type StompboxPreviewOptions = StompboxLayoutOptions & StompboxAssetResolveOptions & StompboxDecalOptions & Readonly<{
+export type StompboxAppearanceOptions = Readonly<{
+    appearance?: StompboxAppearance;
+}>;
+
+export type StompboxPreviewOptions = StompboxLayoutOptions & StompboxAssetResolveOptions & StompboxDecalOptions & StompboxAppearanceOptions & Readonly<{
     state?: ControlState;
 }>;
 
@@ -322,7 +514,7 @@ export type StompboxPreviewFromVdspOptions = StompboxPreviewOptions & Readonly<{
     filename?: string;
 }>;
 
-export type StompboxDrillTemplateOptions = StompboxLayoutOptions & StompboxDecalOptions & Readonly<{
+export type StompboxDrillTemplateOptions = StompboxLayoutOptions & StompboxDecalOptions & StompboxAppearanceOptions & Readonly<{
     mode: StompboxTemplateMode;
 }>;
 
@@ -367,10 +559,36 @@ type PlacementCandidate = Readonly<{
     provenance: StompboxPlacementProvenance;
 }>;
 
-type AutoKnobGrid = Readonly<{
+type AutoKnobPlacement = Readonly<{
     partId: string;
-    positions: readonly StompboxPoint2[];
+    centerMm: StompboxPoint2;
 }>;
+
+type AutoKnobGrid = Readonly<{
+    placements: readonly AutoKnobPlacement[];
+}>;
+
+type StompboxPlacementGrid = Readonly<{
+    edgeMarginMm: number;
+    widthMm: number;
+    lengthMm: number;
+    usableWidthMm: number;
+    usableLengthMm: number;
+    rowCount: number;
+    rowPitchMm: number;
+}>;
+
+type StompboxHardwarePlacementStyle = 'mxr-style' | 'boss-style';
+
+const STOMPBOX_GRID_EDGE_MARGIN_MM = 5;
+const STOMPBOX_GRID_TARGET_ROW_PITCH_MM = 20;
+const STOMPBOX_LARGE_KNOB_PART_ID = 'knob-mxr-style-fluted-large';
+const STOMPBOX_SMALL_KNOB_PART_ID = 'knob-davies-1510bg-14mm';
+const STOMPBOX_DEFAULT_LED_PART_ID = 'led-3mm-red-kento-5408urc';
+const STOMPBOX_LARGE_KNOB_DIAMETER_MM = 20;
+const STOMPBOX_SMALL_KNOB_DIAMETER_MM = 14.5;
+const STOMPBOX_LARGE_KNOB_MIN_PITCH_MM = 25;
+const STOMPBOX_1590B_MIN_WIDTH_MM = 55;
 
 export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>> = {
     'knob-mxr-style-fluted': {
@@ -379,7 +597,22 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'knob',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 6.35,
+        panelHoleDrillMm: 7.14375,
+        drillHoleProfileId: 'sixteen-mm-pot-9-32',
+        geometry: { kind: 'knob', diameterMm: 20, depthMm: 11.45, shaftDiameterMm: 6.35 },
+        assets: {
+            glbRelativePath: 'knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb',
+            stepRelativePath: 'knob-mxr-style-fluted/tayda-a1829-tymf-b00.step',
+        },
+    },
+    'knob-mxr-style-fluted-large': {
+        id: 'knob-mxr-style-fluted-large',
+        label: 'Tayda A-1829 TYMF-B00 20 mm MXR Style Large Fluted Black Knob generated panel-visible CAD stub',
+        family: 'knob',
+        level: 'exterior',
+        status: 'generated-stub',
+        panelHoleDrillMm: 7.14375,
+        drillHoleProfileId: 'sixteen-mm-pot-9-32',
         geometry: { kind: 'knob', diameterMm: 20, depthMm: 11.45, shaftDiameterMm: 6.35 },
         assets: {
             glbRelativePath: 'knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb',
@@ -392,7 +625,8 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'knob',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 6,
+        panelHoleDrillMm: 7.14375,
+        drillHoleProfileId: 'sixteen-mm-pot-9-32',
         geometry: { kind: 'knob', diameterMm: 19, depthMm: 13.6, shaftDiameterMm: 6 },
         assets: {
             glbRelativePath: 'knob-cm42-bb/.tayda-a6078-cm42-bb.step.glb',
@@ -405,7 +639,8 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'knob',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 6.35,
+        panelHoleDrillMm: 7.14375,
+        drillHoleProfileId: 'sixteen-mm-pot-9-32',
         geometry: { kind: 'knob', diameterMm: 12, depthMm: 8.96, shaftDiameterMm: 6.35 },
         assets: {
             glbRelativePath: 'knob-davies-instrument-series/.davies-1510bg.step.glb',
@@ -413,13 +648,29 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         },
         assetScale: 0.63,
     },
+    'knob-davies-1510bg-14mm': {
+        id: 'knob-davies-1510bg-14mm',
+        label: 'Davies 1510BG scaled 14.5 mm knob generated panel-visible CAD stub',
+        family: 'knob',
+        level: 'exterior',
+        status: 'generated-stub',
+        panelHoleDrillMm: 7.14375,
+        drillHoleProfileId: 'sixteen-mm-pot-9-32',
+        geometry: { kind: 'knob', diameterMm: 14.5, depthMm: 10.82, shaftDiameterMm: 6.35 },
+        assets: {
+            glbRelativePath: 'knob-davies-instrument-series/.davies-1510bg.step.glb',
+            stepRelativePath: 'knob-davies-instrument-series/davies-1510bg.step',
+        },
+        assetScale: 0.77,
+    },
     'knob-chickenhead-lms-30mm': {
         id: 'knob-chickenhead-lms-30mm',
         label: 'Love My Switches 30 mm Chicken Head Knob generated panel-visible CAD stub',
         family: 'knob',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 6.4,
+        panelHoleDrillMm: 9.525,
+        drillHoleProfileId: 'audio-jack-24mm-pot-3-8',
         geometry: { kind: 'knob', diameterMm: 30.4, depthMm: 16.2, shaftDiameterMm: 6.4 },
         assets: {
             glbRelativePath: 'knob-chickenhead-lms-30mm/.lovemyswitches-chicken-head-30mm.step.glb',
@@ -432,12 +683,28 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'led',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 5,
+        panelHoleDrillMm: 5.159375,
+        drillHoleProfileId: 'five-mm-led-13-64',
         geometry: { kind: 'led', lensDiameterMm: 5, bodyHeightMm: 8.7, flangeDiameterMm: 5.8 },
         assets: {
             glbRelativePath: 'led-5mm-red-kento-5408urc/.kento-5408urc.step.glb',
             stepRelativePath: 'led-5mm-red-kento-5408urc/kento-5408urc.step',
         },
+    },
+    'led-3mm-red-kento-5408urc': {
+        id: 'led-3mm-red-kento-5408urc',
+        label: 'Kento 5408URC scaled 3 mm Red LED generated panel-visible CAD stub',
+        family: 'led',
+        level: 'exterior',
+        status: 'generated-stub',
+        panelHoleDrillMm: 3.175,
+        drillHoleProfileId: 'three-mm-led-1-8',
+        geometry: { kind: 'led', lensDiameterMm: 3, bodyHeightMm: 5.22, flangeDiameterMm: 3.48 },
+        assets: {
+            glbRelativePath: 'led-5mm-red-kento-5408urc/.kento-5408urc.step.glb',
+            stepRelativePath: 'led-5mm-red-kento-5408urc/kento-5408urc.step',
+        },
+        assetScale: 0.6,
     },
     'led-bezel-lh5': {
         id: 'led-bezel-lh5',
@@ -445,7 +712,8 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'led',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 7.94,
+        panelHoleDrillMm: 7.9375,
+        drillHoleProfileId: 'metal-5mm-led-bezel-5-16',
         geometry: { kind: 'led-bezel', outerDiameterMm: 9.2, innerDiameterMm: 5, depthMm: 5.35 },
         assets: {
             glbRelativePath: 'led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb',
@@ -458,7 +726,8 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'footswitch',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 12,
+        panelHoleDrillMm: 12.7,
+        drillHoleProfileId: 'dc-jack-3pdt-1-2',
         geometry: {
             kind: 'footswitch',
             buttonDiameterMm: 12,
@@ -478,7 +747,8 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'audio-jack',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 9.5,
+        panelHoleDrillMm: 9.525,
+        drillHoleProfileId: 'audio-jack-24mm-pot-3-8',
         geometry: { kind: 'ring', outerDiameterMm: 11, innerDiameterMm: 6.43, depthMm: 1.4 },
         assets: {
             glbRelativePath: 'jack-ts-pj629han/.pj-629han-05.step.glb',
@@ -491,7 +761,8 @@ export const STOMPBOX_PART_CATALOG: Readonly<Record<string, StompboxPartProfile>
         family: 'dc-jack',
         level: 'exterior',
         status: 'generated-stub',
-        panelHoleDrillMm: 8,
+        panelHoleDrillMm: 12.7,
+        drillHoleProfileId: 'dc-jack-3pdt-1-2',
         geometry: { kind: 'ring', outerDiameterMm: 14.1, innerDiameterMm: 8, depthMm: 1.4 },
         assets: {
             glbRelativePath: 'dc-socket-dc099/.dc099.step.glb',
@@ -504,13 +775,25 @@ export const STOMPBOX_ENCLOSURE_CATALOG: Readonly<Record<string, StompboxEnclosu
     'box-1590b': {
         variantId: 'box-1590b',
         label: 'Tayda A-6619 1590B enclosure generated STEP CAD',
-        dimensionsMm: { widthMm: 60, lengthMm: 112, depthMm: 31 },
+        dimensionsMm: { widthMm: 60.5, lengthMm: 111.5, depthMm: 31 },
         topFace: {
-            usableRectMm: { x: -25, y: -46, width: 50, height: 92 },
+            usableRectMm: { x: -25.25, y: -50.75, width: 50.5, height: 101.5 },
         },
         assets: {
             glbRelativePath: 'box-1590b/.tayda-a6619.step.glb',
             stepRelativePath: 'box-1590b/tayda-a6619.step',
+        },
+    },
+    'box-1590a': {
+        variantId: 'box-1590a',
+        label: 'Hammond 1590A enclosure generated STEP CAD',
+        dimensionsMm: { widthMm: 39, lengthMm: 92.5, depthMm: 31 },
+        topFace: {
+            usableRectMm: { x: -14.5, y: -41.25, width: 29, height: 82.5 },
+        },
+        assets: {
+            glbRelativePath: 'box-hammond-diecast-stompbox-series/.hammond-1590a.step.glb',
+            stepRelativePath: 'box-hammond-diecast-stompbox-series/hammond-1590a.step',
         },
     },
 };
@@ -556,7 +839,7 @@ export function createStompboxDrillLayout(
     ));
     const auto = autoPlacementCandidates(panel, enclosure, declared, declaredControlIds, options, diagnostics);
     const holes = [...declared, ...auto].flatMap((candidate) => drillHoleForCandidate(candidate, diagnostics));
-    diagnostics.push(...validateHolePlacements(holes, enclosure));
+    diagnostics.push(...validateHolePlacements(holes, enclosure, options.minPartClearanceMm));
 
     return {
         schema: 'stompbox-drill-layout/v1',
@@ -586,9 +869,13 @@ export function createStompboxPreview(
     const controlMetadata = controlMetadataById(panel);
     const resolveOptions = assetResolveOptions(options);
     const parts = drillLayout.holes.map((hole) =>
-        previewPartForHole(hole, drillLayout.enclosure, controlMetadata.get(hole.controlId ?? ''), options.state, resolveOptions)
+        previewPartForHole(hole, drillLayout.enclosure, controlMetadata.get(hole.controlId ?? ''), options.state, resolveOptions, options.appearance)
     );
-    const decals = normalizeDecals(options.decals);
+    const decals = [
+        ...normalizeDecals(options.decals),
+        ...controlLabelDecals(drillLayout, options.styleProfile ?? DEFAULT_STOMPBOX_STYLE_PROFILE_ID, options.appearance),
+    ];
+    const enclosureMaterial = materialWithValues(options.appearance?.enclosure);
 
     return {
         schema: 'stompbox-preview/v1',
@@ -599,11 +886,77 @@ export function createStompboxPreview(
             dimensionsMm: drillLayout.enclosure.dimensionsMm,
             topFace: drillLayout.enclosure.topFace,
             assets: resolveStompboxAssetPaths(drillLayout.enclosure.assets, resolveOptions),
+            ...(enclosureMaterial === undefined ? {} : { material: enclosureMaterial }),
         },
         parts,
         decals,
         drillLayout,
         diagnostics: drillLayout.diagnostics,
+    };
+}
+
+export function resolveStompboxAppearance(
+    preview: StompboxPreview,
+    appearance?: StompboxAppearance,
+): StompboxResolvedAppearance {
+    return createStompboxAppearancePatch(preview, appearance);
+}
+
+export function createStompboxAppearancePatch(
+    preview: StompboxPreview,
+    appearance?: StompboxAppearance,
+): StompboxResolvedAppearance {
+    const enclosureMaterial = mergeMaterials(preview.enclosure.material, appearance?.enclosure);
+    const parts = Object.fromEntries(preview.parts.flatMap((part) => {
+        const profile = STOMPBOX_PART_CATALOG[part.partId];
+        if (profile === undefined) {
+            return [];
+        }
+        const material = mergeMaterials(part.material, previewPartAppearanceFor(part, profile, appearance));
+        if (material === undefined) {
+            return [];
+        }
+        const target: StompboxPartAppearancePatchTarget = {
+            targetId: `part-${part.id}`,
+            partId: part.partId,
+            ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
+            family: profile.family,
+            ...material,
+        };
+        return [[target.targetId, target] as const];
+    }));
+    const decals = Object.fromEntries(preview.decals.flatMap((decal) => {
+        const labelAppearance = decalAppearanceFor(decal, appearance);
+        const textDecal = decal.kind === 'text'
+            ? {
+                text: labelAppearance?.text ?? decal.text,
+                color: labelAppearance?.color ?? decal.color,
+                fontFamily: labelAppearance?.fontFamily ?? decal.fontFamily,
+                fontSizeMm: labelAppearance?.fontSizeMm ?? decal.fontSizeMm,
+            }
+            : {};
+        const target: StompboxDecalAppearancePatchTarget = {
+            targetId: `decal-${decal.id}`,
+            decalId: decal.id,
+            kind: decal.kind,
+            face: decal.face,
+            ...textDecal,
+        };
+        return [[target.targetId, target] as const];
+    }));
+    return {
+        schema: 'stompbox-appearance-patch/v1',
+        units: preview.units,
+        ...(enclosureMaterial === undefined
+            ? {}
+            : {
+                enclosure: {
+                    targetId: `enclosure-${preview.enclosure.variantId}`,
+                    ...enclosureMaterial,
+                },
+            }),
+        parts,
+        decals,
     };
 }
 
@@ -648,6 +1001,7 @@ export function createStompboxDrillTemplate(
                 { id: 'scale-50mm', label: '50 mm', lengthMm: 50, startMm: { x: 12, y: 278 }, endMm: { x: 62, y: 278 } },
             ],
             decals,
+            ...(options.appearance === undefined ? {} : { appearance: options.appearance }),
             holeTable: layout.holes,
             diagnostics: layout.diagnostics,
         };
@@ -664,6 +1018,7 @@ export function createStompboxDrillTemplate(
         enclosure: layout.enclosure,
         holes: layout.holes.map((hole) => templateHole(hole, layout.enclosure, previewCanvas)),
         decals,
+        ...(options.appearance === undefined ? {} : { appearance: options.appearance }),
         scaleMarks: [],
         holeTable: [],
         diagnostics: layout.diagnostics,
@@ -872,17 +1227,21 @@ function autoPlacementCandidates(
 ): readonly PlacementCandidate[] {
     const candidates: PlacementCandidate[] = [];
     const knobs = panel.knobs.filter((knob) => !declaredControlIds.has(knob.id));
-    const knobGrid = autoKnobGrid(knobs.length, enclosure);
+    const grid = placementGrid(enclosure);
+    const styleProfile = options.styleProfile ?? DEFAULT_STOMPBOX_STYLE_PROFILE_ID;
+    const usesBossStyleProfile = styleProfile === 'boss-style' && (knobs.length === 2 || knobs.length === 3 || knobs.length === 4);
+    const hardwareStyle: StompboxHardwarePlacementStyle = styleProfile === 'boss-style' ? 'boss-style' : 'mxr-style';
+    const knobGrid = autoKnobGrid(knobs.length, grid, styleProfile);
     knobs.forEach((knob, index) => {
-        const position = knobGrid.positions[index];
-        if (position === undefined) {
+        const placement = knobGrid.placements[index];
+        if (placement === undefined) {
             return;
         }
         candidates.push(autoCandidate({
             id: `knob-${knob.id}`,
             kind: 'knob',
-            centerMm: position,
-            partId: knobGrid.partId,
+            centerMm: placement.centerMm,
+            partId: placement.partId,
             componentId: knob.id,
             controlId: knob.id,
             label: knob.name,
@@ -890,7 +1249,8 @@ function autoPlacementCandidates(
     });
 
     const leds = panel.leds.filter((led) => !declaredControlIds.has(led.id));
-    const ledPositions = distributedTopRowPositions(leds.length, 3, 16);
+    const ledY = usesBossStyleProfile ? bossStyleLedY(grid) : mxrStyleLedY(knobs.length, grid);
+    const ledPositions = distributedTopRowPositions(leds.length, ledY, 16);
     leds.forEach((led, index) => {
         const position = ledPositions[index];
         if (position === undefined) {
@@ -900,7 +1260,7 @@ function autoPlacementCandidates(
             id: `led-${led.id}`,
             kind: 'led',
             centerMm: position,
-            partId: 'led-5mm-red-kento-5408urc',
+            partId: STOMPBOX_DEFAULT_LED_PART_ID,
             componentId: led.id,
             controlId: led.id,
             label: led.name,
@@ -911,13 +1271,14 @@ function autoPlacementCandidates(
         candidates.push(autoCandidate({
             id: 'led-status',
             kind: 'led',
-            centerMm: { x: 0, y: 3 },
-            partId: 'led-5mm-red-kento-5408urc',
+            centerMm: { x: 0, y: ledY },
+            partId: STOMPBOX_DEFAULT_LED_PART_ID,
             label: 'Status',
         }, diagnostics));
     }
 
     const switches = panel.switches.filter((switchControl) => !declaredControlIds.has(switchControl.id));
+    const footswitchY = footswitchGridY(knobs.length, grid, styleProfile);
     switches.forEach((switchControl, index) => {
         if (!isSupportedFootswitch(switchControl)) {
             diagnostics.push({
@@ -930,11 +1291,10 @@ function autoPlacementCandidates(
         candidates.push(autoCandidate({
             id: `switch-${switchControl.id}`,
             kind: 'footswitch',
-            centerMm: { x: index * 18, y: -34 },
+            centerMm: { x: index * 18, y: footswitchY },
             partId: 'switch-3pdt-pic-pbs24302',
             componentId: switchControl.id,
             controlId: switchControl.id,
-            label: switchControl.name,
         }, diagnostics));
     });
 
@@ -942,9 +1302,8 @@ function autoPlacementCandidates(
         candidates.push(autoCandidate({
             id: 'switch-bypass',
             kind: 'footswitch',
-            centerMm: { x: 0, y: -34 },
+            centerMm: { x: 0, y: footswitchY },
             partId: 'switch-3pdt-pic-pbs24302',
-            label: 'Bypass',
         }, diagnostics));
     }
 
@@ -958,6 +1317,7 @@ function autoPlacementCandidates(
         }
     }
 
+    const jackCountsByFace = new Map<StompboxFaceId, number>();
     for (const jack of panel.jacks) {
         if (declaredControlIds.has(jack.id)) {
             continue;
@@ -971,11 +1331,13 @@ function autoPlacementCandidates(
             });
             continue;
         }
+        const faceIndex = jackCountsByFace.get(face) ?? 0;
+        jackCountsByFace.set(face, faceIndex + 1);
         candidates.push(autoCandidate({
             id: `jack-${jack.id}`,
             kind: 'jack',
             face,
-            centerMm: centerForJackFace(face, enclosure),
+            centerMm: centerForJackFace(face, enclosure, grid, hardwareStyle, faceIndex),
             partId: 'jack-ts-pj629han',
             componentId: jack.sourceComponentId ?? jack.id,
             controlId: jack.id,
@@ -988,10 +1350,11 @@ function autoPlacementCandidates(
             id: 'jack-input',
             kind: 'jack',
             face: 'right',
-            centerMm: centerForJackFace('right', enclosure),
+            centerMm: centerForJackFace('right', enclosure, grid, hardwareStyle, jackCountsByFace.get('right') ?? 0),
             partId: 'jack-ts-pj629han',
             label: 'Input',
         }, diagnostics));
+        jackCountsByFace.set('right', (jackCountsByFace.get('right') ?? 0) + 1);
     }
 
     if (!hasOutputJack(panel, declared)) {
@@ -999,18 +1362,20 @@ function autoPlacementCandidates(
             id: 'jack-output',
             kind: 'jack',
             face: 'left',
-            centerMm: centerForJackFace('left', enclosure),
+            centerMm: centerForJackFace('left', enclosure, grid, hardwareStyle, jackCountsByFace.get('left') ?? 0),
             partId: 'jack-ts-pj629han',
             label: 'Output',
         }, diagnostics));
+        jackCountsByFace.set('left', (jackCountsByFace.get('left') ?? 0) + 1);
     }
 
     if (options.includePowerJack !== false && !hasPowerJack(declared, candidates)) {
+        const powerFace = powerJackFace(hardwareStyle);
         candidates.push(autoCandidate({
             id: 'power-9v',
             kind: 'jack',
-            face: 'back',
-            centerMm: { x: 0, y: enclosure.dimensionsMm.lengthMm / 2 },
+            face: powerFace,
+            centerMm: centerForPowerJackFace(powerFace, enclosure, grid, hardwareStyle),
             partId: 'dc-socket-dc099',
             label: '9V DC',
         }, diagnostics));
@@ -1057,6 +1422,7 @@ function drillHoleForCandidate(
         face: candidate.face,
         centerMm: candidate.centerMm,
         drillDiameterMm: candidate.drillDiameterMm ?? part.panelHoleDrillMm,
+        ...(part.drillHoleProfileId === undefined ? {} : { drillHoleProfileId: part.drillHoleProfileId }),
         partId: part.id,
         partLabel: part.label,
         ...(candidate.controlId === undefined ? {} : { controlId: candidate.controlId }),
@@ -1071,8 +1437,10 @@ function drillHoleForCandidate(
 function validateHolePlacements(
     holes: readonly StompboxDrillHole[],
     enclosure: StompboxEnclosureProfile,
+    minPartClearanceMm = 0,
 ): readonly StompboxDiagnostic[] {
     const diagnostics: StompboxDiagnostic[] = [];
+    const requiredClearanceMm = Math.max(0, minPartClearanceMm);
     for (const hole of holes) {
         if (isOutOfBounds(hole, enclosure)) {
             diagnostics.push({
@@ -1095,10 +1463,21 @@ function validateHolePlacements(
                 continue;
             }
             const distance = Math.hypot(first.centerMm.x - second.centerMm.x, first.centerMm.y - second.centerMm.y);
-            if (distance < placementCollisionRadiusMm(first) + placementCollisionRadiusMm(second)) {
+            const requiredDistance = placementCollisionRadiusMm(first) + placementCollisionRadiusMm(second);
+            const clearanceMm = distance - requiredDistance;
+            if (clearanceMm < 0) {
                 diagnostics.push({
                     code: 'placement-collision',
                     message: `Placements "${first.id}" and "${second.id}" overlap on ${first.face}`,
+                    placementId: first.id,
+                    face: first.face,
+                });
+                continue;
+            }
+            if (clearanceMm < requiredClearanceMm) {
+                diagnostics.push({
+                    code: 'placement-clearance',
+                    message: `Placements "${first.id}" and "${second.id}" have ${formatMm(clearanceMm)} mm clearance on ${first.face}, below required ${formatMm(requiredClearanceMm)} mm`,
                     placementId: first.id,
                     face: first.face,
                 });
@@ -1108,7 +1487,15 @@ function validateHolePlacements(
     return diagnostics;
 }
 
+function formatMm(value: number): string {
+    return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 function placementCollisionRadiusMm(hole: StompboxDrillHole): number {
+    const profile = STOMPBOX_PART_CATALOG[hole.partId];
+    if ((hole.face === 'left' || hole.face === 'right') && profile?.family === 'audio-jack') {
+        return hole.drillDiameterMm / 2;
+    }
     return (partVisibleDiameterMm(hole.partId) ?? hole.drillDiameterMm) / 2;
 }
 
@@ -1151,6 +1538,7 @@ function previewPartForHole(
     metadata: ControlVisualMetadata | undefined,
     state: ControlState | undefined,
     assetOptions: StompboxAssetResolveOptions,
+    appearance: StompboxAppearance | undefined,
 ): StompboxPreviewPart {
     const part = STOMPBOX_PART_CATALOG[hole.partId];
     const rotation = baseRotationForFace(hole.face);
@@ -1159,7 +1547,7 @@ function previewPartForHole(
         ? stateValue.position
         : metadata?.defaultPosition;
     const zOffset = pressedOffsetMm(part, stateValue);
-    const material = materialForPart(part, metadata, stateValue);
+    const material = materialForPart(part, hole, metadata, stateValue, appearance);
     const transform = {
         translationMm: {
             ...translationForFace(hole.face, hole.centerMm, enclosure),
@@ -1184,6 +1572,169 @@ function previewPartForHole(
 
 function normalizeDecals(decals: readonly StompboxDecalInput[] | undefined): readonly StompboxPreviewDecal[] {
     return decals?.map((decal) => normalizeDecal(decal)) ?? [];
+}
+
+function controlLabelDecals(
+    layout: StompboxDrillLayout,
+    styleProfile: StompboxStyleProfileId,
+    appearance: StompboxAppearance | undefined,
+): readonly StompboxPreviewDecal[] {
+    const hardwareStyle: StompboxHardwarePlacementStyle = styleProfile === 'boss-style' ? 'boss-style' : 'mxr-style';
+    return layout.holes.flatMap((hole) => {
+        const label = controlLabelDecal(hole, layout.enclosure, hardwareStyle, appearance);
+        return label === undefined ? [] : [label];
+    });
+}
+
+function controlLabelDecal(
+    hole: StompboxDrillHole,
+    enclosure: StompboxEnclosureProfile,
+    hardwareStyle: StompboxHardwarePlacementStyle,
+    appearance: StompboxAppearance | undefined,
+): StompboxPreviewDecal | undefined {
+    const profile = STOMPBOX_PART_CATALOG[hole.partId];
+    if (profile === undefined) {
+        return undefined;
+    }
+    if (profile.family === 'footswitch') {
+        return undefined;
+    }
+    const labelId = `label-${decalIdSegment(hole.id)}`;
+    const labelAppearance = labelAppearanceFor(labelId, hole.controlId, profile, appearance);
+    const text = labelAppearance?.text ?? controlLabelText(hole, profile, hardwareStyle);
+    if (text.length === 0) {
+        return undefined;
+    }
+    const fontSizeMm = labelAppearance?.fontSizeMm ?? controlLabelFontSizeMm(profile);
+    const sizeMm = controlLabelSizeMm(text, fontSizeMm);
+    const placement = controlLabelPlacement(hole, profile, enclosure, hardwareStyle, sizeMm);
+    return {
+        id: labelId,
+        kind: 'text',
+        text,
+        face: placement.face,
+        centerMm: placement.centerMm,
+        sizeMm,
+        rotationDeg: placement.rotationDeg,
+        color: labelAppearance?.color ?? '#111827',
+        fontFamily: labelAppearance?.fontFamily ?? 'Arial,sans-serif',
+        fontSizeMm,
+    };
+}
+
+function controlLabelPlacement(
+    hole: StompboxDrillHole,
+    profile: StompboxPartProfile,
+    enclosure: StompboxEnclosureProfile,
+    hardwareStyle: StompboxHardwarePlacementStyle,
+    sizeMm: StompboxSize2,
+): Readonly<{ face: StompboxFaceId; centerMm: StompboxPoint2; rotationDeg: number }> {
+    if (profile.family === 'audio-jack' && (hole.face === 'left' || hole.face === 'right')) {
+        const edgeSign = hole.face === 'right' ? 1 : -1;
+        const insetMm = hardwareStyle === 'boss-style' ? 10 : 8;
+        return {
+            face: 'top',
+            centerMm: clampTopLabelCenter({
+                x: edgeSign * (enclosure.dimensionsMm.widthMm / 2 - insetMm),
+                y: hole.centerMm.y,
+            }, enclosure, sizeMm),
+            rotationDeg: hardwareStyle === 'boss-style' ? 0 : -90,
+        };
+    }
+
+    const visibleRadiusMm = (partVisibleDiameterMm(hole.partId) ?? hole.drillDiameterMm) / 2;
+    const gapMm = profile.family === 'led' ? 3 : 4;
+    const labelY = profile.family === 'led'
+        ? hole.centerMm.y + visibleRadiusMm + gapMm
+        : hole.centerMm.y - visibleRadiusMm - gapMm;
+    return {
+        face: hole.face,
+        centerMm: hole.face === 'top'
+            ? clampTopLabelCenter({ x: hole.centerMm.x, y: labelY }, enclosure, sizeMm)
+            : { x: hole.centerMm.x, y: labelY },
+        rotationDeg: 0,
+    };
+}
+
+function controlLabelFontSizeMm(profile: StompboxPartProfile): number {
+    if (profile.family === 'knob') {
+        return 3.2;
+    }
+    if (profile.family === 'audio-jack') {
+        return 3;
+    }
+    return 2.6;
+}
+
+function controlLabelSizeMm(text: string, fontSizeMm: number): StompboxSize2 {
+    return {
+        widthMm: roundMillimeters(Math.max(8, text.length * fontSizeMm * 0.72)),
+        heightMm: roundMillimeters(fontSizeMm + 1.6),
+    };
+}
+
+function controlLabelText(
+    hole: StompboxDrillHole,
+    profile: StompboxPartProfile,
+    hardwareStyle: StompboxHardwarePlacementStyle,
+): string {
+    const text = formatControlLabel(hole.label ?? hole.controlId ?? hole.id);
+    if (profile.family === 'led' && hardwareStyle === 'boss-style' && text === 'STATUS') {
+        return 'CHECK';
+    }
+    if (profile.family !== 'audio-jack') {
+        return text;
+    }
+    if (text === 'IN') {
+        return 'INPUT';
+    }
+    if (text === 'OUT') {
+        return 'OUTPUT';
+    }
+    if (/\bINPUT\b/.test(text) || /\bOUTPUT\b/.test(text)) {
+        return text;
+    }
+    if (hole.face === 'right') {
+        return 'INPUT';
+    }
+    if (hole.face === 'left') {
+        return 'OUTPUT';
+    }
+    return text;
+}
+
+function clampTopLabelCenter(
+    centerMm: StompboxPoint2,
+    enclosure: StompboxEnclosureProfile,
+    sizeMm: StompboxSize2,
+): StompboxPoint2 {
+    const marginMm = 1;
+    const halfWidth = sizeMm.widthMm / 2;
+    const halfHeight = sizeMm.heightMm / 2;
+    return {
+        x: roundMillimeters(clamp(
+            centerMm.x,
+            -enclosure.dimensionsMm.widthMm / 2 + marginMm + halfWidth,
+            enclosure.dimensionsMm.widthMm / 2 - marginMm - halfWidth,
+        )),
+        y: roundMillimeters(clamp(
+            centerMm.y,
+            -enclosure.dimensionsMm.lengthMm / 2 + marginMm + halfHeight,
+            enclosure.dimensionsMm.lengthMm / 2 - marginMm - halfHeight,
+        )),
+    };
+}
+
+function formatControlLabel(value: string): string {
+    return value
+        .trim()
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
+}
+
+function decalIdSegment(value: string): string {
+    return value.trim().replace(/[^A-Za-z0-9_.:-]+/g, '-') || 'control';
 }
 
 function normalizeDecal(decal: StompboxDecalInput): StompboxPreviewDecal {
@@ -1221,25 +1772,144 @@ function defaultDecalSize(kind: StompboxDecalInput['kind']): StompboxSize2 {
 
 function materialForPart(
     part: StompboxPartProfile | undefined,
+    hole: StompboxDrillHole,
     metadata: ControlVisualMetadata | undefined,
     stateValue: ControlState[string] | undefined,
+    appearance: StompboxAppearance | undefined,
 ): StompboxPreviewMaterial | undefined {
+    const appearanceMaterial = partAppearanceFor(hole, part, appearance);
     if (part?.family !== 'led') {
-        return undefined;
+        return appearanceMaterial;
     }
-    const color = metadata?.color ?? 'red';
+    const color = appearanceMaterial?.color ?? metadata?.color ?? 'red';
     if (stateValue?.kind === 'led' && stateValue.on) {
-        return {
+        return materialWithValues({
+            ...appearanceMaterial,
             color,
             emissive: true,
             intensity: stateValue.intensity ?? 1,
-        };
+        });
     }
-    return {
+    return materialWithValues({
+        ...appearanceMaterial,
         color,
         emissive: false,
         intensity: 0,
-    };
+    });
+}
+
+function partAppearanceFor(
+    hole: StompboxDrillHole,
+    part: StompboxPartProfile | undefined,
+    appearance: StompboxAppearance | undefined,
+): StompboxPreviewMaterial | undefined {
+    if (part === undefined || appearance === undefined) {
+        return undefined;
+    }
+    const key = partAppearanceKey(part);
+    const controlAppearance = hole.controlId === undefined ? undefined : appearance.controls?.[hole.controlId]?.[key];
+    return mergeMaterials(
+        appearance.defaults?.[key],
+        controlAppearance,
+        appearance.parts?.[hole.id],
+        appearance.parts?.[`part-${hole.id}`],
+    );
+}
+
+function previewPartAppearanceFor(
+    part: StompboxPreviewPart,
+    profile: StompboxPartProfile,
+    appearance: StompboxAppearance | undefined,
+): StompboxPreviewMaterial | undefined {
+    if (appearance === undefined) {
+        return undefined;
+    }
+    const key = partAppearanceKey(profile);
+    const controlAppearance = part.controlId === undefined ? undefined : appearance.controls?.[part.controlId]?.[key];
+    return mergeMaterials(
+        appearance.defaults?.[key],
+        controlAppearance,
+        appearance.parts?.[part.id],
+        appearance.parts?.[`part-${part.id}`],
+    );
+}
+
+function partAppearanceKey(part: StompboxPartProfile): 'knob' | 'led' | 'footswitch' | 'audioJack' | 'dcJack' {
+    if (part.family === 'audio-jack') {
+        return 'audioJack';
+    }
+    if (part.family === 'dc-jack') {
+        return 'dcJack';
+    }
+    return part.family;
+}
+
+function labelAppearanceFor(
+    labelId: string,
+    controlId: string | undefined,
+    profile: StompboxPartProfile,
+    appearance: StompboxAppearance | undefined,
+): StompboxLabelAppearance | undefined {
+    if (appearance === undefined) {
+        return undefined;
+    }
+    const controlAppearance = controlId === undefined ? undefined : appearance.controls?.[controlId]?.label;
+    return mergeLabelAppearances(
+        appearance.defaults?.label,
+        controlAppearance,
+        appearance.labels?.[labelId],
+        appearance.labels?.[`decal-${labelId}`],
+    );
+}
+
+function decalAppearanceFor(
+    decal: StompboxPreviewDecal,
+    appearance: StompboxAppearance | undefined,
+): StompboxLabelAppearance | undefined {
+    if (appearance === undefined || decal.kind !== 'text') {
+        return undefined;
+    }
+    return mergeLabelAppearances(
+        appearance.defaults?.label,
+        appearance.labels?.[decal.id],
+        appearance.labels?.[`decal-${decal.id}`],
+    );
+}
+
+function mergeMaterials(...materials: readonly (StompboxPreviewMaterial | undefined)[]): StompboxPreviewMaterial | undefined {
+    const merged: Record<string, string | number | boolean> = {};
+    for (const material of materials) {
+        if (material === undefined) {
+            continue;
+        }
+        for (const [key, value] of Object.entries(material)) {
+            if (value !== undefined) {
+                merged[key] = value;
+            }
+        }
+    }
+    return Object.keys(merged).length === 0 ? undefined : merged;
+}
+
+function materialWithValues(material: StompboxPreviewMaterial | undefined): StompboxPreviewMaterial | undefined {
+    return mergeMaterials(material);
+}
+
+function mergeLabelAppearances(
+    ...appearances: readonly (StompboxLabelAppearance | undefined)[]
+): StompboxLabelAppearance | undefined {
+    const merged: Record<string, string | number> = {};
+    for (const appearance of appearances) {
+        if (appearance === undefined) {
+            continue;
+        }
+        for (const [key, value] of Object.entries(appearance)) {
+            if (value !== undefined) {
+                merged[key] = value;
+            }
+        }
+    }
+    return Object.keys(merged).length === 0 ? undefined : merged;
 }
 
 function pressedOffsetMm(
@@ -1296,6 +1966,7 @@ type GltfAssemblySource = Readonly<{
     displayGlb: string;
     displayStep: string;
     localGlbPath: string;
+    material?: StompboxPreviewMaterial;
     transform: Readonly<{
         translation: readonly number[];
         rotation: readonly number[];
@@ -1313,6 +1984,7 @@ type GltfDocument = Readonly<{
             units: StompboxUnits;
             sourceAssets: readonly GltfSourceAsset[];
             decals: readonly JsonObject[];
+            appearance: JsonObject;
         }>;
     }>;
     scene: 0;
@@ -1384,7 +2056,7 @@ function drillTemplateSvg(template: StompboxDrillTemplate): string {
         `<svg ${attrs}>`,
         `<title id="${escapeAttribute(titleId)}">${escapeText(title)}</title>`,
         `<desc id="${escapeAttribute(descId)}">${escapeText(description)}</desc>`,
-        drillTemplateStyleSvg(template.mode),
+        drillTemplateStyleSvg(template),
         drillTemplateHeaderSvg(template),
         drillTemplateEnclosureSvg(template),
         drillTemplateDecalsSvg(template),
@@ -1394,20 +2066,29 @@ function drillTemplateSvg(template: StompboxDrillTemplate): string {
     ].join('');
 }
 
-function drillTemplateStyleSvg(mode: StompboxTemplateMode): string {
-    const stroke = mode === 'print' ? '#111827' : '#334155';
+function drillTemplateStyleSvg(template: StompboxDrillTemplate): string {
+    const mode = template.mode;
+    const stroke = template.appearance?.enclosure?.strokeColor ?? (mode === 'print' ? '#111827' : '#334155');
+    const enclosureFill = template.appearance?.enclosure?.color ?? '#f8fafc';
+    const sideFill = template.appearance?.template?.offColor ?? '#e2e8f0';
+    const foldColor = template.appearance?.template?.foldColor ?? stroke;
+    const guideColor = template.appearance?.template?.guideColor ?? '#64748b';
+    const holeStroke = template.appearance?.template?.holeStrokeColor ?? stroke;
+    const holeFill = template.appearance?.template?.holeFillColor ?? '#fff';
+    const centerDot = template.appearance?.template?.centerDotColor ?? stroke;
+    const labelColor = template.appearance?.defaults?.label?.color ?? '#111827';
     return [
         '<defs>',
         '<style>',
-        `.enclosure{fill:#f8fafc;stroke:${stroke};stroke-width:.35;}`,
-        `.side-panel{fill:#e2e8f0;fill-opacity:.55;stroke:${stroke};stroke-width:.3;}`,
+        `.enclosure{fill:${enclosureFill};stroke:${stroke};stroke-width:.35;}`,
+        `.side-panel{fill:${sideFill};fill-opacity:.55;stroke:${stroke};stroke-width:.3;}`,
         `.fold-fill{fill:#0f172a;fill-opacity:${mode === 'print' ? '.04' : '.08'};stroke:none;}`,
-        `.fold-line{stroke:${stroke};stroke-width:.18;stroke-dasharray:1.5 1.5;}`,
-        '.guide{stroke:#64748b;stroke-width:.14;stroke-dasharray:1.2 1.2;opacity:.55;}',
-        `.hole{fill:none;stroke:${stroke};stroke-width:.25;}`,
-        `.crosshair{stroke:${stroke};stroke-width:.15;stroke-dasharray:1 1;}`,
+        `.fold-line{stroke:${foldColor};stroke-width:.18;stroke-dasharray:1.5 1.5;}`,
+        `.guide-line{stroke:${guideColor};stroke-width:.14;stroke-dasharray:1.2 1.2;opacity:.55;}`,
+        `.hole{fill:${holeFill};stroke:${holeStroke};stroke-width:.35;}`,
+        `.drill-hole-center-dot{fill:${centerDot};stroke:none;}`,
         `.decal-outline{fill:none;stroke:${stroke};stroke-width:.25;stroke-dasharray:2 1;}`,
-        '.label{fill:#111827;font-family:Arial,sans-serif;font-size:2.6px;}',
+        `.label{fill:${labelColor};font-family:Arial,sans-serif;font-size:2.6px;}`,
         '.muted{fill:#475569;font-family:Arial,sans-serif;font-size:2.3px;}',
         '</style>',
         '</defs>',
@@ -1431,11 +2112,11 @@ function drillTemplateEnclosureSvg(template: StompboxDrillTemplate): string {
             ['data-enclosure-id', template.enclosure.variantId],
             ['data-template-view', 'outside-unfolded'],
         ])}>`,
-        drillTemplatePanelSvg(back, 'side-panel'),
-        drillTemplatePanelSvg(left, 'side-panel'),
-        drillTemplatePanelSvg(right, 'side-panel'),
-        drillTemplatePanelSvg(bottom, 'side-panel'),
-        drillTemplatePanelSvg(top, 'enclosure'),
+        drillTemplatePanelSvg(back, 'panel side-panel', template.appearance),
+        drillTemplatePanelSvg(left, 'panel side-panel', template.appearance),
+        drillTemplatePanelSvg(right, 'panel side-panel', template.appearance),
+        drillTemplatePanelSvg(bottom, 'panel side-panel', template.appearance),
+        drillTemplatePanelSvg(top, 'panel top-panel enclosure', template.appearance),
         drillTemplateFoldFillSvg(back),
         drillTemplateFoldFillSvg(left),
         drillTemplateFoldFillSvg(right),
@@ -1446,48 +2127,53 @@ function drillTemplateEnclosureSvg(template: StompboxDrillTemplate): string {
             ['y1', top.y],
             ['x2', top.x],
             ['y2', top.y + top.height],
-        ]),
+        ], template.appearance),
         drillTemplateLineSvg('fold-line', [
             ['data-fold-line', 'right'],
             ['x1', top.x + top.width],
             ['y1', top.y],
             ['x2', top.x + top.width],
             ['y2', top.y + top.height],
-        ]),
+        ], template.appearance),
         drillTemplateLineSvg('fold-line', [
             ['data-fold-line', 'back'],
             ['x1', top.x],
             ['y1', top.y],
             ['x2', top.x + top.width],
             ['y2', top.y],
-        ]),
+        ], template.appearance),
         drillTemplateLineSvg('fold-line', [
             ['data-fold-line', 'bottom'],
             ['x1', top.x],
             ['y1', top.y + top.height],
             ['x2', top.x + top.width],
             ['y2', top.y + top.height],
-        ]),
-        drillTemplateLineSvg('guide', [
+        ], template.appearance),
+        drillTemplateLineSvg('guide-line', [
             ['data-template-guide', 'vertical-centerline'],
             ['x1', topCenterX],
             ['y1', layout.panels.back.y],
             ['x2', topCenterX],
             ['y2', layout.panels.bottom.y + layout.panels.bottom.height],
-        ]),
-        drillTemplateLineSvg('guide', [
+        ], template.appearance),
+        drillTemplateLineSvg('guide-line', [
             ['data-template-guide', 'horizontal-centerline'],
             ['x1', layout.panels.left.x],
             ['y1', topCenterY],
             ['x2', layout.panels.right.x + layout.panels.right.width],
             ['y2', topCenterY],
-        ]),
-        ...template.holes.map((hole) => drillTemplateHoleSvg(hole, template.mode)),
+        ], template.appearance),
+        ...template.holes.map((hole) => drillTemplateHoleSvg(hole, template.mode, template.appearance)),
         '</g>',
     ].join('');
 }
 
-function drillTemplatePanelSvg(panel: DrillTemplatePanel, className: string): string {
+function drillTemplatePanelSvg(
+    panel: DrillTemplatePanel,
+    className: string,
+    appearance: StompboxAppearance | undefined,
+): string {
+    const isTop = panel.id === 'top';
     return `<rect ${svgAttributes([
         ['class', className],
         ['data-face-panel', panel.id],
@@ -1495,7 +2181,9 @@ function drillTemplatePanelSvg(panel: DrillTemplatePanel, className: string): st
         ['y', svgNumber(panel.y)],
         ['width', svgNumber(panel.width)],
         ['height', svgNumber(panel.height)],
-        ['rx', panel.id === 'top' ? 2.5 : 0],
+        ['rx', isTop ? 2.5 : 0],
+        ['fill', isTop ? appearance?.enclosure?.color : appearance?.template?.offColor],
+        ['stroke', appearance?.enclosure?.strokeColor],
     ])}/>`;
 }
 
@@ -1514,22 +2202,48 @@ function drillTemplateFoldFillSvg(panel: DrillTemplatePanel): string {
 function drillTemplateLineSvg(
     className: string,
     attributes: readonly (readonly [string, SvgAttributeValue])[],
+    appearance?: StompboxAppearance,
 ): string {
+    const stroke = className === 'guide-line'
+        ? appearance?.template?.guideColor
+        : className === 'fold-line'
+            ? appearance?.template?.foldColor
+            : undefined;
     const normalized = attributes.map(([name, value]) => [
         name,
         typeof value === 'number' ? svgNumber(value) : value,
     ] as const);
     return `<line ${svgAttributes([
         ['class', className],
+        ['stroke', stroke],
         ...normalized,
     ])}/>`;
 }
 
-function drillTemplateHoleSvg(hole: StompboxDrillTemplateHole, mode: StompboxTemplateMode): string {
+function drillTemplateHoleSvg(
+    hole: StompboxDrillTemplateHole,
+    mode: StompboxTemplateMode,
+    appearance: StompboxAppearance | undefined,
+): string {
     const radius = hole.drillDiameterMm / 2;
     const visibleDiameter = partVisibleDiameterMm(hole.partId);
-    const label = hole.label ?? hole.controlId ?? hole.id;
-    const labelY = hole.templateCenterMm.y - radius - 1.8;
+    const profile = drillHoleProfileForHole(hole);
+    const part = STOMPBOX_PART_CATALOG[hole.partId];
+    const labelId = `label-${decalIdSegment(hole.id)}`;
+    const labelAppearance = part === undefined
+        ? undefined
+        : labelAppearanceFor(labelId, hole.controlId, part, appearance);
+    const label = labelAppearance?.text ?? drillTemplateHoleLabel(hole);
+    const labelY = drillTemplateHoleLabelY(hole, radius, part);
+    const labelAttrs = svgAttributes([
+        ['class', 'label'],
+        ['x', svgNumber(hole.templateCenterMm.x)],
+        ['y', svgNumber(labelY)],
+        ['text-anchor', 'middle'],
+        ['fill', labelAppearance?.color],
+        ['font-family', labelAppearance?.fontFamily],
+        ['font-size', labelAppearance?.fontSizeMm === undefined ? undefined : svgNumber(labelAppearance.fontSizeMm)],
+    ]);
     return [
         `<g ${svgAttributes([
             ['data-hole-id', hole.id],
@@ -1540,15 +2254,78 @@ function drillTemplateHoleSvg(hole: StompboxDrillTemplateHole, mode: StompboxTem
             ['data-drill-diameter-mm', svgNumber(hole.drillDiameterMm)],
             ['data-drill-radius-mm', svgNumber(radius)],
             ['data-part-visible-diameter-mm', visibleDiameter === undefined ? undefined : svgNumber(visibleDiameter)],
+            ['data-drill-hole-profile-id', profile?.id],
+            ['data-drill-hole-profile-label', profile?.label],
+            ['data-drill-hole-profile-diameter-mm', profile === undefined ? undefined : svgNumber(profile.diameterMm)],
+            ['data-drill-hole-profile-fraction-inches', profile?.fractionInches],
         ])}>`,
-        `<circle class="hole" cx="${svgNumber(hole.templateCenterMm.x)}" cy="${svgNumber(hole.templateCenterMm.y)}" r="${svgNumber(radius)}"/>`,
-        `<line class="crosshair" x1="${svgNumber(hole.templateCenterMm.x - radius - 1)}" y1="${svgNumber(hole.templateCenterMm.y)}" x2="${svgNumber(hole.templateCenterMm.x + radius + 1)}" y2="${svgNumber(hole.templateCenterMm.y)}"/>`,
-        `<line class="crosshair" x1="${svgNumber(hole.templateCenterMm.x)}" y1="${svgNumber(hole.templateCenterMm.y - radius - 1)}" x2="${svgNumber(hole.templateCenterMm.x)}" y2="${svgNumber(hole.templateCenterMm.y + radius + 1)}"/>`,
-        mode === 'print'
+        drillTemplateHoleMarkerSvg(hole, radius, profile, appearance),
+        label === undefined
             ? ''
-            : `<text class="label" x="${svgNumber(hole.templateCenterMm.x)}" y="${svgNumber(labelY)}" text-anchor="middle">${escapeText(label)}</text>`,
+            : `<text ${labelAttrs}>${escapeText(label)}</text>`,
         '</g>',
     ].join('');
+}
+
+function drillTemplateHoleLabelY(
+    hole: StompboxDrillTemplateHole,
+    radius: number,
+    part: StompboxPartProfile | undefined,
+): number {
+    if (part?.family === 'dc-jack') {
+        return hole.templateCenterMm.y + radius + 3.5;
+    }
+    return hole.templateCenterMm.y - radius - 1.8;
+}
+
+function drillTemplateHoleLabel(hole: StompboxDrillTemplateHole): string | undefined {
+    const part = STOMPBOX_PART_CATALOG[hole.partId];
+    if (part?.family === 'footswitch') {
+        return undefined;
+    }
+    return hole.label ?? hole.controlId ?? hole.id;
+}
+
+function drillTemplateHoleMarkerSvg(
+    hole: StompboxDrillTemplateHole,
+    radius: number,
+    profile: StompboxDrillHoleProfile | undefined,
+    appearance: StompboxAppearance | undefined,
+): string {
+    const dotRadius = drillTemplateCenterDotRadius(radius);
+    const centerDot = `<circle ${svgAttributes([
+        ['class', 'drill-hole-center-dot'],
+        ['cx', svgNumber(hole.templateCenterMm.x)],
+        ['cy', svgNumber(hole.templateCenterMm.y)],
+        ['r', svgNumber(dotRadius)],
+        ['fill', appearance?.template?.centerDotColor],
+    ])}/>`;
+    if (profile?.marker === 'center-dot') {
+        return centerDot;
+    }
+    return [
+        `<circle ${svgAttributes([
+            ['class', 'hole drill-hole-profile-outer'],
+            ['cx', svgNumber(hole.templateCenterMm.x)],
+            ['cy', svgNumber(hole.templateCenterMm.y)],
+            ['r', svgNumber(radius)],
+            ['fill', appearance?.template?.holeFillColor],
+            ['stroke', appearance?.template?.holeStrokeColor],
+        ])}/>`,
+        centerDot,
+    ].join('');
+}
+
+function drillTemplateCenterDotRadius(radius: number): number {
+    return Math.min(1.5, Math.max(0.55, radius * 0.25));
+}
+
+function drillHoleProfileForHole(hole: StompboxDrillHole): StompboxDrillHoleProfile | undefined {
+    if (hole.drillHoleProfileId !== undefined) {
+        return STOMPBOX_DRILL_HOLE_PROFILE_CATALOG[hole.drillHoleProfileId];
+    }
+    return Object.values(STOMPBOX_DRILL_HOLE_PROFILE_CATALOG)
+        .find((profile) => Math.abs(profile.diameterMm - hole.drillDiameterMm) < 0.001);
 }
 
 function drillTemplateDecalsSvg(template: StompboxDrillTemplate): string {
@@ -1635,7 +2412,7 @@ function previewViewSvg(preview: StompboxPreview, view: StompboxPreviewSvgViewId
         `<svg ${attrs}>`,
         `<title id="${escapeAttribute(titleId)}">Stompbox preview ${escapeText(view)} view</title>`,
         `<desc id="${escapeAttribute(descId)}">Orthographic ${escapeText(view)} SVG preview for the stompbox assembly.</desc>`,
-        '<defs><style>.case{fill:#f8fafc;stroke:#334155;stroke-width:.35}.part-label{fill:#111827;font-family:Arial,sans-serif;font-size:2.4px}.decal-bounds{fill:none;stroke:#475569;stroke-width:.18;stroke-dasharray:1.5 1}</style></defs>',
+        '<defs><style>.case{fill:#f8fafc;stroke:#334155;stroke-width:.35}.decal-bounds{fill:none;stroke:#475569;stroke-width:.18;stroke-dasharray:1.5 1}</style></defs>',
         previewFrameSvg(preview, view, canvas),
         decals,
         parts,
@@ -1664,9 +2441,11 @@ function previewFrameSvg(
     view: StompboxPreviewSvgViewId,
     canvas: Readonly<{ widthMm: number; heightMm: number }>,
 ): string {
+    const enclosureFill = preview.enclosure.material?.color ?? '#f8fafc';
+    const enclosureStroke = preview.enclosure.material?.strokeColor ?? '#334155';
     return [
         `<g data-enclosure-id="${escapeAttribute(preview.enclosure.variantId)}" data-enclosure-view="${escapeAttribute(view)}">`,
-        `<rect class="case" x="0" y="0" width="${svgNumber(canvas.widthMm)}" height="${svgNumber(canvas.heightMm)}" rx="2.5"/>`,
+        `<rect class="case" x="0" y="0" width="${svgNumber(canvas.widthMm)}" height="${svgNumber(canvas.heightMm)}" rx="2.5" fill="${escapeAttribute(enclosureFill)}" stroke="${escapeAttribute(enclosureStroke)}"/>`,
         view === 'bottom'
             ? `<rect x="4" y="4" width="${svgNumber(canvas.widthMm - 8)}" height="${svgNumber(canvas.heightMm - 8)}" rx="2" fill="none" stroke="#94a3b8" stroke-width=".25" data-enclosure-bottom="true"/>`
             : '',
@@ -1688,6 +2467,8 @@ function previewPartSvg(
     const attrs = svgAttributes([
         ['data-part-id', part.id],
         ['data-part-profile-id', part.partId],
+        ['data-part-family', profile.family],
+        ['data-control-id', part.controlId],
         ['data-face', part.face],
         ['data-provenance', part.provenance],
         ['data-knob-rotation-deg', profile.geometry.kind === 'knob' ? part.transform.rotationDeg.z : undefined],
@@ -1697,7 +2478,6 @@ function previewPartSvg(
     return [
         `<g ${attrs}>`,
         previewPartShapeSvg(profile, part, point),
-        `<text class="part-label" x="${svgNumber(point.x)}" y="${svgNumber(point.y + partLabelOffsetMm(profile))}" text-anchor="middle">${escapeText(part.controlId ?? part.id)}</text>`,
         '</g>',
     ].join('');
 }
@@ -1709,6 +2489,9 @@ function previewDecalSvg(
     canvas: Readonly<{ widthMm: number; heightMm: number }>,
 ): string {
     const point = previewPointForDecal(preview, decal, view, canvas);
+    const bounds = decal.id.startsWith('label-')
+        ? ''
+        : `<rect class="decal-bounds" x="${svgNumber(-decal.sizeMm.widthMm / 2)}" y="${svgNumber(-decal.sizeMm.heightMm / 2)}" width="${svgNumber(decal.sizeMm.widthMm)}" height="${svgNumber(decal.sizeMm.heightMm)}" rx=".8"/>`;
     return [
         `<g ${svgAttributes([
             ['data-decal-id', decal.id],
@@ -1716,7 +2499,7 @@ function previewDecalSvg(
             ['data-face', decal.face],
             ['transform', `translate(${svgNumber(point.x)} ${svgNumber(point.y)}) rotate(${svgNumber(decal.rotationDeg)})`],
         ])}>`,
-        `<rect class="decal-bounds" x="${svgNumber(-decal.sizeMm.widthMm / 2)}" y="${svgNumber(-decal.sizeMm.heightMm / 2)}" width="${svgNumber(decal.sizeMm.widthMm)}" height="${svgNumber(decal.sizeMm.heightMm)}" rx=".8"/>`,
+        bounds,
         previewDecalContentSvg(decal),
         '</g>',
     ].join('');
@@ -1724,7 +2507,7 @@ function previewDecalSvg(
 
 function previewDecalContentSvg(decal: StompboxPreviewDecal): string {
     if (decal.kind === 'text') {
-        return `<text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="${escapeAttribute(decal.fontFamily)}" font-size="${svgNumber(decal.fontSizeMm)}" fill="${escapeAttribute(decal.color)}">${escapeText(decal.text)}</text>`;
+        return `<text class="label-text" x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="${escapeAttribute(decal.fontFamily)}" font-size="${svgNumber(decal.fontSizeMm)}" fill="${escapeAttribute(decal.color)}">${escapeText(decal.text)}</text>`;
     }
     return `<image href="${escapeAttribute(svgDataUri(decal.svg))}" x="${svgNumber(-decal.sizeMm.widthMm / 2)}" y="${svgNumber(-decal.sizeMm.heightMm / 2)}" width="${svgNumber(decal.sizeMm.widthMm)}" height="${svgNumber(decal.sizeMm.heightMm)}" preserveAspectRatio="xMidYMid meet"/>`;
 }
@@ -1737,27 +2520,38 @@ function previewPartShapeSvg(
     const geometry = profile.geometry;
     if (geometry.kind === 'knob') {
         const radius = geometry.diameterMm / 2;
+        const fill = part.material?.color ?? '#334155';
+        const stroke = part.material?.strokeColor ?? '#0f172a';
+        const indicator = part.material?.indicatorColor ?? '#f8fafc';
         return [
-            `<circle cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(radius)}" fill="#334155" stroke="#0f172a" stroke-width=".35"/>`,
-            `<line x1="${svgNumber(point.x)}" y1="${svgNumber(point.y)}" x2="${svgNumber(point.x)}" y2="${svgNumber(point.y - radius + 2)}" stroke="#f8fafc" stroke-width=".8" stroke-linecap="round" transform="rotate(${svgNumber(part.transform.rotationDeg.z)} ${svgNumber(point.x)} ${svgNumber(point.y)})"/>`,
+            `<circle class="knob-body" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(radius)}" fill="${escapeAttribute(fill)}" stroke="${escapeAttribute(stroke)}" stroke-width=".35"/>`,
+            `<line class="knob-indicator" x1="${svgNumber(point.x)}" y1="${svgNumber(point.y)}" x2="${svgNumber(point.x)}" y2="${svgNumber(point.y - radius + 2)}" stroke="${escapeAttribute(indicator)}" stroke-width=".8" stroke-linecap="round" transform="rotate(${svgNumber(part.transform.rotationDeg.z)} ${svgNumber(point.x)} ${svgNumber(point.y)})"/>`,
         ].join('');
     }
     if (geometry.kind === 'led' || geometry.kind === 'led-bezel') {
         const radius = (geometry.kind === 'led' ? geometry.flangeDiameterMm : geometry.outerDiameterMm) / 2;
-        const fill = part.material?.emissive === true ? (part.material.color ?? '#ef4444') : '#fee2e2';
+        const fill = part.material?.emissive === true ? (part.material.color ?? '#ef4444') : (part.material?.offColor ?? '#fee2e2');
+        const stroke = part.material?.strokeColor ?? '#7f1d1d';
         const opacity = part.material?.emissive === true ? '1' : '.45';
-        return `<circle cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(radius)}" fill="${escapeAttribute(fill)}" fill-opacity="${opacity}" stroke="#7f1d1d" stroke-width=".3"/>`;
+        return `<circle class="led-lens" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(radius)}" fill="${escapeAttribute(fill)}" fill-opacity="${opacity}" stroke="${escapeAttribute(stroke)}" stroke-width=".3"/>`;
     }
     if (geometry.kind === 'footswitch') {
         const pressed = part.transform.translationMm.z < 15.5;
+        const nutFill = part.material?.color ?? '#d1d5db';
+        const buttonFill = pressed
+            ? (part.material?.pressedColor ?? '#64748b')
+            : (part.material?.offColor ?? '#94a3b8');
+        const stroke = part.material?.strokeColor ?? '#374151';
         return [
-            `<circle cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(geometry.nutOuterDiameterMm / 2)}" fill="#d1d5db" stroke="#374151" stroke-width=".35"/>`,
-            `<circle cx="${svgNumber(point.x)}" cy="${svgNumber(point.y + (pressed ? 0.6 : 0))}" r="${svgNumber(geometry.buttonDiameterMm / 2)}" fill="${pressed ? '#64748b' : '#94a3b8'}" stroke="#1f2937" stroke-width=".25"/>`,
+            `<circle class="footswitch-nut" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(geometry.nutOuterDiameterMm / 2)}" fill="${escapeAttribute(nutFill)}" stroke="${escapeAttribute(stroke)}" stroke-width=".35"/>`,
+            `<circle class="footswitch-button" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y + (pressed ? 0.6 : 0))}" r="${svgNumber(geometry.buttonDiameterMm / 2)}" fill="${escapeAttribute(buttonFill)}" stroke="#1f2937" stroke-width=".25"/>`,
         ].join('');
     }
+    const stroke = part.material?.strokeColor ?? '#334155';
+    const innerStroke = part.material?.color ?? '#94a3b8';
     return [
-        `<circle cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(geometry.outerDiameterMm / 2)}" fill="none" stroke="#334155" stroke-width=".45"/>`,
-        `<circle cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(geometry.innerDiameterMm / 2)}" fill="none" stroke="#94a3b8" stroke-width=".3"/>`,
+        `<circle class="ring-outer" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(geometry.outerDiameterMm / 2)}" fill="none" stroke="${escapeAttribute(stroke)}" stroke-width=".45"/>`,
+        `<circle class="ring-inner" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(geometry.innerDiameterMm / 2)}" fill="none" stroke="${escapeAttribute(innerStroke)}" stroke-width=".3"/>`,
     ].join('');
 }
 
@@ -1823,24 +2617,8 @@ function decalVisibleInView(decal: StompboxPreviewDecal, view: StompboxPreviewSv
     return decal.face === 'bottom';
 }
 
-function partLabelOffsetMm(profile: StompboxPartProfile): number {
-    const geometry = profile.geometry;
-    if (geometry.kind === 'knob') {
-        return geometry.diameterMm / 2 + 4;
-    }
-    if (geometry.kind === 'footswitch') {
-        return geometry.nutOuterDiameterMm / 2 + 4;
-    }
-    if (geometry.kind === 'led') {
-        return geometry.flangeDiameterMm / 2 + 3;
-    }
-    if (geometry.kind === 'led-bezel') {
-        return geometry.outerDiameterMm / 2 + 3;
-    }
-    return geometry.outerDiameterMm / 2 + 3;
-}
-
 function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions): Uint8Array {
+    const appearance = createStompboxAppearancePatch(preview, options.appearance);
     const state: GltfMergeState = {
         sourceAssets: [],
         nodes: [{
@@ -1851,6 +2629,7 @@ function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions
                 units: preview.units,
                 enclosureId: preview.enclosure.variantId,
                 decals: preview.decals.map((decal) => previewDecalJson(decal)),
+                appearance,
             },
         }],
         meshes: [],
@@ -1883,6 +2662,7 @@ function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions
                 units: preview.units,
                 sourceAssets: state.sourceAssets,
                 decals: preview.decals.map((decal) => previewDecalJson(decal)),
+                appearance,
             },
         },
         scene: 0,
@@ -1913,6 +2693,7 @@ function gltfAssemblySources(
             displayGlb: preview.enclosure.assets.glb,
             displayStep: preview.enclosure.assets.step,
             localGlbPath: resolveStompboxAssetPaths(enclosureProfileValue.assets, { basePath }).glb,
+            ...(preview.enclosure.material === undefined ? {} : { material: preview.enclosure.material }),
             transform: {
                 translation: [0, 0, 0],
                 rotation: [0, 0, 0, 1],
@@ -1927,6 +2708,7 @@ function gltfAssemblySources(
                     lengthMm: preview.enclosure.dimensionsMm.lengthMm,
                     depthMm: preview.enclosure.dimensionsMm.depthMm,
                 },
+                ...(preview.enclosure.material === undefined ? {} : { material: previewMaterialJson(preview.enclosure.material) }),
             },
         },
         ...preview.parts.map((part) => partAssemblySource(part, basePath)),
@@ -1944,6 +2726,7 @@ function partAssemblySource(part: StompboxPreviewPart, basePath: string): GltfAs
         displayGlb: part.assets.glb,
         displayStep: part.assets.step,
         localGlbPath: resolveStompboxAssetPaths(profile.assets, { basePath }).glb,
+        ...(part.material === undefined ? {} : { material: part.material }),
         transform: {
             translation: point3Array(part.transform.translationMm),
             rotation: quaternionFromEulerDeg(part.transform.rotationDeg),
@@ -1967,8 +2750,15 @@ function partAssemblySource(part: StompboxPreviewPart, basePath: string): GltfAs
 function previewMaterialJson(material: StompboxPreviewMaterial): JsonObject {
     return {
         ...(material.color === undefined ? {} : { color: material.color }),
+        ...(material.strokeColor === undefined ? {} : { strokeColor: material.strokeColor }),
+        ...(material.indicatorColor === undefined ? {} : { indicatorColor: material.indicatorColor }),
+        ...(material.offColor === undefined ? {} : { offColor: material.offColor }),
+        ...(material.pressedColor === undefined ? {} : { pressedColor: material.pressedColor }),
         ...(material.emissive === undefined ? {} : { emissive: material.emissive }),
         ...(material.intensity === undefined ? {} : { intensity: material.intensity }),
+        ...(material.metallicFactor === undefined ? {} : { metallicFactor: material.metallicFactor }),
+        ...(material.roughnessFactor === undefined ? {} : { roughnessFactor: material.roughnessFactor }),
+        ...(material.opacity === undefined ? {} : { opacity: material.opacity }),
     };
 }
 
@@ -2171,7 +2961,10 @@ function appendSourceGlb(state: GltfMergeState, source: GltfAssemblySource): rea
     const nodeOffset = state.nodes.length;
 
     for (const material of jsonObjectArray(parsed.json, 'materials')) {
-        state.materials.push(prefixNamedObject(material, `${source.id}/`));
+        state.materials.push(applyGltfMaterialAppearance(
+            prefixNamedObject(material, `${source.id}/`),
+            source.material,
+        ));
     }
     for (const bufferView of jsonObjectArray(parsed.json, 'bufferViews')) {
         state.bufferViews.push(remapBufferView(bufferView, bufferOffset));
@@ -2186,6 +2979,37 @@ function appendSourceGlb(state: GltfMergeState, source: GltfAssemblySource): rea
         state.nodes.push(remapNode(node, nodeOffset, meshOffset, `${source.id}/`));
     }
     return sourceSceneRootNodeIndexes(parsed.json).map((nodeIndex) => nodeIndex + nodeOffset);
+}
+
+function applyGltfMaterialAppearance(
+    material: MutableJsonObject,
+    appearance: StompboxPreviewMaterial | undefined,
+): MutableJsonObject {
+    if (appearance === undefined) {
+        return material;
+    }
+    const pbr = {
+        ...(jsonObjectValue(material.pbrMetallicRoughness) ?? {}),
+    } as MutableJsonObject;
+    if (appearance.color !== undefined || appearance.opacity !== undefined) {
+        const color = hexColorToRgb(appearance.color ?? '#0f172a');
+        pbr.baseColorFactor = [...color, appearance.opacity ?? 1];
+    }
+    if (appearance.metallicFactor !== undefined) {
+        pbr.metallicFactor = appearance.metallicFactor;
+    }
+    if (appearance.roughnessFactor !== undefined) {
+        pbr.roughnessFactor = appearance.roughnessFactor;
+    }
+    if (Object.keys(pbr).length > 0) {
+        material.pbrMetallicRoughness = pbr;
+    }
+    if (appearance.emissive === true) {
+        const color = hexColorToRgb(appearance.color ?? '#ef4444');
+        const intensity = appearance.intensity ?? 1;
+        material.emissiveFactor = color.map((channel) => channel * intensity);
+    }
+    return material;
 }
 
 function remapBufferView(bufferView: JsonObject, byteOffset: number): MutableJsonObject {
@@ -2480,7 +3304,7 @@ function svgDataUri(svg: string): string {
 }
 
 function svgNumber(value: number): string {
-    const rounded = Math.round(value * 1000) / 1000;
+    const rounded = Math.round(value * 1_000_000) / 1_000_000;
     if (Object.is(rounded, -0)) {
         return '0';
     }
@@ -2611,37 +3435,242 @@ function outsideDrillTemplateLayout(
     };
 }
 
-function autoKnobGrid(count: number, enclosure: StompboxEnclosureProfile): AutoKnobGrid {
+function placementGrid(enclosure: StompboxEnclosureProfile): StompboxPlacementGrid {
+    const { widthMm, lengthMm } = enclosure.dimensionsMm;
+    const rowCount = Math.max(1, Math.floor(lengthMm / STOMPBOX_GRID_TARGET_ROW_PITCH_MM));
+    const usableLengthMm = Math.max(0, lengthMm - STOMPBOX_GRID_EDGE_MARGIN_MM * 2);
+    return {
+        edgeMarginMm: STOMPBOX_GRID_EDGE_MARGIN_MM,
+        widthMm,
+        lengthMm,
+        usableWidthMm: Math.max(0, widthMm - STOMPBOX_GRID_EDGE_MARGIN_MM * 2),
+        usableLengthMm,
+        rowCount,
+        rowPitchMm: roundMillimeters(usableLengthMm / rowCount),
+    };
+}
+
+function autoKnobGrid(count: number, grid: StompboxPlacementGrid, styleProfile: StompboxStyleProfileId): AutoKnobGrid {
     if (count <= 0) {
         return {
-            partId: 'knob-mxr-style-fluted',
-            positions: [],
+            placements: [],
         };
     }
-    const columns = count >= 4 ? 4 : count;
-    const partId = count >= 4 ? 'knob-davies-1510bg-mini' : 'knob-mxr-style-fluted';
-    const columnCenters = enclosureWidthColumnCenters(columns, enclosure.dimensionsMm.widthMm);
-    const rowSpacingMm = 22;
+    if (styleProfile === 'boss-style') {
+        return bossStyleKnobGrid(count, grid);
+    }
+    return mxrStyleKnobGrid(count, grid);
+}
+
+function bossStyleKnobGrid(count: number, grid: StompboxPlacementGrid): AutoKnobGrid {
+    const rowOneY = gridRowCenterY(grid, 1);
+    const oneRowKnobY = gridMergedRowCenterY(grid, 1, 2);
+    if (count === 2) {
+        const useLargeKnobs = largeKnobColumnLimit(grid) >= 2;
+        return {
+            placements: rowKnobPlacements(
+                useLargeKnobs ? STOMPBOX_LARGE_KNOB_PART_ID : STOMPBOX_SMALL_KNOB_PART_ID,
+                knobColumnCenters(grid, 2, useLargeKnobs ? STOMPBOX_LARGE_KNOB_DIAMETER_MM : STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                oneRowKnobY,
+            ),
+        };
+    }
+    if (count === 3) {
+        const useLargeKnobs = largeKnobColumnLimit(grid) >= 2;
+        return {
+            placements: [
+                ...rowKnobPlacements(
+                    useLargeKnobs ? STOMPBOX_LARGE_KNOB_PART_ID : STOMPBOX_SMALL_KNOB_PART_ID,
+                    knobColumnCenters(grid, 2, useLargeKnobs ? STOMPBOX_LARGE_KNOB_DIAMETER_MM : STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                    rowOneY,
+                ),
+                { partId: STOMPBOX_SMALL_KNOB_PART_ID, centerMm: { x: 0, y: gridRowCenterY(grid, 2) } },
+            ],
+        };
+    }
+    if (count === 4) {
+        if (smallKnobColumnLimit(grid) >= 4) {
+            return {
+                placements: rowKnobPlacements(
+                    STOMPBOX_SMALL_KNOB_PART_ID,
+                    knobColumnCenters(grid, 4, STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                    oneRowKnobY,
+                ),
+            };
+        }
+        const twoColumnCenters = knobColumnCenters(grid, 2, STOMPBOX_SMALL_KNOB_DIAMETER_MM);
+        return {
+            placements: [
+                ...rowKnobPlacements(STOMPBOX_SMALL_KNOB_PART_ID, twoColumnCenters, rowOneY),
+                ...rowKnobPlacements(STOMPBOX_SMALL_KNOB_PART_ID, twoColumnCenters, gridRowCenterY(grid, 2)),
+            ],
+        };
+    }
+    throw new Error(`unsupported stompbox style profile "boss-style" for ${count} knobs`);
+}
+
+function mxrStyleKnobGrid(count: number, grid: StompboxPlacementGrid): AutoKnobGrid {
+    const rowOneY = gridRowCenterY(grid, 1);
+    const rowTwoY = gridRowCenterY(grid, 2);
+    const upperMergedRowY = gridMergedRowCenterY(grid, 1, 2);
+    if (count === 1) {
+        return {
+            placements: [
+                { partId: STOMPBOX_LARGE_KNOB_PART_ID, centerMm: { x: 0, y: upperMergedRowY } },
+            ],
+        };
+    }
+    if (count === 2) {
+        const useLargeKnobs = largeKnobColumnLimit(grid) >= 2;
+        return {
+            placements: rowKnobPlacements(
+                useLargeKnobs ? STOMPBOX_LARGE_KNOB_PART_ID : STOMPBOX_SMALL_KNOB_PART_ID,
+                knobColumnCenters(grid, 2, useLargeKnobs ? STOMPBOX_LARGE_KNOB_DIAMETER_MM : STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                upperMergedRowY,
+            ),
+        };
+    }
+    if (count === 3) {
+        return {
+            placements: [
+                { partId: STOMPBOX_SMALL_KNOB_PART_ID, centerMm: { x: 0, y: rowOneY } },
+                ...rowKnobPlacements(
+                    STOMPBOX_SMALL_KNOB_PART_ID,
+                    knobColumnCenters(grid, 2, STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                    rowTwoY,
+                ),
+            ],
+        };
+    }
+    if (count === 4) {
+        const twoColumnCenters = knobColumnCenters(grid, 2, STOMPBOX_SMALL_KNOB_DIAMETER_MM);
+        return {
+            placements: [
+                ...rowKnobPlacements(STOMPBOX_SMALL_KNOB_PART_ID, twoColumnCenters, rowOneY),
+                ...rowKnobPlacements(STOMPBOX_SMALL_KNOB_PART_ID, twoColumnCenters, rowTwoY),
+            ],
+        };
+    }
+    if (count === 5) {
+        return {
+            placements: [
+                ...rowKnobPlacements(
+                    STOMPBOX_SMALL_KNOB_PART_ID,
+                    knobColumnCenters(grid, 2, STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                    rowOneY,
+                ),
+                ...rowKnobPlacements(
+                    STOMPBOX_SMALL_KNOB_PART_ID,
+                    knobColumnCenters(grid, 3, STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+                    rowTwoY,
+                ),
+            ],
+        };
+    }
+    if (count === 6) {
+        const threeColumnCenters = knobColumnCenters(grid, 3, STOMPBOX_SMALL_KNOB_DIAMETER_MM);
+        return {
+            placements: [
+                ...rowKnobPlacements(STOMPBOX_SMALL_KNOB_PART_ID, threeColumnCenters, rowOneY),
+                ...rowKnobPlacements(STOMPBOX_SMALL_KNOB_PART_ID, threeColumnCenters, rowTwoY),
+            ],
+        };
+    }
+    const columns = Math.max(1, Math.min(smallKnobColumnLimit(grid), count));
+    const columnCenters = knobColumnCenters(grid, columns, STOMPBOX_SMALL_KNOB_DIAMETER_MM);
     return {
-        partId,
-        positions: Array.from({ length: count }, (_unused, index) => {
+        placements: Array.from({ length: count }, (_unused, index) => {
             const x = columnCenters[index % columns] ?? 0;
             const row = Math.floor(index / columns);
             return {
-                x,
-                y: roundMillimeters(28 - row * rowSpacingMm),
+                partId: STOMPBOX_SMALL_KNOB_PART_ID,
+                centerMm: {
+                    x,
+                    y: gridRowCenterY(grid, row + 1),
+                },
             };
         }),
     };
 }
 
-function enclosureWidthColumnCenters(columns: number, widthMm: number): readonly number[] {
+function rowKnobPlacements(partId: string, xCenters: readonly number[], y: number): readonly AutoKnobPlacement[] {
+    return xCenters.map((x) => ({
+        partId,
+        centerMm: { x, y },
+    }));
+}
+
+function mxrStyleLedY(knobCount: number, grid: StompboxPlacementGrid): number {
+    if ((knobCount === 1 || knobCount === 2) && grid.rowCount >= 3) {
+        return gridRowLowerHalfCenterY(grid, 3);
+    }
+    return gridRowCenterY(grid, Math.min(3, grid.rowCount));
+}
+
+function bossStyleLedY(grid: StompboxPlacementGrid): number {
+    const ledRadiusMm = (partVisibleDiameterMm(STOMPBOX_DEFAULT_LED_PART_ID) ?? 3.48) / 2;
+    return roundMillimeters(gridTopInsetY(grid) - ledRadiusMm);
+}
+
+function footswitchGridY(knobCount: number, grid: StompboxPlacementGrid, styleProfile: StompboxStyleProfileId): number {
+    if (styleProfile === 'mxr-style' && (knobCount === 1 || knobCount === 2) && grid.rowCount >= 4) {
+        return gridRowCenterY(grid, 4);
+    }
+    if (styleProfile === 'boss-style' && grid.rowCount >= 5) {
+        return gridMergedRowCenterY(grid, 4, 5);
+    }
+    return gridRowCenterY(grid, grid.rowCount);
+}
+
+function gridRowCenterY(grid: StompboxPlacementGrid, rowIndex: number): number {
+    return roundMillimeters(grid.lengthMm / 2 - grid.edgeMarginMm - (rowIndex - 0.5) * grid.rowPitchMm);
+}
+
+function gridMergedRowCenterY(grid: StompboxPlacementGrid, firstRowIndex: number, lastRowIndex: number): number {
+    const rowSpan = lastRowIndex - firstRowIndex + 1;
+    return roundMillimeters(
+        grid.lengthMm / 2
+        - grid.edgeMarginMm
+        - (firstRowIndex - 1) * grid.rowPitchMm
+        - rowSpan * grid.rowPitchMm / 2,
+    );
+}
+
+function gridRowLowerHalfCenterY(grid: StompboxPlacementGrid, rowIndex: number): number {
+    return roundMillimeters(gridRowCenterY(grid, rowIndex) - grid.rowPitchMm / 4);
+}
+
+function gridTopInsetY(grid: StompboxPlacementGrid): number {
+    return roundMillimeters(grid.lengthMm / 2 - grid.edgeMarginMm);
+}
+
+function knobColumnCenters(grid: StompboxPlacementGrid, columns: number, diameterMm: number): readonly number[] {
     if (columns <= 1) {
         return [0];
     }
-    const columnWidth = widthMm / columns;
-    const left = -widthMm / 2 + columnWidth / 2;
-    return Array.from({ length: columns }, (_unused, index) => roundMillimeters(left + index * columnWidth));
+    const columnWidth = grid.usableWidthMm / columns;
+    const left = -grid.widthMm / 2 + grid.edgeMarginMm + columnWidth / 2;
+    const cellCenters = Array.from({ length: columns }, (_unused, index) => roundMillimeters(left + index * columnWidth));
+    const first = cellCenters[0] ?? 0;
+    const last = cellCenters[cellCenters.length - 1] ?? 0;
+    const requestedSpan = (columns - 1) * diameterMm;
+    const cellSpan = last - first;
+    if (requestedSpan > cellSpan + 0.001) {
+        const expandedLeft = -requestedSpan / 2;
+        return Array.from({ length: columns }, (_unused, index) => roundMillimeters(expandedLeft + index * diameterMm));
+    }
+    return cellCenters;
+}
+
+function largeKnobColumnLimit(grid: StompboxPlacementGrid): number {
+    return Math.max(1, Math.floor(grid.usableWidthMm / STOMPBOX_LARGE_KNOB_MIN_PITCH_MM));
+}
+
+function smallKnobColumnLimit(grid: StompboxPlacementGrid): number {
+    if (grid.widthMm >= STOMPBOX_1590B_MIN_WIDTH_MM) {
+        return 4;
+    }
+    return Math.max(1, Math.floor(grid.usableWidthMm / STOMPBOX_SMALL_KNOB_DIAMETER_MM));
 }
 
 function distributedTopRowPositions(count: number, y: number, spanMm: number): readonly StompboxPoint2[] {
@@ -2700,14 +3729,66 @@ function isSupportedFootswitch(switchControl: SwitchControl): boolean {
         || switchControl.partNumber?.toLowerCase().includes('3pdt') === true;
 }
 
-function centerForJackFace(face: StompboxFaceId, enclosure: StompboxEnclosureProfile): StompboxPoint2 {
+function centerForJackFace(
+    face: StompboxFaceId,
+    enclosure: StompboxEnclosureProfile,
+    grid: StompboxPlacementGrid,
+    hardwareStyle: StompboxHardwarePlacementStyle,
+    faceIndex = 0,
+): StompboxPoint2 {
+    const y = hardwareStyle === 'boss-style'
+        ? bossStyleSideJackY(grid, faceIndex)
+        : mxrStyleSideAudioJackY(grid, faceIndex);
     if (face === 'right') {
-        return { x: enclosure.dimensionsMm.widthMm / 2, y: 20 };
+        return { x: enclosure.dimensionsMm.widthMm / 2, y };
     }
     if (face === 'left') {
-        return { x: -enclosure.dimensionsMm.widthMm / 2, y: 20 };
+        return { x: -enclosure.dimensionsMm.widthMm / 2, y };
     }
-    return { x: 0, y: enclosure.dimensionsMm.lengthMm / 2 };
+    return { x: 0, y: gridTopInsetY(grid) };
+}
+
+function powerJackFace(hardwareStyle: StompboxHardwarePlacementStyle): StompboxFaceId {
+    return hardwareStyle === 'mxr-style' ? 'right' : 'back';
+}
+
+function centerForPowerJackFace(
+    face: StompboxFaceId,
+    enclosure: StompboxEnclosureProfile,
+    grid: StompboxPlacementGrid,
+    hardwareStyle: StompboxHardwarePlacementStyle,
+): StompboxPoint2 {
+    if (hardwareStyle === 'mxr-style' && face === 'right') {
+        return { x: enclosure.dimensionsMm.widthMm / 2, y: mxrStylePowerJackY(grid) };
+    }
+    return centerForJackFace(face, enclosure, grid, hardwareStyle);
+}
+
+function bossStyleSideJackY(grid: StompboxPlacementGrid, faceIndex: number): number {
+    const slotInPair = faceIndex % 2;
+    const pairIndex = Math.floor(faceIndex / 2);
+    const row = Math.min(3 + pairIndex, grid.rowCount);
+    const rowCenterY = gridRowCenterY(grid, row);
+    const rowHalfOffsetY = grid.rowPitchMm / 4;
+    return roundMillimeters(rowCenterY + (slotInPair === 0 ? rowHalfOffsetY : -rowHalfOffsetY));
+}
+
+function mxrStyleSideAudioJackY(grid: StompboxPlacementGrid, faceIndex: number): number {
+    return roundMillimeters(mxrStyleFiveSlotCenterY(grid, 3) - faceIndex * grid.lengthMm / 5);
+}
+
+function mxrStylePowerJackY(grid: StompboxPlacementGrid): number {
+    const audioY = mxrStyleSideAudioJackY(grid, 0);
+    const requestedCloseY = mxrStyleFiveSlotCenterY(grid, 4) + grid.lengthMm / 10;
+    const minimumDistanceY = (
+        (partVisibleDiameterMm('dc-socket-dc099') ?? 14.1)
+        + (partVisibleDiameterMm('jack-ts-pj629han') ?? 11)
+    ) / 2;
+    return roundMillimeters(Math.min(requestedCloseY, audioY - minimumDistanceY));
+}
+
+function mxrStyleFiveSlotCenterY(grid: StompboxPlacementGrid, slotIndex: number): number {
+    return roundMillimeters(grid.lengthMm / 2 - (slotIndex - 0.5) * grid.lengthMm / 5);
 }
 
 function controlIdForPanelElement(element: PanelElementPlacement): string {
@@ -2727,7 +3808,7 @@ function defaultPartIdForPanelKind(
         case 'selector':
             return 'knob-mxr-style-fluted';
         case 'led':
-            return 'led-5mm-red-kento-5408urc';
+            return STOMPBOX_DEFAULT_LED_PART_ID;
         case 'switch':
         case 'footswitch':
             return metadata?.switchKind === undefined || metadata.switchKind === '3pdt'
@@ -2789,6 +3870,14 @@ function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
 }
 
+function clamp(value: number, min: number, max: number): number {
+    if (min > max) {
+        return (min + max) / 2;
+    }
+    return Math.max(min, Math.min(max, value));
+}
+
 function roundMillimeters(value: number): number {
-    return Math.round(value * 1000) / 1000;
+    const rounded = Math.round(value * 1000) / 1000;
+    return Object.is(rounded, -0) ? 0 : rounded;
 }

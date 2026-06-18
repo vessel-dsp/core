@@ -236,6 +236,7 @@ export type {
     SwitchControl,
     SwitchKind,
     SwitchValue,
+    MovePanelElementOptions,
 } from './panel';
 export {
     applyControlMessage,
@@ -248,6 +249,7 @@ export {
     isSlider,
     isSwitch,
     knobStepSize,
+    movePanelElement,
     nearestKnobStep,
     PANEL_PROTOCOL_VERSION,
     snapKnobPosition,

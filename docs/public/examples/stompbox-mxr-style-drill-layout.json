@@ -1,0 +1,202 @@
+{
+  "schema": "stompbox-drill-layout/v1",
+  "units": "mm",
+  "enclosure": {
+    "variantId": "box-1590b",
+    "label": "Tayda A-6619 1590B enclosure generated STEP CAD",
+    "dimensionsMm": {
+      "widthMm": 60.5,
+      "lengthMm": 111.5,
+      "depthMm": 31
+    },
+    "topFace": {
+      "usableRectMm": {
+        "x": -25.25,
+        "y": -50.75,
+        "width": 50.5,
+        "height": 101.5
+      }
+    },
+    "assets": {
+      "glbRelativePath": "box-1590b/.tayda-a6619.step.glb",
+      "stepRelativePath": "box-1590b/tayda-a6619.step"
+    }
+  },
+  "holes": [
+    {
+      "id": "knob-GAIN",
+      "face": "top",
+      "centerMm": {
+        "x": -12.625,
+        "y": 30.45
+      },
+      "drillDiameterMm": 7.14375,
+      "drillHoleProfileId": "sixteen-mm-pot-9-32",
+      "partId": "knob-mxr-style-fluted-large",
+      "partLabel": "Tayda A-1829 TYMF-B00 20 mm MXR Style Large Fluted Black Knob generated panel-visible CAD stub",
+      "controlId": "GAIN",
+      "componentId": "GAIN",
+      "label": "Gain",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb",
+        "stepRelativePath": "knob-mxr-style-fluted/tayda-a1829-tymf-b00.step"
+      }
+    },
+    {
+      "id": "knob-LEVEL",
+      "face": "top",
+      "centerMm": {
+        "x": 12.625,
+        "y": 30.45
+      },
+      "drillDiameterMm": 7.14375,
+      "drillHoleProfileId": "sixteen-mm-pot-9-32",
+      "partId": "knob-mxr-style-fluted-large",
+      "partLabel": "Tayda A-1829 TYMF-B00 20 mm MXR Style Large Fluted Black Knob generated panel-visible CAD stub",
+      "controlId": "LEVEL",
+      "componentId": "LEVEL",
+      "label": "Level",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb",
+        "stepRelativePath": "knob-mxr-style-fluted/tayda-a1829-tymf-b00.step"
+      }
+    },
+    {
+      "id": "led-status",
+      "face": "top",
+      "centerMm": {
+        "x": 0,
+        "y": -5.075
+      },
+      "drillDiameterMm": 3.175,
+      "drillHoleProfileId": "three-mm-led-1-8",
+      "partId": "led-3mm-red-kento-5408urc",
+      "partLabel": "Kento 5408URC scaled 3 mm Red LED generated panel-visible CAD stub",
+      "label": "Status",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "led-5mm-red-kento-5408urc/.kento-5408urc.step.glb",
+        "stepRelativePath": "led-5mm-red-kento-5408urc/kento-5408urc.step"
+      }
+    },
+    {
+      "id": "switch-bypass",
+      "face": "top",
+      "centerMm": {
+        "x": 0,
+        "y": -20.3
+      },
+      "drillDiameterMm": 12.7,
+      "drillHoleProfileId": "dc-jack-3pdt-1-2",
+      "partId": "switch-3pdt-pic-pbs24302",
+      "partLabel": "PIC PBS24302 3PDT Latching Stomp Footswitch generated panel-visible CAD stub",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
+        "stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
+      }
+    },
+    {
+      "id": "jack-input",
+      "face": "right",
+      "centerMm": {
+        "x": 30.25,
+        "y": 0
+      },
+      "drillDiameterMm": 9.525,
+      "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+      "partId": "jack-ts-pj629han",
+      "partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm Mono Phone Jack generated exterior-ring CAD stub",
+      "label": "Input",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
+        "stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+      }
+    },
+    {
+      "id": "jack-output",
+      "face": "left",
+      "centerMm": {
+        "x": -30.25,
+        "y": 0
+      },
+      "drillDiameterMm": 9.525,
+      "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+      "partId": "jack-ts-pj629han",
+      "partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm Mono Phone Jack generated exterior-ring CAD stub",
+      "label": "Output",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
+        "stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+      }
+    },
+    {
+      "id": "power-9v",
+      "face": "right",
+      "centerMm": {
+        "x": 30.25,
+        "y": -12.55
+      },
+      "drillDiameterMm": 12.7,
+      "drillHoleProfileId": "dc-jack-3pdt-1-2",
+      "partId": "dc-socket-dc099",
+      "partLabel": "DC-099 2.1 x 5.5 mm Panel-Mount DC Power Jack generated exterior-ring CAD stub",
+      "label": "9V DC",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "dc-socket-dc099/.dc099.step.glb",
+        "stepRelativePath": "dc-socket-dc099/dc099.step"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"knob-GAIN\"",
+      "controlId": "GAIN",
+      "placementId": "knob-GAIN",
+      "face": "top"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"knob-LEVEL\"",
+      "controlId": "LEVEL",
+      "placementId": "knob-LEVEL",
+      "face": "top"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"led-status\"",
+      "placementId": "led-status",
+      "face": "top"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"switch-bypass\"",
+      "placementId": "switch-bypass",
+      "face": "top"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"jack-input\"",
+      "placementId": "jack-input",
+      "face": "right"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"jack-output\"",
+      "placementId": "jack-output",
+      "face": "left"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"power-9v\"",
+      "placementId": "power-9v",
+      "face": "right"
+    }
+  ]
+}

@@ -2,6 +2,8 @@ node_modules/
 dist/
 gh-pages/
 output/
+.astro/
+docs/src/content/docs/reference/api/
 .DS_Store
 *.tgz
 *.tsbuildinfo

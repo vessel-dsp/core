@@ -60,6 +60,17 @@ export function extractPanel(doc: CircuitDocument): Panel {
 
     for (const component of doc.components) {
         switch (component.kind) {
+            case 'variable-resistor': {
+                if (!isVariableResistorControl(component)) {
+                    break;
+                }
+                if (isSliderControl(component)) {
+                    sliders.push(toSlider(component));
+                } else {
+                    knobs.push(toKnob(component));
+                }
+                break;
+            }
             case 'potentiometer': {
                 if (isSliderControl(component)) {
                     sliders.push(toSlider(component));
@@ -613,6 +624,13 @@ function isSliderControl(component: Component): boolean {
     }
     const lower = style.toLowerCase();
     return lower.includes('slider') || lower.includes('fader');
+}
+
+function isVariableResistorControl(component: Component): boolean {
+    return component.properties.Wipe !== undefined
+        || component.properties.Sweep !== undefined
+        || component.properties.Taper !== undefined
+        || isSliderControl(component);
 }
 
 function resolveSliderOrientation(value: string | null): SliderOrientation {

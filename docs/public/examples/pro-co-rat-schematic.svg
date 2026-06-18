@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" viewBox="0 0 1100 520">
+  <title id="title">Pro Co Rat schematic overview</title>
+  <desc id="desc">Compact source-backed overview of the LiveSPICE Pro Co Rat fixture showing input filtering, LM308 gain stage, 1N914 clipping diodes, tone filter, 2N5458 JFET buffer, volume control, and output.</desc>
+  <defs>
+    <style>
+      .page { fill: #fbfcfd; }
+      .wire { fill: none; stroke: #1f2937; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+      .thin { fill: none; stroke: #1f2937; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+      .symbol { fill: #ffffff; stroke: #1f2937; stroke-width: 3; }
+      .accent { fill: #ecfeff; stroke: #0f766e; stroke-width: 3; }
+      .clip { fill: #fff7ed; stroke: #c2410c; stroke-width: 3; }
+      .text { fill: #111827; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 22px; }
+      .small { fill: #374151; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; }
+      .tiny { fill: #4b5563; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; }
+      .label { fill: #0f766e; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 15px; font-weight: 700; }
+      .node { fill: #1f2937; }
+      .ground { fill: none; stroke: #1f2937; stroke-width: 3; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="1100" height="520" rx="18" />
+  <text class="text" x="48" y="54">Pro Co Rat</text>
+  <text class="small" x="48" y="82">LiveSPICE fixture: tests/fixtures/schx/livespice-examples/Pro Co Rat.schx</text>
+
+  <path class="wire" d="M75 260 H170" />
+  <circle class="symbol" cx="65" cy="260" r="20" />
+  <text class="label" x="42" y="315">Input V1</text>
+
+  <g transform="translate(170 230)">
+    <line class="thin" x1="0" y1="30" x2="24" y2="30" />
+    <line class="thin" x1="24" y1="10" x2="24" y2="50" />
+    <line class="thin" x1="38" y1="10" x2="38" y2="50" />
+    <line class="thin" x1="38" y1="30" x2="72" y2="30" />
+    <text class="tiny" x="5" y="-8">C8 22n</text>
+  </g>
+
+  <path class="wire" d="M242 260 H310" />
+  <g transform="translate(310 232)">
+    <rect class="symbol" x="0" y="0" width="118" height="56" rx="8" />
+    <path class="thin" d="M18 28 h18 l8 -14 l16 28 l16 -28 l16 28 l8 -14 h18" />
+    <text class="tiny" x="18" y="-8">R7/R8 bias</text>
+  </g>
+
+  <path class="wire" d="M428 260 H485" />
+  <g transform="translate(485 180)">
+    <path class="accent" d="M0 0 L150 80 L0 160 Z" />
+    <line class="wire" x1="-36" y1="50" x2="0" y2="50" />
+    <line class="wire" x1="-36" y1="110" x2="0" y2="110" />
+    <line class="wire" x1="150" y1="80" x2="195" y2="80" />
+    <text class="text" x="34" y="74">LM308</text>
+    <text class="tiny" x="40" y="101">X1 gain</text>
+    <text class="small" x="-18" y="47">+</text>
+    <text class="small" x="-18" y="116">-</text>
+  </g>
+
+  <path class="wire" d="M680 260 H735" />
+  <circle class="node" cx="705" cy="260" r="5" />
+  <path class="wire" d="M705 260 V360" />
+
+  <g transform="translate(658 352)">
+    <rect class="clip" x="0" y="0" width="96" height="80" rx="8" />
+    <path class="thin" d="M22 26 h20 l18 14 h16" />
+    <path class="thin" d="M74 54 h-20 l-18 -14 h-16" />
+    <line class="thin" x1="42" y1="18" x2="42" y2="62" />
+    <line class="thin" x1="54" y1="18" x2="54" y2="62" />
+    <text class="tiny" x="13" y="101">D1 D2 1N914</text>
+    <text class="tiny" x="9" y="121">hard clipping</text>
+  </g>
+  <line class="ground" x1="684" y1="456" x2="728" y2="456" />
+  <line class="ground" x1="692" y1="466" x2="720" y2="466" />
+  <line class="ground" x1="700" y1="476" x2="712" y2="476" />
+
+  <g transform="translate(735 212)">
+    <rect class="symbol" x="0" y="0" width="138" height="96" rx="10" />
+    <path class="thin" d="M24 48 h16 l8 -14 l16 28 l16 -28 l16 28 l8 -14 h16" />
+    <line class="thin" x1="70" y1="66" x2="70" y2="86" />
+    <line class="ground" x1="52" y1="86" x2="88" y2="86" />
+    <text class="small" x="25" y="28">Tone / Filter</text>
+    <text class="tiny" x="27" y="116">Tone 100k, C5/C6</text>
+  </g>
+
+  <path class="wire" d="M873 260 H935" />
+  <g transform="translate(935 202)">
+    <circle class="accent" cx="48" cy="58" r="46" />
+    <line class="thin" x1="18" y1="58" x2="78" y2="58" />
+    <line class="thin" x1="48" y1="20" x2="48" y2="96" />
+    <path class="thin" d="M78 58 l18 -18" />
+    <text class="small" x="11" y="-8">Q1 2N5458</text>
+    <text class="tiny" x="13" y="122">JFET buffer</text>
+  </g>
+
+  <path class="wire" d="M1028 260 H1060" />
+  <g transform="translate(996 316)">
+    <rect class="symbol" x="0" y="0" width="82" height="48" rx="8" />
+    <path class="thin" d="M14 24 h16 l8 -12 l16 24 l8 -12 h18" />
+    <path class="thin" d="M38 6 l26 36" />
+    <text class="tiny" x="-10" y="72">Volume 100k</text>
+  </g>
+  <path class="wire" d="M1037 316 V260" />
+  <circle class="node" cx="1037" cy="260" r="5" />
+  <circle class="symbol" cx="1074" cy="260" r="20" />
+  <text class="label" x="1038" y="415">Output S1</text>
+
+  <g transform="translate(480 86)">
+    <rect class="symbol" x="0" y="0" width="170" height="50" rx="8" />
+    <path class="thin" d="M22 25 h16 l8 -12 l16 24 l16 -24 l16 24 l8 -12 h16" />
+    <path class="thin" d="M93 6 l44 38" />
+    <text class="tiny" x="20" y="-10">Distortion 100k</text>
+  </g>
+  <path class="wire" d="M565 136 V180" />
+  <circle class="node" cx="565" cy="180" r="5" />
+
+  <text class="small" x="52" y="478">Compact overview for docs; the parsed LiveSPICE .schx fixture remains the source of truth.</text>
+</svg>

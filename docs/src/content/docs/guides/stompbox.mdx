@@ -1,0 +1,209 @@
+---
+title: Stompbox Layouts
+description: Generate headless stompbox drill layouts, templates, SVG views, and GLB previews.
+---
+
+import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";
+
+`@vessel-dsp/stompbox` consumes `.vdsp` or `CircuitDocument` panel data from `@vessel-dsp/core` and emits fabrication and preview artifacts.
+
+It stays headless. It must not import React, React DOM, Three.js, browser rendering APIs, `AudioContext`, or an audio runtime.
+
+## Outputs
+
+- Drill-layout manifests.
+- Drill-template SVG strings for `preview` and A4 `print` modes.
+- Orthographic preview SVG views for `top`, `bottom`, `left`, and `right`.
+- Mesh-backed preview GLB bytes assembled from bundled CAD part GLBs and STEP companions, or from a caller-provided asset path.
+- Optional text or SVG decal metadata for brand, model, and sticker artwork.
+
+## Placement provenance
+
+Physical placement in `.vdsp` is optional.
+
+When `panel.faces[].elements[].physical` is present, stompbox preserves it and marks the placement as `vdsp-declared`.
+
+When physical placement is absent, stompbox may generate deterministic placement and marks it as `auto-generated`.
+
+## Mechanical defaults
+
+Schematic documents may omit enclosure hardware such as input/output jacks, bypass footswitch, status LED, and 9V connector. Stompbox owns those mechanical defaults and can synthesize them without changing the core `.vdsp` schema.
+
+Set `includePowerJack: false` to opt out of the synthesized 9V connector.
+
+```ts
+import { createStompboxDrillLayoutFromVdsp } from "@vessel-dsp/stompbox";
+
+const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
+	includePowerJack: false,
+});
+```
+
+## Placement validation
+
+Layout diagnostics report physical placement problems. `placement-collision` means visible part geometry overlaps. `placement-clearance` means parts do not overlap, but the gap is below the requested clearance. `placement-out-of-bounds` means a hole exceeds the enclosure face bounds.
+
+```ts
+import { createStompboxDrillLayoutFromVdsp } from "@vessel-dsp/stompbox";
+
+const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
+	includePowerJack: false,
+	minPartClearanceMm: 5,
+});
+
+const hasBlockingPlacementIssue = layout.diagnostics.some((diagnostic) =>
+	diagnostic.code === "placement-collision"
+	|| diagnostic.code === "placement-clearance"
+	|| diagnostic.code === "placement-out-of-bounds",
+);
+```
+
+## Generate preview artifacts
+
+```ts
+import {
+	createStompboxDrillTemplateSvgFromVdsp,
+	createStompboxPreviewGlbFromVdsp,
+	createStompboxPreviewSvgViewsFromVdsp,
+} from "@vessel-dsp/stompbox";
+
+const drillTemplateSvg = createStompboxDrillTemplateSvgFromVdsp(vdspSource, {
+	mode: "print",
+});
+
+const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource);
+const glb = createStompboxPreviewGlbFromVdsp(vdspSource);
+```
+
+Drill-template holes use fabrication clearance diameters from part profiles. Preview views and collision checks may use larger visible geometry such as jack rings, bushings, nuts, and bezels.
+
+## Helper reference
+
+Use the `FromVdsp` helpers when your frontend is holding serialized `.vdsp`
+text. Use the document helpers when your app has already parsed or edited a
+`CircuitDocument`.
+
+| Need | `.vdsp` helper | `CircuitDocument` helper |
+| --- | --- | --- |
+| Drill hole coordinates and diagnostics | `createStompboxDrillLayoutFromVdsp` | `createStompboxDrillLayout` |
+| Drill-template manifest | `createStompboxDrillTemplateFromVdsp` | `createStompboxDrillTemplate` |
+| Drill-template SVG string | `createStompboxDrillTemplateSvgFromVdsp` | `createStompboxDrillTemplateSvg` |
+| Preview manifest | `createStompboxPreviewFromVdsp` | `createStompboxPreview` |
+| Orthographic 2D SVG views | `createStompboxPreviewSvgViewsFromVdsp` | `createStompboxPreviewSvgViews` |
+| Mesh-backed 3D GLB bytes | `createStompboxPreviewGlbFromVdsp` | `createStompboxPreviewGlb` |
+| Frontend recolor patch | `createStompboxAppearancePatch` | `createStompboxAppearancePatch` |
+| Resolved appearance alias | `resolveStompboxAppearance` | `resolveStompboxAppearance` |
+
+`createStompboxAppearancePatch()` and `resolveStompboxAppearance()` both accept
+the generated preview manifest. `resolveStompboxAppearance()` is the naming
+alias to use when frontend code wants the final render targets without implying
+that it is generating an incremental diff.
+
+## Preview examples
+
+These examples are generated from the same helpers above using the default
+MXR-style profile with two large knobs and custom appearance colors.
+
+### 2D stompbox preview
+
+![MXR-style stompbox top preview](/docs/examples/stompbox-mxr-style-preview-top.svg)
+
+The SVG is produced by `createStompboxPreviewSvgViewsFromVdsp()` and exposes
+stable hooks such as `data-control-id`, `data-part-family`, `.knob-body`, and
+`.label-text`.
+
+### 3D stompbox preview
+
+<StompboxGlbViewer src="/docs/examples/stompbox-mxr-style-preview.glb" />
+
+[Download the GLB preview](/docs/examples/stompbox-mxr-style-preview.glb)
+
+The GLB is produced by `createStompboxPreviewGlbFromVdsp()`. It includes copied
+CAD mesh data, baked material colors where possible, and the frontend appearance
+patch at `asset.extras.appearance`.
+
+### Drill layout preview
+
+![MXR-style drill layout preview](/docs/examples/stompbox-mxr-style-drill-template-preview.svg)
+
+The SVG above is produced by `createStompboxDrillTemplateSvgFromVdsp()` in
+`preview` mode. The underlying drill-layout JSON is also available:
+[download the drill layout](/docs/examples/stompbox-mxr-style-drill-layout.json).
+
+## Customize preview and drilling appearance
+
+Use `appearance` when a frontend needs to recolor the stompbox, knobs, LED,
+labels, or drill-template ink without changing physical placement. Keep
+`state` for live control values such as knob position or LED on/off state.
+
+```ts
+import {
+	createStompboxAppearancePatch,
+	createStompboxDrillTemplateSvgFromVdsp,
+	createStompboxPreviewFromVdsp,
+	createStompboxPreviewGlbFromVdsp,
+	createStompboxPreviewSvgViewsFromVdsp,
+	resolveStompboxAppearance,
+} from "@vessel-dsp/stompbox";
+
+const appearance = {
+	enclosure: {
+		color: "#f97316",
+		strokeColor: "#7c2d12",
+		roughnessFactor: 0.45,
+	},
+	template: {
+		guideColor: "#0ea5e9",
+		foldColor: "#f97316",
+		holeStrokeColor: "#7c3aed",
+		holeFillColor: "#faf5ff",
+		centerDotColor: "#581c87",
+	},
+	defaults: {
+		knob: { color: "#111827", indicatorColor: "#f8fafc" },
+		led: { color: "#ef4444", offColor: "#fee2e2" },
+		label: { color: "#111827" },
+	},
+	controls: {
+		GAIN: {
+			knob: { color: "#facc15", indicatorColor: "#111827" },
+			label: { text: "DRIVE", color: "#ffffff" },
+		},
+		LED1: {
+			led: { color: "#22c55e", offColor: "#064e3b" },
+			label: { text: "READY", color: "#16a34a" },
+		},
+	},
+} as const;
+
+const preview = createStompboxPreviewFromVdsp(vdspSource, {
+	appearance,
+	state: {
+		LED1: { kind: "led", on: true, intensity: 0.6 },
+	},
+});
+
+const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, { appearance });
+const glb = createStompboxPreviewGlbFromVdsp(vdspSource, { appearance });
+const drillTemplateSvg = createStompboxDrillTemplateSvgFromVdsp(vdspSource, {
+	mode: "print",
+	appearance,
+});
+
+const patch = createStompboxAppearancePatch(preview);
+const samePatch = resolveStompboxAppearance(preview);
+```
+
+The patch is stable JSON for frontend code. It uses render target ids such as
+`part-knob-GAIN`, `part-led-LED1`, `decal-label-knob-GAIN`, and
+`enclosure-box-1590b` so a viewer can recolor SVG or Three.js objects without
+parsing arbitrary material names.
+
+Preview SVGs expose stable hooks including `data-control-id`,
+`data-part-family`, `.knob-body`, `.knob-indicator`, `.led-lens`, and
+`.label-text`. Drill-template SVGs expose `.top-panel`, `.side-panel`,
+`.hole`, `.drill-hole-center-dot`, `.fold-line`, and `.guide-line`.
+
+Preview GLB output bakes available colors into copied GLB materials and stores
+the same patch at `asset.extras.appearance` for runtime recoloring in a frontend
+viewer.

@@ -2,17 +2,20 @@ import { describe, expect, test } from 'bun:test';
 import {
     VERSION,
     convertCircuitDocumentFileWithReport,
+    movePanelElement,
     parseCircuitJsonDocument,
     serializeCircuitJsonDocument,
     validateCircuitJsonDocument,
 } from '@vessel-dsp/core';
 import {
+    createStompboxAppearancePatch,
     createStompboxDrillLayoutFromVdsp,
     createStompboxDrillTemplateFromVdsp,
     createStompboxDrillTemplateSvgFromVdsp,
     createStompboxPreviewGlbFromVdsp,
     createStompboxPreviewFromVdsp,
     createStompboxPreviewSvgViewsFromVdsp,
+    resolveStompboxAppearance,
 } from '@vessel-dsp/stompbox';
 import { fileURLToPath } from 'node:url';
 import { rewriteRelativeEsmSpecifiers } from '../scripts/fix-dist-imports';
@@ -171,7 +174,9 @@ describe('workspace package contract', () => {
         for (const packageDir of removedWorkspacePackageDirs) {
             expect(scripts.build).not.toContain(packageDir);
         }
-        expect(scripts['build:pages']).toBe('bun run scripts/build-pages.ts');
+        expect(scripts['build:pages']).toBe('astro build');
+        expect(scripts['docs:dev']).toBe('astro dev');
+        expect(scripts['docs:preview']).toBe('astro preview');
         expect(scripts['build:playground']).toBeUndefined();
         expect(scripts.dev).toBeUndefined();
         expect(scripts.preview).toBeUndefined();
@@ -202,6 +207,7 @@ describe('workspace package contract', () => {
         expect(deps.zod).toBeDefined();
         expectNoReactRuntimeDependency(pkg);
         expect(typeof convertCircuitDocumentFileWithReport).toBe('function');
+        expect(typeof movePanelElement).toBe('function');
     });
 
     test('stompbox package publishes headless drill layout and preview manifest APIs', async () => {
@@ -228,6 +234,8 @@ describe('workspace package contract', () => {
         expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe('function');
         expect(typeof createStompboxPreviewGlbFromVdsp).toBe('function');
         expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
+        expect(typeof createStompboxAppearancePatch).toBe('function');
+        expect(typeof resolveStompboxAppearance).toBe('function');
     });
 
     test('removed React and simulation packages are not workspace deliverables', async () => {
@@ -387,6 +395,8 @@ describe('published import surface', () => {
         expect(typeof createStompboxPreviewFromVdsp).toBe('function');
         expect(typeof createStompboxPreviewGlbFromVdsp).toBe('function');
         expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
+        expect(typeof createStompboxAppearancePatch).toBe('function');
+        expect(typeof resolveStompboxAppearance).toBe('function');
     });
 });
 
@@ -417,10 +427,10 @@ describe('npm publish workflow', () => {
 });
 
 describe('GitHub Pages workflow', () => {
-    test('deploys static core conversion docs instead of a playground app', async () => {
+    test('deploys the Starlight documentation site instead of a playground app', async () => {
         const workflow = await readDeployWorkflow();
 
-        expect(workflow).toContain('name: Deploy core docs to GitHub Pages');
+        expect(workflow).toContain('name: Deploy documentation to GitHub Pages');
         expect(workflow).toContain('bun run build:pages');
         expect(workflow).toContain('path: gh-pages');
         expect(workflow).not.toContain('build:playground');
@@ -460,10 +470,14 @@ describe('release metadata', () => {
         expect(stompboxDistIndex).toContain('createStompboxDrillTemplateSvgFromVdsp');
         expect(stompboxDistIndex).toContain('createStompboxPreviewGlbFromVdsp');
         expect(stompboxDistIndex).toContain('createStompboxPreviewSvgViewsFromVdsp');
+        expect(stompboxDistIndex).toContain('createStompboxAppearancePatch');
+        expect(stompboxDistIndex).toContain('resolveStompboxAppearance');
         expect(stompboxDistTypes).toContain('createStompboxDrillLayoutFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxDrillTemplateSvgFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxPreviewGlbFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxPreviewSvgViewsFromVdsp');
+        expect(stompboxDistTypes).toContain('createStompboxAppearancePatch');
+        expect(stompboxDistTypes).toContain('resolveStompboxAppearance');
         expect(changelog).toStartWith('# Changelog\n\n## 0.6.3\n\n');
     });
 });
