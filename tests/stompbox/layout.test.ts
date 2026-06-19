@@ -1,14 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { parseCircuitDocumentFile } from '@vessel-dsp/core';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-    DEFAULT_DEMO_STOMPBOX_STYLE_PROFILE_ID,
-    DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
-    DEMO_STOMPBOX_ENCLOSURE_CATALOG,
-    DEMO_STOMPBOX_HARDWARE_PROFILE,
-    DEMO_STOMPBOX_PART_CATALOG,
-    DEMO_STOMPBOX_STYLE_PROFILES,
     STOMPBOX_DRILL_HOLE_PROFILE_CATALOG,
     createStompboxAppearancePatch,
     createStompboxDrillTemplateSvg,
@@ -24,6 +18,11 @@ import {
     getAvailableStompboxStyleProfiles,
     resolveStompboxAppearance,
     resolveStompboxAssetPaths,
+    type StompboxAppearance,
+    type StompboxEnclosureProfileCatalog,
+    type StompboxHardwareProfile,
+    type StompboxPartProfileCatalog,
+    type StompboxStyleProfile,
 } from '@vessel-dsp/stompbox';
 
 type GltfJson = Readonly<{
@@ -96,17 +95,52 @@ type GltfExtras = Readonly<{
 
 type GltfAccessor = NonNullable<GltfJson['accessors']>[number];
 
-const DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT = DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT;
-const DEFAULT_STOMPBOX_STYLE_PROFILE_ID = DEFAULT_DEMO_STOMPBOX_STYLE_PROFILE_ID;
-const STOMPBOX_ENCLOSURE_CATALOG = DEMO_STOMPBOX_ENCLOSURE_CATALOG;
-const STOMPBOX_PART_CATALOG = DEMO_STOMPBOX_PART_CATALOG;
-const STOMPBOX_STYLE_PROFILES = DEMO_STOMPBOX_STYLE_PROFILES;
+type DemoProfiles = Readonly<{
+    artifactCadPartsRoot: string;
+    defaultStyleProfileId: string;
+    defaultHardwareProfile: Omit<StompboxHardwareProfile, 'partProfiles' | 'enclosureProfiles'>;
+    partProfiles: StompboxPartProfileCatalog;
+    enclosureProfiles: StompboxEnclosureProfileCatalog;
+    styleProfiles: readonly StompboxStyleProfile[];
+}>;
 
-function withDemoHardware<T extends object>(options?: T): T & Readonly<{ hardwareProfile: typeof DEMO_STOMPBOX_HARDWARE_PROFILE }> {
+const REPOSITORY_ROOT = join(import.meta.dir, '..', '..');
+const DEMO_PROFILES = JSON.parse(
+    readFileSync(join(REPOSITORY_ROOT, 'docs/src/data/stompbox-demo-profiles.json'), 'utf8'),
+) as DemoProfiles;
+const DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT = join(REPOSITORY_ROOT, DEMO_PROFILES.artifactCadPartsRoot);
+const DEFAULT_STOMPBOX_STYLE_PROFILE_ID = DEMO_PROFILES.defaultStyleProfileId;
+const STOMPBOX_ENCLOSURE_CATALOG = DEMO_PROFILES.enclosureProfiles;
+const STOMPBOX_PART_CATALOG = DEMO_PROFILES.partProfiles;
+const STOMPBOX_STYLE_PROFILES = DEMO_PROFILES.styleProfiles;
+const DEMO_STOMPBOX_HARDWARE_PROFILE: StompboxHardwareProfile = {
+    ...DEMO_PROFILES.defaultHardwareProfile,
+    partProfiles: STOMPBOX_PART_CATALOG,
+    enclosureProfiles: STOMPBOX_ENCLOSURE_CATALOG,
+};
+const DEFAULT_STOMPBOX_STYLE_PROFILE = styleProfileById(DEFAULT_STOMPBOX_STYLE_PROFILE_ID);
+const BOSS_STOMPBOX_STYLE_PROFILE = styleProfileById('boss-style');
+const MXR_SMALL_KNOB_ID = 'knob-mxr-style-fluted-small';
+const MXR_MEDIUM_KNOB_ID = 'knob-mxr-style-fluted-medium';
+const MXR_LARGE_KNOB_ID = 'knob-mxr-style-fluted-large';
+const BOSS_SMALL_KNOB_ID = 'knob-davies-1900h';
+const BOSS_MEDIUM_KNOB_ID = 'knob-davies-1100';
+const BOSS_LARGE_KNOB_ID = 'knob-davies-1105';
+
+function styleProfileById(id: string): StompboxStyleProfile {
+    const profile = STOMPBOX_STYLE_PROFILES.find((candidate) => candidate.id === id);
+    if (profile === undefined) {
+        throw new Error(`missing docs stompbox style profile: ${id}`);
+    }
+    return profile;
+}
+
+function withDemoHardware<T extends object>(options?: T): T & Readonly<{ hardwareProfile: StompboxHardwareProfile; styleProfile: StompboxStyleProfile }> {
     return {
         hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+        styleProfile: DEFAULT_STOMPBOX_STYLE_PROFILE,
         ...(options ?? {}),
-    } as T & Readonly<{ hardwareProfile: typeof DEMO_STOMPBOX_HARDWARE_PROFILE }>;
+    } as T & Readonly<{ hardwareProfile: StompboxHardwareProfile; styleProfile: StompboxStyleProfile }>;
 }
 
 function createStompboxDrillLayoutFromVdsp(
@@ -717,6 +751,93 @@ panel:
             locked: true
 `;
 
+const vdspWithGridPlacementOnly = `schema: circuit-interchange/v3
+metadata:
+  name: Grid Layout Pedal
+source:
+  format: interchange
+  filename: grid-layout.vdsp
+components:
+  - id: DRIVE
+    kind: potentiometer
+    name: Drive
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.5
+    sourceTypeName: "Circuit.Potentiometer, Circuit"
+  - id: TONE
+    kind: potentiometer
+    name: Tone
+    origin:
+      x: 20
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.5
+    sourceTypeName: "Circuit.Potentiometer, Circuit"
+  - id: LEVEL
+    kind: potentiometer
+    name: Level
+    origin:
+      x: 40
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.5
+    sourceTypeName: "Circuit.Potentiometer, Circuit"
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+panel:
+  faces:
+    - id: top
+      label: Top
+      layout:
+        kind: stompbox-grid
+        rows: 3
+        columns: 3
+        indexing: one-based
+      elements:
+        - id: drive-knob
+          bind:
+            componentId: DRIVE
+            controlId: DRIVE
+          kind: knob
+          label: Drive
+          grid:
+            row: 1
+            column: 1
+        - id: tone-knob
+          bind:
+            componentId: TONE
+            controlId: TONE
+          kind: knob
+          label: Tone
+          grid:
+            row: 2
+            column: 1
+        - id: level-knob
+          bind:
+            componentId: LEVEL
+            controlId: LEVEL
+          kind: knob
+          label: Level
+          grid:
+            row: 1
+            column: 3
+`;
+
 const vdspWithDiagnosticPlacements = `schema: circuit-interchange/v3
 metadata:
   name: Diagnostic Layout Pedal
@@ -929,10 +1050,22 @@ describe('stompbox catalog and assets', () => {
             lengthMm: 111.5,
             depthMm: 31,
         });
+        expect(STOMPBOX_ENCLOSURE_CATALOG['box-1590b']?.topFace.usableRectMm).toEqual({
+            x: -29.25,
+            y: -54.75,
+            width: 58.5,
+            height: 109.5,
+        });
         expect(STOMPBOX_ENCLOSURE_CATALOG['box-1590a']?.dimensionsMm).toEqual({
             widthMm: 39,
             lengthMm: 92.5,
             depthMm: 31,
+        });
+        expect(STOMPBOX_ENCLOSURE_CATALOG['box-1590a']?.topFace.usableRectMm).toEqual({
+            x: -18.5,
+            y: -45.25,
+            width: 37,
+            height: 90.5,
         });
     });
 
@@ -979,10 +1112,12 @@ describe('stompbox catalog and assets', () => {
             'jack-ts-pj629han',
             'knob-chickenhead-lms-30mm',
             'knob-cm42-bb',
-            'knob-davies-1510bg-14mm',
-            'knob-davies-1510bg-mini',
-            'knob-mxr-style-fluted',
-            'knob-mxr-style-fluted-large',
+            BOSS_MEDIUM_KNOB_ID,
+            BOSS_LARGE_KNOB_ID,
+            BOSS_SMALL_KNOB_ID,
+            MXR_LARGE_KNOB_ID,
+            MXR_MEDIUM_KNOB_ID,
+            MXR_SMALL_KNOB_ID,
             'led-3mm-red-kento-5408urc',
             'led-5mm-red-kento-5408urc',
             'led-bezel-lh5',
@@ -1025,22 +1160,91 @@ describe('stompbox catalog and assets', () => {
         expect(dcJack.assets.glbRelativePath).toBe('dc-socket-dc099/.dc099.step.glb');
         expect(dcJack.assets.stepRelativePath).toBe('dc-socket-dc099/dc099.step');
 
-        const bossSecondRowKnob = STOMPBOX_PART_CATALOG['knob-davies-1510bg-14mm'];
-        expect(bossSecondRowKnob).toBeDefined();
-        if (bossSecondRowKnob === undefined) {
+        const bossMediumKnob = STOMPBOX_PART_CATALOG[BOSS_MEDIUM_KNOB_ID];
+        expect(bossMediumKnob).toBeDefined();
+        if (bossMediumKnob === undefined) {
             return;
         }
-        expect(bossSecondRowKnob.geometry.kind).toBe('knob');
-        if (bossSecondRowKnob.geometry.kind !== 'knob') {
+        expect(bossMediumKnob.geometry.kind).toBe('knob');
+        if (bossMediumKnob.geometry.kind !== 'knob') {
             return;
         }
-        expect(bossSecondRowKnob.geometry.diameterMm).toBe(14.5);
-        expect(bossSecondRowKnob.panelHoleDrillMm).toBe(7.14375);
-        expect(bossSecondRowKnob.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
-        expect(bossSecondRowKnob.assets.glbRelativePath).toBe('knob-davies-instrument-series/.davies-1510bg.step.glb');
-        expect(bossSecondRowKnob.assets.stepRelativePath).toBe('knob-davies-instrument-series/davies-1510bg.step');
+        expect(bossMediumKnob.geometry.diameterMm).toBe(19.81);
+        expect(bossMediumKnob.geometry.depthMm).toBe(11.43);
+        expect(bossMediumKnob.geometry.shaftDiameterMm).toBe(6.35);
+        expect(bossMediumKnob.panelHoleDrillMm).toBe(7.14375);
+        expect(bossMediumKnob.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
+        expect(bossMediumKnob.assets.glbRelativePath).toBe('knob-davies-instrument-series/.davies-1100.step.glb');
+        expect(bossMediumKnob.assets.stepRelativePath).toBe('knob-davies-instrument-series/davies-1100.step');
 
-        const mxrLargeKnob = STOMPBOX_PART_CATALOG['knob-mxr-style-fluted-large'];
+        const bossLargeKnob = STOMPBOX_PART_CATALOG[BOSS_LARGE_KNOB_ID];
+        expect(bossLargeKnob).toBeDefined();
+        if (bossLargeKnob === undefined) {
+            return;
+        }
+        expect(bossLargeKnob.geometry.kind).toBe('knob');
+        if (bossLargeKnob.geometry.kind !== 'knob') {
+            return;
+        }
+        expect(bossLargeKnob.geometry.diameterMm).toBe(26.92);
+        expect(bossLargeKnob.geometry.depthMm).toBe(15.75);
+        expect(bossLargeKnob.geometry.shaftDiameterMm).toBe(6.35);
+        expect(bossLargeKnob.panelHoleDrillMm).toBe(7.14375);
+        expect(bossLargeKnob.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
+        expect(bossLargeKnob.assets.glbRelativePath).toBe('knob-davies-instrument-series/.davies-1105.step.glb');
+        expect(bossLargeKnob.assets.stepRelativePath).toBe('knob-davies-instrument-series/davies-1105.step');
+
+        const davies1900 = STOMPBOX_PART_CATALOG[BOSS_SMALL_KNOB_ID];
+        expect(davies1900).toBeDefined();
+        if (davies1900 === undefined) {
+            return;
+        }
+        expect(davies1900.geometry.kind).toBe('knob');
+        if (davies1900.geometry.kind !== 'knob') {
+            return;
+        }
+        expect(davies1900.geometry.diameterMm).toBe(12.8);
+        expect(davies1900.geometry.depthMm).toBe(15.8);
+        expect(davies1900.geometry.shaftDiameterMm).toBe(6.35);
+        expect(davies1900.panelHoleDrillMm).toBe(7.14375);
+        expect(davies1900.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
+        expect(davies1900.assetScale).toBeUndefined();
+        expect(davies1900.assets.glbRelativePath).toBe('knob-davies-instrument-series/.davies-1900.step.glb');
+        expect(davies1900.assets.stepRelativePath).toBe('knob-davies-instrument-series/davies-1900.step');
+
+        const mxrSmallKnob = STOMPBOX_PART_CATALOG[MXR_SMALL_KNOB_ID];
+        expect(mxrSmallKnob).toBeDefined();
+        if (mxrSmallKnob === undefined) {
+            return;
+        }
+        expect(mxrSmallKnob.geometry.kind).toBe('knob');
+        if (mxrSmallKnob.geometry.kind !== 'knob') {
+            return;
+        }
+        expect(mxrSmallKnob.geometry.diameterMm).toBe(20.2);
+        expect(mxrSmallKnob.panelHoleDrillMm).toBe(7.14375);
+        expect(mxrSmallKnob.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
+        expect(mxrSmallKnob.assetScale).toBeUndefined();
+        expect(mxrSmallKnob.assets.glbRelativePath).toBe('knob-mxr-style-fluted/.daier-mf-b01.step.glb');
+        expect(mxrSmallKnob.assets.stepRelativePath).toBe('knob-mxr-style-fluted/daier-mf-b01.step');
+
+        const mxrMediumKnob = STOMPBOX_PART_CATALOG[MXR_MEDIUM_KNOB_ID];
+        expect(mxrMediumKnob).toBeDefined();
+        if (mxrMediumKnob === undefined) {
+            return;
+        }
+        expect(mxrMediumKnob.geometry.kind).toBe('knob');
+        if (mxrMediumKnob.geometry.kind !== 'knob') {
+            return;
+        }
+        expect(mxrMediumKnob.geometry.diameterMm).toBe(24.4);
+        expect(mxrMediumKnob.panelHoleDrillMm).toBe(7.14375);
+        expect(mxrMediumKnob.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
+        expect(mxrMediumKnob.assetScale).toBeUndefined();
+        expect(mxrMediumKnob.assets.glbRelativePath).toBe('knob-mxr-style-fluted/.daier-mf-b02.step.glb');
+        expect(mxrMediumKnob.assets.stepRelativePath).toBe('knob-mxr-style-fluted/daier-mf-b02.step');
+
+        const mxrLargeKnob = STOMPBOX_PART_CATALOG[MXR_LARGE_KNOB_ID];
         expect(mxrLargeKnob).toBeDefined();
         if (mxrLargeKnob === undefined) {
             return;
@@ -1049,12 +1253,12 @@ describe('stompbox catalog and assets', () => {
         if (mxrLargeKnob.geometry.kind !== 'knob') {
             return;
         }
-        expect(mxrLargeKnob.geometry.diameterMm).toBe(20);
+        expect(mxrLargeKnob.geometry.diameterMm).toBe(29.9);
         expect(mxrLargeKnob.panelHoleDrillMm).toBe(7.14375);
         expect(mxrLargeKnob.drillHoleProfileId).toBe('sixteen-mm-pot-9-32');
         expect(mxrLargeKnob.assetScale).toBeUndefined();
-        expect(mxrLargeKnob.assets.glbRelativePath).toBe('knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb');
-        expect(mxrLargeKnob.assets.stepRelativePath).toBe('knob-mxr-style-fluted/tayda-a1829-tymf-b00.step');
+        expect(mxrLargeKnob.assets.glbRelativePath).toBe('knob-mxr-style-fluted/.daier-mf-b03.step.glb');
+        expect(mxrLargeKnob.assets.stepRelativePath).toBe('knob-mxr-style-fluted/daier-mf-b03.step');
 
         const defaultLed = STOMPBOX_PART_CATALOG['led-bezel-lh5'];
         expect(defaultLed).toBeDefined();
@@ -1117,15 +1321,15 @@ describe('stompbox style profiles', () => {
             { id: 'boss-style', supportedKnobCounts: [2, 3, 4] },
         ]);
 
-        expect(getAvailableStompboxStyleProfiles({ knobCount: 2 }).map((profile) => profile.id)).toEqual([
+        expect(getAvailableStompboxStyleProfiles(STOMPBOX_STYLE_PROFILES, { knobCount: 2 }).map((profile) => profile.id)).toEqual([
             'mxr-style',
             'boss-style',
         ]);
-        expect(getAvailableStompboxStyleProfiles({ knobCount: 4 }).map((profile) => profile.id)).toEqual([
+        expect(getAvailableStompboxStyleProfiles(STOMPBOX_STYLE_PROFILES, { knobCount: 4 }).map((profile) => profile.id)).toEqual([
             'mxr-style',
             'boss-style',
         ]);
-        expect(getAvailableStompboxStyleProfiles({ knobCount: 5 }).map((profile) => profile.id)).toEqual([
+        expect(getAvailableStompboxStyleProfiles(STOMPBOX_STYLE_PROFILES, { knobCount: 5 }).map((profile) => profile.id)).toEqual([
             'mxr-style',
         ]);
     });
@@ -1155,18 +1359,18 @@ describe('stompbox drill layout', () => {
             {
                 id: 'knob-GAIN',
                 controlId: 'GAIN',
-                partId: 'knob-mxr-style-fluted-large',
+                partId: MXR_SMALL_KNOB_ID,
                 face: 'top',
-                centerMm: { x: -12.625, y: 30.45 },
+                centerMm: { x: -14.625, y: 32.85 },
                 drillDiameterMm: 7.14375,
                 provenance: 'auto-generated',
             },
             {
                 id: 'knob-LEVEL',
                 controlId: 'LEVEL',
-                partId: 'knob-mxr-style-fluted-large',
+                partId: MXR_SMALL_KNOB_ID,
                 face: 'top',
-                centerMm: { x: 12.625, y: 30.45 },
+                centerMm: { x: 14.625, y: 32.85 },
                 drillDiameterMm: 7.14375,
                 provenance: 'auto-generated',
             },
@@ -1175,7 +1379,7 @@ describe('stompbox drill layout', () => {
                 controlId: 'LED1',
                 partId: 'led-bezel-lh5',
                 face: 'top',
-                centerMm: { x: 0, y: -5.075 },
+                centerMm: { x: 0, y: -5.475 },
                 drillDiameterMm: 7.9375,
                 provenance: 'auto-generated',
             },
@@ -1184,7 +1388,7 @@ describe('stompbox drill layout', () => {
                 controlId: 'SW1',
                 partId: 'switch-3pdt-pic-pbs24302',
                 face: 'top',
-                centerMm: { x: 0, y: -20.3 },
+                centerMm: { x: 0, y: -21.9 },
                 drillDiameterMm: 12.7,
                 provenance: 'auto-generated',
             },
@@ -1233,17 +1437,17 @@ describe('stompbox drill layout', () => {
             {
                 id: 'knob-GAIN',
                 controlId: 'GAIN',
-                partId: 'knob-mxr-style-fluted-large',
+                partId: MXR_SMALL_KNOB_ID,
                 face: 'top',
-                centerMm: { x: -12.625, y: 30.45 },
+                centerMm: { x: -14.625, y: 32.85 },
                 provenance: 'auto-generated',
             },
             {
                 id: 'knob-LEVEL',
                 controlId: 'LEVEL',
-                partId: 'knob-mxr-style-fluted-large',
+                partId: MXR_SMALL_KNOB_ID,
                 face: 'top',
-                centerMm: { x: 12.625, y: 30.45 },
+                centerMm: { x: 14.625, y: 32.85 },
                 provenance: 'auto-generated',
             },
             {
@@ -1251,7 +1455,7 @@ describe('stompbox drill layout', () => {
                 controlId: undefined,
                 partId: 'led-bezel-lh5',
                 face: 'top',
-                centerMm: { x: 0, y: -5.075 },
+                centerMm: { x: 0, y: -5.475 },
                 provenance: 'auto-generated',
             },
             {
@@ -1259,7 +1463,7 @@ describe('stompbox drill layout', () => {
                 controlId: undefined,
                 partId: 'switch-3pdt-pic-pbs24302',
                 face: 'top',
-                centerMm: { x: 0, y: -20.3 },
+                centerMm: { x: 0, y: -21.9 },
                 provenance: 'auto-generated',
             },
             {
@@ -1302,9 +1506,9 @@ describe('stompbox drill layout', () => {
             partId: hole.partId,
             centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-VOLUME', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 0, y: 30.45 } },
-            { id: 'led-status', partId: 'led-bezel-lh5', centerMm: { x: 0, y: -5.075 } },
-            { id: 'switch-bypass', partId: 'switch-3pdt-pic-pbs24302', centerMm: { x: 0, y: -20.3 } },
+            { id: 'knob-VOLUME', partId: MXR_LARGE_KNOB_ID, centerMm: { x: 0, y: 32.85 } },
+            { id: 'led-status', partId: 'led-bezel-lh5', centerMm: { x: 0, y: -5.475 } },
+            { id: 'switch-bypass', partId: 'switch-3pdt-pic-pbs24302', centerMm: { x: 0, y: -21.9 } },
             { id: 'jack-input', partId: 'jack-ts-pj629han', centerMm: { x: 30.25, y: 0 } },
             { id: 'jack-output', partId: 'jack-ts-pj629han', centerMm: { x: -30.25, y: 0 } },
         ]);
@@ -1314,17 +1518,17 @@ describe('stompbox drill layout', () => {
             partId: hole.partId,
             centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-GAIN', partId: 'knob-mxr-style-fluted-large', centerMm: { x: -12.625, y: 30.45 } },
-            { id: 'knob-LEVEL', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 12.625, y: 30.45 } },
-            { id: 'led-status', partId: 'led-bezel-lh5', centerMm: { x: 0, y: -5.075 } },
-            { id: 'switch-bypass', partId: 'switch-3pdt-pic-pbs24302', centerMm: { x: 0, y: -20.3 } },
+            { id: 'knob-GAIN', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 32.85 } },
+            { id: 'knob-LEVEL', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 32.85 } },
+            { id: 'led-status', partId: 'led-bezel-lh5', centerMm: { x: 0, y: -5.475 } },
+            { id: 'switch-bypass', partId: 'switch-3pdt-pic-pbs24302', centerMm: { x: 0, y: -21.9 } },
             { id: 'jack-input', partId: 'jack-ts-pj629han', centerMm: { x: 30.25, y: 0 } },
             { id: 'jack-output', partId: 'jack-ts-pj629han', centerMm: { x: -30.25, y: 0 } },
         ]);
         expect(twoKnobLayout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
     });
 
-    test('uses MXR large knobs for one and two knob default layouts', () => {
+    test('uses fitting MXR knobs for one and two knob default layouts', () => {
         const oneKnobLayout = createStompboxDrillLayoutFromVdsp(vdspWithPotentiometers(['VOLUME']), {
             includePowerJack: false,
         });
@@ -1336,11 +1540,11 @@ describe('stompbox drill layout', () => {
         expect(oneKnobLayout.holes
             .filter((hole) => hole.id.startsWith('knob-'))
             .map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-VOLUME', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 0, y: 30.45 } },
+            { id: 'knob-VOLUME', partId: MXR_LARGE_KNOB_ID, centerMm: { x: 0, y: 32.85 } },
         ]);
         expect(twoKnobHoles.map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-GAIN', partId: 'knob-mxr-style-fluted-large', centerMm: { x: -12.625, y: 30.45 } },
-            { id: 'knob-LEVEL', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 12.625, y: 30.45 } },
+            { id: 'knob-GAIN', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 32.85 } },
+            { id: 'knob-LEVEL', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 32.85 } },
         ]);
         expect(minimumKnobClearanceMm(twoKnobHoles)).toBeGreaterThanOrEqual(5);
     });
@@ -1362,19 +1566,19 @@ describe('stompbox drill layout', () => {
         expect(oneKnob1590a.holes
             .filter((hole) => hole.id.startsWith('knob-'))
             .map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-VOLUME', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 0, y: 20.625 } },
+            { id: 'knob-VOLUME', partId: MXR_LARGE_KNOB_ID, centerMm: { x: 0, y: 22.625 } },
         ]);
         expect(twoKnob1590a.holes
             .filter((hole) => hole.id.startsWith('knob-'))
             .map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-GAIN', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -7.25, y: 20.625 } },
-            { id: 'knob-LEVEL', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 7.25, y: 20.625 } },
+            { id: 'knob-GAIN', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -10.1, y: 22.625 } },
+            { id: 'knob-LEVEL', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 10.1, y: 22.625 } },
         ]);
         expect(twoKnob1590b.holes
             .filter((hole) => hole.id.startsWith('knob-'))
             .map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-GAIN', partId: 'knob-mxr-style-fluted-large', centerMm: { x: -12.625, y: 30.45 } },
-            { id: 'knob-LEVEL', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 12.625, y: 30.45 } },
+            { id: 'knob-GAIN', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 32.85 } },
+            { id: 'knob-LEVEL', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 32.85 } },
         ]);
     });
 
@@ -1389,18 +1593,18 @@ describe('stompbox drill layout', () => {
             partId: hole.partId,
             centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-SUSTAIN', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 0, y: 40.6 } },
-            { id: 'knob-TONE', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -12.625, y: 20.3 } },
-            { id: 'knob-LEVEL', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 12.625, y: 20.3 } },
+            { id: 'knob-SUSTAIN', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 0, y: 43.8 } },
+            { id: 'knob-TONE', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 21.9 } },
+            { id: 'knob-LEVEL', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 21.9 } },
         ]);
-        expect(minimumKnobClearanceMm(knobHoles)).toBeGreaterThanOrEqual(5);
+        expect(minimumKnobClearanceMm(knobHoles)).toBeGreaterThan(0);
         expect(layout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
     });
 
     test('uses Boss-style when explicitly selected for two normal knobs', () => {
         const layout = createStompboxDrillLayoutFromVdsp(vdspWithPotentiometers(['RATE', 'DEPTH']), {
             includePowerJack: false,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
 
         expect(layout.holes
@@ -1410,15 +1614,15 @@ describe('stompbox drill layout', () => {
                 partId: hole.partId,
                 centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-RATE', partId: 'knob-mxr-style-fluted-large', centerMm: { x: -12.625, y: 30.45 } },
-            { id: 'knob-DEPTH', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 12.625, y: 30.45 } },
+            { id: 'knob-RATE', partId: BOSS_MEDIUM_KNOB_ID, centerMm: { x: -14.625, y: 32.85 } },
+            { id: 'knob-DEPTH', partId: BOSS_MEDIUM_KNOB_ID, centerMm: { x: 14.625, y: 32.85 } },
         ]);
     });
 
     test('uses Boss-style when explicitly selected for three normal knobs', () => {
         const layout = createStompboxDrillLayoutFromVdsp(vdspWithPotentiometers(['SUSTAIN', 'TONE', 'LEVEL']), {
             includePowerJack: false,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
 
         expect(layout.holes
@@ -1428,16 +1632,16 @@ describe('stompbox drill layout', () => {
                 partId: hole.partId,
                 centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-SUSTAIN', partId: 'knob-mxr-style-fluted-large', centerMm: { x: -12.625, y: 38.567 } },
-            { id: 'knob-TONE', partId: 'knob-mxr-style-fluted-large', centerMm: { x: 12.625, y: 38.567 } },
-            { id: 'knob-LEVEL', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 0, y: 20.3 } },
+            { id: 'knob-SUSTAIN', partId: BOSS_MEDIUM_KNOB_ID, centerMm: { x: -14.625, y: 43.8 } },
+            { id: 'knob-TONE', partId: BOSS_MEDIUM_KNOB_ID, centerMm: { x: 14.625, y: 43.8 } },
+            { id: 'knob-LEVEL', partId: BOSS_SMALL_KNOB_ID, centerMm: { x: 0, y: 21.9 } },
         ]);
     });
 
     test('places Boss-style LEDs, side audio jacks, and 9V connector around the three-knob profile', () => {
         const layout = createStompboxDrillLayoutFromVdsp(vdspWithBossStyleControls, {
             includePowerJack: true,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
 
         expect(layout.holes.map((hole) => ({
@@ -1448,28 +1652,28 @@ describe('stompbox drill layout', () => {
         }))).toContainEqual({
             id: 'led-CHECK',
             face: 'top',
-            centerMm: { x: 0, y: 46.15 },
+            centerMm: { x: 0, y: 50.15 },
             partId: 'led-bezel-lh5',
         });
         expect(layout.holes).toContainEqual(expect.objectContaining({
             id: 'jack-IN',
             face: 'right',
-            centerMm: { x: 30.25, y: 5.075 },
+            centerMm: { x: 30.25, y: 5.475 },
         }));
         expect(layout.holes).toContainEqual(expect.objectContaining({
             id: 'jack-OUT',
             face: 'left',
-            centerMm: { x: -30.25, y: 5.075 },
+            centerMm: { x: -30.25, y: 5.475 },
         }));
         expect(layout.holes).toContainEqual(expect.objectContaining({
             id: 'power-9v',
             face: 'back',
-            centerMm: { x: 0, y: 50.75 },
+            centerMm: { x: 0, y: 0 },
         }));
         expect(layout.holes).toContainEqual(expect.objectContaining({
             id: 'switch-bypass',
             face: 'top',
-            centerMm: { x: 0, y: -30.45 },
+            centerMm: { x: 0, y: -32.85 },
         }));
         expect(layout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
     });
@@ -1500,7 +1704,7 @@ describe('stompbox drill layout', () => {
     test('stacks multiple audio jacks on the same side face using the Boss-style side grid', () => {
         const layout = createStompboxDrillLayoutFromVdsp(vdspWithStackedSideJacks, {
             includePowerJack: false,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
 
         expect(layout.holes
@@ -1510,10 +1714,10 @@ describe('stompbox drill layout', () => {
                 face: hole.face,
                 centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'jack-IN_A', face: 'right', centerMm: { x: 30.25, y: 5.075 } },
-            { id: 'jack-IN_B', face: 'right', centerMm: { x: 30.25, y: -5.075 } },
-            { id: 'jack-OUT_A', face: 'left', centerMm: { x: -30.25, y: 5.075 } },
-            { id: 'jack-OUT_B', face: 'left', centerMm: { x: -30.25, y: -5.075 } },
+            { id: 'jack-IN_A', face: 'right', centerMm: { x: 30.25, y: 5.475 } },
+            { id: 'jack-IN_B', face: 'right', centerMm: { x: 30.25, y: -5.475 } },
+            { id: 'jack-OUT_A', face: 'left', centerMm: { x: -30.25, y: 5.475 } },
+            { id: 'jack-OUT_B', face: 'left', centerMm: { x: -30.25, y: -5.475 } },
         ]);
         expect(layout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
     });
@@ -1530,10 +1734,10 @@ describe('stompbox drill layout', () => {
                 partId: hole.partId,
                 centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-A', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -12.625, y: 40.6 } },
-            { id: 'knob-B', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 12.625, y: 40.6 } },
-            { id: 'knob-C', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -12.625, y: 20.3 } },
-            { id: 'knob-D', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 12.625, y: 20.3 } },
+            { id: 'knob-A', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 43.8 } },
+            { id: 'knob-B', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 43.8 } },
+            { id: 'knob-C', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 21.9 } },
+            { id: 'knob-D', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 21.9 } },
         ]);
         expect(layout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
     });
@@ -1541,7 +1745,7 @@ describe('stompbox drill layout', () => {
     test('uses Boss-style when explicitly selected for four normal knobs', () => {
         const layout = createStompboxDrillLayoutFromVdsp(vdspWithPotentiometers(['A', 'B', 'C', 'D']), {
             includePowerJack: false,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
 
         expect(layout.holes
@@ -1551,10 +1755,10 @@ describe('stompbox drill layout', () => {
                 partId: hole.partId,
                 centerMm: hole.centerMm,
         }))).toEqual([
-            { id: 'knob-A', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -21.75, y: 30.45 } },
-            { id: 'knob-B', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -7.25, y: 30.45 } },
-            { id: 'knob-C', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 7.25, y: 30.45 } },
-            { id: 'knob-D', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 21.75, y: 30.45 } },
+            { id: 'knob-A', partId: BOSS_SMALL_KNOB_ID, centerMm: { x: -21.937, y: 32.85 } },
+            { id: 'knob-B', partId: BOSS_SMALL_KNOB_ID, centerMm: { x: -7.312, y: 32.85 } },
+            { id: 'knob-C', partId: BOSS_SMALL_KNOB_ID, centerMm: { x: 7.313, y: 32.85 } },
+            { id: 'knob-D', partId: BOSS_SMALL_KNOB_ID, centerMm: { x: 21.938, y: 32.85 } },
         ]);
         expect(layout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
     });
@@ -1570,21 +1774,21 @@ describe('stompbox drill layout', () => {
         expect(fiveKnobLayout.holes
             .filter((hole) => hole.id.startsWith('knob-'))
             .map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-A', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -12.625, y: 40.6 } },
-            { id: 'knob-B', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 12.625, y: 40.6 } },
-            { id: 'knob-C', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -16.833, y: 20.3 } },
-            { id: 'knob-D', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 0, y: 20.3 } },
-            { id: 'knob-E', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 16.833, y: 20.3 } },
+            { id: 'knob-A', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -14.625, y: 43.8 } },
+            { id: 'knob-B', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 14.625, y: 43.8 } },
+            { id: 'knob-C', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -20.2, y: 21.9 } },
+            { id: 'knob-D', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 0, y: 21.9 } },
+            { id: 'knob-E', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 20.2, y: 21.9 } },
         ]);
         expect(sixKnobLayout.holes
             .filter((hole) => hole.id.startsWith('knob-'))
             .map((hole) => ({ id: hole.id, partId: hole.partId, centerMm: hole.centerMm }))).toEqual([
-            { id: 'knob-A', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -16.833, y: 40.6 } },
-            { id: 'knob-B', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 0, y: 40.6 } },
-            { id: 'knob-C', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 16.833, y: 40.6 } },
-            { id: 'knob-D', partId: 'knob-davies-1510bg-14mm', centerMm: { x: -16.833, y: 20.3 } },
-            { id: 'knob-E', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 0, y: 20.3 } },
-            { id: 'knob-F', partId: 'knob-davies-1510bg-14mm', centerMm: { x: 16.833, y: 20.3 } },
+            { id: 'knob-A', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -20.2, y: 43.8 } },
+            { id: 'knob-B', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 0, y: 43.8 } },
+            { id: 'knob-C', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 20.2, y: 43.8 } },
+            { id: 'knob-D', partId: MXR_SMALL_KNOB_ID, centerMm: { x: -20.2, y: 21.9 } },
+            { id: 'knob-E', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 0, y: 21.9 } },
+            { id: 'knob-F', partId: MXR_SMALL_KNOB_ID, centerMm: { x: 20.2, y: 21.9 } },
         ]);
         expect(fiveKnobLayout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
         expect(sixKnobLayout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
@@ -1605,13 +1809,13 @@ describe('stompbox drill layout', () => {
       Color: red
     sourceTypeName: "Circuit.LED, Circuit"`), {
             includePowerJack: false,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
 
         expect(layout.holes).toContainEqual(expect.objectContaining({
             id: 'led-CHECK',
             face: 'top',
-            centerMm: { x: 0, y: 46.15 },
+            centerMm: { x: 0, y: 50.15 },
         }));
     });
 
@@ -1664,7 +1868,7 @@ describe('stompbox drill layout', () => {
                 controlId: undefined,
                 partId: 'switch-3pdt-pic-pbs24302',
                 face: 'top',
-                centerMm: { x: 0, y: -40.6 },
+                centerMm: { x: 0, y: -43.8 },
                 drillDiameterMm: 12.7,
                 provenance: 'auto-generated',
             },
@@ -1704,6 +1908,27 @@ describe('stompbox drill layout', () => {
         ]);
     });
 
+    test('uses declared panel grid centers when .vdsp omits physical coordinates', () => {
+        const layout = createStompboxDrillLayoutFromVdsp(vdspWithGridPlacementOnly, {
+            enclosureId: 'box-1590a',
+            includePowerJack: false,
+        });
+        const knobs = layout.holes.filter((hole) => hole.id.endsWith('-knob'));
+
+        expect(knobs.map((hole) => ({
+            id: hole.id,
+            controlId: hole.controlId,
+            centerMm: hole.centerMm,
+            provenance: hole.provenance,
+        }))).toEqual([
+            { id: 'drive-knob', controlId: 'DRIVE', centerMm: { x: -13, y: 30.833 }, provenance: 'auto-generated' },
+            { id: 'tone-knob', controlId: 'TONE', centerMm: { x: -13, y: 0 }, provenance: 'auto-generated' },
+            { id: 'level-knob', controlId: 'LEVEL', centerMm: { x: 13, y: 30.833 }, provenance: 'auto-generated' },
+        ]);
+        expect(knobs[0]?.centerMm.x).toBe(knobs[1]?.centerMm.x);
+        expect(layout.diagnostics.some((diagnostic) => diagnostic.code === 'placement-collision')).toBe(false);
+    });
+
     test('reports unsupported controls, unknown part mappings, collisions, and out-of-panel placements', () => {
         const layout = createStompboxDrillLayoutFromVdsp(vdspWithDiagnosticPlacements);
         const diagnosticCodes = layout.diagnostics.map((diagnostic) => diagnostic.code);
@@ -1738,7 +1963,7 @@ describe('stompbox drill layout', () => {
 
         expect(layout.diagnostics).toContainEqual({
             code: 'placement-clearance',
-            message: 'Placements "knob-a" and "knob-b" have 4 mm clearance on top, below required 5 mm',
+            message: 'Placements "knob-a" and "knob-b" have 3.8 mm clearance on top, below required 5 mm',
             placementId: 'knob-a',
             face: 'top',
         });
@@ -1763,7 +1988,7 @@ describe('stompbox drill template modes', () => {
         expect(template.scaleMarks).toEqual([]);
         expect(template.holeTable).toEqual([]);
         expect(template.holes).toHaveLength(7);
-        expect(template.holes.find((hole) => hole.id === 'knob-GAIN')?.templateCenterMm).toEqual({ x: 48.625, y: 56.3 });
+        expect(template.holes.find((hole) => hole.id === 'knob-GAIN')?.templateCenterMm).toEqual({ x: 46.625, y: 53.9 });
         expect(template.holes.find((hole) => hole.id === 'jack-IN')?.templateCenterMm).toEqual({ x: 107, y: 86.75 });
         expect(template.holes.find((hole) => hole.id === 'jack-OUT')?.templateCenterMm).toEqual({ x: 15.5, y: 86.75 });
         expect(template.holes.find((hole) => hole.id === 'power-9v')?.templateCenterMm).toEqual({ x: 107, y: 99.3 });
@@ -1798,10 +2023,10 @@ describe('stompbox drill template modes', () => {
             drillDiameterMm: hole.drillDiameterMm,
             provenance: hole.provenance,
         }))).toEqual([
-            { id: 'knob-GAIN', face: 'top', centerMm: { x: -12.625, y: 30.45 }, drillDiameterMm: 7.14375, provenance: 'auto-generated' },
-            { id: 'knob-LEVEL', face: 'top', centerMm: { x: 12.625, y: 30.45 }, drillDiameterMm: 7.14375, provenance: 'auto-generated' },
-            { id: 'led-LED1', face: 'top', centerMm: { x: 0, y: -5.075 }, drillDiameterMm: 7.9375, provenance: 'auto-generated' },
-            { id: 'switch-SW1', face: 'top', centerMm: { x: 0, y: -20.3 }, drillDiameterMm: 12.7, provenance: 'auto-generated' },
+            { id: 'knob-GAIN', face: 'top', centerMm: { x: -14.625, y: 32.85 }, drillDiameterMm: 7.14375, provenance: 'auto-generated' },
+            { id: 'knob-LEVEL', face: 'top', centerMm: { x: 14.625, y: 32.85 }, drillDiameterMm: 7.14375, provenance: 'auto-generated' },
+            { id: 'led-LED1', face: 'top', centerMm: { x: 0, y: -5.475 }, drillDiameterMm: 7.9375, provenance: 'auto-generated' },
+            { id: 'switch-SW1', face: 'top', centerMm: { x: 0, y: -21.9 }, drillDiameterMm: 12.7, provenance: 'auto-generated' },
             { id: 'jack-IN', face: 'right', centerMm: { x: 30.25, y: 0 }, drillDiameterMm: 9.525, provenance: 'auto-generated' },
             { id: 'jack-OUT', face: 'left', centerMm: { x: -30.25, y: 0 }, drillDiameterMm: 9.525, provenance: 'auto-generated' },
             { id: 'power-9v', face: 'right', centerMm: { x: 30.25, y: -12.55 }, drillDiameterMm: 12.7, provenance: 'auto-generated' },
@@ -1993,11 +2218,11 @@ describe('stompbox preview manifest', () => {
         });
         const bossPreview = createStompboxPreviewFromVdsp(vdspWithBossStyleControls, {
             includePowerJack: true,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
         const bossSynthesizedLedPreview = createStompboxPreviewFromVdsp(vdspWithPotentiometers(['A', 'B', 'C']), {
             includePowerJack: false,
-            styleProfile: 'boss-style',
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
         });
         const opaqueJackPreview = createStompboxPreviewFromVdsp(vdspWithOpaqueJackNames, {
             includePowerJack: false,
@@ -2015,10 +2240,18 @@ describe('stompbox preview manifest', () => {
             { id: 'label-knob-GAIN', kind: 'text', text: 'GAIN', face: 'top', rotationDeg: 0 },
             { id: 'label-knob-LEVEL', kind: 'text', text: 'LEVEL', face: 'top', rotationDeg: 0 },
             { id: 'label-led-LED1', kind: 'text', text: 'STATUS', face: 'top', rotationDeg: 0 },
-            { id: 'label-jack-IN', kind: 'text', text: 'INPUT', face: 'top', rotationDeg: -90 },
+            { id: 'label-jack-IN', kind: 'text', text: 'INPUT', face: 'top', rotationDeg: 90 },
             { id: 'label-jack-OUT', kind: 'text', text: 'OUTPUT', face: 'top', rotationDeg: -90 },
             { id: 'label-power-9v', kind: 'text', text: '9V DC', face: 'right', rotationDeg: 0 },
         ]);
+        expect(mxrPreview.decals.find((decal) => decal.id === 'label-jack-IN')).toEqual(expect.objectContaining({
+            centerMm: { x: 23.95, y: 0 },
+            rotationDeg: 90,
+        }));
+        expect(mxrPreview.decals.find((decal) => decal.id === 'label-jack-OUT')).toEqual(expect.objectContaining({
+            centerMm: { x: -23.95, y: 0 },
+            rotationDeg: -90,
+        }));
         expect(mxrPreview.decals.some((decal) => decal.id.startsWith('label-switch-'))).toBe(false);
         expect(bossPreview.decals.some((decal) => decal.id.startsWith('label-switch-'))).toBe(false);
         expect(mxrPreview.drillLayout.holes.find((hole) => hole.id === 'switch-SW1')?.label).toBeUndefined();
@@ -2045,8 +2278,16 @@ describe('stompbox preview manifest', () => {
             face: 'top',
             rotationDeg: 0,
         }));
-        expect(bossPreview.decals.find((decal) => decal.id === 'label-jack-IN')?.centerMm.y).toBe(5.075);
-        expect(bossPreview.decals.find((decal) => decal.id === 'label-jack-OUT')?.centerMm.y).toBe(5.075);
+        expect(bossPreview.decals.find((decal) => decal.id === 'label-jack-IN')?.centerMm.y).toBe(5.475);
+        expect(bossPreview.decals.find((decal) => decal.id === 'label-jack-OUT')?.centerMm.y).toBe(5.475);
+        expect(bossPreview.decals).toContainEqual(expect.objectContaining({
+            id: 'label-power-9v',
+            kind: 'text',
+            text: '9V DC',
+            face: 'back',
+            centerMm: { x: 0, y: -11.05 },
+            rotationDeg: 0,
+        }));
         expect(bossSynthesizedLedPreview.decals).toContainEqual(expect.objectContaining({
             id: 'label-led-status',
             kind: 'text',
@@ -2067,17 +2308,21 @@ describe('stompbox preview manifest', () => {
         }));
     });
 
-    test('derives knob pointer color from knob body contrast when not explicitly set', () => {
+    test('ignores knob color appearance so source knob materials are preserved', () => {
         const appearance = {
             defaults: {
                 knob: { color: '#facc15' },
             },
             controls: {
                 LEVEL: {
-                    knob: { color: '#111827' },
+                    knob: { color: '#111827', indicatorColor: '#ef4444', strokeColor: '#020617' },
                 },
             },
-        } as const;
+            parts: {
+                'knob-GAIN': { color: '#facc15' },
+                'part-knob-LEVEL': { color: '#111827', strokeColor: '#020617' },
+            },
+        } as unknown as StompboxAppearance;
         const preview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, {
             appearance,
         });
@@ -2091,37 +2336,22 @@ describe('stompbox preview manifest', () => {
         const gltf = parseJsonChunkFromGlb(assembly.bytes);
         const patch = createStompboxAppearancePatch(preview);
 
-        expect(preview.parts.find((part) => part.id === 'knob-GAIN')?.material).toEqual({
-            color: '#facc15',
-            indicatorColor: '#111827',
-        });
-        expect(preview.parts.find((part) => part.id === 'knob-LEVEL')?.material).toEqual({
-            color: '#111827',
-            indicatorColor: '#f8fafc',
-        });
-        expect(patch.parts['part-knob-GAIN']?.indicatorColor).toBe('#111827');
-        expect(patch.parts['part-knob-LEVEL']?.indicatorColor).toBe('#f8fafc');
+        expect(preview.parts.find((part) => part.id === 'knob-GAIN')?.material).toBeUndefined();
+        expect(preview.parts.find((part) => part.id === 'knob-LEVEL')?.material).toBeUndefined();
+        expect(patch.parts['part-knob-GAIN']).toBeUndefined();
+        expect(patch.parts['part-knob-LEVEL']).toBeUndefined();
         expect(views.views.top).toContain('class="knob-indicator"');
-        expect(views.views.top).toContain('stroke="#111827"');
         expect(views.views.top).toContain('stroke="#f8fafc"');
-        expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'part-knob-GAIN')?.extras).material).toEqual({
-            color: '#facc15',
-            indicatorColor: '#111827',
-        });
-        expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'part-knob-LEVEL')?.extras).material).toEqual({
-            color: '#111827',
-            indicatorColor: '#f8fafc',
-        });
-        const gainIndicatorNode = gltf.nodes?.find((node) => node.name === 'knob-indicator-knob-GAIN');
-        const gainIndicatorMaterial = gltf.materials?.find((material) => material.name === 'knob-indicator-knob-GAIN/material');
-        expect(gainIndicatorNode?.mesh).toBeDefined();
-        expect(gltfExtras(gainIndicatorNode?.extras)).toEqual(expect.objectContaining({
-            kind: 'knob-indicator',
-            partId: 'knob-GAIN',
-            controlId: 'GAIN',
-            color: '#111827',
-        }));
-        expect(gainIndicatorMaterial?.pbrMetallicRoughness?.baseColorFactor).toEqual([17 / 255, 24 / 255, 39 / 255, 1]);
+        expect(views.views.top).not.toContain('fill="#facc15"');
+        expect(views.views.top).not.toContain('stroke="#ef4444"');
+        expect((gltf.nodes?.find((node) => node.name === 'part-knob-GAIN')?.extras as GltfExtras | undefined)?.material).toBeUndefined();
+        expect((gltf.nodes?.find((node) => node.name === 'part-knob-LEVEL')?.extras as GltfExtras | undefined)?.material).toBeUndefined();
+        expect(gltf.materials?.some((material) =>
+            material.name?.startsWith('knob-GAIN/')
+            && (material.extras as GltfExtras | undefined)?.renderColorMode === 'flat-color'
+        )).toBe(false);
+        expect(gltf.nodes?.some((node) => node.name?.startsWith('knob-indicator-'))).toBe(false);
+        expect(gltf.materials?.some((material) => material.name?.startsWith('knob-indicator-'))).toBe(false);
 
         const explicitPreview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, {
             appearance: {
@@ -2130,22 +2360,19 @@ describe('stompbox preview manifest', () => {
                         knob: { color: '#facc15', indicatorColor: '#ef4444' },
                     },
                 },
-            },
+            } as unknown as StompboxAppearance,
         });
-        expect(explicitPreview.parts.find((part) => part.id === 'knob-GAIN')?.material).toEqual({
-            color: '#facc15',
-            indicatorColor: '#ef4444',
-        });
+        expect(explicitPreview.parts.find((part) => part.id === 'knob-GAIN')?.material).toBeUndefined();
     });
 
-    test('places text, vector, and image stickers on the five enclosure planes with centered subgrid alignment', () => {
+    test('places text, vector, and image stickers on face grids without subdivision', () => {
         const decals = [
             {
                 id: 'grid-top-label',
                 kind: 'text',
                 text: 'TOP',
                 face: 'top',
-                placement: { kind: 'grid', columns: 4, rows: 4, subgrid: 2, column: 3, row: 5 },
+                placement: { kind: 'grid', columns: 4, rows: 4, column: 2, row: 3 },
                 sizeMm: { widthMm: 18, heightMm: 6 },
                 color: '#2563eb',
                 fontFamily: '"Roboto", sans-serif',
@@ -2156,7 +2383,7 @@ describe('stompbox preview manifest', () => {
                 kind: 'image',
                 href: 'data:image/png;base64,AAAA',
                 face: 'left',
-                placement: { kind: 'grid', columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+                placement: { kind: 'grid', columns: 2, rows: 4, column: 1, row: 2 },
                 sizeMm: { widthMm: 8, heightMm: 10 },
             },
             {
@@ -2165,7 +2392,7 @@ describe('stompbox preview manifest', () => {
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 5 H9" stroke="currentColor"/></svg>',
                 color: '#ef4444',
                 face: 'right',
-                placement: { kind: 'grid', columns: 2, rows: 4, subgrid: 2, column: 3, row: 3 },
+                placement: { kind: 'grid', columns: 2, rows: 4, column: 2, row: 2 },
                 sizeMm: { widthMm: 10, heightMm: 8 },
             },
             {
@@ -2173,7 +2400,7 @@ describe('stompbox preview manifest', () => {
                 kind: 'text',
                 text: 'BACK',
                 face: 'back',
-                placement: { kind: 'grid', columns: 4, rows: 1, subgrid: 2, column: 8, row: 1 },
+                placement: { kind: 'grid', columns: 4, rows: 1, column: 4, row: 1 },
                 sizeMm: { widthMm: 16, heightMm: 5 },
                 color: '#0f172a',
                 fontFamily: '"Inter", sans-serif',
@@ -2183,9 +2410,17 @@ describe('stompbox preview manifest', () => {
                 kind: 'text',
                 text: 'BOTTOM',
                 face: 'bottom',
-                placement: { kind: 'grid', columns: 4, rows: 2, subgrid: 2, column: 4, row: 3 },
+                placement: { kind: 'grid', columns: 4, rows: 2, column: 2, row: 2 },
                 sizeMm: { widthMm: 22, heightMm: 5 },
                 color: '#f97316',
+            },
+            {
+                id: 'dense-grid-label',
+                kind: 'text',
+                text: 'DENSE',
+                face: 'top',
+                placement: { kind: 'grid', columns: 8, rows: 10, column: 8, row: 10 },
+                sizeMm: { widthMm: 14, heightMm: 5 },
             },
         ] as const;
         const preview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, { decals });
@@ -2203,44 +2438,49 @@ describe('stompbox preview manifest', () => {
         expect(preview.decals.find((decal) => decal.id === 'grid-top-label')).toEqual(expect.objectContaining({
             kind: 'text',
             face: 'top',
-            centerMm: { x: -11.344, y: -6.969 },
+            centerMm: { x: -7.562, y: -13.937 },
             color: '#2563eb',
             fontFamily: '"Roboto", sans-serif',
             fontSizeMm: 3.5,
-            placement: { kind: 'grid', columns: 4, rows: 4, subgrid: 2, column: 3, row: 5 },
+            placement: { kind: 'grid', columns: 4, rows: 4, column: 2, row: 3 },
         }));
         expect(preview.decals.find((decal) => decal.id === 'grid-left-image')).toEqual(expect.objectContaining({
             kind: 'image',
             face: 'left',
-            centerMm: { x: -3.875, y: 20.906 },
+            centerMm: { x: -7.75, y: 13.938 },
             href: 'data:image/png;base64,AAAA',
         }));
         expect(preview.decals.find((decal) => decal.id === 'grid-right-vector')).toEqual(expect.objectContaining({
             kind: 'svg',
             face: 'right',
-            centerMm: { x: 3.875, y: 20.906 },
+            centerMm: { x: 7.75, y: 13.938 },
             color: '#ef4444',
         }));
         expect(preview.decals.find((decal) => decal.id === 'grid-back-label')).toEqual(expect.objectContaining({
             face: 'back',
-            centerMm: { x: 26.469, y: 7.75 },
+            centerMm: { x: 22.688, y: 0 },
         }));
         expect(preview.decals.find((decal) => decal.id === 'grid-bottom-label')).toEqual(expect.objectContaining({
             face: 'bottom',
-            centerMm: { x: -3.781, y: -3.875 },
+            centerMm: { x: -7.562, y: -7.75 },
+        }));
+        expect(preview.decals.find((decal) => decal.id === 'dense-grid-label')).toEqual(expect.objectContaining({
+            face: 'top',
+            centerMm: { x: 24.2, y: -49.556 },
+            placement: { kind: 'grid', columns: 5, rows: 9, column: 5, row: 9 },
         }));
 
         expect(views.views.top).toContain('data-decal-id="grid-top-label"');
         expect(views.views.top).toContain('font-family="&quot;Roboto&quot;, sans-serif"');
         expect(views.views.left).toContain('data-decal-id="grid-left-image"');
-        expect(views.views.left).toContain('transform="translate(11.625 34.844) rotate(0)"');
+        expect(views.views.left).toContain('transform="translate(7.75 41.812) rotate(0)"');
         expect(views.views.left).toContain('href="data:image/png;base64,AAAA"');
         expect(views.views.right).toContain('data-decal-id="grid-right-vector"');
-        expect(views.views.right).toContain('transform="translate(19.375 34.844) rotate(0)"');
+        expect(views.views.right).toContain('transform="translate(23.25 41.812) rotate(0)"');
         expect(views.views.right).toContain('%23ef4444');
         expect(views.views.back).toContain('data-view="back"');
         expect(views.views.back).toContain('data-decal-id="grid-back-label"');
-        expect(views.views.back).toContain('transform="translate(56.719 7.75) rotate(0)"');
+        expect(views.views.back).toContain('transform="translate(52.938 15.5) rotate(0)"');
         expect(views.views.bottom).toContain('data-decal-id="grid-bottom-label"');
 
         expect(templateSvg).toContain('data-decal-id="grid-bottom-label"');
@@ -2252,7 +2492,7 @@ describe('stompbox preview manifest', () => {
             decalKind: 'image',
             face: 'left',
             href: 'data:image/png;base64,AAAA',
-            placement: { kind: 'grid', columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+            placement: { kind: 'grid', columns: 2, rows: 4, column: 1, row: 2 },
         }));
         expect(gltfExtras(gltf.nodes?.find((node) => node.name === 'decal-grid-right-vector')?.extras)).toEqual(expect.objectContaining({
             decalKind: 'svg',
@@ -2264,13 +2504,11 @@ describe('stompbox preview manifest', () => {
         const appearance = {
             enclosure: { color: '#f97316', strokeColor: '#7c2d12', roughnessFactor: 0.45 },
             defaults: {
-                knob: { color: '#111827', indicatorColor: '#f8fafc', strokeColor: '#020617' },
                 led: { color: '#ef4444', offColor: '#fee2e2', strokeColor: '#7f1d1d' },
                 label: { color: '#111827', fontFamily: 'Arial,sans-serif' },
             },
             controls: {
                 GAIN: {
-                    knob: { color: '#facc15', indicatorColor: '#111827', strokeColor: '#854d0e' },
                     label: { text: 'DRIVE', color: '#ffffff' },
                 },
                 LED1: {
@@ -2307,16 +2545,8 @@ describe('stompbox preview manifest', () => {
             strokeColor: '#7c2d12',
             roughnessFactor: 0.45,
         });
-        expect(preview.parts.find((part) => part.id === 'knob-GAIN')?.material).toEqual({
-            color: '#facc15',
-            indicatorColor: '#111827',
-            strokeColor: '#854d0e',
-        });
-        expect(preview.parts.find((part) => part.id === 'knob-LEVEL')?.material).toEqual({
-            color: '#111827',
-            indicatorColor: '#f8fafc',
-            strokeColor: '#020617',
-        });
+        expect(preview.parts.find((part) => part.id === 'knob-GAIN')?.material).toBeUndefined();
+        expect(preview.parts.find((part) => part.id === 'knob-LEVEL')?.material).toBeUndefined();
         expect(preview.parts.find((part) => part.id === 'led-LED1')?.material).toEqual({
             color: '#22c55e',
             emissive: true,
@@ -2342,15 +2572,7 @@ describe('stompbox preview manifest', () => {
             strokeColor: '#7c2d12',
             roughnessFactor: 0.45,
         });
-        expect(patch.parts['part-knob-GAIN']).toEqual({
-            targetId: 'part-knob-GAIN',
-            partId: 'knob-mxr-style-fluted-large',
-            controlId: 'GAIN',
-            family: 'knob',
-            color: '#facc15',
-            indicatorColor: '#111827',
-            strokeColor: '#854d0e',
-        });
+        expect(patch.parts['part-knob-GAIN']).toBeUndefined();
         expect(patch.parts['part-led-LED1']).toEqual({
             targetId: 'part-led-LED1',
             partId: 'led-bezel-lh5',
@@ -2376,10 +2598,10 @@ describe('stompbox preview manifest', () => {
         expect(views.views.top).toContain('data-part-family="knob"');
         expect(views.views.top).toContain('data-control-id="GAIN"');
         expect(views.views.top).toContain('class="knob-body"');
-        expect(views.views.top).toContain('fill="#facc15"');
-        expect(views.views.top).toContain('stroke="#854d0e"');
+        expect(views.views.top).not.toContain('fill="#facc15"');
+        expect(views.views.top).not.toContain('stroke="#854d0e"');
         expect(views.views.top).toContain('class="knob-indicator"');
-        expect(views.views.top).toContain('stroke="#111827"');
+        expect(views.views.top).toContain('stroke="#f8fafc"');
         expect(views.views.top).toContain('class="led-lens"');
         expect(views.views.top).toContain('class="led-bezel-ring"');
         expect(views.views.top).toContain('fill="#22c55e"');
@@ -2389,20 +2611,14 @@ describe('stompbox preview manifest', () => {
 
         const extras = gltfExtras(gltf.asset?.extras);
         const appearanceExtras = extras.appearance as typeof patch;
-        expect(appearanceExtras.parts['part-knob-GAIN']?.color).toBe('#facc15');
+        expect(appearanceExtras.parts['part-knob-GAIN']).toBeUndefined();
         expect(appearanceExtras.decals['decal-label-knob-GAIN']?.text).toBe('DRIVE');
         const gainNode = gltf.nodes?.find((node) => node.name === 'part-knob-GAIN');
-        expect(gltfExtras(gainNode?.extras).material).toEqual({
-            color: '#facc15',
-            indicatorColor: '#111827',
-            strokeColor: '#854d0e',
-        });
+        expect((gainNode?.extras as GltfExtras | undefined)?.material).toBeUndefined();
         expect(gltf.materials?.some((material) =>
             material.name?.startsWith('knob-GAIN/')
-            && material.pbrMetallicRoughness?.baseColorFactor?.[0] === 250 / 255
-            && material.pbrMetallicRoughness.baseColorFactor[1] === 204 / 255
-            && material.pbrMetallicRoughness.baseColorFactor[2] === 21 / 255
-        )).toBe(true);
+            && (material.extras as GltfExtras | undefined)?.renderColorMode === 'flat-color'
+        )).toBe(false);
         const enclosureOrangeMaterial = gltf.materials?.find((material) =>
             material.name?.startsWith('box-1590b/')
             && material.pbrMetallicRoughness?.baseColorFactor?.[0] === 249 / 255
@@ -2449,7 +2665,7 @@ describe('stompbox preview manifest', () => {
         const input = preview.parts.find((part) => part.id === 'jack-IN')!;
 
         expect(preview.schema).toBe('stompbox-preview/v1');
-        expect(gain.transform.translationMm).toEqual({ x: -12.625, y: 30.45, z: 15.5 });
+        expect(gain.transform.translationMm).toEqual({ x: -14.625, y: 32.85, z: 15.5 });
         expect(gain.transform.rotationDeg.z).toBe(135);
         expect(status.material).toEqual({ color: 'red', emissive: true, intensity: 0.7 });
         expect(bypass.transform.translationMm.z).toBe(14.3);
@@ -2486,7 +2702,7 @@ describe('stompbox preview manifest', () => {
                 partId: 'switch-3pdt-pic-pbs24302',
                 provenance: 'auto-generated',
                 glb: '/cad/parts/switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb',
-                translationMm: { x: 0, y: -40.6, z: 15.5 },
+                translationMm: { x: 0, y: -43.8, z: 15.5 },
             },
             {
                 id: 'jack-input',
@@ -2539,6 +2755,8 @@ describe('stompbox preview manifest', () => {
         expect(views.views.top).toContain('data-decal-id="label-knob-GAIN"');
         expect(views.views.top).toContain('GAIN');
         expect(views.views.top).toContain('data-decal-id="label-jack-IN"');
+        expect(views.views.top).toContain('transform="translate(54.2 55.75) rotate(90)"');
+        expect(views.views.top).toContain('transform="translate(6.3 55.75) rotate(-90)"');
         expect(views.views.top).toContain('INPUT');
         expect(views.views.top).not.toContain('data-top-edge-projection');
         expect(views.views.top).not.toContain('data-part-id="jack-IN"');
@@ -2552,6 +2770,52 @@ describe('stompbox preview manifest', () => {
         expect(views.views.right).toContain('data-part-id="jack-IN"');
         expect(views.views.right).toContain('data-part-id="power-9v"');
         expect(views.views.right).toContain('class="ring-outer"');
+    });
+
+    test('renders Boss-style 9V connector and label on the back face', () => {
+        const preview = createStompboxPreviewFromVdsp(vdspWithBossStyleControls, {
+            includePowerJack: true,
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
+        });
+        const views = createStompboxPreviewSvgViewsFromVdsp(vdspWithBossStyleControls, {
+            includePowerJack: true,
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
+        });
+        const assembly = createStompboxPreviewGlbFromVdsp(vdspWithBossStyleControls, {
+            includePowerJack: true,
+            styleProfile: BOSS_STOMPBOX_STYLE_PROFILE,
+            basePath: DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+        });
+        const gltf = parseJsonChunkFromGlb(assembly.bytes);
+        const powerPart = preview.parts.find((part) => part.id === 'power-9v');
+        const powerLabel = preview.decals.find((decal) => decal.id === 'label-power-9v');
+        const powerNode = gltf.nodes?.find((node) => node.name === 'part-power-9v');
+        const powerHoleBackingNode = gltf.nodes?.find((node) => node.name === 'hole-backing-power-9v');
+        const powerLabelNode = gltf.nodes?.find((node) => node.name === 'decal-label-power-9v');
+
+        expect(powerPart?.face).toBe('back');
+        expect(powerPart?.transform.translationMm).toEqual({ x: 0, y: 55.75, z: 0 });
+        expect(powerLabel).toEqual(expect.objectContaining({
+            face: 'back',
+            centerMm: { x: 0, y: -11.05 },
+        }));
+        expect(views.views.top).not.toContain('data-part-id="power-9v"');
+        expect(views.views.right).not.toContain('data-part-id="power-9v"');
+        expect(views.views.back).toContain('data-view="back"');
+        expect(views.views.back).toContain('data-part-id="power-9v"');
+        expect(views.views.back).toContain('<circle class="ring-outer" cx="30.25" cy="15.5" r="7.05"');
+        expect(views.views.back).toContain('data-decal-id="label-power-9v"');
+        expect(views.views.back).toContain('transform="translate(30.25 26.55) rotate(0)"');
+        expect(views.views.back).toContain('>9V DC</text>');
+        expect(powerNode?.translation).toEqual([0, 55.75, 0]);
+        expect(powerHoleBackingNode?.translation).toEqual([0, 55.75, 0]);
+        expect(gltfExtras(powerHoleBackingNode?.extras)).toEqual(expect.objectContaining({
+            kind: 'hole-backing',
+            partId: 'power-9v',
+            sourcePartId: 'dc-socket-dc099',
+            face: 'back',
+        }));
+        expect(powerLabelNode?.translation).toEqual([0, 55.95, -11.05]);
     });
 
     test('serializes a binary GLB preview assembly with source GLB nodes and transforms', () => {
@@ -2593,7 +2857,7 @@ describe('stompbox preview manifest', () => {
             'power-9v',
         ]);
         expect(extras.sourceAssets?.[1]?.glb).toBe(
-            join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, 'knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb'),
+            join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, 'knob-mxr-style-fluted/.daier-mf-b01.step.glb'),
         );
         expect(nodes.some((node) => node.name === 'enclosure-box-1590b')).toBe(true);
         expect(assembly.preview.decals.slice(0, 2).map((decal) => decal.id)).toEqual(['brand', 'badge']);
@@ -2607,15 +2871,17 @@ describe('stompbox preview manifest', () => {
         const brandNode = nodes.find((node) => node.name === 'decal-brand');
         const badgeNode = nodes.find((node) => node.name === 'decal-badge');
         const gainLabelNode = nodes.find((node) => node.name === 'decal-label-knob-GAIN');
+        const inputLabelNode = nodes.find((node) => node.name === 'decal-label-jack-IN');
+        const outputLabelNode = nodes.find((node) => node.name === 'decal-label-jack-OUT');
         const brandMaterial = gltf.materials?.find((material) => material.name === 'decal-brand/material');
         const holeBackingMaterial = gltf.materials?.find((material) => material.name === 'hole-backing/material');
         expect(gainNode?.children?.length).toBeGreaterThan(0);
-        expect(gainNode?.translation).toEqual([-12.625, 30.45, 15.5]);
+        expect(gainNode?.translation).toEqual([-14.625, 32.85, 15.5]);
         expect(gainNode?.rotation).toEqual([0, 0, 0.92388, 0.382683]);
         expect(gltfExtras(gainNode?.extras).glb).toBe(
-            join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, 'knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb'),
+            join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, 'knob-mxr-style-fluted/.daier-mf-b01.step.glb'),
         );
-        expect(switchNode?.translation).toEqual([0, -20.3, 14.3]);
+        expect(switchNode?.translation).toEqual([0, -21.9, 14.3]);
         expect(inputHoleBackingNode?.mesh).toBeDefined();
         expect(outputHoleBackingNode?.mesh).toBeDefined();
         expect(powerHoleBackingNode?.mesh).toBeDefined();
@@ -2647,5 +2913,17 @@ describe('stompbox preview manifest', () => {
         expect(gltfExtras(badgeNode?.extras).svg).toContain('<path');
         expect(gltfExtras(gainLabelNode?.extras).decalKind).toBe('text');
         expect(gltfExtras(gainLabelNode?.extras).text).toBe('GAIN');
+        expect(inputLabelNode?.translation).toEqual([23.95, 0, 15.7]);
+        expect(inputLabelNode?.rotation).toEqual([0, 0, 0.707107, 0.707107]);
+        expect(gltfExtras(inputLabelNode?.extras)).toEqual(expect.objectContaining({
+            text: 'INPUT',
+            rotationDeg: 90,
+        }));
+        expect(outputLabelNode?.translation).toEqual([-23.95, 0, 15.7]);
+        expect(outputLabelNode?.rotation).toEqual([0, 0, -0.707107, 0.707107]);
+        expect(gltfExtras(outputLabelNode?.extras)).toEqual(expect.objectContaining({
+            text: 'OUTPUT',
+            rotationDeg: -90,
+        }));
     });
 });

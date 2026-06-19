@@ -4,6 +4,8 @@ description: Generate headless stompbox drill layouts, templates, SVG views, and
 ---
 
 import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";
+import StompboxPreviewPresetGroup from "../../../components/StompboxPreviewPresetGroup.astro";
+import demoProfiles from "../../../data/stompbox-demo-profiles.json";
 
 `@vessel-dsp/stompbox` consumes `.vdsp` or `CircuitDocument` panel data from `@vessel-dsp/core` and emits fabrication and preview artifacts.
 
@@ -19,7 +21,28 @@ It stays headless. It must not import React, React DOM, Three.js, browser render
 
 ## Hardware profile boundary
 
-Production part profiles, enclosure profiles, and asset roots belong to the application that calls `@vessel-dsp/stompbox`. Pass them through `hardwareProfile`. The package exports `DEMO_STOMPBOX_HARDWARE_PROFILE` and `DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT` only for examples and generated docs assets.
+Production part profiles, enclosure profiles, style profiles, and asset roots belong to the application that calls `@vessel-dsp/stompbox`. Pass the mechanical catalog through `hardwareProfile`, and pass any named visual/placement preset through `styleProfile`. The docs demo keeps its Boss/MXR presets in `stompbox-demo-profiles.json`; the package does not export demo hardware or style presets.
+
+```ts
+import demoProfiles from "./stompbox-demo-profiles.json";
+import type { StompboxHardwareProfile } from "@vessel-dsp/stompbox";
+
+const hardwareProfile = {
+	...demoProfiles.defaultHardwareProfile,
+	partProfiles: demoProfiles.partProfiles,
+	enclosureProfiles: demoProfiles.enclosureProfiles,
+} satisfies StompboxHardwareProfile;
+
+const styleProfile = demoProfiles.styleProfiles.find((profile) =>
+	profile.id === demoProfiles.defaultStyleProfileId,
+);
+
+if (styleProfile === undefined) {
+	throw new Error("Missing stompbox style profile");
+}
+
+const cadPartsRoot = "/absolute/path/to/packages/stompbox/assets/cad/parts";
+```
 
 ## Placement provenance
 
@@ -36,13 +59,11 @@ Schematic documents may omit enclosure hardware such as input/output jacks, bypa
 Set `includePowerJack: false` to opt out of the synthesized 9V connector.
 
 ```ts
-import {
-	createStompboxDrillLayoutFromVdsp,
-	DEMO_STOMPBOX_HARDWARE_PROFILE,
-} from "@vessel-dsp/stompbox";
+import { createStompboxDrillLayoutFromVdsp } from "@vessel-dsp/stompbox";
 
 const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	includePowerJack: false,
 });
 ```
@@ -52,13 +73,11 @@ const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
 Layout diagnostics report physical placement problems. `placement-collision` means visible part geometry overlaps. `placement-clearance` means parts do not overlap, but the gap is below the requested clearance. `placement-out-of-bounds` means a hole exceeds the enclosure face bounds.
 
 ```ts
-import {
-	createStompboxDrillLayoutFromVdsp,
-	DEMO_STOMPBOX_HARDWARE_PROFILE,
-} from "@vessel-dsp/stompbox";
+import { createStompboxDrillLayoutFromVdsp } from "@vessel-dsp/stompbox";
 
 const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	includePowerJack: false,
 	minPartClearanceMm: 5,
 });
@@ -77,21 +96,22 @@ import {
 	createStompboxDrillTemplateSvgFromVdsp,
 	createStompboxPreviewGlbFromVdsp,
 	createStompboxPreviewSvgViewsFromVdsp,
-	DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
-	DEMO_STOMPBOX_HARDWARE_PROFILE,
 } from "@vessel-dsp/stompbox";
 
 const drillTemplateSvg = createStompboxDrillTemplateSvgFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	mode: "print",
 });
 
 const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 });
 const glb = createStompboxPreviewGlbFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
-	basePath: DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+	hardwareProfile,
+	styleProfile,
+	basePath: cadPartsRoot,
 });
 ```
 
@@ -102,8 +122,9 @@ Drill-template holes use fabrication clearance diameters from part profiles. Pre
 Pass `decals` to preview and drill-template helpers when a frontend needs
 adjustable stickers. Decals can target the `top`, `left`, `right`, `back`, or
 `bottom` plane. Grid placement snaps every sticker to the center of a face-local
-cell, and `subgrid: 2` divides each column and row in half for tighter
-positioning while keeping alignment centered.
+cell. The grid uses the requested `columns` and `rows`, capped so each cell
+remains at least 12 mm wide or tall. For example, a 40 mm wide face can address
+at most 3 columns.
 
 Text decals carry editable text color plus `fontFamily`, so a consuming app can
 load the matching Google Font in its own page. SVG decals can use
@@ -119,7 +140,7 @@ const decals = [
 		face: "top",
 		color: "#2563eb",
 		fontFamily: '"Roboto", sans-serif',
-		placement: { kind: "grid", columns: 4, rows: 4, subgrid: 2, column: 4, row: 2 },
+		placement: { kind: "grid", columns: 4, rows: 4, column: 4, row: 2 },
 		sizeMm: { widthMm: 28, heightMm: 7 },
 	},
 	{
@@ -128,7 +149,7 @@ const decals = [
 		face: "left",
 		svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 5 H9" stroke="currentColor"/></svg>',
 		color: "#ef4444",
-		placement: { kind: "grid", columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+		placement: { kind: "grid", columns: 2, rows: 4, column: 2, row: 3 },
 		sizeMm: { widthMm: 10, heightMm: 8 },
 	},
 	{
@@ -136,13 +157,14 @@ const decals = [
 		kind: "image",
 		face: "back",
 		href: "/artwork/sticker.png",
-		placement: { kind: "grid", columns: 4, rows: 1, subgrid: 2, column: 7, row: 1 },
+		placement: { kind: "grid", columns: 4, rows: 1, column: 4, row: 1 },
 		sizeMm: { widthMm: 16, heightMm: 8 },
 	},
 ] as const;
 
 const preview = createStompboxPreviewFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	decals,
 });
 ```
@@ -217,20 +239,44 @@ that it is generating an incremental diff.
 
 ## Preview examples
 
-These examples are generated from the same helpers above using the default
-demo MXR-style hardware profile with two large knobs and custom appearance colors.
+These examples are generated from the same helpers above using docs-owned
+hardware and style profiles from `stompbox-demo-profiles.json`.
 
-### Orthographic GLB top preview
+<StompboxPreviewPresetGroup
+	presets={demoProfiles.previewPresets}
+>
+	<h3>Orthographic GLB top preview</h3>
 
-<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" linework={true} lineworkColor="#0f172a" />
+	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" linework={true} lineworkColor="#0f172a" />
 
-This uses the generated GLB with an orthographic top camera, so side-mounted
-audio jacks and the 9V DC connector stay side-facing in the preview instead of
-being redrawn as top-facing circles.
+	<div>
+		This uses the generated GLB with an orthographic top camera, so side-mounted
+		audio jacks and the 9V DC connector stay side-facing in the preview instead of
+		being redrawn as top-facing circles.
+	</div>
 
-### 3D stompbox preview
+	<h3>3D stompbox preview</h3>
 
-<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" linework={true} lineworkColor="#0f172a" />
+	<StompboxGlbViewer
+		src="/core/examples/stompbox-mxr-style-preview.glb"
+		linework={true}
+		lineworkColor="#0f172a"
+	/>
+
+	<h3>Drill layout preview</h3>
+
+	<img
+		src="/core/examples/stompbox-mxr-style-drill-template-preview.svg"
+		alt="MXR-style drill layout preview"
+		data-stompbox-drill-template-preview
+	/>
+
+	<div>
+		The SVG above is produced by `createStompboxDrillTemplateSvgFromVdsp()` in
+		`preview` mode. The underlying drill-layout JSON is also available:
+		<a href="/core/examples/stompbox-mxr-style-drill-layout.json" data-stompbox-drill-layout-download>download the drill layout</a>.
+	</div>
+</StompboxPreviewPresetGroup>
 
 [Download the GLB preview](/core/examples/stompbox-mxr-style-preview.glb)
 
@@ -238,22 +284,12 @@ The GLB is produced by `createStompboxPreviewGlbFromVdsp()`. It includes copied
 CAD mesh data, baked material colors where possible, and the frontend appearance
 patch at `asset.extras.appearance`.
 
-### Drill layout preview
-
-![MXR-style drill layout preview](/core/examples/stompbox-mxr-style-drill-template-preview.svg)
-
-The SVG above is produced by `createStompboxDrillTemplateSvgFromVdsp()` in
-`preview` mode. The underlying drill-layout JSON is also available:
-[download the drill layout](/core/examples/stompbox-mxr-style-drill-layout.json).
-
 ## Customize preview and drilling appearance
 
-Use `appearance` when a frontend needs to recolor the stompbox, knobs, LED,
-labels, or drill-template ink without changing physical placement. Keep
+Use `appearance` when a frontend needs to recolor the enclosure, LED, labels,
+or drill-template ink without changing physical placement. Knob bodies keep the
+material colors from their imported CAD/GLB assets. Keep
 `state` for live control values such as knob position or LED on/off state.
-Knob pointer colors default to automatic contrast: light knob colors get a dark
-pointer, and dark knob colors get a light pointer. Set `indicatorColor` on a
-knob appearance when the pointer color needs to be explicit.
 
 ```ts
 import {
@@ -262,8 +298,6 @@ import {
 	createStompboxPreviewFromVdsp,
 	createStompboxPreviewGlbFromVdsp,
 	createStompboxPreviewSvgViewsFromVdsp,
-	DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
-	DEMO_STOMPBOX_HARDWARE_PROFILE,
 	resolveStompboxAppearance,
 } from "@vessel-dsp/stompbox";
 
@@ -275,18 +309,16 @@ const appearance = {
 	},
 	template: {
 		guideColor: "#0ea5e9",
-		foldColor: "#f97316",
+		foldColor: "#334155",
 		holeStrokeColor: "#7c3aed",
 		centerDotColor: "#581c87",
 	},
 	defaults: {
-		knob: { color: "#111827" },
 		led: { color: "#ef4444", offColor: "#fee2e2" },
 		label: { color: "#111827" },
 	},
 	controls: {
 		GAIN: {
-			knob: { color: "#facc15" },
 			label: { text: "DRIVE", color: "#ffffff" },
 		},
 		LED1: {
@@ -296,31 +328,50 @@ const appearance = {
 	},
 } as const;
 
+const drillTemplateAppearance = {
+	...appearance,
+	enclosure: {
+		color: "#f8fafc",
+		strokeColor: "#334155",
+	},
+	controls: {
+		...appearance.controls,
+		GAIN: {
+			...appearance.controls.GAIN,
+			label: { text: "DRIVE", color: "#111827" },
+		},
+	},
+} as const;
+
 const state = {
 	LED1: { kind: "led", on: true, intensity: 0.6 },
 } as const;
 
 const preview = createStompboxPreviewFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	appearance,
 	state,
 });
 
 const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	appearance,
 	state,
 });
 const glb = createStompboxPreviewGlbFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
-	basePath: DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+	hardwareProfile,
+	styleProfile,
+	basePath: cadPartsRoot,
 	appearance,
 	state,
 });
 const drillTemplateSvg = createStompboxDrillTemplateSvgFromVdsp(vdspSource, {
-	hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+	hardwareProfile,
+	styleProfile,
 	mode: "print",
-	appearance,
+	appearance: drillTemplateAppearance,
 });
 
 const patch = createStompboxAppearancePatch(preview);
@@ -328,7 +379,7 @@ const samePatch = resolveStompboxAppearance(preview);
 ```
 
 The patch is stable JSON for frontend code. It uses render target ids such as
-`part-knob-GAIN`, `part-led-LED1`, `decal-label-knob-GAIN`, and
+`part-led-LED1`, `decal-label-knob-GAIN`, and
 `enclosure-box-1590b` so a viewer can recolor SVG or Three.js objects without
 parsing arbitrary material names.
 
@@ -342,6 +393,6 @@ Preview GLB output bakes available colors into render materials and stores the
 same patch at `asset.extras.appearance` for runtime recoloring in a frontend
 viewer. Appearance-colored GLB materials also carry a `renderColorMode:
 "flat-color"` hint so the docs Three.js preview can render exact UI colors
-without lightening them under scene lights. LED bezel parts keep their imported
-metal material; only the imported center lens mesh receives the LED color and
-emissive state.
+without lightening them under scene lights. Knob part meshes keep their imported
+materials; LED bezel parts keep their imported metal material, and only the
+imported center lens mesh receives the LED color and emissive state.

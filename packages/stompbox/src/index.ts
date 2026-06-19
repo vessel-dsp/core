@@ -15,43 +15,40 @@ import {
     type SwitchControl,
 } from '@vessel-dsp/core';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
-export const DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT = fileURLToPath(new URL('../assets/cad/parts', import.meta.url));
 
 export type StompboxUnits = 'mm';
 export type StompboxPlacementProvenance = 'vdsp-declared' | 'auto-generated';
 export type StompboxFaceId = 'top' | 'bottom' | 'left' | 'right' | 'back' | (string & {});
 export type StompboxTemplateMode = 'preview' | 'print';
-export type StompboxStyleProfileId = 'mxr-style' | 'boss-style';
+export type StompboxStyleProfileId = string & {};
+export type StompboxKnobGridStrategy = 'large-merged-row' | 'compact-led-row';
+export type StompboxSideHardwareStrategy = 'side-power-five-slot' | 'back-power-paired-side-jacks';
+export type StompboxAudioJackLabelStrategy = 'edge-rotated' | 'inline';
+export type StompboxFootswitchStrategy = 'lower-row' | 'bottom-merged-row';
 
 export type StompboxStyleProfile = Readonly<{
     id: StompboxStyleProfileId;
     label: string;
     supportedKnobCounts: readonly number[];
+    defaultPartIds?: Partial<StompboxDefaultPartProfileIds>;
+    layout?: Readonly<{
+        knobGrid?: StompboxKnobGridStrategy;
+        sideHardware?: StompboxSideHardwareStrategy;
+        audioJackLabels?: StompboxAudioJackLabelStrategy;
+        footswitch?: StompboxFootswitchStrategy;
+        statusLedLabel?: string;
+    }>;
 }>;
 
 export type StompboxStyleProfileFilter = Readonly<{
     knobCount: number;
 }>;
 
-export const DEFAULT_DEMO_STOMPBOX_STYLE_PROFILE_ID: StompboxStyleProfileId = 'mxr-style';
-
-export const DEMO_STOMPBOX_STYLE_PROFILES: readonly StompboxStyleProfile[] = [
-    {
-        id: 'mxr-style',
-        label: 'MXR style',
-        supportedKnobCounts: [1, 2, 3, 4, 5, 6],
-    },
-    {
-        id: 'boss-style',
-        label: 'Boss style',
-        supportedKnobCounts: [2, 3, 4],
-    },
-];
-
-export function getAvailableStompboxStyleProfiles(filter: StompboxStyleProfileFilter): readonly StompboxStyleProfile[] {
-    return DEMO_STOMPBOX_STYLE_PROFILES.filter((profile) => profile.supportedKnobCounts.includes(filter.knobCount));
+export function getAvailableStompboxStyleProfiles(
+    profiles: readonly StompboxStyleProfile[],
+    filter: StompboxStyleProfileFilter,
+): readonly StompboxStyleProfile[] {
+    return profiles.filter((profile) => profile.supportedKnobCounts.includes(filter.knobCount));
 }
 
 export type StompboxPoint2 = Readonly<{
@@ -80,7 +77,6 @@ export type StompboxDecalGridPlacement = Readonly<{
     kind: 'grid';
     columns: number;
     rows: number;
-    subgrid?: number;
     column: number;
     row: number;
 }>;
@@ -342,7 +338,6 @@ export type StompboxDrillLayout = Readonly<{
 export type StompboxPreviewMaterial = Readonly<{
     color?: string;
     strokeColor?: string;
-    indicatorColor?: string;
     offColor?: string;
     pressedColor?: string;
     emissive?: boolean;
@@ -369,7 +364,6 @@ export type StompboxAppearance = Readonly<{
         centerDotColor?: string;
     }>;
     defaults?: Readonly<{
-        knob?: StompboxPreviewMaterial;
         led?: StompboxPreviewMaterial;
         label?: StompboxLabelAppearance;
         footswitch?: StompboxPreviewMaterial;
@@ -377,7 +371,6 @@ export type StompboxAppearance = Readonly<{
         dcJack?: StompboxPreviewMaterial;
     }>;
     controls?: Readonly<Record<string, Readonly<{
-        knob?: StompboxPreviewMaterial;
         led?: StompboxPreviewMaterial;
         label?: StompboxLabelAppearance;
         footswitch?: StompboxPreviewMaterial;
@@ -392,7 +385,6 @@ export type StompboxAppearancePatchTarget = Readonly<{
     targetId: string;
     color?: string;
     strokeColor?: string;
-    indicatorColor?: string;
     offColor?: string;
     pressedColor?: string;
     emissive?: boolean;
@@ -553,7 +545,7 @@ export type StompboxLayoutOptions = StompboxHardwareProfileOptions & Readonly<{
     enclosureId?: string;
     includePowerJack?: boolean;
     minPartClearanceMm?: number;
-    styleProfile?: StompboxStyleProfileId;
+    styleProfile?: StompboxStyleProfile;
 }>;
 
 export type StompboxFromVdspOptions = StompboxLayoutOptions & Readonly<{
@@ -640,242 +632,25 @@ type StompboxPlacementGrid = Readonly<{
     rowPitchMm: number;
 }>;
 
-type StompboxHardwarePlacementStyle = 'mxr-style' | 'boss-style';
+type ResolvedStompboxPlacementStyle = Readonly<{
+    defaultPartIds: StompboxDefaultPartProfileIds;
+    knobGrid: StompboxKnobGridStrategy;
+    sideHardware: StompboxSideHardwareStrategy;
+    audioJackLabels: StompboxAudioJackLabelStrategy;
+    footswitch: StompboxFootswitchStrategy;
+    statusLedLabel?: string;
+}>;
 
-const STOMPBOX_GRID_EDGE_MARGIN_MM = 5;
+const STOMPBOX_GRID_MIN_CELL_MM = 12;
+const STOMPBOX_GRID_EDGE_MARGIN_MM = 1;
 const STOMPBOX_GRID_TARGET_ROW_PITCH_MM = 20;
+const STOMPBOX_EDGE_ROTATED_SIDE_LABEL_GAP_MM = 4;
 const STOMPBOX_LARGE_KNOB_DIAMETER_MM = 20;
 const STOMPBOX_SMALL_KNOB_DIAMETER_MM = 14.5;
 const STOMPBOX_LARGE_KNOB_MIN_PITCH_MM = 25;
 const STOMPBOX_HOLE_BACKING_OUTSET_MM = 0.12;
-const STOMPBOX_KNOB_INDICATOR_OUTSET_MM = 0.16;
 const STOMPBOX_DECAL_OUTSET_MM = 0.2;
 const STOMPBOX_1590B_MIN_WIDTH_MM = 55;
-
-export const DEMO_STOMPBOX_PART_CATALOG: StompboxPartProfileCatalog = {
-    'knob-mxr-style-fluted': {
-        id: 'knob-mxr-style-fluted',
-        label: 'Tayda A-1829 TYMF-B00 MXR Style Fluted Black Knob generated panel-visible CAD stub',
-        family: 'knob',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 7.14375,
-        drillHoleProfileId: 'sixteen-mm-pot-9-32',
-        geometry: { kind: 'knob', diameterMm: 20, depthMm: 11.45, shaftDiameterMm: 6.35 },
-        assets: {
-            glbRelativePath: 'knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb',
-            stepRelativePath: 'knob-mxr-style-fluted/tayda-a1829-tymf-b00.step',
-        },
-    },
-    'knob-mxr-style-fluted-large': {
-        id: 'knob-mxr-style-fluted-large',
-        label: 'Tayda A-1829 TYMF-B00 20 mm MXR Style Large Fluted Black Knob generated panel-visible CAD stub',
-        family: 'knob',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 7.14375,
-        drillHoleProfileId: 'sixteen-mm-pot-9-32',
-        geometry: { kind: 'knob', diameterMm: 20, depthMm: 11.45, shaftDiameterMm: 6.35 },
-        assets: {
-            glbRelativePath: 'knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb',
-            stepRelativePath: 'knob-mxr-style-fluted/tayda-a1829-tymf-b00.step',
-        },
-    },
-    'knob-cm42-bb': {
-        id: 'knob-cm42-bb',
-        label: 'Tayda A-6078 CM42 BB 19 mm Black Big Muff-Style Knob generated panel-visible CAD stub',
-        family: 'knob',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 7.14375,
-        drillHoleProfileId: 'sixteen-mm-pot-9-32',
-        geometry: { kind: 'knob', diameterMm: 19, depthMm: 13.6, shaftDiameterMm: 6 },
-        assets: {
-            glbRelativePath: 'knob-cm42-bb/.tayda-a6078-cm42-bb.step.glb',
-            stepRelativePath: 'knob-cm42-bb/tayda-a6078-cm42-bb.step',
-        },
-    },
-    'knob-davies-1510bg-mini': {
-        id: 'knob-davies-1510bg-mini',
-        label: 'Davies 1510BG scaled mini knob generated panel-visible CAD stub',
-        family: 'knob',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 7.14375,
-        drillHoleProfileId: 'sixteen-mm-pot-9-32',
-        geometry: { kind: 'knob', diameterMm: 12, depthMm: 8.96, shaftDiameterMm: 6.35 },
-        assets: {
-            glbRelativePath: 'knob-davies-instrument-series/.davies-1510bg.step.glb',
-            stepRelativePath: 'knob-davies-instrument-series/davies-1510bg.step',
-        },
-        assetScale: 0.63,
-    },
-    'knob-davies-1510bg-14mm': {
-        id: 'knob-davies-1510bg-14mm',
-        label: 'Davies 1510BG scaled 14.5 mm knob generated panel-visible CAD stub',
-        family: 'knob',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 7.14375,
-        drillHoleProfileId: 'sixteen-mm-pot-9-32',
-        geometry: { kind: 'knob', diameterMm: 14.5, depthMm: 10.82, shaftDiameterMm: 6.35 },
-        assets: {
-            glbRelativePath: 'knob-davies-instrument-series/.davies-1510bg.step.glb',
-            stepRelativePath: 'knob-davies-instrument-series/davies-1510bg.step',
-        },
-        assetScale: 0.77,
-    },
-    'knob-chickenhead-lms-30mm': {
-        id: 'knob-chickenhead-lms-30mm',
-        label: 'Love My Switches 30 mm Chicken Head Knob generated panel-visible CAD stub',
-        family: 'knob',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 9.525,
-        drillHoleProfileId: 'audio-jack-24mm-pot-3-8',
-        geometry: { kind: 'knob', diameterMm: 30.4, depthMm: 16.2, shaftDiameterMm: 6.4 },
-        assets: {
-            glbRelativePath: 'knob-chickenhead-lms-30mm/.lovemyswitches-chicken-head-30mm.step.glb',
-            stepRelativePath: 'knob-chickenhead-lms-30mm/lovemyswitches-chicken-head-30mm.step',
-        },
-    },
-    'led-5mm-red-kento-5408urc': {
-        id: 'led-5mm-red-kento-5408urc',
-        label: 'Kento 5408URC 5 mm Red LED generated panel-visible CAD stub',
-        family: 'led',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 5.159375,
-        drillHoleProfileId: 'five-mm-led-13-64',
-        geometry: { kind: 'led', lensDiameterMm: 5, bodyHeightMm: 8.7, flangeDiameterMm: 5.8 },
-        assets: {
-            glbRelativePath: 'led-5mm-red-kento-5408urc/.kento-5408urc.step.glb',
-            stepRelativePath: 'led-5mm-red-kento-5408urc/kento-5408urc.step',
-        },
-    },
-    'led-3mm-red-kento-5408urc': {
-        id: 'led-3mm-red-kento-5408urc',
-        label: 'Kento 5408URC scaled 3 mm Red LED generated panel-visible CAD stub',
-        family: 'led',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 3.175,
-        drillHoleProfileId: 'three-mm-led-1-8',
-        geometry: { kind: 'led', lensDiameterMm: 3, bodyHeightMm: 5.22, flangeDiameterMm: 3.48 },
-        assets: {
-            glbRelativePath: 'led-5mm-red-kento-5408urc/.kento-5408urc.step.glb',
-            stepRelativePath: 'led-5mm-red-kento-5408urc/kento-5408urc.step',
-        },
-        assetScale: 0.6,
-    },
-    'led-bezel-lh5': {
-        id: 'led-bezel-lh5',
-        label: 'Pedal Parts and Kits BZL-5MM-P 5 mm Metal LED Bezel generated panel-visible CAD stub',
-        family: 'led',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 7.9375,
-        drillHoleProfileId: 'metal-5mm-led-bezel-5-16',
-        geometry: { kind: 'led-bezel', outerDiameterMm: 9.2, innerDiameterMm: 5, depthMm: 5.35 },
-        assets: {
-            glbRelativePath: 'led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb',
-            stepRelativePath: 'led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step',
-        },
-    },
-    'switch-3pdt-pic-pbs24302': {
-        id: 'switch-3pdt-pic-pbs24302',
-        label: 'PIC PBS24302 3PDT Latching Stomp Footswitch generated panel-visible CAD stub',
-        family: 'footswitch',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 12.7,
-        drillHoleProfileId: 'dc-jack-3pdt-1-2',
-        geometry: {
-            kind: 'footswitch',
-            buttonDiameterMm: 12,
-            nutOuterDiameterMm: 18,
-            ringHeightMm: 1.8,
-            buttonHeightMm: 5.5,
-            pressedTravelMm: 1.2,
-        },
-        assets: {
-            glbRelativePath: 'switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb',
-            stepRelativePath: 'switch-3pdt-pic-pbs24302/pic-pbs24302.step',
-        },
-    },
-    'jack-ts-pj629han': {
-        id: 'jack-ts-pj629han',
-        label: 'Tayda A-6040 / PJ-629HAN-05 6.35 mm Mono Phone Jack generated exterior-ring CAD stub',
-        family: 'audio-jack',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 9.525,
-        drillHoleProfileId: 'audio-jack-24mm-pot-3-8',
-        geometry: { kind: 'ring', outerDiameterMm: 11, innerDiameterMm: 6.43, depthMm: 1.4 },
-        assets: {
-            glbRelativePath: 'jack-ts-pj629han/.pj-629han-05.step.glb',
-            stepRelativePath: 'jack-ts-pj629han/pj-629han-05.step',
-        },
-    },
-    'dc-socket-dc099': {
-        id: 'dc-socket-dc099',
-        label: 'DC-099 2.1 x 5.5 mm Panel-Mount DC Power Jack generated exterior-ring CAD stub',
-        family: 'dc-jack',
-        level: 'exterior',
-        status: 'generated-stub',
-        panelHoleDrillMm: 12.7,
-        drillHoleProfileId: 'dc-jack-3pdt-1-2',
-        geometry: { kind: 'ring', outerDiameterMm: 14.1, innerDiameterMm: 8, depthMm: 1.4 },
-        assets: {
-            glbRelativePath: 'dc-socket-dc099/.dc099.step.glb',
-            stepRelativePath: 'dc-socket-dc099/dc099.step',
-        },
-    },
-};
-
-export const DEMO_STOMPBOX_ENCLOSURE_CATALOG: StompboxEnclosureProfileCatalog = {
-    'box-1590b': {
-        variantId: 'box-1590b',
-        label: 'Tayda A-6619 1590B enclosure generated STEP CAD',
-        dimensionsMm: { widthMm: 60.5, lengthMm: 111.5, depthMm: 31 },
-        topFace: {
-            usableRectMm: { x: -25.25, y: -50.75, width: 50.5, height: 101.5 },
-        },
-        assets: {
-            glbRelativePath: 'box-1590b/.tayda-a6619.step.glb',
-            stepRelativePath: 'box-1590b/tayda-a6619.step',
-        },
-    },
-    'box-1590a': {
-        variantId: 'box-1590a',
-        label: 'Hammond 1590A enclosure generated STEP CAD',
-        dimensionsMm: { widthMm: 39, lengthMm: 92.5, depthMm: 31 },
-        topFace: {
-            usableRectMm: { x: -14.5, y: -41.25, width: 29, height: 82.5 },
-        },
-        assets: {
-            glbRelativePath: 'box-hammond-diecast-stompbox-series/.hammond-1590a.step.glb',
-            stepRelativePath: 'box-hammond-diecast-stompbox-series/hammond-1590a.step',
-        },
-    },
-};
-
-export const DEMO_STOMPBOX_HARDWARE_PROFILE: StompboxHardwareProfile = {
-    id: 'demo-mxr-style',
-    label: 'Demo MXR-style stompbox hardware profile',
-    partProfiles: DEMO_STOMPBOX_PART_CATALOG,
-    enclosureProfiles: DEMO_STOMPBOX_ENCLOSURE_CATALOG,
-    defaultEnclosureId: 'box-1590b',
-    defaultPartIds: {
-        knob: 'knob-mxr-style-fluted',
-        largeKnob: 'knob-mxr-style-fluted-large',
-        smallKnob: 'knob-davies-1510bg-14mm',
-        led: 'led-bezel-lh5',
-        footswitch: 'switch-3pdt-pic-pbs24302',
-        audioJack: 'jack-ts-pj629han',
-        dcJack: 'dc-socket-dc099',
-    },
-};
 
 export function resolveStompboxAssetPaths(
     assets: StompboxAssetRefs,
@@ -910,15 +685,40 @@ export function createStompboxDrillLayout(
 ): StompboxDrillLayout {
     const hardwareProfile = requireStompboxHardwareProfile(options);
     const enclosure = enclosureProfile(options.enclosureId, hardwareProfile);
+    const placementStyle = resolveStompboxPlacementStyle(options.styleProfile, hardwareProfile);
     const panel = extractPanel(document);
     const controlMetadata = controlMetadataById(panel);
     const diagnostics: StompboxDiagnostic[] = [];
-    const declared = declaredPhysicalPlacements(document.panel?.faces ?? [], controlMetadata, hardwareProfile, diagnostics);
-    const declaredControlIds = new Set(declared.flatMap((candidate) =>
+    const declared = declaredPhysicalPlacements(
+        document.panel?.faces ?? [],
+        controlMetadata,
+        hardwareProfile,
+        hardwareProfile.defaultPartIds,
+        diagnostics,
+    );
+    const gridDeclared = gridPhysicalPlacements(
+        document.panel?.faces ?? [],
+        controlMetadata,
+        enclosure,
+        hardwareProfile,
+        hardwareProfile.defaultPartIds,
+        diagnostics,
+    );
+    const panelDeclared = [...declared, ...gridDeclared];
+    const declaredControlIds = new Set(panelDeclared.flatMap((candidate) =>
         candidate.controlId === undefined ? [] : [candidate.controlId]
     ));
-    const auto = autoPlacementCandidates(panel, enclosure, declared, declaredControlIds, options, hardwareProfile, diagnostics);
-    const holes = [...declared, ...auto].flatMap((candidate) =>
+    const auto = autoPlacementCandidates(
+        panel,
+        enclosure,
+        panelDeclared,
+        declaredControlIds,
+        options,
+        hardwareProfile,
+        placementStyle,
+        diagnostics,
+    );
+    const holes = [...panelDeclared, ...auto].flatMap((candidate) =>
         drillHoleForCandidate(candidate, hardwareProfile, diagnostics)
     );
     diagnostics.push(...validateHolePlacements(holes, enclosure, options.minPartClearanceMm));
@@ -946,6 +746,8 @@ export function createStompboxPreview(
     document: CircuitDocument,
     options: StompboxPreviewOptions = {},
 ): StompboxPreview {
+    const hardwareProfile = requireStompboxHardwareProfile(options);
+    const placementStyle = resolveStompboxPlacementStyle(options.styleProfile, hardwareProfile);
     const drillLayout = createStompboxDrillLayout(document, options);
     const panel = extractPanel(document);
     const controlMetadata = controlMetadataById(panel);
@@ -955,7 +757,7 @@ export function createStompboxPreview(
     );
     const decals = [
         ...normalizeDecals(options.decals, drillLayout.enclosure),
-        ...controlLabelDecals(drillLayout, options.styleProfile ?? DEFAULT_DEMO_STOMPBOX_STYLE_PROFILE_ID, options.appearance),
+        ...controlLabelDecals(drillLayout, placementStyle, options.appearance),
     ];
     const enclosureMaterial = materialWithValues(options.appearance?.enclosure);
 
@@ -1183,6 +985,23 @@ function requireStompboxHardwareProfile(options: StompboxHardwareProfileOptions)
     return options.hardwareProfile;
 }
 
+function resolveStompboxPlacementStyle(
+    profile: StompboxStyleProfile | undefined,
+    hardwareProfile: StompboxHardwareProfile,
+): ResolvedStompboxPlacementStyle {
+    return {
+        defaultPartIds: {
+            ...hardwareProfile.defaultPartIds,
+            ...(profile?.defaultPartIds ?? {}),
+        },
+        knobGrid: profile?.layout?.knobGrid ?? 'large-merged-row',
+        sideHardware: profile?.layout?.sideHardware ?? 'side-power-five-slot',
+        audioJackLabels: profile?.layout?.audioJackLabels ?? 'edge-rotated',
+        footswitch: profile?.layout?.footswitch ?? 'lower-row',
+        ...(profile?.layout?.statusLedLabel === undefined ? {} : { statusLedLabel: profile.layout.statusLedLabel }),
+    };
+}
+
 function enclosureProfile(
     enclosureId: string | undefined,
     hardwareProfile: StompboxHardwareProfile,
@@ -1266,6 +1085,7 @@ function declaredPhysicalPlacements(
     faces: readonly PanelFace[],
     controls: ReadonlyMap<string, ControlVisualMetadata>,
     hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
     diagnostics: StompboxDiagnostic[],
 ): readonly PlacementCandidate[] {
     const candidates: PlacementCandidate[] = [];
@@ -1276,8 +1096,17 @@ function declaredPhysicalPlacements(
             }
             const controlId = controlIdForPanelElement(element);
             const metadata = controls.get(controlId);
-            const requestedPartId = element.physical.partProfileId ?? defaultPartIdForPanelKind(element.kind, metadata, hardwareProfile);
-            const partId = knownPartIdOrDefault(requestedPartId, element.kind, metadata, hardwareProfile, diagnostics, controlId, element.id);
+            const requestedPartId = element.physical.partProfileId ?? defaultPartIdForPanelKind(element.kind, metadata, defaultPartIds);
+            const partId = knownPartIdOrDefault(
+                requestedPartId,
+                element.kind,
+                metadata,
+                hardwareProfile,
+                defaultPartIds,
+                diagnostics,
+                controlId,
+                element.id,
+            );
             if (partId === undefined) {
                 diagnostics.push({
                     code: 'unsupported-control',
@@ -1307,6 +1136,61 @@ function declaredPhysicalPlacements(
     return candidates;
 }
 
+function gridPhysicalPlacements(
+    faces: readonly PanelFace[],
+    controls: ReadonlyMap<string, ControlVisualMetadata>,
+    enclosure: StompboxEnclosureProfile,
+    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+    diagnostics: StompboxDiagnostic[],
+): readonly PlacementCandidate[] {
+    const candidates: PlacementCandidate[] = [];
+    for (const face of faces) {
+        for (const element of face.elements) {
+            if (element.physical?.centerMm !== undefined) {
+                continue;
+            }
+            const controlId = controlIdForPanelElement(element);
+            const metadata = controls.get(controlId);
+            const requestedPartId = element.physical?.partProfileId ?? defaultPartIdForPanelKind(element.kind, metadata, defaultPartIds);
+            const partId = knownPartIdOrDefault(
+                requestedPartId,
+                element.kind,
+                metadata,
+                hardwareProfile,
+                defaultPartIds,
+                diagnostics,
+                controlId,
+                element.id,
+            );
+            if (partId === undefined) {
+                diagnostics.push({
+                    code: 'unsupported-control',
+                    message: `Unsupported panel grid element kind "${element.kind}"`,
+                    controlId,
+                    ...(element.id === undefined ? {} : { placementId: element.id }),
+                    face: face.id,
+                });
+                continue;
+            }
+            const label = element.label ?? metadata?.label;
+            candidates.push(autoCandidate({
+                id: element.id ?? placementIdForKind(element.kind, controlId),
+                kind: element.kind,
+                face: face.id,
+                centerMm: panelGridCenterMm(face, element, enclosure),
+                partId,
+                componentId: element.bind.componentId,
+                controlId,
+                ...(label === undefined ? {} : { label }),
+                ...(element.physical?.drillDiameterMm === undefined ? {} : { drillDiameterMm: element.physical.drillDiameterMm }),
+                ...(element.physical?.locked === undefined ? {} : { locked: element.physical.locked }),
+            }, diagnostics));
+        }
+    }
+    return candidates;
+}
+
 function autoPlacementCandidates(
     panel: Panel,
     enclosure: StompboxEnclosureProfile,
@@ -1314,15 +1198,15 @@ function autoPlacementCandidates(
     declaredControlIds: ReadonlySet<string>,
     options: StompboxLayoutOptions,
     hardwareProfile: StompboxHardwareProfile,
+    placementStyle: ResolvedStompboxPlacementStyle,
     diagnostics: StompboxDiagnostic[],
 ): readonly PlacementCandidate[] {
     const candidates: PlacementCandidate[] = [];
     const knobs = panel.knobs.filter((knob) => !declaredControlIds.has(knob.id));
     const grid = placementGrid(enclosure);
-    const styleProfile = options.styleProfile ?? DEFAULT_DEMO_STOMPBOX_STYLE_PROFILE_ID;
-    const usesBossStyleProfile = styleProfile === 'boss-style' && (knobs.length === 2 || knobs.length === 3 || knobs.length === 4);
-    const hardwareStyle: StompboxHardwarePlacementStyle = styleProfile === 'boss-style' ? 'boss-style' : 'mxr-style';
-    const knobGrid = autoKnobGrid(knobs.length, grid, styleProfile, hardwareProfile);
+    const usesTopEdgeLed = placementStyle.knobGrid === 'compact-led-row'
+        && (knobs.length === 2 || knobs.length === 3 || knobs.length === 4);
+    const knobGrid = autoKnobGrid(knobs.length, grid, placementStyle, hardwareProfile);
     knobs.forEach((knob, index) => {
         const placement = knobGrid.placements[index];
         if (placement === undefined) {
@@ -1340,7 +1224,9 @@ function autoPlacementCandidates(
     });
 
     const leds = panel.leds.filter((led) => !declaredControlIds.has(led.id));
-    const ledY = usesBossStyleProfile ? bossStyleLedY(grid, hardwareProfile) : mxrStyleLedY(knobs.length, grid);
+    const ledY = usesTopEdgeLed
+        ? topEdgeLedY(grid, hardwareProfile, placementStyle.defaultPartIds)
+        : lowerTopLedY(knobs.length, grid);
     const ledPositions = distributedTopRowPositions(leds.length, ledY, 16);
     leds.forEach((led, index) => {
         const position = ledPositions[index];
@@ -1351,7 +1237,7 @@ function autoPlacementCandidates(
             id: `led-${led.id}`,
             kind: 'led',
             centerMm: position,
-            partId: hardwareProfile.defaultPartIds.led,
+            partId: placementStyle.defaultPartIds.led,
             componentId: led.id,
             controlId: led.id,
             label: led.name,
@@ -1363,13 +1249,13 @@ function autoPlacementCandidates(
             id: 'led-status',
             kind: 'led',
             centerMm: { x: 0, y: ledY },
-            partId: hardwareProfile.defaultPartIds.led,
+            partId: placementStyle.defaultPartIds.led,
             label: 'Status',
         }, diagnostics));
     }
 
     const switches = panel.switches.filter((switchControl) => !declaredControlIds.has(switchControl.id));
-    const footswitchY = footswitchGridY(knobs.length, grid, styleProfile);
+    const footswitchY = footswitchGridY(knobs.length, grid, placementStyle);
     switches.forEach((switchControl, index) => {
         if (!isSupportedFootswitch(switchControl)) {
             diagnostics.push({
@@ -1383,7 +1269,7 @@ function autoPlacementCandidates(
             id: `switch-${switchControl.id}`,
             kind: 'footswitch',
             centerMm: { x: index * 18, y: footswitchY },
-            partId: hardwareProfile.defaultPartIds.footswitch,
+            partId: placementStyle.defaultPartIds.footswitch,
             componentId: switchControl.id,
             controlId: switchControl.id,
         }, diagnostics));
@@ -1394,7 +1280,7 @@ function autoPlacementCandidates(
             id: 'switch-bypass',
             kind: 'footswitch',
             centerMm: { x: 0, y: footswitchY },
-            partId: hardwareProfile.defaultPartIds.footswitch,
+            partId: placementStyle.defaultPartIds.footswitch,
         }, diagnostics));
     }
 
@@ -1428,8 +1314,8 @@ function autoPlacementCandidates(
             id: `jack-${jack.id}`,
             kind: 'jack',
             face,
-            centerMm: centerForJackFace(face, enclosure, grid, hardwareStyle, faceIndex),
-            partId: hardwareProfile.defaultPartIds.audioJack,
+            centerMm: centerForJackFace(face, enclosure, grid, placementStyle, faceIndex),
+            partId: placementStyle.defaultPartIds.audioJack,
             componentId: jack.sourceComponentId ?? jack.id,
             controlId: jack.id,
             label: jack.name,
@@ -1441,8 +1327,8 @@ function autoPlacementCandidates(
             id: 'jack-input',
             kind: 'jack',
             face: 'right',
-            centerMm: centerForJackFace('right', enclosure, grid, hardwareStyle, jackCountsByFace.get('right') ?? 0),
-            partId: hardwareProfile.defaultPartIds.audioJack,
+            centerMm: centerForJackFace('right', enclosure, grid, placementStyle, jackCountsByFace.get('right') ?? 0),
+            partId: placementStyle.defaultPartIds.audioJack,
             label: 'Input',
         }, diagnostics));
         jackCountsByFace.set('right', (jackCountsByFace.get('right') ?? 0) + 1);
@@ -1453,21 +1339,21 @@ function autoPlacementCandidates(
             id: 'jack-output',
             kind: 'jack',
             face: 'left',
-            centerMm: centerForJackFace('left', enclosure, grid, hardwareStyle, jackCountsByFace.get('left') ?? 0),
-            partId: hardwareProfile.defaultPartIds.audioJack,
+            centerMm: centerForJackFace('left', enclosure, grid, placementStyle, jackCountsByFace.get('left') ?? 0),
+            partId: placementStyle.defaultPartIds.audioJack,
             label: 'Output',
         }, diagnostics));
         jackCountsByFace.set('left', (jackCountsByFace.get('left') ?? 0) + 1);
     }
 
-    if (options.includePowerJack !== false && !hasPowerJack(declared, candidates, hardwareProfile)) {
-        const powerFace = powerJackFace(hardwareStyle);
+    if (options.includePowerJack !== false && !hasPowerJack(declared, candidates, placementStyle.defaultPartIds)) {
+        const powerFace = powerJackFace(placementStyle);
         candidates.push(autoCandidate({
             id: 'power-9v',
             kind: 'jack',
             face: powerFace,
-            centerMm: centerForPowerJackFace(powerFace, enclosure, grid, hardwareStyle, hardwareProfile),
-            partId: hardwareProfile.defaultPartIds.dcJack,
+            centerMm: centerForPowerJackFace(powerFace, enclosure, grid, placementStyle, hardwareProfile),
+            partId: placementStyle.defaultPartIds.dcJack,
             label: '9V DC',
         }, diagnostics));
     }
@@ -1619,10 +1505,11 @@ function partProfileVisibleDiameterMm(
 
 function defaultPartVisibleDiameterMm(
     hardwareProfile: StompboxHardwareProfile,
-    key: keyof Pick<StompboxDefaultPartProfileIds, 'largeKnob' | 'smallKnob' | 'led' | 'audioJack' | 'dcJack'>,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+    key: keyof StompboxDefaultPartProfileIds,
     fallbackMm: number,
 ): number {
-    return partProfileVisibleDiameterMm(hardwareProfile, hardwareProfile.defaultPartIds[key]) ?? fallbackMm;
+    return partProfileVisibleDiameterMm(hardwareProfile, defaultPartIds[key]) ?? fallbackMm;
 }
 
 function isOutOfBounds(hole: StompboxDrillHole, enclosure: StompboxEnclosureProfile): boolean {
@@ -1635,7 +1522,8 @@ function isOutOfBounds(hole: StompboxDrillHole, enclosure: StompboxEnclosureProf
         return Math.abs(hole.centerMm.y) + radius > enclosure.dimensionsMm.lengthMm / 2;
     }
     if (hole.face === 'back') {
-        return Math.abs(hole.centerMm.x) + radius > enclosure.dimensionsMm.widthMm / 2;
+        return Math.abs(hole.centerMm.x) + radius > enclosure.dimensionsMm.widthMm / 2
+            || Math.abs(hole.centerMm.y) + radius > enclosure.dimensionsMm.depthMm / 2;
     }
     return false;
 }
@@ -1689,12 +1577,11 @@ function normalizeDecals(
 
 function controlLabelDecals(
     layout: StompboxDrillLayout,
-    styleProfile: StompboxStyleProfileId,
+    placementStyle: ResolvedStompboxPlacementStyle,
     appearance: StompboxAppearance | undefined,
 ): readonly StompboxPreviewDecal[] {
-    const hardwareStyle: StompboxHardwarePlacementStyle = styleProfile === 'boss-style' ? 'boss-style' : 'mxr-style';
     return layout.holes.flatMap((hole) => {
-        const label = controlLabelDecal(hole, layout.enclosure, hardwareStyle, appearance);
+        const label = controlLabelDecal(hole, layout.enclosure, placementStyle, appearance);
         return label === undefined ? [] : [label];
     });
 }
@@ -1702,7 +1589,7 @@ function controlLabelDecals(
 function controlLabelDecal(
     hole: StompboxDrillHole,
     enclosure: StompboxEnclosureProfile,
-    hardwareStyle: StompboxHardwarePlacementStyle,
+    placementStyle: ResolvedStompboxPlacementStyle,
     appearance: StompboxAppearance | undefined,
 ): StompboxPreviewDecal | undefined {
     if (hole.partFamily === 'footswitch') {
@@ -1710,13 +1597,13 @@ function controlLabelDecal(
     }
     const labelId = `label-${decalIdSegment(hole.id)}`;
     const labelAppearance = labelAppearanceFor(labelId, hole.controlId, appearance);
-    const text = labelAppearance?.text ?? controlLabelText(hole, hardwareStyle);
+    const text = labelAppearance?.text ?? controlLabelText(hole, placementStyle);
     if (text.length === 0) {
         return undefined;
     }
     const fontSizeMm = labelAppearance?.fontSizeMm ?? controlLabelFontSizeMm(hole.partFamily);
     const sizeMm = controlLabelSizeMm(text, fontSizeMm);
-    const placement = controlLabelPlacement(hole, enclosure, hardwareStyle, sizeMm);
+    const placement = controlLabelPlacement(hole, enclosure, placementStyle, sizeMm);
     return {
         id: labelId,
         kind: 'text',
@@ -1734,19 +1621,24 @@ function controlLabelDecal(
 function controlLabelPlacement(
     hole: StompboxDrillHole,
     enclosure: StompboxEnclosureProfile,
-    hardwareStyle: StompboxHardwarePlacementStyle,
+    placementStyle: ResolvedStompboxPlacementStyle,
     sizeMm: StompboxSize2,
 ): Readonly<{ face: StompboxFaceId; centerMm: StompboxPoint2; rotationDeg: number }> {
     if (hole.partFamily === 'audio-jack' && (hole.face === 'left' || hole.face === 'right')) {
         const edgeSign = hole.face === 'right' ? 1 : -1;
-        const insetMm = hardwareStyle === 'boss-style' ? 10 : 8;
+        const insetMm = placementStyle.audioJackLabels === 'inline'
+            ? 10
+            : STOMPBOX_EDGE_ROTATED_SIDE_LABEL_GAP_MM + sizeMm.heightMm / 2;
+        const labelBoundsMm = placementStyle.audioJackLabels === 'inline'
+            ? sizeMm
+            : { widthMm: sizeMm.heightMm, heightMm: sizeMm.widthMm };
         return {
             face: 'top',
             centerMm: clampTopLabelCenter({
                 x: edgeSign * (enclosure.dimensionsMm.widthMm / 2 - insetMm),
                 y: hole.centerMm.y,
-            }, enclosure, sizeMm),
-            rotationDeg: hardwareStyle === 'boss-style' ? 0 : -90,
+            }, enclosure, labelBoundsMm),
+            rotationDeg: placementStyle.audioJackLabels === 'inline' ? 0 : (hole.face === 'right' ? 90 : -90),
         };
     }
 
@@ -1783,11 +1675,11 @@ function controlLabelSizeMm(text: string, fontSizeMm: number): StompboxSize2 {
 
 function controlLabelText(
     hole: StompboxDrillHole,
-    hardwareStyle: StompboxHardwarePlacementStyle,
+    placementStyle: ResolvedStompboxPlacementStyle,
 ): string {
     const text = formatControlLabel(hole.label ?? hole.controlId ?? hole.id);
-    if (hole.partFamily === 'led' && hardwareStyle === 'boss-style' && text === 'STATUS') {
-        return 'CHECK';
+    if (hole.partFamily === 'led' && placementStyle.statusLedLabel !== undefined && text === 'STATUS') {
+        return placementStyle.statusLedLabel;
     }
     if (hole.partFamily !== 'audio-jack') {
         return text;
@@ -1847,7 +1739,8 @@ function decalIdSegment(value: string): string {
 function normalizeDecal(decal: StompboxDecalInput, enclosure: StompboxEnclosureProfile): StompboxPreviewDecal {
     const face = decal.face ?? 'top';
     const sizeMm = decal.sizeMm ?? defaultDecalSize(decal.kind);
-    const placement = decal.placement === undefined ? undefined : normalizeDecalPlacement(decal.placement);
+    const faceSize = decalFaceSize(face, enclosure);
+    const placement = decal.placement === undefined ? undefined : normalizeDecalPlacement(decal.placement, faceSize);
     const common = {
         id: decal.id,
         face,
@@ -1890,18 +1783,19 @@ function defaultDecalSize(kind: StompboxDecalInput['kind']): StompboxSize2 {
     return { widthMm: 24, heightMm: 16 };
 }
 
-function normalizeDecalPlacement(placement: StompboxDecalPlacement): StompboxDecalPlacement {
+function normalizeDecalPlacement(
+    placement: StompboxDecalPlacement,
+    faceSize: StompboxSize2,
+): StompboxDecalPlacement {
     if (placement.kind === 'grid') {
-        const columns = positiveGridInteger(placement.columns);
-        const rows = positiveGridInteger(placement.rows);
-        const subgrid = positiveGridInteger(placement.subgrid ?? 1);
+        const columns = gridAxisCellCount(placement.columns, faceSize.widthMm);
+        const rows = gridAxisCellCount(placement.rows, faceSize.heightMm);
         return {
             kind: 'grid',
             columns,
             rows,
-            subgrid,
-            column: clampGridInteger(placement.column, columns * subgrid),
-            row: clampGridInteger(placement.row, rows * subgrid),
+            column: clampGridInteger(placement.column, columns),
+            row: clampGridInteger(placement.row, rows),
         };
     }
     return placement;
@@ -1931,9 +1825,8 @@ function decalGridCenterMm(
     placement: StompboxDecalGridPlacement,
     faceSize: StompboxSize2,
 ): StompboxPoint2 {
-    const subgrid = positiveGridInteger(placement.subgrid ?? 1);
-    const columns = positiveGridInteger(placement.columns) * subgrid;
-    const rows = positiveGridInteger(placement.rows) * subgrid;
+    const columns = gridAxisCellCount(placement.columns, faceSize.widthMm);
+    const rows = gridAxisCellCount(placement.rows, faceSize.heightMm);
     const column = clampGridInteger(placement.column, columns);
     const row = clampGridInteger(placement.row, rows);
     return {
@@ -1951,6 +1844,92 @@ function decalFaceSize(face: StompboxFaceId, enclosure: StompboxEnclosureProfile
         return { widthMm, heightMm: depthMm };
     }
     return { widthMm, heightMm: lengthMm };
+}
+
+function panelGridCenterMm(
+    face: PanelFace,
+    element: PanelElementPlacement,
+    enclosure: StompboxEnclosureProfile,
+): StompboxPoint2 {
+    const rect = panelGridRectMm(face, enclosure);
+    const columns = gridAxisCellCount(face.layout.columns, rect.widthMm);
+    const rows = gridAxisCellCount(face.layout.rows, rect.heightMm);
+    const column = panelGridAxisCenterIndex(
+        element.grid.column,
+        element.grid.columnSpan,
+        columns,
+        face.layout.indexing,
+        face.layout.columnOrder === 'right-to-left',
+    );
+    const row = panelGridAxisCenterIndex(
+        element.grid.row,
+        element.grid.rowSpan,
+        rows,
+        face.layout.indexing,
+        face.layout.rowOrder === 'bottom-to-top',
+    );
+    const local = {
+        x: roundMillimeters(rect.x + rect.widthMm * ((column - 0.5) / columns)),
+        y: roundMillimeters(rect.y + rect.heightMm * (1 - ((row - 0.5) / rows))),
+    };
+    if (face.id === 'right') {
+        return { x: enclosure.dimensionsMm.widthMm / 2, y: local.y };
+    }
+    if (face.id === 'left') {
+        return { x: -enclosure.dimensionsMm.widthMm / 2, y: local.y };
+    }
+    return local;
+}
+
+function panelGridRectMm(face: PanelFace, enclosure: StompboxEnclosureProfile): Readonly<{
+    x: number;
+    y: number;
+    widthMm: number;
+    heightMm: number;
+}> {
+    const rect = face.geometry?.usableRectMm;
+    if (
+        rect !== undefined
+        && (face.geometry?.units === undefined || face.geometry.units === 'mm')
+        && Number.isFinite(rect.x)
+        && Number.isFinite(rect.y)
+        && Number.isFinite(rect.width)
+        && Number.isFinite(rect.height)
+        && rect.width > 0
+        && rect.height > 0
+    ) {
+        return {
+            x: rect.x,
+            y: rect.y,
+            widthMm: rect.width,
+            heightMm: rect.height,
+        };
+    }
+    const size = decalFaceSize(face.id, enclosure);
+    return {
+        x: -size.widthMm / 2,
+        y: -size.heightMm / 2,
+        widthMm: size.widthMm,
+        heightMm: size.heightMm,
+    };
+}
+
+function panelGridAxisCenterIndex(
+    value: number,
+    span: number | undefined,
+    count: number,
+    indexing: PanelFace['layout']['indexing'],
+    reverse: boolean,
+): number {
+    const start = clampGridInteger(indexing === 'zero-based' ? value + 1 : value, count);
+    const end = clampGridInteger(start + positiveGridInteger(span ?? 1) - 1, count);
+    const center = (start + end) / 2;
+    return reverse ? count - center + 1 : center;
+}
+
+function gridAxisCellCount(requested: number, sizeMm: number): number {
+    const maximum = Math.max(1, Math.floor(Math.max(0, sizeMm) / STOMPBOX_GRID_MIN_CELL_MM));
+    return Math.min(positiveGridInteger(requested), maximum);
 }
 
 function materialForPart(
@@ -1984,37 +1963,46 @@ function partAppearanceFor(
     hole: StompboxDrillHole,
     appearance: StompboxAppearance | undefined,
 ): StompboxPreviewMaterial | undefined {
-    if (appearance === undefined) {
+    if (appearance === undefined || hole.partFamily === 'knob') {
         return undefined;
     }
     const key = partAppearanceKey(hole.partFamily);
+    if (key === undefined) {
+        return undefined;
+    }
     const controlAppearance = hole.controlId === undefined ? undefined : appearance.controls?.[hole.controlId]?.[key];
-    return materialWithFamilyDefaults(hole.partFamily, mergeMaterials(
+    return mergeMaterials(
         appearance.defaults?.[key],
         controlAppearance,
         appearance.parts?.[hole.id],
         appearance.parts?.[`part-${hole.id}`],
-    ));
+    );
 }
 
 function previewPartAppearanceFor(
     part: StompboxPreviewPart,
     appearance: StompboxAppearance | undefined,
 ): StompboxPreviewMaterial | undefined {
-    if (appearance === undefined) {
+    if (appearance === undefined || part.family === 'knob') {
         return undefined;
     }
     const key = partAppearanceKey(part.family);
+    if (key === undefined) {
+        return undefined;
+    }
     const controlAppearance = part.controlId === undefined ? undefined : appearance.controls?.[part.controlId]?.[key];
-    return materialWithFamilyDefaults(part.family, mergeMaterials(
+    return mergeMaterials(
         appearance.defaults?.[key],
         controlAppearance,
         appearance.parts?.[part.id],
         appearance.parts?.[`part-${part.id}`],
-    ));
+    );
 }
 
-function partAppearanceKey(family: StompboxPartProfile['family']): 'knob' | 'led' | 'footswitch' | 'audioJack' | 'dcJack' {
+function partAppearanceKey(family: StompboxPartProfile['family']): 'led' | 'footswitch' | 'audioJack' | 'dcJack' | undefined {
+    if (family === 'knob') {
+        return undefined;
+    }
     if (family === 'audio-jack') {
         return 'audioJack';
     }
@@ -2070,55 +2058,6 @@ function mergeMaterials(...materials: readonly (StompboxPreviewMaterial | undefi
     return Object.keys(merged).length === 0 ? undefined : merged;
 }
 
-function materialWithFamilyDefaults(
-    family: StompboxPartProfile['family'],
-    material: StompboxPreviewMaterial | undefined,
-): StompboxPreviewMaterial | undefined {
-    if (family !== 'knob' || material?.color === undefined || material.indicatorColor !== undefined) {
-        return material;
-    }
-    const indicatorColor = contrastKnobIndicatorColor(material.color);
-    return indicatorColor === undefined
-        ? material
-        : mergeMaterials(material, { indicatorColor });
-}
-
-function contrastKnobIndicatorColor(color: string): string | undefined {
-    const rgb = parseHexRgb(color);
-    if (rgb === undefined) {
-        return undefined;
-    }
-    const luminance = relativeLuminance(rgb);
-    return luminance > 0.179 ? '#111827' : '#f8fafc';
-}
-
-function parseHexRgb(color: string): readonly [number, number, number] | undefined {
-    const match = /^#([0-9a-f]{6})$/i.exec(color);
-    if (match?.[1] === undefined) {
-        return undefined;
-    }
-    const value = match[1];
-    return [
-        Number.parseInt(value.slice(0, 2), 16),
-        Number.parseInt(value.slice(2, 4), 16),
-        Number.parseInt(value.slice(4, 6), 16),
-    ];
-}
-
-function relativeLuminance(rgb: readonly [number, number, number]): number {
-    const red = relativeLuminanceChannel(rgb[0]);
-    const green = relativeLuminanceChannel(rgb[1]);
-    const blue = relativeLuminanceChannel(rgb[2]);
-    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-}
-
-function relativeLuminanceChannel(channel: number): number {
-    const normalized = channel / 255;
-    return normalized <= 0.03928
-        ? normalized / 12.92
-        : ((normalized + 0.055) / 1.055) ** 2.4;
-}
-
 function materialWithValues(material: StompboxPreviewMaterial | undefined): StompboxPreviewMaterial | undefined {
     return mergeMaterials(material);
 }
@@ -2157,6 +2096,9 @@ function translationForFace(
 ): StompboxPoint3 {
     if (face === 'top') {
         return { x: centerMm.x, y: centerMm.y, z: enclosure.dimensionsMm.depthMm / 2 };
+    }
+    if (face === 'back') {
+        return { x: centerMm.x, y: enclosure.dimensionsMm.lengthMm / 2, z: centerMm.y };
     }
     return { x: centerMm.x, y: centerMm.y, z: 0 };
 }
@@ -2756,7 +2698,7 @@ function previewPartShapeSvg(
         const radius = geometry.diameterMm / 2;
         const fill = part.material?.color ?? '#334155';
         const stroke = part.material?.strokeColor ?? '#0f172a';
-        const indicator = part.material?.indicatorColor ?? '#f8fafc';
+        const indicator = '#f8fafc';
         return [
             `<circle class="knob-body" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(radius)}" fill="${escapeAttribute(fill)}" stroke="${escapeAttribute(stroke)}" stroke-width=".35"/>`,
             `<line class="knob-indicator" x1="${svgNumber(point.x)}" y1="${svgNumber(point.y)}" x2="${svgNumber(point.x)}" y2="${svgNumber(point.y - radius + 2)}" stroke="${escapeAttribute(indicator)}" stroke-width=".8" stroke-linecap="round" transform="rotate(${svgNumber(part.transform.rotationDeg.z)} ${svgNumber(point.x)} ${svgNumber(point.y)})"/>`,
@@ -2808,6 +2750,12 @@ function previewPointForPart(
         return {
             x: canvas.widthMm / 2,
             y: canvas.heightMm / 2 - part.transform.translationMm.y,
+        };
+    }
+    if (view === 'back') {
+        return {
+            x: preview.enclosure.dimensionsMm.widthMm / 2 + part.transform.translationMm.x,
+            y: canvas.heightMm / 2 - part.transform.translationMm.z,
         };
     }
     return {
@@ -2890,10 +2838,6 @@ function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions
         rootChildren.push(appendAssemblySource(state, source));
     }
     for (const part of preview.parts) {
-        const knobIndicator = appendKnobIndicatorForPart(state, part);
-        if (knobIndicator !== undefined) {
-            rootChildren.push(knobIndicator);
-        }
         const holeBacking = appendHoleBackingDiscForPart(state, part);
         if (holeBacking !== undefined) {
             rootChildren.push(holeBacking);
@@ -3034,7 +2978,6 @@ function previewMaterialJson(material: StompboxPreviewMaterial): JsonObject {
     return {
         ...(material.color === undefined ? {} : { color: material.color }),
         ...(material.strokeColor === undefined ? {} : { strokeColor: material.strokeColor }),
-        ...(material.indicatorColor === undefined ? {} : { indicatorColor: material.indicatorColor }),
         ...(material.offColor === undefined ? {} : { offColor: material.offColor }),
         ...(material.pressedColor === undefined ? {} : { pressedColor: material.pressedColor }),
         ...(material.emissive === undefined ? {} : { emissive: material.emissive }),
@@ -3093,7 +3036,6 @@ function previewDecalPlacementJson(placement: StompboxDecalPlacement): JsonObjec
             kind: 'grid',
             columns: placement.columns,
             rows: placement.rows,
-            ...(placement.subgrid === undefined ? {} : { subgrid: placement.subgrid }),
             column: placement.column,
             row: placement.row,
         };
@@ -3181,69 +3123,6 @@ function appendHoleBackingDiscForPart(
     return nodeIndex;
 }
 
-function appendKnobIndicatorForPart(
-    state: GltfMergeState,
-    part: StompboxPreviewPart,
-): number | undefined {
-    if (part.geometry.kind !== 'knob' || part.face !== 'top') {
-        return undefined;
-    }
-    const color = part.material?.indicatorColor
-        ?? contrastKnobIndicatorColor(part.material?.color ?? '#334155')
-        ?? '#f8fafc';
-    const materialIndex = state.materials.length;
-    state.materials.push({
-        name: `knob-indicator-${part.id}/material`,
-        doubleSided: true,
-        pbrMetallicRoughness: {
-            baseColorFactor: [...hexColorToRgb(color), 1],
-            metallicFactor: 0,
-            roughnessFactor: 0.8,
-        },
-        extras: {
-            kind: 'knob-indicator-material',
-            partId: part.id,
-            ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
-            color,
-        },
-    });
-
-    const meshIndex = state.meshes.length;
-    state.meshes.push({
-        name: `knob-indicator-${part.id}/rect`,
-        primitives: [{
-            attributes: { POSITION: appendKnobIndicatorPositionAccessor(state, part.geometry.diameterMm / 2) },
-            indices: appendDecalIndexAccessor(state),
-            material: materialIndex,
-            mode: 4,
-        }],
-    });
-
-    const nodeIndex = state.nodes.length;
-    state.nodes.push({
-        name: `knob-indicator-${part.id}`,
-        mesh: meshIndex,
-        translation: point3Array({
-            x: part.transform.translationMm.x,
-            y: part.transform.translationMm.y,
-            z: part.transform.translationMm.z + part.geometry.depthMm + STOMPBOX_KNOB_INDICATOR_OUTSET_MM,
-        }),
-        rotation: quaternionFromEulerDeg(part.transform.rotationDeg),
-        extras: {
-            kind: 'knob-indicator',
-            partId: part.id,
-            sourcePartId: part.partId,
-            ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
-            face: part.face,
-            color,
-            diameterMm: part.geometry.diameterMm,
-            depthMm: part.geometry.depthMm,
-            outsetMm: STOMPBOX_KNOB_INDICATOR_OUTSET_MM,
-        },
-    });
-    return nodeIndex;
-}
-
 function holeBackingMaterialIndex(state: GltfMergeState): number {
     const existingIndex = state.materials.findIndex((material) => material.name === 'hole-backing/material');
     if (existingIndex >= 0) {
@@ -3293,35 +3172,6 @@ function appendDiscPositionAccessor(state: GltfMergeState, radiusMm: number, zMm
         type: 'VEC3',
         min: [-radiusMm, -radiusMm, zMm],
         max: [radiusMm, radiusMm, zMm],
-    });
-    return accessorIndex;
-}
-
-function appendKnobIndicatorPositionAccessor(state: GltfMergeState, radiusMm: number): number {
-    const halfWidthMm = Math.max(0.45, Math.min(0.8, radiusMm * 0.07));
-    const outerY = -Math.max(1.4, radiusMm - 2);
-    const innerY = -Math.max(0.9, radiusMm * 0.22);
-    const positions = new Float32Array([
-        -halfWidthMm, outerY, 0,
-        halfWidthMm, outerY, 0,
-        halfWidthMm, innerY, 0,
-        -halfWidthMm, innerY, 0,
-    ]);
-    const bufferViewIndex = state.bufferViews.length;
-    state.bufferViews.push({
-        buffer: 0,
-        byteOffset: appendBinaryChunk(state, typedArrayBytes(positions)),
-        byteLength: positions.byteLength,
-        target: 34962,
-    });
-    const accessorIndex = state.accessors.length;
-    state.accessors.push({
-        bufferView: bufferViewIndex,
-        componentType: 5126,
-        count: 4,
-        type: 'VEC3',
-        min: [-halfWidthMm, outerY, 0],
-        max: [halfWidthMm, innerY, 0],
     });
     return accessorIndex;
 }
@@ -3987,7 +3837,7 @@ function drillTemplateCenterForPlacement(
         const panel = layout.panels.back;
         return {
             x: panel.x + widthMm / 2 + centerMm.x,
-            y: panel.y + depthMm / 2,
+            y: panel.y + depthMm / 2 - centerMm.y,
         };
     }
 
@@ -4118,7 +3968,7 @@ function placementGrid(enclosure: StompboxEnclosureProfile): StompboxPlacementGr
 function autoKnobGrid(
     count: number,
     grid: StompboxPlacementGrid,
-    styleProfile: StompboxStyleProfileId,
+    placementStyle: ResolvedStompboxPlacementStyle,
     hardwareProfile: StompboxHardwareProfile,
 ): AutoKnobGrid {
     if (count <= 0) {
@@ -4126,58 +3976,65 @@ function autoKnobGrid(
             placements: [],
         };
     }
-    if (styleProfile === 'boss-style') {
-        return bossStyleKnobGrid(count, grid, hardwareProfile);
+    if (placementStyle.knobGrid === 'compact-led-row') {
+        return compactLedKnobGrid(count, grid, placementStyle, hardwareProfile);
     }
-    return mxrStyleKnobGrid(count, grid, hardwareProfile);
+    return largeMergedKnobGrid(count, grid, placementStyle, hardwareProfile);
 }
 
-function bossStyleKnobGrid(
+function compactLedKnobGrid(
     count: number,
     grid: StompboxPlacementGrid,
+    placementStyle: ResolvedStompboxPlacementStyle,
     hardwareProfile: StompboxHardwareProfile,
 ): AutoKnobGrid {
-    const largeKnobPartId = hardwareProfile.defaultPartIds.largeKnob;
-    const smallKnobPartId = hardwareProfile.defaultPartIds.smallKnob;
-    const largeKnobDiameterMm = defaultPartVisibleDiameterMm(hardwareProfile, 'largeKnob', STOMPBOX_LARGE_KNOB_DIAMETER_MM);
-    const smallKnobDiameterMm = defaultPartVisibleDiameterMm(hardwareProfile, 'smallKnob', STOMPBOX_SMALL_KNOB_DIAMETER_MM);
+    const largeKnobPartId = placementStyle.defaultPartIds.largeKnob;
+    const smallKnobPartId = placementStyle.defaultPartIds.smallKnob;
+    const largeKnobDiameterMm = defaultPartVisibleDiameterMm(
+        hardwareProfile,
+        placementStyle.defaultPartIds,
+        'largeKnob',
+        STOMPBOX_LARGE_KNOB_DIAMETER_MM,
+    );
+    const smallKnobDiameterMm = defaultPartVisibleDiameterMm(
+        hardwareProfile,
+        placementStyle.defaultPartIds,
+        'smallKnob',
+        STOMPBOX_SMALL_KNOB_DIAMETER_MM,
+    );
     const rowOneY = gridRowCenterY(grid, 1);
     const oneRowKnobY = gridMergedRowCenterY(grid, 1, 2);
     if (count === 2) {
-        const useLargeKnobs = largeKnobColumnLimit(grid, hardwareProfile) >= 2;
+        const rowPart = twoColumnKnobChoice(grid, hardwareProfile, placementStyle.defaultPartIds);
         return {
             placements: rowKnobPlacements(
-                useLargeKnobs ? largeKnobPartId : smallKnobPartId,
-                knobColumnCenters(grid, 2, useLargeKnobs ? largeKnobDiameterMm : smallKnobDiameterMm),
+                rowPart.partId,
+                knobColumnCenters(grid, 2, rowPart.diameterMm),
                 oneRowKnobY,
             ),
         };
     }
     if (count === 3) {
-        const useLargeKnobs = largeKnobColumnLimit(grid, hardwareProfile) >= 2;
-        const firstRowPartId = useLargeKnobs ? largeKnobPartId : smallKnobPartId;
-        const firstRowXCenters = knobColumnCenters(
-            grid,
-            2,
-            useLargeKnobs ? largeKnobDiameterMm : smallKnobDiameterMm,
-        );
+        const firstRowPart = twoColumnKnobChoice(grid, hardwareProfile, placementStyle.defaultPartIds);
+        const firstRowXCenters = knobColumnCenters(grid, 2, firstRowPart.diameterMm);
         return {
             placements: [
                 ...rowKnobPlacements(
-                    firstRowPartId,
+                    firstRowPart.partId,
                     firstRowXCenters,
-                    bossStyleFirstKnobRowY(grid, firstRowPartId, firstRowXCenters, hardwareProfile),
+                    compactLedFirstKnobRowY(grid, firstRowPart.partId, firstRowXCenters, hardwareProfile, placementStyle),
                 ),
                 { partId: smallKnobPartId, centerMm: { x: 0, y: gridRowCenterY(grid, 2) } },
             ],
         };
     }
     if (count === 4) {
-        if (smallKnobColumnLimit(grid, hardwareProfile) >= 4) {
+        if (smallKnobColumnLimit(grid, hardwareProfile, placementStyle.defaultPartIds) >= 4) {
+            const rowDiameterMm = smallKnobDiameterMm + 0.1;
             return {
                 placements: rowKnobPlacements(
                     smallKnobPartId,
-                    knobColumnCenters(grid, 4, smallKnobDiameterMm),
+                    knobColumnCenters(grid, 4, rowDiameterMm),
                     oneRowKnobY,
                 ),
             };
@@ -4190,17 +4047,18 @@ function bossStyleKnobGrid(
             ],
         };
     }
-    throw new Error(`unsupported stompbox style profile "boss-style" for ${count} knobs`);
+    throw new Error(`unsupported compact-led-row stompbox layout for ${count} knobs`);
 }
 
-function bossStyleFirstKnobRowY(
+function compactLedFirstKnobRowY(
     grid: StompboxPlacementGrid,
     knobPartId: string,
     xCenters: readonly number[],
     hardwareProfile: StompboxHardwareProfile,
+    placementStyle: ResolvedStompboxPlacementStyle,
 ): number {
     const defaultY = gridRowCenterY(grid, 1);
-    const ledRadiusMm = (partProfileVisibleDiameterMm(hardwareProfile, hardwareProfile.defaultPartIds.led) ?? 0) / 2;
+    const ledRadiusMm = (partProfileVisibleDiameterMm(hardwareProfile, placementStyle.defaultPartIds.led) ?? 0) / 2;
     const knobRadiusMm = (partProfileVisibleDiameterMm(hardwareProfile, knobPartId) ?? 0) / 2;
     const nearestHorizontalMm = Math.min(...xCenters.map((x) => Math.abs(x)));
     const combinedRadiusMm = ledRadiusMm + knobRadiusMm;
@@ -4208,18 +4066,29 @@ function bossStyleFirstKnobRowY(
         0,
         combinedRadiusMm * combinedRadiusMm - nearestHorizontalMm * nearestHorizontalMm,
     )) + 0.25;
-    return roundMillimeters(Math.min(defaultY, bossStyleLedY(grid, hardwareProfile) - requiredVerticalMm));
+    return roundMillimeters(Math.min(defaultY, topEdgeLedY(grid, hardwareProfile, placementStyle.defaultPartIds) - requiredVerticalMm));
 }
 
-function mxrStyleKnobGrid(
+function largeMergedKnobGrid(
     count: number,
     grid: StompboxPlacementGrid,
+    placementStyle: ResolvedStompboxPlacementStyle,
     hardwareProfile: StompboxHardwareProfile,
 ): AutoKnobGrid {
-    const largeKnobPartId = hardwareProfile.defaultPartIds.largeKnob;
-    const smallKnobPartId = hardwareProfile.defaultPartIds.smallKnob;
-    const largeKnobDiameterMm = defaultPartVisibleDiameterMm(hardwareProfile, 'largeKnob', STOMPBOX_LARGE_KNOB_DIAMETER_MM);
-    const smallKnobDiameterMm = defaultPartVisibleDiameterMm(hardwareProfile, 'smallKnob', STOMPBOX_SMALL_KNOB_DIAMETER_MM);
+    const largeKnobPartId = placementStyle.defaultPartIds.largeKnob;
+    const smallKnobPartId = placementStyle.defaultPartIds.smallKnob;
+    const largeKnobDiameterMm = defaultPartVisibleDiameterMm(
+        hardwareProfile,
+        placementStyle.defaultPartIds,
+        'largeKnob',
+        STOMPBOX_LARGE_KNOB_DIAMETER_MM,
+    );
+    const smallKnobDiameterMm = defaultPartVisibleDiameterMm(
+        hardwareProfile,
+        placementStyle.defaultPartIds,
+        'smallKnob',
+        STOMPBOX_SMALL_KNOB_DIAMETER_MM,
+    );
     const rowOneY = gridRowCenterY(grid, 1);
     const rowTwoY = gridRowCenterY(grid, 2);
     const upperMergedRowY = gridMergedRowCenterY(grid, 1, 2);
@@ -4231,11 +4100,11 @@ function mxrStyleKnobGrid(
         };
     }
     if (count === 2) {
-        const useLargeKnobs = largeKnobColumnLimit(grid, hardwareProfile) >= 2;
+        const rowPart = twoColumnKnobChoice(grid, hardwareProfile, placementStyle.defaultPartIds);
         return {
             placements: rowKnobPlacements(
-                useLargeKnobs ? largeKnobPartId : smallKnobPartId,
-                knobColumnCenters(grid, 2, useLargeKnobs ? largeKnobDiameterMm : smallKnobDiameterMm),
+                rowPart.partId,
+                knobColumnCenters(grid, 2, rowPart.diameterMm),
                 upperMergedRowY,
             ),
         };
@@ -4286,7 +4155,7 @@ function mxrStyleKnobGrid(
             ],
         };
     }
-    const columns = Math.max(1, Math.min(smallKnobColumnLimit(grid, hardwareProfile), count));
+    const columns = Math.max(1, Math.min(smallKnobColumnLimit(grid, hardwareProfile, placementStyle.defaultPartIds), count));
     const columnCenters = knobColumnCenters(grid, columns, smallKnobDiameterMm);
     return {
         placements: Array.from({ length: count }, (_unused, index) => {
@@ -4310,26 +4179,57 @@ function rowKnobPlacements(partId: string, xCenters: readonly number[], y: numbe
     }));
 }
 
-function mxrStyleLedY(knobCount: number, grid: StompboxPlacementGrid): number {
+function twoColumnKnobChoice(
+    grid: StompboxPlacementGrid,
+    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+): Readonly<{ partId: string; diameterMm: number }> {
+    const choices = [
+        {
+            partId: defaultPartIds.largeKnob,
+            diameterMm: defaultPartVisibleDiameterMm(hardwareProfile, defaultPartIds, 'largeKnob', STOMPBOX_LARGE_KNOB_DIAMETER_MM),
+        },
+        {
+            partId: defaultPartIds.knob,
+            diameterMm: defaultPartVisibleDiameterMm(hardwareProfile, defaultPartIds, 'knob', STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+        },
+        {
+            partId: defaultPartIds.smallKnob,
+            diameterMm: defaultPartVisibleDiameterMm(hardwareProfile, defaultPartIds, 'smallKnob', STOMPBOX_SMALL_KNOB_DIAMETER_MM),
+        },
+    ] as const;
+    const fallback = choices[2];
+    return choices.find((choice) => knobColumnLimitForDiameter(grid, choice.diameterMm) >= 2) ?? fallback;
+}
+
+function lowerTopLedY(knobCount: number, grid: StompboxPlacementGrid): number {
     if ((knobCount === 1 || knobCount === 2) && grid.rowCount >= 3) {
         return gridRowLowerHalfCenterY(grid, 3);
     }
     return gridRowCenterY(grid, Math.min(3, grid.rowCount));
 }
 
-function bossStyleLedY(grid: StompboxPlacementGrid, hardwareProfile: StompboxHardwareProfile): number {
+function topEdgeLedY(
+    grid: StompboxPlacementGrid,
+    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+): number {
     const ledRadiusMm = (
-        partProfileVisibleDiameterMm(hardwareProfile, hardwareProfile.defaultPartIds.led)
+        partProfileVisibleDiameterMm(hardwareProfile, defaultPartIds.led)
         ?? 3.48
     ) / 2;
     return roundMillimeters(gridTopInsetY(grid) - ledRadiusMm);
 }
 
-function footswitchGridY(knobCount: number, grid: StompboxPlacementGrid, styleProfile: StompboxStyleProfileId): number {
-    if (styleProfile === 'mxr-style' && (knobCount === 1 || knobCount === 2) && grid.rowCount >= 4) {
+function footswitchGridY(
+    knobCount: number,
+    grid: StompboxPlacementGrid,
+    placementStyle: ResolvedStompboxPlacementStyle,
+): number {
+    if (placementStyle.footswitch === 'lower-row' && (knobCount === 1 || knobCount === 2) && grid.rowCount >= 4) {
         return gridRowCenterY(grid, 4);
     }
-    if (styleProfile === 'boss-style' && grid.rowCount >= 5) {
+    if (placementStyle.footswitch === 'bottom-merged-row' && grid.rowCount >= 5) {
         return gridMergedRowCenterY(grid, 4, 5);
     }
     return gridRowCenterY(grid, grid.rowCount);
@@ -4375,21 +4275,35 @@ function knobColumnCenters(grid: StompboxPlacementGrid, columns: number, diamete
     return cellCenters;
 }
 
-function largeKnobColumnLimit(grid: StompboxPlacementGrid, hardwareProfile: StompboxHardwareProfile): number {
+function largeKnobColumnLimit(
+    grid: StompboxPlacementGrid,
+    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+): number {
     const largeKnobDiameterMm = defaultPartVisibleDiameterMm(
         hardwareProfile,
+        defaultPartIds,
         'largeKnob',
         STOMPBOX_LARGE_KNOB_DIAMETER_MM,
     );
-    return Math.max(1, Math.floor(grid.usableWidthMm / Math.max(STOMPBOX_LARGE_KNOB_MIN_PITCH_MM, largeKnobDiameterMm + 5)));
+    return knobColumnLimitForDiameter(grid, largeKnobDiameterMm);
 }
 
-function smallKnobColumnLimit(grid: StompboxPlacementGrid, hardwareProfile: StompboxHardwareProfile): number {
+function knobColumnLimitForDiameter(grid: StompboxPlacementGrid, diameterMm: number): number {
+    return Math.max(1, Math.floor(grid.usableWidthMm / Math.max(STOMPBOX_LARGE_KNOB_MIN_PITCH_MM, diameterMm + 5)));
+}
+
+function smallKnobColumnLimit(
+    grid: StompboxPlacementGrid,
+    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+): number {
     if (grid.widthMm >= STOMPBOX_1590B_MIN_WIDTH_MM) {
         return 4;
     }
     const smallKnobDiameterMm = defaultPartVisibleDiameterMm(
         hardwareProfile,
+        defaultPartIds,
         'smallKnob',
         STOMPBOX_SMALL_KNOB_DIAMETER_MM,
     );
@@ -4443,9 +4357,9 @@ function hasOutputJack(panel: Panel, declared: readonly PlacementCandidate[]): b
 function hasPowerJack(
     declared: readonly PlacementCandidate[],
     candidates: readonly PlacementCandidate[],
-    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
 ): boolean {
-    return [...declared, ...candidates].some((candidate) => candidate.partId === hardwareProfile.defaultPartIds.dcJack);
+    return [...declared, ...candidates].some((candidate) => candidate.partId === defaultPartIds.dcJack);
 }
 
 function isSupportedFootswitch(switchControl: SwitchControl): boolean {
@@ -4457,39 +4371,42 @@ function centerForJackFace(
     face: StompboxFaceId,
     enclosure: StompboxEnclosureProfile,
     grid: StompboxPlacementGrid,
-    hardwareStyle: StompboxHardwarePlacementStyle,
+    placementStyle: ResolvedStompboxPlacementStyle,
     faceIndex = 0,
 ): StompboxPoint2 {
-    const y = hardwareStyle === 'boss-style'
-        ? bossStyleSideJackY(grid, faceIndex)
-        : mxrStyleSideAudioJackY(grid, faceIndex);
+    const y = placementStyle.sideHardware === 'back-power-paired-side-jacks'
+        ? pairedSideJackY(grid, faceIndex)
+        : fiveSlotSideAudioJackY(grid, faceIndex);
     if (face === 'right') {
         return { x: enclosure.dimensionsMm.widthMm / 2, y };
     }
     if (face === 'left') {
         return { x: -enclosure.dimensionsMm.widthMm / 2, y };
     }
+    if (face === 'back') {
+        return { x: 0, y: 0 };
+    }
     return { x: 0, y: gridTopInsetY(grid) };
 }
 
-function powerJackFace(hardwareStyle: StompboxHardwarePlacementStyle): StompboxFaceId {
-    return hardwareStyle === 'mxr-style' ? 'right' : 'back';
+function powerJackFace(placementStyle: ResolvedStompboxPlacementStyle): StompboxFaceId {
+    return placementStyle.sideHardware === 'side-power-five-slot' ? 'right' : 'back';
 }
 
 function centerForPowerJackFace(
     face: StompboxFaceId,
     enclosure: StompboxEnclosureProfile,
     grid: StompboxPlacementGrid,
-    hardwareStyle: StompboxHardwarePlacementStyle,
+    placementStyle: ResolvedStompboxPlacementStyle,
     hardwareProfile: StompboxHardwareProfile,
 ): StompboxPoint2 {
-    if (hardwareStyle === 'mxr-style' && face === 'right') {
-        return { x: enclosure.dimensionsMm.widthMm / 2, y: mxrStylePowerJackY(grid, hardwareProfile) };
+    if (placementStyle.sideHardware === 'side-power-five-slot' && face === 'right') {
+        return { x: enclosure.dimensionsMm.widthMm / 2, y: fiveSlotPowerJackY(grid, hardwareProfile, placementStyle.defaultPartIds) };
     }
-    return centerForJackFace(face, enclosure, grid, hardwareStyle);
+    return centerForJackFace(face, enclosure, grid, placementStyle);
 }
 
-function bossStyleSideJackY(grid: StompboxPlacementGrid, faceIndex: number): number {
+function pairedSideJackY(grid: StompboxPlacementGrid, faceIndex: number): number {
     const slotInPair = faceIndex % 2;
     const pairIndex = Math.floor(faceIndex / 2);
     const row = Math.min(3 + pairIndex, grid.rowCount);
@@ -4498,21 +4415,25 @@ function bossStyleSideJackY(grid: StompboxPlacementGrid, faceIndex: number): num
     return roundMillimeters(rowCenterY + (slotInPair === 0 ? rowHalfOffsetY : -rowHalfOffsetY));
 }
 
-function mxrStyleSideAudioJackY(grid: StompboxPlacementGrid, faceIndex: number): number {
-    return roundMillimeters(mxrStyleFiveSlotCenterY(grid, 3) - faceIndex * grid.lengthMm / 5);
+function fiveSlotSideAudioJackY(grid: StompboxPlacementGrid, faceIndex: number): number {
+    return roundMillimeters(fiveSlotCenterY(grid, 3) - faceIndex * grid.lengthMm / 5);
 }
 
-function mxrStylePowerJackY(grid: StompboxPlacementGrid, hardwareProfile: StompboxHardwareProfile): number {
-    const audioY = mxrStyleSideAudioJackY(grid, 0);
-    const requestedCloseY = mxrStyleFiveSlotCenterY(grid, 4) + grid.lengthMm / 10;
+function fiveSlotPowerJackY(
+    grid: StompboxPlacementGrid,
+    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
+): number {
+    const audioY = fiveSlotSideAudioJackY(grid, 0);
+    const requestedCloseY = fiveSlotCenterY(grid, 4) + grid.lengthMm / 10;
     const minimumDistanceY = (
-        (partProfileVisibleDiameterMm(hardwareProfile, hardwareProfile.defaultPartIds.dcJack) ?? 14.1)
-        + (partProfileVisibleDiameterMm(hardwareProfile, hardwareProfile.defaultPartIds.audioJack) ?? 11)
+        (partProfileVisibleDiameterMm(hardwareProfile, defaultPartIds.dcJack) ?? 14.1)
+        + (partProfileVisibleDiameterMm(hardwareProfile, defaultPartIds.audioJack) ?? 11)
     ) / 2;
     return roundMillimeters(Math.min(requestedCloseY, audioY - minimumDistanceY));
 }
 
-function mxrStyleFiveSlotCenterY(grid: StompboxPlacementGrid, slotIndex: number): number {
+function fiveSlotCenterY(grid: StompboxPlacementGrid, slotIndex: number): number {
     return roundMillimeters(grid.lengthMm / 2 - (slotIndex - 0.5) * grid.lengthMm / 5);
 }
 
@@ -4527,21 +4448,21 @@ function pointFromCorePoint(point: Point): StompboxPoint2 {
 function defaultPartIdForPanelKind(
     kind: PanelControlKind,
     metadata: ControlVisualMetadata | undefined,
-    hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
 ): string | undefined {
     switch (kind) {
         case 'knob':
         case 'selector':
-            return hardwareProfile.defaultPartIds.knob;
+            return defaultPartIds.knob;
         case 'led':
-            return hardwareProfile.defaultPartIds.led;
+            return defaultPartIds.led;
         case 'switch':
         case 'footswitch':
             return metadata?.switchKind === undefined || metadata.switchKind === '3pdt'
-                ? hardwareProfile.defaultPartIds.footswitch
+                ? defaultPartIds.footswitch
                 : undefined;
         case 'jack':
-            return hardwareProfile.defaultPartIds.audioJack;
+            return defaultPartIds.audioJack;
         case 'slider':
             return undefined;
     }
@@ -4552,6 +4473,7 @@ function knownPartIdOrDefault(
     kind: PanelControlKind,
     metadata: ControlVisualMetadata | undefined,
     hardwareProfile: StompboxHardwareProfile,
+    defaultPartIds: StompboxDefaultPartProfileIds,
     diagnostics: StompboxDiagnostic[],
     controlId: string,
     placementId: string | undefined,
@@ -4567,7 +4489,7 @@ function knownPartIdOrDefault(
             ...(placementId === undefined ? {} : { placementId }),
         });
     }
-    return defaultPartIdForPanelKind(kind, metadata, hardwareProfile);
+    return defaultPartIdForPanelKind(kind, metadata, defaultPartIds);
 }
 
 function placementIdForKind(kind: PanelControlKind, controlId: string): string {

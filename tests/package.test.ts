@@ -8,7 +8,6 @@ import {
     validateCircuitJsonDocument,
 } from '@vessel-dsp/core';
 import {
-    DEMO_STOMPBOX_HARDWARE_PROFILE,
     createStompboxAppearancePatch,
     createStompboxDrillLayoutFromVdsp,
     createStompboxDrillTemplateFromVdsp,
@@ -86,6 +85,10 @@ async function readStompboxDistIndexJs(): Promise<string> {
 
 async function readStompboxDistIndexDts(): Promise<string> {
     return Bun.file(new URL('../packages/stompbox/dist/index.d.ts', import.meta.url)).text();
+}
+
+async function readStompboxSourceIndex(): Promise<string> {
+    return Bun.file(new URL('../packages/stompbox/src/index.ts', import.meta.url)).text();
 }
 
 function shouldScanRepositoryPath(path: string): boolean {
@@ -237,8 +240,17 @@ describe('workspace package contract', () => {
         expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
         expect(typeof createStompboxAppearancePatch).toBe('function');
         expect(typeof resolveStompboxAppearance).toBe('function');
-        expect(DEMO_STOMPBOX_HARDWARE_PROFILE.id).toBe('demo-mxr-style');
-        expect(DEMO_STOMPBOX_HARDWARE_PROFILE.partProfiles).toBeDefined();
+    });
+
+    test('stompbox package keeps named demo presets out of the library source', async () => {
+        const source = await readStompboxSourceIndex();
+
+        expect(source).not.toContain('DEMO_STOMPBOX');
+        expect(source).not.toContain('DEFAULT_DEMO');
+        expect(source).not.toContain('mxr-style');
+        expect(source).not.toContain('boss-style');
+        expect(source).not.toMatch(/\bMXR\b/i);
+        expect(source).not.toMatch(/\bBoss\b/i);
     });
 
     test('removed React and simulation packages are not workspace deliverables', async () => {

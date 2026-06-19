@@ -24,65 +24,92 @@
   },
   "holes": [
     {
-      "id": "knob-GAIN",
+      "id": "knob-RATE",
       "face": "top",
       "centerMm": {
         "x": -14.625,
-        "y": 32.85
+        "y": 43.8
       },
       "drillDiameterMm": 7.14375,
       "drillHoleProfileId": "sixteen-mm-pot-9-32",
-      "partId": "knob-mxr-style-fluted-small",
-      "partLabel": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
+      "partId": "knob-davies-1100",
+      "partLabel": "Davies 1100 19.81 mm knob generated CAD",
       "partFamily": "knob",
       "partGeometry": {
         "kind": "knob",
-        "diameterMm": 20.2,
-        "depthMm": 15,
-        "shaftDiameterMm": 6.4
+        "diameterMm": 19.81,
+        "depthMm": 11.43,
+        "shaftDiameterMm": 6.35
       },
-      "controlId": "GAIN",
-      "componentId": "GAIN",
-      "label": "Gain",
+      "controlId": "RATE",
+      "componentId": "RATE",
+      "label": "Rate",
       "provenance": "auto-generated",
       "assets": {
-        "glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
-        "stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
+        "glbRelativePath": "knob-davies-instrument-series/.davies-1100.step.glb",
+        "stepRelativePath": "knob-davies-instrument-series/davies-1100.step"
+      }
+    },
+    {
+      "id": "knob-DEPTH",
+      "face": "top",
+      "centerMm": {
+        "x": 14.625,
+        "y": 43.8
+      },
+      "drillDiameterMm": 7.14375,
+      "drillHoleProfileId": "sixteen-mm-pot-9-32",
+      "partId": "knob-davies-1100",
+      "partLabel": "Davies 1100 19.81 mm knob generated CAD",
+      "partFamily": "knob",
+      "partGeometry": {
+        "kind": "knob",
+        "diameterMm": 19.81,
+        "depthMm": 11.43,
+        "shaftDiameterMm": 6.35
+      },
+      "controlId": "DEPTH",
+      "componentId": "DEPTH",
+      "label": "Depth",
+      "provenance": "auto-generated",
+      "assets": {
+        "glbRelativePath": "knob-davies-instrument-series/.davies-1100.step.glb",
+        "stepRelativePath": "knob-davies-instrument-series/davies-1100.step"
       }
     },
     {
       "id": "knob-LEVEL",
       "face": "top",
       "centerMm": {
-        "x": 14.625,
-        "y": 32.85
+        "x": 0,
+        "y": 21.9
       },
       "drillDiameterMm": 7.14375,
       "drillHoleProfileId": "sixteen-mm-pot-9-32",
-      "partId": "knob-mxr-style-fluted-small",
-      "partLabel": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
+      "partId": "knob-davies-1900h",
+      "partLabel": "Daier KN-1900H Davies 1900 clone 12.8 mm knob generated CAD",
       "partFamily": "knob",
       "partGeometry": {
         "kind": "knob",
-        "diameterMm": 20.2,
-        "depthMm": 15,
-        "shaftDiameterMm": 6.4
+        "diameterMm": 12.8,
+        "depthMm": 15.8,
+        "shaftDiameterMm": 6.35
       },
       "controlId": "LEVEL",
       "componentId": "LEVEL",
       "label": "Level",
       "provenance": "auto-generated",
       "assets": {
-        "glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
-        "stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
+        "glbRelativePath": "knob-davies-instrument-series/.davies-1900.step.glb",
+        "stepRelativePath": "knob-davies-instrument-series/davies-1900.step"
       }
     },
     {
-      "id": "led-LED1",
+      "id": "led-status",
       "face": "top",
       "centerMm": {
         "x": 0,
-        "y": -5.475
+        "y": 50.15
       },
       "drillDiameterMm": 7.9375,
       "drillHoleProfileId": "metal-5mm-led-bezel-5-16",
@@ -95,8 +122,8 @@
         "innerDiameterMm": 5,
         "depthMm": 5.35
       },
-      "controlId": "LED1",
-      "componentId": "LED1",
+      "controlId": "status",
+      "componentId": "status",
       "label": "Status",
       "provenance": "auto-generated",
       "assets": {
@@ -105,11 +132,11 @@
       }
     },
     {
-      "id": "switch-SW1",
+      "id": "switch-bypass",
       "face": "top",
       "centerMm": {
         "x": 0,
-        "y": -21.9
+        "y": -32.85
       },
       "drillDiameterMm": 12.7,
       "drillHoleProfileId": "dc-jack-3pdt-1-2",
@@ -124,8 +151,8 @@
         "buttonHeightMm": 5.5,
         "pressedTravelMm": 1.2
       },
-      "controlId": "SW1",
-      "componentId": "SW1",
+      "controlId": "bypass",
+      "componentId": "bypass",
       "provenance": "auto-generated",
       "assets": {
         "glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
@@ -133,11 +160,11 @@
       }
     },
     {
-      "id": "jack-IN",
+      "id": "jack-input",
       "face": "right",
       "centerMm": {
         "x": 30.25,
-        "y": 0
+        "y": 5.475
       },
       "drillDiameterMm": 9.525,
       "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
@@ -150,8 +177,8 @@
         "innerDiameterMm": 6.43,
         "depthMm": 1.4
       },
-      "controlId": "IN",
-      "componentId": "IN",
+      "controlId": "input",
+      "componentId": "input",
       "label": "Input",
       "provenance": "auto-generated",
       "assets": {
@@ -160,11 +187,11 @@
       }
     },
     {
-      "id": "jack-OUT",
+      "id": "jack-output",
       "face": "left",
       "centerMm": {
         "x": -30.25,
-        "y": 0
+        "y": 5.475
       },
       "drillDiameterMm": 9.525,
       "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
@@ -177,8 +204,8 @@
         "innerDiameterMm": 6.43,
         "depthMm": 1.4
       },
-      "controlId": "OUT",
-      "componentId": "OUT",
+      "controlId": "output",
+      "componentId": "output",
       "label": "Output",
       "provenance": "auto-generated",
       "assets": {
@@ -188,10 +215,10 @@
     },
     {
       "id": "power-9v",
-      "face": "right",
+      "face": "back",
       "centerMm": {
-        "x": 30.25,
-        "y": -12.55
+        "x": 0,
+        "y": 0
       },
       "drillDiameterMm": 12.7,
       "drillHoleProfileId": "dc-jack-3pdt-1-2",
@@ -215,9 +242,16 @@
   "diagnostics": [
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"knob-GAIN\"",
-      "controlId": "GAIN",
-      "placementId": "knob-GAIN",
+      "message": "Auto-generated stompbox placement for \"knob-RATE\"",
+      "controlId": "RATE",
+      "placementId": "knob-RATE",
+      "face": "top"
+    },
+    {
+      "code": "placement-auto-generated",
+      "message": "Auto-generated stompbox placement for \"knob-DEPTH\"",
+      "controlId": "DEPTH",
+      "placementId": "knob-DEPTH",
       "face": "top"
     },
     {
@@ -229,37 +263,37 @@
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"led-LED1\"",
-      "controlId": "LED1",
-      "placementId": "led-LED1",
+      "message": "Auto-generated stompbox placement for \"led-status\"",
+      "controlId": "status",
+      "placementId": "led-status",
       "face": "top"
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"switch-SW1\"",
-      "controlId": "SW1",
-      "placementId": "switch-SW1",
+      "message": "Auto-generated stompbox placement for \"switch-bypass\"",
+      "controlId": "bypass",
+      "placementId": "switch-bypass",
       "face": "top"
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"jack-IN\"",
-      "controlId": "IN",
-      "placementId": "jack-IN",
+      "message": "Auto-generated stompbox placement for \"jack-input\"",
+      "controlId": "input",
+      "placementId": "jack-input",
       "face": "right"
     },
     {
       "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"jack-OUT\"",
-      "controlId": "OUT",
-      "placementId": "jack-OUT",
+      "message": "Auto-generated stompbox placement for \"jack-output\"",
+      "controlId": "output",
+      "placementId": "jack-output",
       "face": "left"
     },
     {
       "code": "placement-auto-generated",
       "message": "Auto-generated stompbox placement for \"power-9v\"",
       "placementId": "power-9v",
-      "face": "right"
+      "face": "back"
     }
   ]
 }

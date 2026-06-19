@@ -1,0 +1,305 @@
+{
+	"artifactCadPartsRoot": "packages/stompbox/assets/cad/parts",
+	"defaultStyleProfileId": "mxr-style",
+	"defaultHardwareProfile": {
+		"id": "docs-demo-stompbox",
+		"label": "Docs demo stompbox hardware profile",
+		"defaultEnclosureId": "box-1590b",
+		"defaultPartIds": {
+			"knob": "knob-mxr-style-fluted-small",
+			"largeKnob": "knob-mxr-style-fluted-large",
+			"smallKnob": "knob-mxr-style-fluted-small",
+			"led": "led-bezel-lh5",
+			"footswitch": "switch-3pdt-pic-pbs24302",
+			"audioJack": "jack-ts-pj629han",
+			"dcJack": "dc-socket-dc099"
+		}
+	},
+	"styleProfiles": [
+		{
+			"id": "mxr-style",
+			"label": "MXR style",
+			"supportedKnobCounts": [1, 2, 3, 4, 5, 6],
+			"defaultPartIds": {
+				"largeKnob": "knob-mxr-style-fluted-large",
+				"knob": "knob-mxr-style-fluted-medium",
+				"smallKnob": "knob-mxr-style-fluted-small"
+			},
+			"layout": {
+				"knobGrid": "large-merged-row",
+				"sideHardware": "side-power-five-slot",
+				"audioJackLabels": "edge-rotated",
+				"footswitch": "lower-row"
+			}
+		},
+		{
+			"id": "boss-style",
+			"label": "Boss style",
+			"supportedKnobCounts": [2, 3, 4],
+			"defaultPartIds": {
+				"largeKnob": "knob-davies-1105",
+				"knob": "knob-davies-1100",
+				"smallKnob": "knob-davies-1900h"
+			},
+			"layout": {
+				"knobGrid": "compact-led-row",
+				"sideHardware": "back-power-paired-side-jacks",
+				"audioJackLabels": "inline",
+				"footswitch": "bottom-merged-row",
+				"statusLedLabel": "CHECK"
+			}
+		}
+	],
+	"enclosureProfiles": {
+		"box-1590b": {
+			"variantId": "box-1590b",
+			"label": "Tayda A-6619 1590B enclosure generated STEP CAD",
+			"dimensionsMm": { "widthMm": 60.5, "lengthMm": 111.5, "depthMm": 31 },
+			"topFace": {
+				"usableRectMm": { "x": -29.25, "y": -54.75, "width": 58.5, "height": 109.5 }
+			},
+			"assets": {
+				"glbRelativePath": "box-1590b/.tayda-a6619.step.glb",
+				"stepRelativePath": "box-1590b/tayda-a6619.step"
+			}
+		},
+		"box-1590a": {
+			"variantId": "box-1590a",
+			"label": "Hammond 1590A enclosure generated STEP CAD",
+			"dimensionsMm": { "widthMm": 39, "lengthMm": 92.5, "depthMm": 31 },
+			"topFace": {
+				"usableRectMm": { "x": -18.5, "y": -45.25, "width": 37, "height": 90.5 }
+			},
+			"assets": {
+				"glbRelativePath": "box-hammond-diecast-stompbox-series/.hammond-1590a.step.glb",
+				"stepRelativePath": "box-hammond-diecast-stompbox-series/hammond-1590a.step"
+			}
+		}
+	},
+	"partProfiles": {
+		"knob-mxr-style-fluted-small": {
+			"id": "knob-mxr-style-fluted-small",
+			"label": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 20.2, "depthMm": 15, "shaftDiameterMm": 6.4 },
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
+			}
+		},
+		"knob-mxr-style-fluted-medium": {
+			"id": "knob-mxr-style-fluted-medium",
+			"label": "Daier MF-B02 24.4 mm MXR-style fluted knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 24.4, "depthMm": 15, "shaftDiameterMm": 6.4 },
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b02.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b02.step"
+			}
+		},
+		"knob-mxr-style-fluted-large": {
+			"id": "knob-mxr-style-fluted-large",
+			"label": "Daier MF-B03 29.9 mm MXR-style fluted knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 29.9, "depthMm": 15, "shaftDiameterMm": 6.4 },
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b03.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b03.step"
+			}
+		},
+		"knob-davies-1100": {
+			"id": "knob-davies-1100",
+			"label": "Davies 1100 19.81 mm knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 19.81, "depthMm": 11.43, "shaftDiameterMm": 6.35 },
+			"assets": {
+				"glbRelativePath": "knob-davies-instrument-series/.davies-1100.step.glb",
+				"stepRelativePath": "knob-davies-instrument-series/davies-1100.step"
+			}
+		},
+		"knob-davies-1105": {
+			"id": "knob-davies-1105",
+			"label": "Davies 1105 26.92 mm knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 26.92, "depthMm": 15.75, "shaftDiameterMm": 6.35 },
+			"assets": {
+				"glbRelativePath": "knob-davies-instrument-series/.davies-1105.step.glb",
+				"stepRelativePath": "knob-davies-instrument-series/davies-1105.step"
+			}
+		},
+		"knob-davies-1900h": {
+			"id": "knob-davies-1900h",
+			"label": "Daier KN-1900H Davies 1900 clone 12.8 mm knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 12.8, "depthMm": 15.8, "shaftDiameterMm": 6.35 },
+			"assets": {
+				"glbRelativePath": "knob-davies-instrument-series/.davies-1900.step.glb",
+				"stepRelativePath": "knob-davies-instrument-series/davies-1900.step"
+			}
+		},
+		"knob-cm42-bb": {
+			"id": "knob-cm42-bb",
+			"label": "Tayda A-6078 CM42 BB 19 mm Black Big Muff-style knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"geometry": { "kind": "knob", "diameterMm": 19, "depthMm": 13.6, "shaftDiameterMm": 6 },
+			"assets": {
+				"glbRelativePath": "knob-cm42-bb/.tayda-a6078-cm42-bb.step.glb",
+				"stepRelativePath": "knob-cm42-bb/tayda-a6078-cm42-bb.step"
+			}
+		},
+		"knob-chickenhead-lms-30mm": {
+			"id": "knob-chickenhead-lms-30mm",
+			"label": "Love My Switches 30 mm Chicken Head knob generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 9.525,
+			"drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+			"geometry": { "kind": "knob", "diameterMm": 30.4, "depthMm": 16.2, "shaftDiameterMm": 6.4 },
+			"assets": {
+				"glbRelativePath": "knob-chickenhead-lms-30mm/.lovemyswitches-chicken-head-30mm.step.glb",
+				"stepRelativePath": "knob-chickenhead-lms-30mm/lovemyswitches-chicken-head-30mm.step"
+			}
+		},
+		"led-5mm-red-kento-5408urc": {
+			"id": "led-5mm-red-kento-5408urc",
+			"label": "Kento 5408URC 5 mm red LED generated CAD",
+			"family": "led",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 5.159375,
+			"drillHoleProfileId": "five-mm-led-13-64",
+			"geometry": { "kind": "led", "lensDiameterMm": 5, "bodyHeightMm": 8.7, "flangeDiameterMm": 5.8 },
+			"assets": {
+				"glbRelativePath": "led-5mm-red-kento-5408urc/.kento-5408urc.step.glb",
+				"stepRelativePath": "led-5mm-red-kento-5408urc/kento-5408urc.step"
+			}
+		},
+		"led-3mm-red-kento-5408urc": {
+			"id": "led-3mm-red-kento-5408urc",
+			"label": "Kento 5408URC scaled 3 mm red LED generated CAD",
+			"family": "led",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 3.175,
+			"drillHoleProfileId": "three-mm-led-1-8",
+			"geometry": { "kind": "led", "lensDiameterMm": 3, "bodyHeightMm": 5.22, "flangeDiameterMm": 3.48 },
+			"assets": {
+				"glbRelativePath": "led-5mm-red-kento-5408urc/.kento-5408urc.step.glb",
+				"stepRelativePath": "led-5mm-red-kento-5408urc/kento-5408urc.step"
+			},
+			"assetScale": 0.6
+		},
+		"led-bezel-lh5": {
+			"id": "led-bezel-lh5",
+			"label": "Pedal Parts and Kits BZL-5MM-P 5 mm metal LED bezel generated CAD",
+			"family": "led",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 7.9375,
+			"drillHoleProfileId": "metal-5mm-led-bezel-5-16",
+			"geometry": { "kind": "led-bezel", "outerDiameterMm": 9.2, "innerDiameterMm": 5, "depthMm": 5.35 },
+			"assets": {
+				"glbRelativePath": "led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
+				"stepRelativePath": "led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step"
+			}
+		},
+		"switch-3pdt-pic-pbs24302": {
+			"id": "switch-3pdt-pic-pbs24302",
+			"label": "PIC PBS24302 3PDT latching stomp footswitch generated CAD",
+			"family": "footswitch",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 12.7,
+			"drillHoleProfileId": "dc-jack-3pdt-1-2",
+			"geometry": {
+				"kind": "footswitch",
+				"buttonDiameterMm": 12,
+				"nutOuterDiameterMm": 18,
+				"ringHeightMm": 1.8,
+				"buttonHeightMm": 5.5,
+				"pressedTravelMm": 1.2
+			},
+			"assets": {
+				"glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
+				"stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
+			}
+		},
+		"jack-ts-pj629han": {
+			"id": "jack-ts-pj629han",
+			"label": "Tayda A-6040 / PJ-629HAN-05 6.35 mm mono phone jack generated exterior ring CAD",
+			"family": "audio-jack",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 9.525,
+			"drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+			"geometry": { "kind": "ring", "outerDiameterMm": 11, "innerDiameterMm": 6.43, "depthMm": 1.4 },
+			"assets": {
+				"glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
+				"stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+			}
+		},
+		"dc-socket-dc099": {
+			"id": "dc-socket-dc099",
+			"label": "DC-099 2.1 x 5.5 mm panel-mount DC power jack generated exterior ring CAD",
+			"family": "dc-jack",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 12.7,
+			"drillHoleProfileId": "dc-jack-3pdt-1-2",
+			"geometry": { "kind": "ring", "outerDiameterMm": 14.1, "innerDiameterMm": 8, "depthMm": 1.4 },
+			"assets": {
+				"glbRelativePath": "dc-socket-dc099/.dc099.step.glb",
+				"stepRelativePath": "dc-socket-dc099/dc099.step"
+			}
+		}
+	},
+	"previewPresets": [
+		{
+			"id": "mxr-style",
+			"label": "MXR style, two knobs",
+			"src": "/core/examples/stompbox-mxr-style-preview.glb",
+			"drillTemplateSrc": "/core/examples/stompbox-mxr-style-drill-template-preview.svg",
+			"drillLayoutSrc": "/core/examples/stompbox-mxr-style-drill-layout.json",
+			"linework": true,
+			"lineworkColor": "#0f172a"
+		},
+		{
+			"id": "boss-style",
+			"label": "Boss style, three knobs",
+			"src": "/core/examples/stompbox-boss-style-preview.glb",
+			"drillTemplateSrc": "/core/examples/stompbox-boss-style-drill-template-preview.svg",
+			"drillLayoutSrc": "/core/examples/stompbox-boss-style-drill-layout.json",
+			"linework": true,
+			"lineworkColor": "#0f172a"
+		}
+	]
+}

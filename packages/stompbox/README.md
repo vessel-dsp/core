@@ -15,8 +15,8 @@ tools can display or save:
 - optional text, SVG, or image decals for brand/model/custom sticker artwork.
 
 Applications own production part profiles, enclosure profiles, and asset roots.
-The package exports `DEMO_STOMPBOX_HARDWARE_PROFILE` and
-`DEMO_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT` only for examples and tests.
+Keep named style presets in your application or docs layer and pass them through
+`styleProfile` when you want preset-specific default parts or placement rules.
 
 Drill-template holes are fabrication holes: their circle diameters come from
 each part profile's panel drill clearance, such as the PJ-629HAN 9.5 mm drill
@@ -38,8 +38,9 @@ decals in a separate sticker sheet area.
 
 Decals can target the `top`, `left`, `right`, `back`, or `bottom` plane. Use
 `placement: { kind: "grid" }` when the sticker should snap to the center of a
-face grid cell. `subgrid: 2` divides each column and row in half, so `column`
-and `row` address those half-cells while alignment remains centered.
+face grid cell. The grid uses the requested `columns` and `rows`, capped so
+each cell remains at least 12 mm wide or tall. For example, a 40 mm wide face
+can address at most 3 columns.
 
 ```ts
 const decals = [
@@ -50,7 +51,7 @@ const decals = [
     face: "top",
     color: "#2563eb",
     fontFamily: '"Roboto", sans-serif',
-    placement: { kind: "grid", columns: 4, rows: 4, subgrid: 2, column: 4, row: 2 },
+    placement: { kind: "grid", columns: 4, rows: 4, column: 4, row: 2 },
     sizeMm: { widthMm: 28, heightMm: 7 },
   },
   {
@@ -59,7 +60,7 @@ const decals = [
     face: "left",
     svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M1 5 H9" stroke="currentColor"/></svg>',
     color: "#ef4444",
-    placement: { kind: "grid", columns: 2, rows: 4, subgrid: 2, column: 2, row: 3 },
+    placement: { kind: "grid", columns: 2, rows: 4, column: 2, row: 3 },
     sizeMm: { widthMm: 10, heightMm: 8 },
   },
   {
@@ -67,7 +68,7 @@ const decals = [
     kind: "image",
     face: "back",
     href: "/artwork/sticker.png",
-    placement: { kind: "grid", columns: 4, rows: 1, subgrid: 2, column: 7, row: 1 },
+    placement: { kind: "grid", columns: 4, rows: 1, column: 4, row: 1 },
     sizeMm: { widthMm: 16, heightMm: 8 },
   },
 ] as const;
@@ -128,7 +129,7 @@ const hardwareProfile: StompboxHardwareProfile = {
       variantId: "box-1590b",
       label: "1590B enclosure",
       dimensionsMm: { widthMm: 60.5, lengthMm: 111.5, depthMm: 31 },
-      topFace: { usableRectMm: { x: -25.25, y: -50.75, width: 50.5, height: 101.5 } },
+      topFace: { usableRectMm: { x: -29.25, y: -54.75, width: 58.5, height: 109.5 } },
       assets: {
         glbRelativePath: "enclosures/1590b.glb",
         stepRelativePath: "enclosures/1590b.step",
@@ -270,15 +271,12 @@ from `three/addons/lines` in the application layer.
 Pass `appearance` to preview, GLB, SVG-view, or drill-template helpers to style
 the generated artifacts without changing `.vdsp` placement data. `state` remains
 for live values such as knob position, LED on/off, and footswitch pressed state;
-`appearance` is for colors, label text, and material hints.
-Knob pointer colors default to automatic contrast: light knob colors get a dark
-pointer, and dark knob colors get a light pointer. Set `indicatorColor` on a
-knob appearance when the pointer color needs to be explicit.
+`appearance` is for enclosure, LED, label, template, and non-knob material
+hints. Knob bodies keep the material colors from their imported CAD/GLB assets.
 
 ```ts
 import {
   createStompboxAppearancePatch,
-  DEMO_STOMPBOX_HARDWARE_PROFILE,
   createStompboxPreviewFromVdsp,
   createStompboxPreviewSvgViewsFromVdsp,
 } from "@vessel-dsp/stompbox";
@@ -287,19 +285,17 @@ const appearance = {
   enclosure: { color: "#f97316", strokeColor: "#7c2d12", roughnessFactor: 0.45 },
   template: {
     guideColor: "#0ea5e9",
-    foldColor: "#f97316",
+    foldColor: "#334155",
     holeStrokeColor: "#7c3aed",
     holeFillColor: "#faf5ff",
     centerDotColor: "#581c87",
   },
   defaults: {
-    knob: { color: "#111827" },
     led: { color: "#ef4444", offColor: "#fee2e2" },
     label: { color: "#111827" },
   },
   controls: {
     GAIN: {
-      knob: { color: "#facc15" },
       label: { text: "DRIVE", color: "#ffffff" },
     },
     LED1: {
@@ -310,11 +306,11 @@ const appearance = {
 } as const;
 
 const preview = createStompboxPreviewFromVdsp(vdspSource, {
-  hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+  hardwareProfile,
   appearance,
 });
 const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, {
-  hardwareProfile: DEMO_STOMPBOX_HARDWARE_PROFILE,
+  hardwareProfile,
   appearance,
 });
 const patch = createStompboxAppearancePatch(preview);
@@ -325,4 +321,4 @@ Preview SVG output includes stable hooks such as `data-control-id`,
 `.top-panel`, `.hole`, `.drill-hole-center-dot`, `.fold-line`, and
 `.guide-line`. Preview GLB output bakes available material colors into copied
 GLB materials and writes the same frontend-friendly patch into
-`asset.extras.appearance`.
+`asset.extras.appearance`. Knob GLB materials are left as imported.

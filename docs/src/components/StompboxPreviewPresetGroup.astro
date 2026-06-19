@@ -1,0 +1,88 @@
+---
+type StompboxPreviewPreset = {
+	id?: string;
+	label: string;
+	src: string;
+	view?: "orbit" | "top";
+	interactive?: boolean;
+	linework?: boolean;
+	lineworkColor?: string;
+	drillTemplateSrc?: string;
+	drillLayoutSrc?: string;
+};
+
+type Props = {
+	presets: readonly StompboxPreviewPreset[];
+	label?: string;
+};
+
+const props = Astro.props;
+const normalizedPresets = props.presets.map((preset, index) => ({
+	id: preset.id ?? `preset-${index + 1}`,
+	label: preset.label,
+	src: preset.src,
+	...(preset.view === undefined ? {} : { view: preset.view }),
+	...(preset.interactive === undefined ? {} : { interactive: preset.interactive }),
+	...(preset.linework === undefined ? {} : { linework: preset.linework }),
+	...(preset.lineworkColor === undefined ? {} : { lineworkColor: preset.lineworkColor }),
+	...(preset.drillTemplateSrc === undefined ? {} : { drillTemplateSrc: preset.drillTemplateSrc }),
+	...(preset.drillLayoutSrc === undefined ? {} : { drillLayoutSrc: preset.drillLayoutSrc }),
+}));
+const presetsJson = JSON.stringify(normalizedPresets);
+const label = props.label ?? "Preview preset";
+---
+
+<section
+	class="stompbox-preview-preset-group"
+	data-stompbox-preview-preset-group
+	data-stompbox-presets={presetsJson}
+>
+	<div class="stompbox-preview-preset-group__toolbar">
+		<label class="stompbox-preview-preset-group__control">
+			<span>{label}:</span>
+			<select data-stompbox-preset-select aria-label={label}>
+				{normalizedPresets.map((preset) => (
+					<option value={preset.id}>{preset.label}</option>
+				))}
+			</select>
+		</label>
+	</div>
+	<slot />
+</section>
+
+<style>
+	.stompbox-preview-preset-group {
+		margin: 1.25rem 0 1.75rem;
+	}
+
+	.stompbox-preview-preset-group__toolbar {
+		display: flex;
+		margin: 0.25rem 0 1rem;
+	}
+
+	.stompbox-preview-preset-group__control {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		max-width: 100%;
+		padding: 0.45rem 0.55rem;
+		line-height: 1.2;
+	}
+
+	.stompbox-preview-preset-group__control span {
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.stompbox-preview-preset-group__control select {
+		min-width: min(16rem, 58vw);
+		max-width: 100%;
+		border: 1px solid #cbd5e1;
+		border-radius: 4px;
+		background: #ffffff;
+		color: #0f172a;
+		font: inherit;
+		line-height: 1.2;
+		padding: 0.25rem 1.8rem 0.25rem 0.45rem;
+	}
+</style>

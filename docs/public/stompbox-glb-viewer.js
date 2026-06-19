@@ -18,27 +18,31 @@ for (const viewer of document.querySelectorAll("[data-stompbox-glb-viewer]")) {
 	initStompboxViewer(viewer);
 }
 
+for (const group of document.querySelectorAll("[data-stompbox-preview-preset-group]")) {
+	if (group.dataset.presetLinkedAssetsReady === "true") {
+		continue;
+	}
+	group.dataset.presetLinkedAssetsReady = "true";
+	initPresetLinkedAssets(group);
+}
+
 function initStompboxViewer(viewer) {
 	const canvas = viewer.querySelector("canvas");
 	const status = viewer.querySelector("[data-stompbox-glb-status]");
 	const src = viewer.dataset.glbSrc;
-	const viewMode = viewer.dataset.viewMode === "top" ? "top" : "orbit";
-	const interactive = viewer.dataset.interactive !== "false";
-	const lineworkEnabled = viewer.dataset.linework === "true";
-	const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";
 	if (!(canvas instanceof HTMLCanvasElement) || src === undefined) {
 		return;
 	}
+	const presets = parsePresetOptions(viewer, src);
+	const select = presetSelectForViewer(viewer);
 
 	const scene = new THREE.Scene();
 	scene.background = new THREE.Color(0xf8fafc);
 
-	const camera = viewMode === "top"
-		? new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10000)
-		: new THREE.PerspectiveCamera(35, 1, 0.1, 10000);
-	if (camera.isPerspectiveCamera) {
-		camera.position.set(75, 65, 145);
-	}
+	const orbitCamera = new THREE.PerspectiveCamera(35, 1, 0.1, 10000);
+	const topCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10000);
+	let camera = orbitCamera;
+	orbitCamera.position.set(75, 65, 145);
 
 	const renderer = new THREE.WebGLRenderer({
 		canvas,
@@ -61,63 +65,21 @@ function initStompboxViewer(viewer) {
 	fillLight.position.set(-100, 70, -80);
 	scene.add(fillLight);
 
-	const controls = interactive ? new OrbitControls(camera, renderer.domElement) : undefined;
-	if (controls !== undefined) {
-		controls.enableDamping = true;
-		controls.dampingFactor = 0.06;
-		controls.enablePan = false;
-		controls.enableRotate = viewMode !== "top";
-		controls.autoRotate = viewMode !== "top" && !reducedMotionQuery.matches;
-		controls.autoRotateSpeed = 0.6;
-	}
-
 	const modelRoot = new THREE.Group();
 	scene.add(modelRoot);
+	let controls;
+	let viewMode = "orbit";
 	let orthographicTopSize;
+	let loadToken = 0;
 
 	const loader = new GLTFLoader();
-	loader.load(
-		src,
-		(gltf) => {
-			const model = gltf.scene;
-			model.traverse((child) => {
-				if (!child.isMesh) {
-					return;
-				}
-				child.castShadow = false;
-				child.receiveShadow = true;
-				applyDecalMaterial(child);
-				applyFlatAppearanceColorMaterial(child);
-				const materials = Array.isArray(child.material) ? child.material : [child.material];
-				for (const material of materials) {
-					if ("metalness" in material) {
-						material.metalness = Math.min(material.metalness, 0.55);
-					}
-					if ("roughness" in material) {
-						material.roughness = Math.max(material.roughness, 0.35);
-					}
-				}
-			});
-			if (lineworkEnabled) {
-				addCadLinework(model, lineworkColor);
-			}
-			modelRoot.add(model);
-			const aspect = Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
-			orthographicTopSize = frameModel(model, camera, controls, viewMode, aspect);
-			resize();
-			if (status !== null) {
-				status.hidden = true;
-			}
-			viewer.dataset.viewerLoaded = "true";
-		},
-		undefined,
-		(error) => {
-			if (status !== null) {
-				status.textContent = "3D preview failed to load.";
-			}
-			console.error("Failed to load stompbox GLB preview", error);
-		},
-	);
+	if (select instanceof HTMLSelectElement) {
+		select.addEventListener("change", () => {
+			const nextPreset = presets.find((preset) => preset.id === select.value) ?? presets[0];
+			loadPreset(nextPreset);
+		});
+	}
+	loadPreset(presets.find((preset) => preset.id === select?.value) ?? presets[0]);
 
 	function resize() {
 		const width = Math.max(1, viewer.clientWidth);
@@ -145,6 +107,217 @@ function initStompboxViewer(viewer) {
 		renderer.render(scene, camera);
 	}
 	animate();
+
+	function loadPreset(preset) {
+		if (preset === undefined) {
+			return;
+		}
+		const token = loadToken + 1;
+		loadToken = token;
+		viewMode = preset.view === "top" ? "top" : "orbit";
+		camera = viewMode === "top" ? topCamera : orbitCamera;
+		orthographicTopSize = undefined;
+		modelRoot.clear();
+		viewer.dataset.glbSrc = preset.src;
+		viewer.dataset.viewMode = viewMode;
+		viewer.dataset.interactive = preset.interactive ? "true" : "false";
+		viewer.dataset.linework = preset.linework ? "true" : "false";
+		viewer.dataset.lineworkColor = preset.lineworkColor;
+		viewer.dataset.viewerLoaded = "false";
+		configureControls(preset);
+		if (status !== null) {
+			status.hidden = false;
+			status.textContent = `Loading ${preset.label}`;
+		}
+		resize();
+		loader.load(
+			preset.src,
+			(gltf) => {
+				if (token !== loadToken) {
+					return;
+				}
+				const model = gltf.scene;
+				model.traverse((child) => {
+					if (!child.isMesh) {
+						return;
+					}
+					child.castShadow = false;
+					child.receiveShadow = true;
+					applyDecalMaterial(child);
+					applyFlatAppearanceColorMaterial(child);
+					const materials = Array.isArray(child.material) ? child.material : [child.material];
+					for (const material of materials) {
+						if ("metalness" in material) {
+							material.metalness = Math.min(material.metalness, 0.55);
+						}
+						if ("roughness" in material) {
+							material.roughness = Math.max(material.roughness, 0.35);
+						}
+					}
+				});
+				if (preset.linework) {
+					addCadLinework(model, preset.lineworkColor);
+				}
+				modelRoot.add(model);
+				const aspect = Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
+				orthographicTopSize = frameModel(model, camera, controls, viewMode, aspect);
+				resize();
+				if (status !== null) {
+					status.hidden = true;
+				}
+				viewer.dataset.viewerLoaded = "true";
+			},
+			undefined,
+			(error) => {
+				if (token !== loadToken) {
+					return;
+				}
+				if (status !== null) {
+					status.textContent = "3D preview failed to load.";
+				}
+				console.error("Failed to load stompbox GLB preview", error);
+			},
+		);
+	}
+
+	function configureControls(preset) {
+		if (controls !== undefined) {
+			controls.dispose();
+			controls = undefined;
+		}
+		if (!preset.interactive) {
+			return;
+		}
+		controls = new OrbitControls(camera, renderer.domElement);
+		controls.enableDamping = true;
+		controls.dampingFactor = 0.06;
+		controls.enablePan = false;
+		controls.enableRotate = viewMode !== "top";
+		controls.autoRotate = viewMode !== "top" && !reducedMotionQuery.matches;
+		controls.autoRotateSpeed = 0.6;
+	}
+}
+
+function initPresetLinkedAssets(group) {
+	const select = group.querySelector("[data-stompbox-preset-select]");
+	const presets = parseGroupPresetOptions(group);
+	if (!(select instanceof HTMLSelectElement) || presets.length === 0) {
+		return;
+	}
+
+	const update = () => {
+		const preset = presets.find((candidate) => candidate.id === select.value) ?? presets[0];
+		updatePresetLinkedAssets(group, preset);
+	};
+	select.addEventListener("change", update);
+	update();
+}
+
+function updatePresetLinkedAssets(group, preset) {
+	if (preset === undefined) {
+		return;
+	}
+	for (const image of group.querySelectorAll("[data-stompbox-drill-template-preview]")) {
+		if (!(image instanceof HTMLImageElement) || typeof preset.drillTemplateSrc !== "string") {
+			continue;
+		}
+		image.src = preset.drillTemplateSrc;
+		image.alt = `${preset.label} drill layout preview`;
+	}
+	for (const link of group.querySelectorAll("[data-stompbox-drill-layout-download]")) {
+		if (!(link instanceof HTMLAnchorElement) || typeof preset.drillLayoutSrc !== "string") {
+			continue;
+		}
+		link.href = preset.drillLayoutSrc;
+	}
+}
+
+function parseGroupPresetOptions(group) {
+	const presetsJson = group.dataset.stompboxPresets;
+	if (presetsJson === undefined) {
+		return [];
+	}
+	const fallback = {
+		id: "default",
+		label: "Stompbox preset",
+		src: "",
+		view: "orbit",
+		interactive: true,
+		linework: false,
+		lineworkColor: "#111827",
+	};
+	try {
+		const parsed = JSON.parse(presetsJson);
+		if (!Array.isArray(parsed)) {
+			return [];
+		}
+		return parsed.flatMap((preset, index) => normalizePresetOption(preset, index, fallback));
+	} catch (error) {
+		console.error("Failed to parse stompbox preview presets", error);
+		return [];
+	}
+}
+
+function parsePresetOptions(viewer, src) {
+	const group = viewer.closest("[data-stompbox-preview-preset-group]");
+	const viewMode = viewer.dataset.viewMode === "top" ? "top" : "orbit";
+	const interactive = viewer.dataset.interactive !== "false";
+	const lineworkEnabled = viewer.dataset.linework === "true";
+	const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";
+	const presetsJson = viewer.dataset.stompboxPresets ?? group?.dataset.stompboxPresets;
+	const fallback = {
+		id: "default",
+		label: viewer.querySelector("canvas")?.getAttribute("aria-label") ?? "Stompbox preview",
+		src,
+		view: viewMode,
+		interactive,
+		linework: lineworkEnabled,
+		lineworkColor,
+	};
+	if (presetsJson === undefined) {
+		return [fallback];
+	}
+	try {
+		const parsed = JSON.parse(presetsJson);
+		if (!Array.isArray(parsed)) {
+			return [fallback];
+		}
+		const presets = parsed.flatMap((preset, index) => normalizePresetOption(preset, index, fallback));
+		return presets.length === 0 ? [fallback] : presets;
+	} catch (error) {
+		console.error("Failed to parse stompbox preview presets", error);
+		return [fallback];
+	}
+}
+
+function normalizePresetOption(preset, index, fallback) {
+	if (preset === null || typeof preset !== "object") {
+		return [];
+	}
+	const src = typeof preset.src === "string" && preset.src.length > 0 ? preset.src : fallback.src;
+	const view = preset.view === "top" || preset.view === "orbit" ? preset.view : fallback.view;
+	const lineworkColor = typeof preset.lineworkColor === "string" ? preset.lineworkColor : fallback.lineworkColor;
+	return [{
+		id: typeof preset.id === "string" && preset.id.length > 0 ? preset.id : `preset-${index + 1}`,
+		label: typeof preset.label === "string" && preset.label.length > 0 ? preset.label : `Preset ${index + 1}`,
+		src,
+		view,
+		interactive: typeof preset.interactive === "boolean" ? preset.interactive : view !== "top",
+		linework: typeof preset.linework === "boolean" ? preset.linework : fallback.linework,
+		lineworkColor,
+		drillTemplateSrc: typeof preset.drillTemplateSrc === "string" ? preset.drillTemplateSrc : undefined,
+		drillLayoutSrc: typeof preset.drillLayoutSrc === "string" ? preset.drillLayoutSrc : undefined,
+	}];
+}
+
+function presetSelectForViewer(viewer) {
+	const localSelect = viewer.querySelector("[data-stompbox-preset-select]");
+	if (localSelect instanceof HTMLSelectElement) {
+		return localSelect;
+	}
+	const group = viewer.closest("[data-stompbox-preview-preset-group]");
+	const groupSelect = group?.querySelector("[data-stompbox-preset-select]");
+	return groupSelect instanceof HTMLSelectElement ? groupSelect : undefined;
 }
 
 function frameModel(model, camera, controls, viewMode, aspect) {

@@ -12,6 +12,10 @@ function readRepoBytes(path: string): Buffer {
 	return readFileSync(join(ROOT_DIR, path));
 }
 
+function readRepoJson<T>(path: string): T {
+	return JSON.parse(readRepoFile(path)) as T;
+}
+
 describe("GitHub Pages documentation site", () => {
 	test("builds Pages with Astro Starlight and generated API reference docs", () => {
 		const packageJson = JSON.parse(readRepoFile("package.json")) as {
@@ -85,7 +89,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("auto-generated");
 		expect(stompboxPage).toContain("includePowerJack: false");
 		expect(stompboxPage).toContain("hardwareProfile");
-		expect(stompboxPage).toContain("DEMO_STOMPBOX_HARDWARE_PROFILE");
+		expect(stompboxPage).toContain("stompbox-demo-profiles.json");
+		expect(stompboxPage).not.toContain("DEMO_STOMPBOX_HARDWARE_PROFILE");
 		expect(stompboxPage).toContain("minPartClearanceMm");
 		expect(stompboxPage).toContain("placement-clearance");
 		expect(stompboxPage).toContain("createStompboxPreviewGlb");
@@ -97,25 +102,113 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain('placement: { kind: "grid"');
 		expect(stompboxPage).toContain('kind: "image"');
 		expect(stompboxPage).toContain('face: "back"');
-		expect(stompboxPage).toContain('subgrid: 2');
+		expect(stompboxPage).toContain("at least 12 mm");
+		expect(stompboxPage).toContain("40 mm wide face can address");
 		expect(stompboxPage).toContain('fontFamily: \'"Roboto", sans-serif\'');
 		expect(stompboxPage).toContain("Google Font");
-		expect(stompboxPage).toContain("Knob pointer colors default to automatic contrast");
-		expect(stompboxPage).toContain("indicatorColor");
+		expect(stompboxPage).toContain("Knob bodies keep the");
+		expect(stompboxPage).toContain("material colors from their imported CAD/GLB assets");
+		expect(stompboxPage).not.toContain('knob: { color:');
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview.glb");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-template-preview.svg");
 		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-layout.json");
 		expect(stompboxPage).toContain('import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";');
+		expect(stompboxPage).toContain('import StompboxPreviewPresetGroup from "../../../components/StompboxPreviewPresetGroup.astro";');
+		expect(stompboxPage).toContain("<StompboxPreviewPresetGroup");
 		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top"');
 		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb"');
+		expect(stompboxPage).toContain("data-stompbox-drill-template-preview");
+		expect(stompboxPage).toContain("data-stompbox-drill-layout-download");
+		expect(stompboxPage).toContain("presets={demoProfiles.previewPresets}");
 		expect(stompboxPage).toContain('linework={true}');
 		expect(stompboxPage).toContain('lineworkColor="#0f172a"');
 		expect(stompboxPage).toContain("orthographic top camera");
 		expect(stompboxPage).toContain("CAD-style linework");
 		expect(stompboxPage).toContain("EdgesGeometry");
 
+		const demoProfiles = readRepoJson<{
+			defaultStyleProfileId?: string;
+			artifactCadPartsRoot?: string;
+			partProfiles?: Record<string, {
+				label?: string;
+				geometry?: { kind?: string; diameterMm?: number; outerDiameterMm?: number };
+				assets?: { glbRelativePath?: string; stepRelativePath?: string };
+			}>;
+			enclosureProfiles?: Record<string, {
+				topFace?: { usableRectMm?: { x?: number; y?: number; width?: number; height?: number } };
+			}>;
+			styleProfiles?: readonly {
+				id?: string;
+				defaultPartIds?: { largeKnob?: string; knob?: string; smallKnob?: string };
+				layout?: { knobGrid?: string; sideHardware?: string };
+			}[];
+			previewPresets?: readonly {
+				id?: string;
+				label?: string;
+				src?: string;
+				drillTemplateSrc?: string;
+				drillLayoutSrc?: string;
+			}[];
+		}>("docs/src/data/stompbox-demo-profiles.json");
+		expect(demoProfiles.defaultStyleProfileId).toBe("mxr-style");
+		expect(demoProfiles.artifactCadPartsRoot).toBe("packages/stompbox/assets/cad/parts");
+		expect(demoProfiles.enclosureProfiles?.["box-1590b"]?.topFace?.usableRectMm).toEqual({
+			x: -29.25,
+			y: -54.75,
+			width: 58.5,
+			height: 109.5,
+		});
+		expect(demoProfiles.enclosureProfiles?.["box-1590a"]?.topFace?.usableRectMm).toEqual({
+			x: -18.5,
+			y: -45.25,
+			width: 37,
+			height: 90.5,
+		});
+		expect(demoProfiles.styleProfiles?.map((profile) => profile.id)).toEqual(["mxr-style", "boss-style"]);
+		expect(demoProfiles.styleProfiles?.find((profile) => profile.id === "boss-style")?.defaultPartIds).toEqual({
+			largeKnob: "knob-davies-1105",
+			knob: "knob-davies-1100",
+			smallKnob: "knob-davies-1900h",
+		});
+		expect(demoProfiles.styleProfiles?.find((profile) => profile.id === "mxr-style")?.defaultPartIds).toEqual({
+			largeKnob: "knob-mxr-style-fluted-large",
+			knob: "knob-mxr-style-fluted-medium",
+			smallKnob: "knob-mxr-style-fluted-small",
+		});
+		expect(demoProfiles.partProfiles?.["knob-davies-1100"]?.geometry?.diameterMm).toBeCloseTo(19.81, 2);
+		expect(demoProfiles.partProfiles?.["knob-davies-1105"]?.geometry?.diameterMm).toBeCloseTo(26.92, 2);
+		expect(demoProfiles.partProfiles?.["knob-davies-1900h"]?.geometry?.diameterMm).toBeCloseTo(12.8, 2);
+		expect(demoProfiles.partProfiles?.["knob-mxr-style-fluted-small"]?.geometry?.diameterMm).toBeCloseTo(20.2, 2);
+		expect(demoProfiles.partProfiles?.["knob-mxr-style-fluted-medium"]?.geometry?.diameterMm).toBeCloseTo(24.4, 2);
+		expect(demoProfiles.partProfiles?.["knob-mxr-style-fluted-large"]?.geometry?.diameterMm).toBeCloseTo(29.9, 2);
+		expect(demoProfiles.partProfiles?.["led-bezel-lh5"]?.assets?.glbRelativePath).toBe(
+			"led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
+		);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.id)).toEqual([
+			"mxr-style",
+			"boss-style",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.src)).toEqual([
+			"/core/examples/stompbox-mxr-style-preview.glb",
+			"/core/examples/stompbox-boss-style-preview.glb",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.drillTemplateSrc)).toEqual([
+			"/core/examples/stompbox-mxr-style-drill-template-preview.svg",
+			"/core/examples/stompbox-boss-style-drill-template-preview.svg",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.drillLayoutSrc)).toEqual([
+			"/core/examples/stompbox-mxr-style-drill-layout.json",
+			"/core/examples/stompbox-boss-style-drill-layout.json",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.label)).toEqual([
+			"MXR style, two knobs",
+			"Boss style, three knobs",
+		]);
+
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
 		expect(viewer).toContain("data-stompbox-glb-viewer");
+		expect(viewer).not.toContain("data-stompbox-preset-select");
+		expect(viewer).not.toContain("stompbox-glb-viewer__toolbar");
 		expect(viewer).toContain("data-view-mode");
 		expect(viewer).toContain("data-interactive");
 		expect(viewer).toContain("linework?: boolean;");
@@ -124,6 +217,13 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewer).toContain("data-linework-color");
 		expect(viewer).toContain('"three": "/core/vendor/three/build/three.module.js"');
 		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
+
+		const presetGroup = readRepoFile("docs/src/components/StompboxPreviewPresetGroup.astro");
+		expect(presetGroup).toContain("type StompboxPreviewPreset");
+		expect(presetGroup).toContain("data-stompbox-preview-preset-group");
+		expect(presetGroup).toContain("data-stompbox-preset-select");
+		expect(presetGroup).toContain("data-stompbox-presets");
+		expect(presetGroup).toContain("<slot />");
 
 		const viewerRuntime = readRepoFile("docs/public/stompbox-glb-viewer.js");
 		expect(viewerRuntime).toContain('import * as THREE from "three";');
@@ -148,9 +248,19 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("renderColorMode");
 		expect(viewerRuntime).toContain("THREE.MeshBasicMaterial");
 		expect(viewerRuntime).toContain("addCadLinework");
+		expect(viewerRuntime).toContain("initPresetLinkedAssets");
+		expect(viewerRuntime).toContain("updatePresetLinkedAssets");
+		expect(viewerRuntime).toContain("parsePresetOptions");
+		expect(viewerRuntime).toContain("presetSelectForViewer");
+		expect(viewerRuntime).toContain("loadPreset");
+		expect(viewerRuntime).toContain('select.addEventListener("change"');
+		expect(viewerRuntime).toContain("viewer.closest(\"[data-stompbox-preview-preset-group]\")");
+		expect(viewerRuntime).toContain("group?.dataset.stompboxPresets");
+		expect(viewerRuntime).toContain("data-stompbox-drill-template-preview");
+		expect(viewerRuntime).toContain("data-stompbox-drill-layout-download");
 		expect(viewerRuntime).toContain('const lineworkEnabled = viewer.dataset.linework === "true";');
 		expect(viewerRuntime).toContain('const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";');
-		expect(viewerRuntime).toContain("if (lineworkEnabled)");
+		expect(viewerRuntime).toContain("if (preset.linework)");
 		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
 		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
 		expect(viewerRuntime).toContain("THREE.LineSegments");
@@ -166,6 +276,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(topPreview).toContain("<svg");
 		expect(topPreview).toContain("Stompbox preview top view");
 		expect(topPreview).toContain("data-control-id");
+		expect(topPreview).toContain('transform="translate(54.2 55.75) rotate(90)"');
+		expect(topPreview).toContain('transform="translate(6.3 55.75) rotate(-90)"');
+		expect(topPreview).not.toContain("label-led");
+		expect(topPreview).not.toContain("READY");
 		expect(topPreview).not.toContain('data-top-edge-projection');
 
 		const drillPreview = readRepoFile("docs/public/examples/stompbox-mxr-style-drill-template-preview.svg");
@@ -173,6 +287,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(drillPreview).toContain("Stompbox drill template preview");
 		expect(drillPreview).toContain("drill-hole-center-dot");
 		expect(drillPreview).toContain(".hole{fill:none;");
+		expect(drillPreview).not.toContain("READY");
+		expect(drillPreview).not.toContain("#f97316");
+		expect(drillPreview).not.toContain("#7c2d12");
 		expect(drillPreview).not.toContain('fill="#faf5ff"');
 
 		const layout = JSON.parse(readRepoFile("docs/public/examples/stompbox-mxr-style-drill-layout.json")) as {
@@ -180,12 +297,34 @@ describe("GitHub Pages documentation site", () => {
 			holes?: readonly { partId?: string }[];
 		};
 		expect(layout.schema).toBe("stompbox-drill-layout/v1");
-		expect(layout.holes?.filter((hole) => hole.partId === "knob-mxr-style-fluted-large")).toHaveLength(2);
+		expect(layout.holes?.filter((hole) => hole.partId === "knob-mxr-style-fluted-small")).toHaveLength(2);
+
+		const bossDrillPreview = readRepoFile("docs/public/examples/stompbox-boss-style-drill-template-preview.svg");
+		expect(bossDrillPreview).toContain("<svg");
+		expect(bossDrillPreview).toContain("Stompbox drill template preview");
+		const bossLayout = JSON.parse(readRepoFile("docs/public/examples/stompbox-boss-style-drill-layout.json")) as {
+			schema?: string;
+			holes?: readonly { partId?: string }[];
+		};
+		expect(bossLayout.schema).toBe("stompbox-drill-layout/v1");
+		expect(bossLayout.holes?.filter((hole) => hole.partId === "knob-davies-1100")).toHaveLength(2);
+
+		expect(existsSync(join(ROOT_DIR, "docs/public/examples/stompbox-compact-1590a-drill-template-preview.svg"))).toBe(false);
+		expect(existsSync(join(ROOT_DIR, "docs/public/examples/stompbox-compact-1590a-drill-layout.json"))).toBe(false);
 
 		const glb = readRepoBytes("docs/public/examples/stompbox-mxr-style-preview.glb");
 		expect(glb.subarray(0, 4).toString("utf8")).toBe("glTF");
-		expect(glb.includes(Buffer.from("knob-indicator-knob-GAIN"))).toBe(true);
-		expect(glb.includes(Buffer.from("knob-indicator-knob-LEVEL"))).toBe(true);
+		expect(glb.includes(Buffer.from("knob-indicator-knob-GAIN"))).toBe(false);
+		expect(glb.includes(Buffer.from("knob-indicator-knob-LEVEL"))).toBe(false);
+		expect(glb.includes(Buffer.from("label-led"))).toBe(false);
+
+		const bossGlb = readRepoBytes("docs/public/examples/stompbox-boss-style-preview.glb");
+		expect(bossGlb.subarray(0, 4).toString("utf8")).toBe("glTF");
+		expect(bossGlb.includes(Buffer.from("#fae464"))).toBe(true);
+		expect(bossGlb.includes(Buffer.from("part-knob-RATE"))).toBe(true);
+		expect(bossGlb.includes(Buffer.from("label-led"))).toBe(false);
+
+		expect(existsSync(join(ROOT_DIR, "docs/public/examples/stompbox-compact-1590a-preview.glb"))).toBe(false);
 	});
 
 	test("includes a Pro Co Rat schematic example backed by the LiveSPICE fixture", () => {
