@@ -349,7 +349,9 @@ at `0.2` opacity. Pass `toon={true}` to replace imported CAD mesh materials
 with Three.js `MeshToonMaterial`, and pass `toonEdgeColor="#69145a"` for the
 toon edge pass and thicker outline. Pass `linework={true}` and `lineworkColor`
 to enable CAD-style border linework with Three.js `EdgesGeometry` after the GLB
-loads:
+loads. Pass `grain={true}` to add material-scoped screen-space grain to the
+pedal model without texturing the viewer background; `grainScale` controls the
+texture size and `grainIntensity` controls the opacity:
 
 ```ts
 function addCadLinework(root: THREE.Object3D, lineworkColor = "#111827") {
@@ -413,7 +415,7 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 >
 	<h3>Orthographic GLB top preview</h3>
 
-	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" backgroundColor="#000000" gridColor="#cccccc" gridOpacity={0.2} toon={true} toonEdgeColor="#69145a" linework={true} lineworkColor="#ffffff" />
+	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" backgroundColor="#000000" gridColor="#cccccc" gridOpacity={0.1} toon={true} toonEdgeColor="#69145a" linework={true} lineworkColor="#ffffff" grain={true} grainScale={1} grainIntensity={0.05} />
 
 	<div>
 		This uses the generated GLB with an orthographic top camera, so side-mounted
@@ -427,11 +429,14 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 		src="/core/examples/stompbox-mxr-style-preview.glb"
 		backgroundColor="#000000"
 		gridColor="#cccccc"
-		gridOpacity={0.2}
+		gridOpacity={0.1}
 		toon={true}
 		toonEdgeColor="#69145a"
 		linework={true}
 		lineworkColor="#eb7223"
+		grain={true}
+		grainScale={1}
+		grainIntensity={0.1}
 		liveStateDemo={true}
 	/>
 
@@ -531,6 +536,7 @@ const views = createStompboxPreviewSvgViewsFromVdsp(vdspSource, {
 	styleProfile,
 	appearance,
 	state,
+	grain: true,
 });
 const glb = createStompboxPreviewGlbFromVdsp(vdspSource, {
 	hardwareProfile,

@@ -129,6 +129,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("gridColor");
 		expect(stompboxPage).toContain("gridOpacity");
 		expect(stompboxPage).toContain("toon edge pass and thicker outline");
+		expect(stompboxPage).toContain("grain={true}");
+		expect(stompboxPage).toContain("screen-space grain");
 
 		const demoProfiles = readRepoJson<{
 			defaultStyleProfileId?: string;
@@ -157,6 +159,9 @@ describe("GitHub Pages documentation site", () => {
 				gridOpacity?: number;
 				toon?: boolean;
 				toonEdgeColor?: string;
+				grain?: boolean;
+				grainScale?: number;
+				grainIntensity?: number;
 			}[];
 		}>("docs/src/data/stompbox-demo-profiles.json");
 		expect(demoProfiles.defaultStyleProfileId).toBe("mxr-style");
@@ -222,8 +227,8 @@ describe("GitHub Pages documentation site", () => {
 			"#cccccc",
 		]);
 		expect(demoProfiles.previewPresets?.map((preset) => preset.gridOpacity)).toEqual([
-			0.2,
-			0.2,
+			0.1,
+			0.1,
 		]);
 		expect(demoProfiles.previewPresets?.map((preset) => preset.toon)).toEqual([
 			true,
@@ -232,6 +237,18 @@ describe("GitHub Pages documentation site", () => {
 		expect(demoProfiles.previewPresets?.map((preset) => preset.toonEdgeColor)).toEqual([
 			"#69145a",
 			"#69145a",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.grain)).toEqual([
+			true,
+			true,
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.grainScale)).toEqual([
+			1,
+			1,
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.grainIntensity)).toEqual([
+			0.05,
+			0.05,
 		]);
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
@@ -249,6 +266,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewer).toContain("gridOpacity?: number;");
 		expect(viewer).toContain("toon?: boolean;");
 		expect(viewer).toContain("toonEdgeColor?: string;");
+		expect(viewer).toContain("grain?: boolean;");
+		expect(viewer).toContain("grainScale?: number;");
+		expect(viewer).toContain("grainIntensity?: number;");
+		expect(viewer).toContain("props.grainIntensity ?? 0.05");
 		expect(viewer).toContain("data-linework");
 		expect(viewer).toContain("data-linework-color");
 		expect(viewer).toContain("data-background-color");
@@ -256,6 +277,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewer).toContain("data-grid-opacity");
 		expect(viewer).toContain("data-toon");
 		expect(viewer).toContain("data-toon-edge-color");
+		expect(viewer).toContain("data-grain");
+		expect(viewer).toContain("data-grain-scale");
+		expect(viewer).toContain("data-grain-intensity");
 		expect(viewer).toContain("--stompbox-viewer-background-color");
 		expect(viewer).toContain("--stompbox-viewer-grid-color");
 		expect(viewer).toContain("--stompbox-viewer-grid-opacity");
@@ -274,6 +298,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(presetGroup).toContain("gridOpacity?: number;");
 		expect(presetGroup).toContain("toon?: boolean;");
 		expect(presetGroup).toContain("toonEdgeColor?: string;");
+		expect(presetGroup).toContain("grain?: boolean;");
+		expect(presetGroup).toContain("grainScale?: number;");
+		expect(presetGroup).toContain("grainIntensity?: number;");
 		expect(presetGroup).toContain("<slot />");
 
 		const viewerRuntime = readRepoFile("docs/public/stompbox-glb-viewer.js");
@@ -302,6 +329,20 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("DEFAULT_GRID_COLOR");
 		expect(viewerRuntime).toContain("DEFAULT_GRID_OPACITY");
 		expect(viewerRuntime).toContain('DEFAULT_TOON_EDGE_COLOR = "#69145a"');
+		expect(viewerRuntime).toContain("DEFAULT_GRAIN_SCALE = 1.15");
+		expect(viewerRuntime).toContain("DEFAULT_GRAIN_INTENSITY = 0.05");
+		expect(viewerRuntime).toContain("GRAIN_INTENSITY_SCALE = 0.35");
+		expect(viewerRuntime).toContain("applyScreenGrainMaterials(model, preset)");
+		expect(viewerRuntime).toContain("material.onBeforeCompile");
+		expect(viewerRuntime).toContain("material.userData.screenGrainApplied");
+		expect(viewerRuntime).toContain("gl_FragCoord.xy");
+		expect(viewerRuntime).toContain("grainIntensity");
+		expect(viewerRuntime).toContain("stompboxScreenGrainValue - 0.5");
+		expect(viewerRuntime).not.toContain("max(gl_FragColor.rgb");
+		expect(viewerRuntime).not.toContain("createGrainOverlayScene");
+		expect(viewerRuntime).not.toContain("applyGrainOverlay(renderer, grainOverlay, preset)");
+		expect(viewerRuntime).not.toContain("renderer.autoClear = false");
+		expect(viewerRuntime).not.toContain("new THREE.PlaneGeometry(2, 2)");
 		expect(viewerRuntime).toContain("THREE.MeshToonMaterial");
 		expect(viewerRuntime).toContain("createToonGradientMap");
 		expect(viewerRuntime).toContain("applyToonMaterials(model, preset)");
@@ -362,6 +403,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain('const lineworkEnabled = viewer.dataset.linework === "true";');
 		expect(viewerRuntime).toContain('const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";');
 		expect(viewerRuntime).toContain('const toonEnabled = viewer.dataset.toon === "true";');
+		expect(viewerRuntime).toContain('const grainEnabled = viewer.dataset.grain === "true";');
+		expect(viewerRuntime).toContain("normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE)");
+		expect(viewerRuntime).toContain("normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY)");
 		expect(viewerRuntime).toContain("if (preset.toon)");
 		expect(viewerRuntime).toContain("const edgeColor = preset.toon ? preset.toonEdgeColor : preset.lineworkColor");
 		expect(viewerRuntime).toContain("const TOON_OUTLINE_SCALE = 1.025;");
@@ -369,7 +413,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
 		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
 		expect(viewerRuntime).toContain("THREE.LineSegments");
-		expect(viewerRuntime).toContain("function addToonOutline(root, outlineColor = DEFAULT_TOON_EDGE_COLOR)");
+		expect(viewerRuntime).toContain("function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR)");
 		expect(viewerRuntime).toContain("new THREE.MeshBasicMaterial");
 		expect(viewerRuntime).toContain("side: THREE.BackSide");
 		expect(viewerRuntime).toContain("outline.scale.setScalar(TOON_OUTLINE_SCALE);");

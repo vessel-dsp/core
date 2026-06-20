@@ -311,7 +311,10 @@ for (const preset of presets) {
     writeFileSync(join(DOC_EXAMPLES_DIR, `${preset.outputPrefix}-drill-template-preview.svg`), drillTemplateSvg);
 
     if (preset.writeTopPreviewSvg === true) {
-        const views = createStompboxPreviewSvgViewsFromVdsp(preset.source, previewOptions);
+        const views = createStompboxPreviewSvgViewsFromVdsp(preset.source, {
+            ...previewOptions,
+            grain: true,
+        });
         writeFileSync(join(DOC_EXAMPLES_DIR, `${preset.outputPrefix}-preview-top.svg`), views.views.top);
     }
 }

@@ -12,6 +12,9 @@ type Props = {
 	gridOpacity?: number;
 	toon?: boolean;
 	toonEdgeColor?: string;
+	grain?: boolean;
+	grainScale?: number;
+	grainIntensity?: number;
 	liveStateDemo?: boolean;
 };
 
@@ -26,6 +29,9 @@ const gridColor = props.gridColor ?? "#cccccc";
 const gridOpacity = props.gridOpacity ?? 0.2;
 const toon = props.toon ?? false;
 const toonEdgeColor = props.toonEdgeColor ?? "#69145a";
+const grain = props.grain ?? false;
+const grainScale = props.grainScale ?? 1.15;
+const grainIntensity = props.grainIntensity ?? 0.05;
 const liveStateDemo = props.liveStateDemo ?? false;
 const label = props.label ?? (
 	view === "top"
@@ -48,6 +54,9 @@ const height = props.height ?? "360px";
 	data-grid-opacity={String(gridOpacity)}
 	data-toon={toon ? "true" : "false"}
 	data-toon-edge-color={toonEdgeColor}
+	data-grain={grain ? "true" : "false"}
+	data-grain-scale={String(grainScale)}
+	data-grain-intensity={String(grainIntensity)}
 	data-live-state-demo={liveStateDemo ? "true" : "false"}
 	style={`--stompbox-viewer-height: ${height}; --stompbox-viewer-background-color: ${backgroundColor}; --stompbox-viewer-grid-color: ${gridColor}; --stompbox-viewer-grid-opacity: ${gridOpacity};`}
 >
@@ -89,7 +98,7 @@ const height = props.height ?? "360px";
 			linear-gradient(to right, var(--stompbox-viewer-grid-color, #cccccc) 1px, transparent 1px),
 			linear-gradient(to bottom, var(--stompbox-viewer-grid-color, #cccccc) 1px, transparent 1px);
 		background-size: 24px 24px;
-		opacity: var(--stompbox-viewer-grid-opacity, 0.2);
+		opacity: var(--stompbox-viewer-grid-opacity, 0.1);
 		pointer-events: none;
 	}
 

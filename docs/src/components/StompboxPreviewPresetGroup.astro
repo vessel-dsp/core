@@ -12,6 +12,9 @@ type StompboxPreviewPreset = {
 	gridOpacity?: number;
 	toon?: boolean;
 	toonEdgeColor?: string;
+	grain?: boolean;
+	grainScale?: number;
+	grainIntensity?: number;
 	drillTemplateSrc?: string;
 	drillLayoutSrc?: string;
 };
@@ -35,6 +38,9 @@ const normalizedPresets = props.presets.map((preset, index) => ({
 	...(preset.gridOpacity === undefined ? {} : { gridOpacity: preset.gridOpacity }),
 	...(preset.toon === undefined ? {} : { toon: preset.toon }),
 	...(preset.toonEdgeColor === undefined ? {} : { toonEdgeColor: preset.toonEdgeColor }),
+	...(preset.grain === undefined ? {} : { grain: preset.grain }),
+	...(preset.grainScale === undefined ? {} : { grainScale: preset.grainScale }),
+	...(preset.grainIntensity === undefined ? {} : { grainIntensity: preset.grainIntensity }),
 	...(preset.drillTemplateSrc === undefined ? {} : { drillTemplateSrc: preset.drillTemplateSrc }),
 	...(preset.drillLayoutSrc === undefined ? {} : { drillLayoutSrc: preset.drillLayoutSrc }),
 }));

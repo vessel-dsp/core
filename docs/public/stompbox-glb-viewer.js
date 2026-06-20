@@ -18,8 +18,11 @@ const LED_ON_COLOR = "#22c55e";
 const LED_OFF_COLOR = "#064e3b";
 const DEFAULT_BACKGROUND_COLOR = "#000000";
 const DEFAULT_GRID_COLOR = "#cccccc";
-const DEFAULT_GRID_OPACITY = 0.2;
+const DEFAULT_GRID_OPACITY = 0.1;
 const DEFAULT_TOON_EDGE_COLOR = "#69145a";
+const DEFAULT_GRAIN_SCALE = 1.15;
+const DEFAULT_GRAIN_INTENSITY = 0.1;
+const GRAIN_INTENSITY_SCALE = 0.35;
 const TOON_OUTLINE_SCALE = 1.025;
 const liveStateStores = new WeakMap();
 const parentWorldScaleScratch = new THREE.Vector3();
@@ -41,7 +44,7 @@ for (const group of document.querySelectorAll("[data-stompbox-preview-preset-gro
 	initPresetLinkedAssets(group);
 }
 
-function initStompboxViewer(viewer) {
+function initStompboxViewer (viewer) {
 	const canvas = viewer.querySelector("canvas");
 	const status = viewer.querySelector("[data-stompbox-glb-status]");
 	const src = viewer.dataset.glbSrc;
@@ -95,7 +98,7 @@ function initStompboxViewer(viewer) {
 	}
 	loadPreset(presets.find((preset) => preset.id === select?.value) ?? presets[0]);
 
-	function resize() {
+	function resize () {
 		const width = Math.max(1, viewer.clientWidth);
 		const height = Math.max(1, viewer.clientHeight);
 		if (camera.isPerspectiveCamera) {
@@ -113,7 +116,7 @@ function initStompboxViewer(viewer) {
 	resize();
 
 	let previousFrameMs = performance.now();
-	function animate(frameMs = performance.now()) {
+	function animate (frameMs = performance.now()) {
 		requestAnimationFrame(animate);
 		const deltaMs = Math.min(Math.max(0, frameMs - previousFrameMs), 100);
 		previousFrameMs = frameMs;
@@ -126,7 +129,7 @@ function initStompboxViewer(viewer) {
 	}
 	animate();
 
-	function loadPreset(preset) {
+	function loadPreset (preset) {
 		if (preset === undefined) {
 			return;
 		}
@@ -143,6 +146,9 @@ function initStompboxViewer(viewer) {
 		viewer.dataset.lineworkColor = preset.lineworkColor;
 		viewer.dataset.toon = preset.toon ? "true" : "false";
 		viewer.dataset.toonEdgeColor = preset.toonEdgeColor;
+		viewer.dataset.grain = preset.grain ? "true" : "false";
+		viewer.dataset.grainScale = String(preset.grainScale);
+		viewer.dataset.grainIntensity = String(preset.grainIntensity);
 		applyPresetBackground(viewer, preset);
 		viewer.dataset.viewerLoaded = "false";
 		unregisterLiveStateViewer(viewer);
@@ -187,6 +193,7 @@ function initStompboxViewer(viewer) {
 				if (preset.toon) {
 					addToonOutline(model, preset.toonEdgeColor);
 				}
+				applyScreenGrainMaterials(model, preset);
 				modelRoot.add(model);
 				const aspect = Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
 				orthographicTopSize = frameModel(model, camera, controls, viewMode, aspect);
@@ -210,7 +217,7 @@ function initStompboxViewer(viewer) {
 		);
 	}
 
-	function configureControls(preset) {
+	function configureControls (preset) {
 		if (controls !== undefined) {
 			controls.dispose();
 			controls = undefined;
@@ -228,7 +235,7 @@ function initStompboxViewer(viewer) {
 	}
 }
 
-function initLiveStateDemo(viewer, model) {
+function initLiveStateDemo (viewer, model) {
 	if (!liveStateEnabledForViewer(viewer)) {
 		return;
 	}
@@ -243,7 +250,7 @@ function initLiveStateDemo(viewer, model) {
 	applyLiveStateToRegisteredViewers(store);
 }
 
-function unregisterLiveStateViewer(viewer) {
+function unregisterLiveStateViewer (viewer) {
 	const store = existingLiveStateStoreForViewer(viewer);
 	if (store === undefined) {
 		return;
@@ -257,7 +264,7 @@ function unregisterLiveStateViewer(viewer) {
 	applyLiveStateToRegisteredViewers(store);
 }
 
-function liveStateEnabledForViewer(viewer) {
+function liveStateEnabledForViewer (viewer) {
 	if (viewer.dataset.liveStateDemo === "true") {
 		return true;
 	}
@@ -265,7 +272,7 @@ function liveStateEnabledForViewer(viewer) {
 	return group !== null && group.querySelector('[data-stompbox-glb-viewer][data-live-state-demo="true"]') !== null;
 }
 
-function liveStateStoreForViewer(viewer) {
+function liveStateStoreForViewer (viewer) {
 	const owner = liveStateOwnerForViewer(viewer);
 	const panel = liveStatePanelForViewer(viewer);
 	if (owner === undefined || !(panel instanceof HTMLElement)) {
@@ -286,12 +293,12 @@ function liveStateStoreForViewer(viewer) {
 	return store;
 }
 
-function existingLiveStateStoreForViewer(viewer) {
+function existingLiveStateStoreForViewer (viewer) {
 	const owner = liveStateOwnerForViewer(viewer);
 	return owner === undefined ? undefined : liveStateStores.get(owner);
 }
 
-function liveStateOwnerForViewer(viewer) {
+function liveStateOwnerForViewer (viewer) {
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
 	if (group?.querySelector("[data-stompbox-live-state-controls]") instanceof HTMLElement) {
 		return group;
@@ -302,7 +309,7 @@ function liveStateOwnerForViewer(viewer) {
 	return undefined;
 }
 
-function liveStatePanelForViewer(viewer) {
+function liveStatePanelForViewer (viewer) {
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
 	const groupPanel = group?.querySelector("[data-stompbox-live-state-controls]");
 	if (groupPanel instanceof HTMLElement) {
@@ -312,7 +319,7 @@ function liveStatePanelForViewer(viewer) {
 	return localPanel instanceof HTMLElement ? localPanel : undefined;
 }
 
-function createLiveState() {
+function createLiveState () {
 	return {
 		knobs: new Map(),
 		switches: new Map(),
@@ -321,7 +328,7 @@ function createLiveState() {
 	};
 }
 
-function resetLiveStateStore(store) {
+function resetLiveStateStore (store) {
 	for (const timer of store.releaseTimers.values()) {
 		window.clearTimeout(timer);
 	}
@@ -332,7 +339,7 @@ function resetLiveStateStore(store) {
 	store.panel.hidden = true;
 }
 
-function seedLiveStateFromParts(store, parts) {
+function seedLiveStateFromParts (store, parts) {
 	for (const knob of parts.knobs) {
 		if (!store.state.knobs.has(knob.id)) {
 			store.state.knobs.set(knob.id, knob.position);
@@ -353,7 +360,7 @@ function seedLiveStateFromParts(store, parts) {
 	}
 }
 
-function renderLiveStateControls(store) {
+function renderLiveStateControls (store) {
 	const controls = liveStateControlDefinitions(store);
 	store.panel.replaceChildren();
 	if (controls.knobs.length === 0 && controls.switches.length === 0 && controls.leds.length === 0) {
@@ -372,7 +379,7 @@ function renderLiveStateControls(store) {
 	store.panel.hidden = false;
 }
 
-function liveStateControlDefinitions(store) {
+function liveStateControlDefinitions (store) {
 	const knobs = new Map();
 	const switches = new Map();
 	const leds = new Map();
@@ -400,17 +407,17 @@ function liveStateControlDefinitions(store) {
 	};
 }
 
-function sortedLiveStateDefinitions(definitions) {
+function sortedLiveStateDefinitions (definitions) {
 	return [...definitions.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
-function applyLiveStateToRegisteredViewers(store) {
+function applyLiveStateToRegisteredViewers (store) {
 	for (const parts of store.viewers.values()) {
 		applyLiveStateToParts(parts, store.state);
 	}
 }
 
-function applyLiveStateToParts(parts, state) {
+function applyLiveStateToParts (parts, state) {
 	for (const knob of parts.knobs) {
 		if (!state.knobs.has(knob.id)) {
 			continue;
@@ -431,7 +438,7 @@ function applyLiveStateToParts(parts, state) {
 	}
 }
 
-function discoverLiveStateParts(model) {
+function discoverLiveStateParts (model) {
 	const parts = {
 		knobs: [],
 		switches: [],
@@ -492,7 +499,7 @@ function discoverLiveStateParts(model) {
 	return parts;
 }
 
-function createKnobStateControl(knob, store) {
+function createKnobStateControl (knob, store) {
 	const control = document.createElement("label");
 	control.className = "stompbox-live-state-control";
 
@@ -522,7 +529,7 @@ function createKnobStateControl(knob, store) {
 	return control;
 }
 
-function createFootswitchStateControl(footswitch, store) {
+function createFootswitchStateControl (footswitch, store) {
 	const control = document.createElement("div");
 	control.className = "stompbox-live-state-control";
 	const button = document.createElement("button");
@@ -589,12 +596,12 @@ function createFootswitchStateControl(footswitch, store) {
 	return control;
 }
 
-function simulateFootswitchTap(footswitch, store, button) {
+function simulateFootswitchTap (footswitch, store, button) {
 	startFootswitchPress(footswitch, store, button);
 	releaseFootswitchPress(footswitch, store, button);
 }
 
-function startFootswitchPress(footswitch, store, button) {
+function startFootswitchPress (footswitch, store, button) {
 	clearFootswitchReleaseTimer(footswitch.id, store);
 	if (store.state.switches.get(footswitch.id) === true) {
 		return;
@@ -607,7 +614,7 @@ function startFootswitchPress(footswitch, store, button) {
 	applyLiveStateToRegisteredViewers(store);
 }
 
-function releaseFootswitchPress(footswitch, store, button) {
+function releaseFootswitchPress (footswitch, store, button) {
 	if (store.state.switches.get(footswitch.id) !== true) {
 		return;
 	}
@@ -618,7 +625,7 @@ function releaseFootswitchPress(footswitch, store, button) {
 	scheduleFootswitchRelease(footswitch, store, button, delayMs);
 }
 
-function scheduleFootswitchRelease(footswitch, store, button, delayMs) {
+function scheduleFootswitchRelease (footswitch, store, button, delayMs) {
 	if (store.releaseTimers.has(footswitch.id)) {
 		return;
 	}
@@ -636,7 +643,7 @@ function scheduleFootswitchRelease(footswitch, store, button, delayMs) {
 	store.releaseTimers.set(footswitch.id, timer);
 }
 
-function clearFootswitchReleaseTimer(footswitchId, store) {
+function clearFootswitchReleaseTimer (footswitchId, store) {
 	const timer = store.releaseTimers.get(footswitchId);
 	if (timer === undefined) {
 		return;
@@ -645,7 +652,7 @@ function clearFootswitchReleaseTimer(footswitchId, store) {
 	store.releaseTimers.delete(footswitchId);
 }
 
-function toggleFootswitchLatch(footswitch, store) {
+function toggleFootswitchLatch (footswitch, store) {
 	const nextLatched = !(store.state.latches.get(footswitch.id) === true);
 	store.state.latches.set(footswitch.id, nextLatched);
 	const ledId = linkedLedIdForFootswitch(footswitch.id, store);
@@ -654,7 +661,7 @@ function toggleFootswitchLatch(footswitch, store) {
 	}
 }
 
-function linkedLedIdForFootswitch(footswitchId, store) {
+function linkedLedIdForFootswitch (footswitchId, store) {
 	if (footswitchId === "switch-bypass" && store.state.leds.has("led-status")) {
 		return "led-status";
 	}
@@ -664,17 +671,17 @@ function linkedLedIdForFootswitch(footswitchId, store) {
 	return undefined;
 }
 
-function isFootswitchActivationKey(event) {
+function isFootswitchActivationKey (event) {
 	return event.key === " " || event.key === "Enter";
 }
 
-function updateFootswitchButton(button, footswitch, store) {
+function updateFootswitchButton (button, footswitch, store) {
 	const pressed = store.state.switches.get(footswitch.id) === true;
 	button.setAttribute("aria-pressed", pressed ? "true" : "false");
 	button.textContent = pressed ? `${footswitch.label}: pressed` : `Tap / hold ${footswitch.label}`;
 }
 
-function createLedStateControl(led, store) {
+function createLedStateControl (led, store) {
 	const control = document.createElement("label");
 	control.className = "stompbox-live-state-control stompbox-live-state-toggle";
 	const input = document.createElement("input");
@@ -702,7 +709,7 @@ function createLedStateControl(led, store) {
 	return control;
 }
 
-function syncLedStateControls(store) {
+function syncLedStateControls (store) {
 	for (const input of store.panel.querySelectorAll("[data-stompbox-led-toggle]")) {
 		if (!(input instanceof HTMLInputElement)) {
 			continue;
@@ -718,7 +725,7 @@ function syncLedStateControls(store) {
 	}
 }
 
-function updateLedStateControl(input, label, controlLabel, on) {
+function updateLedStateControl (input, label, controlLabel, on) {
 	input.checked = on;
 	input.setAttribute("aria-label", `${controlLabel} LED`);
 	input.setAttribute("aria-checked", on ? "true" : "false");
@@ -727,11 +734,11 @@ function updateLedStateControl(input, label, controlLabel, on) {
 	}
 }
 
-function applyFootswitchState(footswitch, pressed) {
+function applyFootswitchState (footswitch, pressed) {
 	footswitch.targetTravelMm = pressed ? footswitch.travelMm : 0;
 }
 
-function updateLiveStateAnimations(viewer, deltaMs) {
+function updateLiveStateAnimations (viewer, deltaMs) {
 	const store = existingLiveStateStoreForViewer(viewer);
 	if (store === undefined) {
 		return;
@@ -745,7 +752,7 @@ function updateLiveStateAnimations(viewer, deltaMs) {
 	}
 }
 
-function updateFootswitchAnimation(footswitch, deltaMs) {
+function updateFootswitchAnimation (footswitch, deltaMs) {
 	const currentTravelMm = Number.isFinite(footswitch.currentTravelMm) ? footswitch.currentTravelMm : 0;
 	const targetTravelMm = Number.isFinite(footswitch.targetTravelMm) ? footswitch.targetTravelMm : 0;
 	const remainingTravelMm = targetTravelMm - currentTravelMm;
@@ -758,7 +765,7 @@ function updateFootswitchAnimation(footswitch, deltaMs) {
 	setFootswitchActuatorTravel(footswitch, currentTravelMm + remainingTravelMm * easedProgress);
 }
 
-function setFootswitchActuatorTravel(footswitch, travelMm) {
+function setFootswitchActuatorTravel (footswitch, travelMm) {
 	const axis = footswitch.travelAxis ?? "z";
 	const localTravel = localTravelForWorldMillimeters(footswitch, travelMm);
 	footswitch.currentTravelMm = travelMm;
@@ -766,12 +773,12 @@ function setFootswitchActuatorTravel(footswitch, travelMm) {
 	footswitch.actuator.position[axis] = footswitch.basePosition[axis] - localTravel;
 }
 
-function localTravelForWorldMillimeters(footswitch, travelMm) {
+function localTravelForWorldMillimeters (footswitch, travelMm) {
 	const axis = footswitch.travelAxis ?? "z";
 	return travelMm / parentWorldScaleForLocalAxis(footswitch.actuator, axis);
 }
 
-function parentWorldScaleForLocalAxis(object, axis) {
+function parentWorldScaleForLocalAxis (object, axis) {
 	const parent = object.parent;
 	if (parent === null) {
 		return 1;
@@ -782,7 +789,7 @@ function parentWorldScaleForLocalAxis(object, axis) {
 	return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
-function applyLedState(led, on) {
+function applyLedState (led, on) {
 	const meshes = [];
 	led.lens.traverse((object) => {
 		if (!object.isMesh) {
@@ -810,7 +817,7 @@ function applyLedState(led, on) {
 	}
 }
 
-function actuatorObjectForStateTarget(root, stateTarget) {
+function actuatorObjectForStateTarget (root, stateTarget) {
 	const actuator = objectForStateTarget(root, stateTarget);
 	if (actuator === undefined || actuator.isMesh) {
 		return actuator;
@@ -831,7 +838,7 @@ function actuatorObjectForStateTarget(root, stateTarget) {
 	return found ?? actuator;
 }
 
-function objectForStateTarget(root, stateTarget) {
+function objectForStateTarget (root, stateTarget) {
 	const nodeName = typeof stateTarget?.nodeName === "string" ? stateTarget.nodeName : undefined;
 	if (nodeName === undefined) {
 		return undefined;
@@ -845,11 +852,11 @@ function objectForStateTarget(root, stateTarget) {
 	return found;
 }
 
-function footswitchTravelAxis(value) {
+function footswitchTravelAxis (value) {
 	return value === "x" || value === "y" || value === "z" ? value : "z";
 }
 
-function ensureEditableMeshMaterials(mesh) {
+function ensureEditableMeshMaterials (mesh) {
 	if (mesh.userData.liveStateMaterialCloned === true) {
 		return;
 	}
@@ -861,14 +868,14 @@ function ensureEditableMeshMaterials(mesh) {
 	mesh.userData.liveStateMaterialCloned = true;
 }
 
-function materialsForMesh(mesh) {
+function materialsForMesh (mesh) {
 	if (Array.isArray(mesh.material)) {
 		return mesh.material;
 	}
 	return mesh.material === undefined ? [] : [mesh.material];
 }
 
-function controlLabelForPart(object) {
+function controlLabelForPart (object) {
 	const id = typeof object.userData?.id === "string" ? object.userData.id : "control";
 	const rawLabel = typeof object.userData?.controlId === "string" && object.userData.controlId.length > 0
 		? object.userData.controlId
@@ -876,23 +883,23 @@ function controlLabelForPart(object) {
 	return rawLabel.replace(/[-_]+/g, " ");
 }
 
-function knobPositionFromRotation(rotationRad) {
+function knobPositionFromRotation (rotationRad) {
 	const rotationDeg = THREE.MathUtils.radToDeg(rotationRad);
 	return clamp01((rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG);
 }
 
-function knobRotationDegForPosition(position) {
+function knobRotationDegForPosition (position) {
 	return KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG;
 }
 
-function clamp01(value) {
+function clamp01 (value) {
 	if (!Number.isFinite(value)) {
 		return 0;
 	}
 	return Math.max(0, Math.min(1, value));
 }
 
-function initPresetLinkedAssets(group) {
+function initPresetLinkedAssets (group) {
 	const select = group.querySelector("[data-stompbox-preset-select]");
 	const presets = parseGroupPresetOptions(group);
 	if (!(select instanceof HTMLSelectElement) || presets.length === 0) {
@@ -907,7 +914,7 @@ function initPresetLinkedAssets(group) {
 	update();
 }
 
-function updatePresetLinkedAssets(group, preset) {
+function updatePresetLinkedAssets (group, preset) {
 	if (preset === undefined) {
 		return;
 	}
@@ -927,7 +934,7 @@ function updatePresetLinkedAssets(group, preset) {
 	}
 }
 
-function parseGroupPresetOptions(group) {
+function parseGroupPresetOptions (group) {
 	const presetsJson = group.dataset.stompboxPresets;
 	if (presetsJson === undefined) {
 		return [];
@@ -945,6 +952,9 @@ function parseGroupPresetOptions(group) {
 		gridOpacity: DEFAULT_GRID_OPACITY,
 		toon: false,
 		toonEdgeColor: DEFAULT_TOON_EDGE_COLOR,
+		grain: false,
+		grainScale: DEFAULT_GRAIN_SCALE,
+		grainIntensity: DEFAULT_GRAIN_INTENSITY,
 	};
 	try {
 		const parsed = JSON.parse(presetsJson);
@@ -958,7 +968,7 @@ function parseGroupPresetOptions(group) {
 	}
 }
 
-function parsePresetOptions(viewer, src) {
+function parsePresetOptions (viewer, src) {
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
 	const viewMode = viewer.dataset.viewMode === "top" ? "top" : "orbit";
 	const interactive = viewer.dataset.interactive !== "false";
@@ -969,6 +979,9 @@ function parsePresetOptions(viewer, src) {
 	const gridOpacity = normalizeGridOpacity(viewer.dataset.gridOpacity, DEFAULT_GRID_OPACITY);
 	const toonEnabled = viewer.dataset.toon === "true";
 	const toonEdgeColor = viewer.dataset.toonEdgeColor ?? DEFAULT_TOON_EDGE_COLOR;
+	const grainEnabled = viewer.dataset.grain === "true";
+	const grainScale = normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE);
+	const grainIntensity = normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY);
 	const presetsJson = viewer.dataset.stompboxPresets ?? group?.dataset.stompboxPresets;
 	const fallback = {
 		id: "default",
@@ -983,6 +996,9 @@ function parsePresetOptions(viewer, src) {
 		gridOpacity,
 		toon: toonEnabled,
 		toonEdgeColor,
+		grain: grainEnabled,
+		grainScale,
+		grainIntensity,
 	};
 	if (presetsJson === undefined) {
 		return [fallback];
@@ -1000,7 +1016,7 @@ function parsePresetOptions(viewer, src) {
 	}
 }
 
-function normalizePresetOption(preset, index, fallback) {
+function normalizePresetOption (preset, index, fallback) {
 	if (preset === null || typeof preset !== "object") {
 		return [];
 	}
@@ -1016,6 +1032,8 @@ function normalizePresetOption(preset, index, fallback) {
 	const toonEdgeColor = typeof preset.toonEdgeColor === "string" && preset.toonEdgeColor.length > 0
 		? preset.toonEdgeColor
 		: fallback.toonEdgeColor;
+	const grainScale = normalizePositiveNumber(preset.grainScale, fallback.grainScale);
+	const grainIntensity = normalizeUnitInterval(preset.grainIntensity, fallback.grainIntensity);
 	return [{
 		id: typeof preset.id === "string" && preset.id.length > 0 ? preset.id : `preset-${index + 1}`,
 		label: typeof preset.label === "string" && preset.label.length > 0 ? preset.label : `Preset ${index + 1}`,
@@ -1029,12 +1047,15 @@ function normalizePresetOption(preset, index, fallback) {
 		gridOpacity: normalizeGridOpacity(preset.gridOpacity, fallback.gridOpacity),
 		toon: typeof preset.toon === "boolean" ? preset.toon : fallback.toon,
 		toonEdgeColor,
+		grain: typeof preset.grain === "boolean" ? preset.grain : fallback.grain,
+		grainScale,
+		grainIntensity,
 		drillTemplateSrc: typeof preset.drillTemplateSrc === "string" ? preset.drillTemplateSrc : undefined,
 		drillLayoutSrc: typeof preset.drillLayoutSrc === "string" ? preset.drillLayoutSrc : undefined,
 	}];
 }
 
-function applyPresetBackground(viewer, preset) {
+function applyPresetBackground (viewer, preset) {
 	const backgroundColor = typeof preset.backgroundColor === "string" && preset.backgroundColor.length > 0
 		? preset.backgroundColor
 		: DEFAULT_BACKGROUND_COLOR;
@@ -1050,7 +1071,7 @@ function applyPresetBackground(viewer, preset) {
 	viewer.style.setProperty("--stompbox-viewer-grid-opacity", String(gridOpacity));
 }
 
-function normalizeGridOpacity(value, fallback) {
+function normalizeGridOpacity (value, fallback) {
 	const opacity = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(opacity)) {
 		return fallback;
@@ -1058,7 +1079,90 @@ function normalizeGridOpacity(value, fallback) {
 	return Math.max(0, Math.min(1, opacity));
 }
 
-function applyToonMaterials(root, preset) {
+function normalizePositiveNumber (value, fallback) {
+	const number = typeof value === "number" ? value : Number(value);
+	if (!Number.isFinite(number) || number <= 0) {
+		return fallback;
+	}
+	return number;
+}
+
+function normalizeUnitInterval (value, fallback) {
+	const number = typeof value === "number" ? value : Number(value);
+	if (!Number.isFinite(number)) {
+		return fallback;
+	}
+	return Math.max(0, Math.min(1, number));
+}
+
+function applyScreenGrainMaterials (root, preset) {
+	if (preset?.grain !== true) {
+		return;
+	}
+	root.traverse((object) => {
+		if (!object.isMesh) {
+			return;
+		}
+		for (const material of materialsForMesh(object)) {
+			applyScreenGrainMaterial(material, preset);
+		}
+	});
+}
+
+function applyScreenGrainMaterial (material, preset) {
+	if (material === undefined || (material.userData !== undefined && material.userData.screenGrainApplied === true)) {
+		return;
+	}
+	const previousOnBeforeCompile = material.onBeforeCompile;
+	const previousProgramCacheKey = material.customProgramCacheKey;
+	material.onBeforeCompile = (shader, renderer) => {
+		if (typeof previousOnBeforeCompile === "function") {
+			previousOnBeforeCompile.call(material, shader, renderer);
+		}
+		shader.uniforms.grainScale = { value: preset.grainScale };
+		shader.uniforms.grainIntensity = { value: preset.grainIntensity };
+		shader.uniforms.grainIntensityScale = { value: GRAIN_INTENSITY_SCALE };
+		shader.fragmentShader = screenGrainFragmentShader(shader.fragmentShader);
+	};
+	material.customProgramCacheKey = () => {
+		const previousKey = typeof previousProgramCacheKey === "function"
+			? previousProgramCacheKey.call(material)
+			: "";
+		return `${previousKey}|stompbox-screen-grain`;
+	};
+	material.userData = {
+		...(material.userData ?? {}),
+		screenGrainApplied: true,
+	};
+	material.needsUpdate = true;
+}
+
+function screenGrainFragmentShader (fragmentShader) {
+	const grainPars = `
+		uniform float grainScale;
+		uniform float grainIntensity;
+		uniform float grainIntensityScale;
+
+		float stompboxScreenGrainRandom(vec2 value) {
+			return fract(sin(dot(value, vec2(12.9898, 78.233))) * 43758.5453123);
+		}
+	`;
+	const grainApply = `
+		float stompboxScreenGrainValue = stompboxScreenGrainRandom(floor(gl_FragCoord.xy / max(grainScale, 0.001)));
+		float stompboxScreenGrainDelta = (stompboxScreenGrainValue - 0.5) * grainIntensity * grainIntensityScale;
+		gl_FragColor.rgb = clamp(gl_FragColor.rgb + vec3(stompboxScreenGrainDelta), 0.0, 1.0);
+	`;
+	const shader = `${grainPars}\n${fragmentShader}`;
+	if (shader.includes("#include <colorspace_fragment>")) {
+		return shader.replace("#include <colorspace_fragment>", `${grainApply}\n\t#include <colorspace_fragment>`);
+	}
+	if (shader.includes("#include <dithering_fragment>")) {
+		return shader.replace("#include <dithering_fragment>", `${grainApply}\n\t#include <dithering_fragment>`);
+	}
+	return shader.replace(/\n}\s*$/, `\n${grainApply}\n}`);
+}
+
+function applyToonMaterials (root, preset) {
 	const gradientMap = createToonGradientMap();
 	root.traverse((object) => {
 		if (!object.isMesh || object.userData?.kind === "decal") {
@@ -1072,7 +1176,7 @@ function applyToonMaterials(root, preset) {
 	});
 }
 
-function createToonGradientMap() {
+function createToonGradientMap () {
 	if (sharedToonGradientMap !== undefined) {
 		return sharedToonGradientMap;
 	}
@@ -1086,7 +1190,7 @@ function createToonGradientMap() {
 	return texture;
 }
 
-function toonMaterialForSource(sourceMaterial, gradientMap, preset) {
+function toonMaterialForSource (sourceMaterial, gradientMap, preset) {
 	const source = sourceMaterial ?? {};
 	const material = new THREE.MeshToonMaterial({
 		color: materialColor(source),
@@ -1116,7 +1220,7 @@ function toonMaterialForSource(sourceMaterial, gradientMap, preset) {
 	return material;
 }
 
-function materialColor(material) {
+function materialColor (material) {
 	const appearanceColor = material.userData?.appearanceMaterial?.color;
 	if (typeof appearanceColor === "string" && appearanceColor.length > 0) {
 		return new THREE.Color(appearanceColor);
@@ -1127,7 +1231,7 @@ function materialColor(material) {
 	return new THREE.Color(0xffffff);
 }
 
-function presetSelectForViewer(viewer) {
+function presetSelectForViewer (viewer) {
 	const localSelect = viewer.querySelector("[data-stompbox-preset-select]");
 	if (localSelect instanceof HTMLSelectElement) {
 		return localSelect;
@@ -1137,7 +1241,7 @@ function presetSelectForViewer(viewer) {
 	return groupSelect instanceof HTMLSelectElement ? groupSelect : undefined;
 }
 
-function frameModel(model, camera, controls, viewMode, aspect) {
+function frameModel (model, camera, controls, viewMode, aspect) {
 	const box = new THREE.Box3().setFromObject(model);
 	const sphere = box.getBoundingSphere(new THREE.Sphere());
 	const radius = Math.max(sphere.radius, 1);
@@ -1164,7 +1268,7 @@ function frameModel(model, camera, controls, viewMode, aspect) {
 	return undefined;
 }
 
-function frameOrthographicTopModel(model, camera, controls, aspect, enclosureSize) {
+function frameOrthographicTopModel (model, camera, controls, aspect, enclosureSize) {
 	const box = new THREE.Box3().setFromObject(model);
 	const size = enclosureSize === undefined
 		? box.getSize(new THREE.Vector3())
@@ -1191,7 +1295,7 @@ function frameOrthographicTopModel(model, camera, controls, aspect, enclosureSiz
 	return size;
 }
 
-function addCadLinework(root, lineworkColor = "#111827") {
+function addCadLinework (root, lineworkColor = "#111827") {
 	const meshes = [];
 	const material = new THREE.LineBasicMaterial({
 		color: new THREE.Color(lineworkColor),
@@ -1219,7 +1323,7 @@ function addCadLinework(root, lineworkColor = "#111827") {
 	}
 }
 
-function addToonOutline(root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
+function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
 	const meshes = [];
 	const material = new THREE.MeshBasicMaterial({
 		color: new THREE.Color(outlineColor),
@@ -1263,7 +1367,7 @@ function addToonOutline(root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
 	}
 }
 
-function findEnclosureFrame(model) {
+function findEnclosureFrame (model) {
 	let enclosure;
 	model.traverse((object) => {
 		if (enclosure !== undefined) {
@@ -1287,7 +1391,7 @@ function findEnclosureFrame(model) {
 	};
 }
 
-function updateOrthographicTopFrustum(camera, size, aspect) {
+function updateOrthographicTopFrustum (camera, size, aspect) {
 	const padding = 1.08;
 	const modelWidth = Math.max(size.x, 1) * padding;
 	const modelHeight = Math.max(size.y, 1) * padding;
@@ -1306,7 +1410,7 @@ function updateOrthographicTopFrustum(camera, size, aspect) {
 	camera.updateProjectionMatrix();
 }
 
-function applyDecalMaterial(mesh) {
+function applyDecalMaterial (mesh) {
 	const decal = mesh.userData;
 	if (decal?.kind !== "decal") {
 		return;
@@ -1326,7 +1430,7 @@ function applyDecalMaterial(mesh) {
 	mesh.renderOrder = 20;
 }
 
-function createDecalTexture(decal) {
+function createDecalTexture (decal) {
 	if (decal.decalKind === "text" && typeof decal.text === "string") {
 		return createTextDecalTexture(decal);
 	}
@@ -1339,7 +1443,7 @@ function createDecalTexture(decal) {
 	return undefined;
 }
 
-function applyFlatAppearanceColorMaterial(mesh) {
+function applyFlatAppearanceColorMaterial (mesh) {
 	if (mesh.userData?.kind === "decal") {
 		return;
 	}
@@ -1348,7 +1452,7 @@ function applyFlatAppearanceColorMaterial(mesh) {
 	mesh.material = Array.isArray(mesh.material) ? converted : converted[0];
 }
 
-function flatAppearanceMaterial(material) {
+function flatAppearanceMaterial (material) {
 	const appearance = material.userData?.appearanceMaterial;
 	if (material.userData?.renderColorMode !== "flat-color" || typeof appearance?.color !== "string") {
 		return material;
@@ -1367,14 +1471,14 @@ function flatAppearanceMaterial(material) {
 	return flatMaterial;
 }
 
-function ensureDecalUv(mesh) {
+function ensureDecalUv (mesh) {
 	if (mesh.geometry.getAttribute("uv") !== undefined) {
 		return;
 	}
 	mesh.geometry.setAttribute("uv", new THREE.BufferAttribute(TEXT_DECAL_UVS, 2));
 }
 
-function createTextDecalTexture(decal) {
+function createTextDecalTexture (decal) {
 	const widthMm = Math.max(decal.sizeMm?.widthMm ?? 12, 1);
 	const heightMm = Math.max(decal.sizeMm?.heightMm ?? 4, 1);
 	const pixelScale = 48;
@@ -1397,23 +1501,23 @@ function createTextDecalTexture(decal) {
 	return texture;
 }
 
-function createImageDecalTexture(href) {
+function createImageDecalTexture (href) {
 	const texture = new THREE.TextureLoader().load(href);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.flipY = false;
 	return texture;
 }
 
-function textDecalFont(decal, pixelScale) {
+function textDecalFont (decal, pixelScale) {
 	const sizePx = Math.max(10, (decal.fontSizeMm ?? 3) * pixelScale);
 	const family = decal.fontFamily ?? "Arial, sans-serif";
 	return `600 ${sizePx}px ${family}`;
 }
 
-function svgDataUri(svg) {
+function svgDataUri (svg) {
 	return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function colorizedSvg(svg, color) {
+function colorizedSvg (svg, color) {
 	return typeof color === "string" ? svg.replaceAll("currentColor", color) : svg;
 }
