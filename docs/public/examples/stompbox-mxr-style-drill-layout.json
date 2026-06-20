@@ -102,6 +102,16 @@
       "assets": {
         "glbRelativePath": "led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
         "stepRelativePath": "led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step"
+      },
+      "stateTargets": {
+        "led": {
+          "lens": {
+            "selector": {
+              "nodeName": "o1.2",
+              "meshNameIncludes": "5mm_led_lens"
+            }
+          }
+        }
       }
     },
     {
@@ -130,6 +140,18 @@
       "assets": {
         "glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
         "stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
+      },
+      "stateTargets": {
+        "footswitch": {
+          "actuator": {
+            "selector": {
+              "nodeName": "o1.3",
+              "meshNameIncludes": "plunger"
+            }
+          },
+          "travelAxis": "z",
+          "travelMm": 1.2
+        }
       }
     },
     {

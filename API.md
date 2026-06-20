@@ -1,7 +1,13 @@
 # API Reference
 
-`@vessel-dsp/core` is the only publishable package. It is headless and has no
-React, DOM rendering, custom editor, or realtime simulation dependency.
+`@vessel-dsp/core` is the conversion package. It is headless and has no React,
+DOM rendering, custom editor, or realtime simulation dependency.
+
+`@vessel-dsp/stompbox` is the companion headless stompbox package. Use it for
+drill layouts, SVG/GLB stompbox previews, physical hardware defaults, and live
+preview state patches, including validation for LED lens and footswitch actuator
+targets in user-provided GLB assets. See `packages/stompbox/README.md` for the
+stompbox helper map and interactive preview examples.
 
 ## Import
 

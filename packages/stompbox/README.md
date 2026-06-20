@@ -12,7 +12,9 @@ tools can display or save:
   part GLBs and STEP companions via `hardwareProfile` plus `basePath`;
 - orthographic preview SVG views for `top`, `bottom`, `left`, `right`, and
   `back`;
-- optional text, SVG, or image decals for brand/model/custom sticker artwork.
+- optional text, SVG, or image decals for brand/model/custom sticker artwork;
+- headless pedal state, interaction, and preview-patch helpers for live
+  stompbox previews.
 
 Applications own production part profiles, enclosure profiles, and asset roots.
 Keep named style presets in your application or docs layer and pass them through
@@ -90,6 +92,10 @@ document helpers when the caller has already parsed or edited a
 | Mesh-backed 3D GLB bytes | `createStompboxPreviewGlbFromVdsp` | `createStompboxPreviewGlb` |
 | Frontend recolor patch | `createStompboxAppearancePatch` | `createStompboxAppearancePatch` |
 | Resolved appearance alias | `resolveStompboxAppearance` | `resolveStompboxAppearance` |
+| Source/compiled control surface | `parseCircuitDocumentFile` then `createStompboxControlSurface` | `createStompboxControlSurface` |
+| Default live pedal state | `createDefaultStompboxPedalStateFromVdsp` | `createDefaultStompboxPedalState` |
+| Headless live state store | `createStompboxPedalStateStore` | `createStompboxPedalStateStore` |
+| Preview state patch | `createStompboxPreviewStatePatch` | `createStompboxPreviewStatePatch` |
 
 Generated docs examples are published at:
 
@@ -165,6 +171,147 @@ The example above reads `/absolute/path/to/cad-assets/parts/my-knob.glb` and
 `/absolute/path/to/cad-assets/enclosures/1590b.glb`. Use `baseUrl` for served
 preview references; use `basePath` when assembling a GLB because the files are
 read from the filesystem.
+
+## Live pedal state
+
+Stompbox can manage preview state for a pedal instance without owning the UI or
+audio runtime. Use the state helpers to rotate knobs, light LEDs, depress
+footswitches, and drive synthesized bypass hardware in the generated preview.
+
+```ts
+import {
+  createDefaultStompboxPedalStateFromVdsp,
+  createStompboxControlSurface,
+  createStompboxPedalStateStore,
+  createStompboxPreviewFromVdsp,
+} from "@vessel-dsp/stompbox";
+import { parseCircuitDocumentFile } from "@vessel-dsp/core";
+
+const document = parseCircuitDocumentFile(vdspSource, { filename: "pedal.vdsp" });
+const surface = createStompboxControlSurface(document, {
+  pedalId: "stage-1",
+  compiledControls: runtimeControlsFromYourCompiler,
+});
+const preview = createStompboxPreviewFromVdsp(vdspSource, { hardwareProfile });
+const state = createDefaultStompboxPedalStateFromVdsp(vdspSource, {
+  pedalId: "stage-1",
+});
+const store = createStompboxPedalStateStore(state, { preview });
+
+store.subscribePreviewPatch((patch) => {
+  // Apply patch.parts["part-knob-GAIN"], patch.parts["part-led-status"], etc.
+  // to your SVG elements or loaded GLB node/material objects.
+});
+
+store.turnKnob("GAIN", 0.82);
+store.pressFootswitch("switch-bypass", true);
+```
+
+`compiledControls` is optional. When present, pass a downstream compiler output
+shaped like `{ id, sourceComponentId, name, kind, value, min, max, step }` plus
+optional `unit`, `sweep`, `options`, and `targets`. Stompbox uses it only to
+merge audio-bound control metadata with `.vdsp` source-panel order and to
+return headless runtime command descriptions. It does not compile `.vdsp` or
+send worklet messages.
+
+Live GLB previews require semantic state targets on user-provided LED and
+footswitch part assets. Declare those targets in the part profile so renderers
+can affect the LED lens and the moving footswitch actuator instead of guessing
+against the whole part assembly:
+
+```ts
+const ledPartProfile = {
+  // ...
+  stateTargets: {
+    led: {
+      lens: {
+        selector: {
+          nodeName: "o1.2",
+          meshNameIncludes: "5mm_led_lens",
+        },
+      },
+    },
+  },
+};
+
+const footswitchPartProfile = {
+  // ...
+  stateTargets: {
+    footswitch: {
+      actuator: {
+        selector: {
+          nodeName: "o1.3",
+          meshNameIncludes: "plunger",
+        },
+      },
+      travelAxis: "z",
+      travelMm: 1.2,
+    },
+  },
+};
+```
+
+Validate caller-provided GLBs before using them for live state:
+
+```ts
+import {
+  validateStompboxGlbAssetFile,
+  validateStompboxHardwareProfileAssets,
+} from "@vessel-dsp/stompbox";
+
+const ledValidation = validateStompboxGlbAssetFile(
+  "/cad/parts/led-bezel-lh5/led.step.glb",
+  ledPartProfile,
+);
+
+const profileValidation = validateStompboxHardwareProfileAssets(hardwareProfile, {
+  basePath: "/cad/parts",
+});
+```
+
+Missing or ambiguous live targets produce diagnostics such as
+`missing-state-target-contract`, `missing-state-target`, and
+`ambiguous-state-target`. Static drill layouts and static SVG previews can still
+be generated; live GLB preview code should treat those diagnostics as a signal
+to avoid whole-part recolor or movement guesses.
+
+For pointer interaction, convert viewer events into state commands, then apply
+the resulting patch in your renderer:
+
+```ts
+import {
+  applyStompboxPreviewInteraction,
+  createStompboxFootswitchPressCommand,
+  createStompboxKnobTurnCommand,
+  createStompboxPreviewStatePatch,
+} from "@vessel-dsp/stompbox";
+
+const knobCommand = createStompboxKnobTurnCommand(surface, {
+  controlId: "GAIN",
+  position: 0.65,
+});
+const nextState = applyStompboxPreviewInteraction(store.getSnapshot(), knobCommand);
+const patch = createStompboxPreviewStatePatch(preview, nextState, store.getSnapshot());
+
+store.dispatch(knobCommand);
+applyPatchToYourViewer(patch);
+
+const bypassCommand = createStompboxFootswitchPressCommand(surface, {
+  partId: "switch-bypass",
+  pressed: true,
+});
+store.dispatch(bypassCommand);
+```
+
+Synthesized `switch-bypass` and `led-status` follow the pedal-level `enabled`
+state. Source-declared knobs, switches, and LEDs follow their `ControlState`
+entries. A 9V connector is still generated by default for pedal previews and can
+be omitted with `includePowerJack: false`.
+
+React context, hooks, pointer handlers, SVG mutation, Three.js node updates,
+and audio/worklet routing remain downstream responsibilities. A React app can
+wrap `createStompboxPedalStateStore()` with its own context and
+`useSyncExternalStore`, but `@vessel-dsp/stompbox` stays framework-neutral.
 
 ## 2D and 3D preview viewers
 
@@ -255,7 +402,7 @@ function addCadLinework(root: THREE.Object3D, lineworkColor = "#111827") {
 }
 
 const linework = true;
-const lineworkColor = "#0f172a";
+const lineworkColor = "#eb7223";
 
 if (linework) {
   addCadLinework(gltf.scene, lineworkColor);

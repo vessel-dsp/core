@@ -25,6 +25,7 @@
         "tests/**/*",
         "examples/**/*",
         "scripts/fix-dist-imports.ts",
+        "scripts/generate-stompbox-doc-assets.ts",
         "scripts/generate-symbol-content.ts"
     ]
 }

@@ -8,14 +8,23 @@ import {
     validateCircuitJsonDocument,
 } from '@vessel-dsp/core';
 import {
+    applyStompboxPreviewInteraction,
     createStompboxAppearancePatch,
+    createDefaultStompboxPedalStateFromVdsp,
+    createStompboxControlSurface,
     createStompboxDrillLayoutFromVdsp,
     createStompboxDrillTemplateFromVdsp,
     createStompboxDrillTemplateSvgFromVdsp,
+    createStompboxFootswitchPressCommand,
+    createStompboxKnobTurnCommand,
+    createStompboxPedalStateStore,
     createStompboxPreviewGlbFromVdsp,
     createStompboxPreviewFromVdsp,
     createStompboxPreviewSvgViewsFromVdsp,
+    createStompboxPreviewStatePatch,
     resolveStompboxAppearance,
+    validateStompboxGlbAssetFile,
+    validateStompboxHardwareProfileAssets,
 } from '@vessel-dsp/stompbox';
 import { fileURLToPath } from 'node:url';
 import { rewriteRelativeEsmSpecifiers } from '../scripts/fix-dist-imports';
@@ -240,6 +249,15 @@ describe('workspace package contract', () => {
         expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
         expect(typeof createStompboxAppearancePatch).toBe('function');
         expect(typeof resolveStompboxAppearance).toBe('function');
+        expect(typeof createStompboxControlSurface).toBe('function');
+        expect(typeof createDefaultStompboxPedalStateFromVdsp).toBe('function');
+        expect(typeof createStompboxPedalStateStore).toBe('function');
+        expect(typeof createStompboxKnobTurnCommand).toBe('function');
+        expect(typeof createStompboxFootswitchPressCommand).toBe('function');
+        expect(typeof applyStompboxPreviewInteraction).toBe('function');
+        expect(typeof createStompboxPreviewStatePatch).toBe('function');
+        expect(typeof validateStompboxGlbAssetFile).toBe('function');
+        expect(typeof validateStompboxHardwareProfileAssets).toBe('function');
     });
 
     test('stompbox package keeps named demo presets out of the library source', async () => {
@@ -412,6 +430,8 @@ describe('published import surface', () => {
         expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
         expect(typeof createStompboxAppearancePatch).toBe('function');
         expect(typeof resolveStompboxAppearance).toBe('function');
+        expect(typeof validateStompboxGlbAssetFile).toBe('function');
+        expect(typeof validateStompboxHardwareProfileAssets).toBe('function');
     });
 });
 
@@ -488,12 +508,22 @@ describe('release metadata', () => {
         expect(stompboxDistIndex).toContain('createStompboxPreviewSvgViewsFromVdsp');
         expect(stompboxDistIndex).toContain('createStompboxAppearancePatch');
         expect(stompboxDistIndex).toContain('resolveStompboxAppearance');
+        expect(stompboxDistIndex).toContain('createStompboxControlSurface');
+        expect(stompboxDistIndex).toContain('createStompboxPedalStateStore');
+        expect(stompboxDistIndex).toContain('createStompboxPreviewStatePatch');
+        expect(stompboxDistIndex).toContain('validateStompboxGlbAssetFile');
+        expect(stompboxDistIndex).toContain('validateStompboxHardwareProfileAssets');
         expect(stompboxDistTypes).toContain('createStompboxDrillLayoutFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxDrillTemplateSvgFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxPreviewGlbFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxPreviewSvgViewsFromVdsp');
         expect(stompboxDistTypes).toContain('createStompboxAppearancePatch');
         expect(stompboxDistTypes).toContain('resolveStompboxAppearance');
+        expect(stompboxDistTypes).toContain('createStompboxControlSurface');
+        expect(stompboxDistTypes).toContain('createStompboxPedalStateStore');
+        expect(stompboxDistTypes).toContain('createStompboxPreviewStatePatch');
+        expect(stompboxDistTypes).toContain('validateStompboxGlbAssetFile');
+        expect(stompboxDistTypes).toContain('validateStompboxHardwareProfileAssets');
         expect(changelog).toStartWith('# Changelog\n\n## 0.6.3\n\n');
     });
 });

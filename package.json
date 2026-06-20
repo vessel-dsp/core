@@ -16,6 +16,7 @@
         "clean:dist": "rm -rf packages/*/dist",
         "docs:dev": "astro dev",
         "docs:preview": "astro preview",
+        "generate:stompbox-doc-assets": "bun run scripts/generate-stompbox-doc-assets.ts",
         "generate:symbols": "bun run scripts/generate-symbol-content.ts",
         "lint": "biome lint --diagnostic-level=error .",
         "prepack": "bun run clean:dist && bun run typecheck && bun test && bun run build",

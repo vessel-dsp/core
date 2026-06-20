@@ -1,8 +1,10 @@
 import {
+    defaultControlState,
     extractPanel,
     parseCircuitDocumentFile,
     type CircuitDocument,
     type ControlState,
+    type ControlValue,
     type JackPort,
     type Knob,
     type LedIndicator,
@@ -199,6 +201,78 @@ export type StompboxAssetResolveOptions = Readonly<{
     baseUrl?: string;
 }>;
 
+export type StompboxGlbStateTargetSelector = Readonly<{
+    nodeName?: string;
+    nodeNameIncludes?: string;
+    meshName?: string;
+    meshNameIncludes?: string;
+    materialName?: string;
+    materialNameIncludes?: string;
+    extras?: Readonly<Record<string, string | number | boolean>>;
+}>;
+
+export type StompboxGlbStateTargetRef = Readonly<{
+    selector: StompboxGlbStateTargetSelector;
+}>;
+
+export type StompboxFootswitchTravelAxis = 'x' | 'y' | 'z';
+
+export type StompboxPartStateTargets = Readonly<{
+    led?: Readonly<{
+        lens: StompboxGlbStateTargetRef;
+    }>;
+    footswitch?: Readonly<{
+        actuator: StompboxGlbStateTargetRef;
+        travelMm?: number;
+        travelAxis?: StompboxFootswitchTravelAxis;
+    }>;
+}>;
+
+export type StompboxGlbStateTargetRole = 'led.lens' | 'footswitch.actuator';
+
+export type StompboxResolvedGlbStateTarget = Readonly<{
+    role: StompboxGlbStateTargetRole;
+    selector: StompboxGlbStateTargetSelector;
+    nodeName: string;
+    meshName?: string;
+    materialName?: string;
+    travelMm?: number;
+    travelAxis?: StompboxFootswitchTravelAxis;
+}>;
+
+export type StompboxResolvedPartStateTargets = Readonly<{
+    led?: Readonly<{
+        lens: StompboxResolvedGlbStateTarget;
+    }>;
+    footswitch?: Readonly<{
+        actuator: StompboxResolvedGlbStateTarget;
+    }>;
+}>;
+
+export type StompboxGlbAssetValidation = Readonly<{
+    schema: 'stompbox-glb-asset-validation/v1';
+    partProfileId: string;
+    assetPath?: string;
+    valid: boolean;
+    targets: Readonly<Partial<Record<StompboxGlbStateTargetRole, StompboxResolvedGlbStateTarget>>>;
+    diagnostics: readonly StompboxDiagnostic[];
+}>;
+
+export type StompboxHardwareProfileAssetValidation = Readonly<{
+    schema: 'stompbox-hardware-profile-asset-validation/v1';
+    valid: boolean;
+    assets: Readonly<Record<string, StompboxGlbAssetValidation>>;
+    diagnostics: readonly StompboxDiagnostic[];
+}>;
+
+export type StompboxGlbAssetValidationOptions = Readonly<{
+    assetPath?: string;
+}>;
+
+export type StompboxHardwareProfileAssetValidationOptions = StompboxAssetResolveOptions & Readonly<{
+    partIds?: readonly string[];
+}>;
+
 export type StompboxPartGeometry =
     | Readonly<{
         kind: 'knob';
@@ -244,6 +318,7 @@ export type StompboxPartProfile = Readonly<{
     geometry: StompboxPartGeometry;
     assets: StompboxAssetRefs;
     assetScale?: number;
+    stateTargets?: StompboxPartStateTargets;
 }>;
 
 export type StompboxPartProfileCatalog = Readonly<Record<string, StompboxPartProfile>>;
@@ -298,14 +373,21 @@ export type StompboxDiagnosticCode =
     | 'unknown-part-profile'
     | 'placement-collision'
     | 'placement-clearance'
-    | 'placement-out-of-bounds';
+    | 'placement-out-of-bounds'
+    | 'invalid-glb-asset'
+    | 'missing-state-target-contract'
+    | 'missing-state-target'
+    | 'ambiguous-state-target';
 
 export type StompboxDiagnostic = Readonly<{
     code: StompboxDiagnosticCode;
     message: string;
     controlId?: string;
+    partId?: string;
     placementId?: string;
     face?: StompboxFaceId;
+    assetPath?: string;
+    targetRole?: StompboxGlbStateTargetRole;
 }>;
 
 export type StompboxDrillHole = Readonly<{
@@ -325,6 +407,7 @@ export type StompboxDrillHole = Readonly<{
     provenance: StompboxPlacementProvenance;
     locked?: boolean;
     assets: StompboxAssetRefs;
+    stateTargets?: StompboxPartStateTargets;
 }>;
 
 export type StompboxDrillLayout = Readonly<{
@@ -429,6 +512,7 @@ export type StompboxPreviewPart = Readonly<{
     face: StompboxFaceId;
     provenance: StompboxPlacementProvenance;
     assets: ResolvedStompboxAssetPaths;
+    stateTargets?: StompboxPartStateTargets;
     transform: Readonly<{
         translationMm: StompboxPoint3;
         rotationDeg: StompboxRotationDeg;
@@ -481,6 +565,143 @@ export type StompboxPreview = Readonly<{
     decals: readonly StompboxPreviewDecal[];
     drillLayout: StompboxDrillLayout;
     diagnostics: readonly StompboxDiagnostic[];
+}>;
+
+export type StompboxRuntimeControlKind = 'knob' | 'switch';
+
+export type StompboxCompiledControlLike = Readonly<{
+    id: string;
+    sourceComponentId?: string;
+    name: string;
+    kind: 'potentiometer' | 'variableResistor' | 'switch';
+    value: number;
+    defaultBehavior?: 'noon' | 'source';
+    min: number;
+    max: number;
+    step: number;
+    unit?: string;
+    sweep?: string;
+    options?: readonly string[];
+    targets?: readonly unknown[];
+}>;
+
+export type StompboxSourcePanelControl = Readonly<{
+    id: string;
+    label: string;
+    kind: StompboxRuntimeControlKind;
+    value: number;
+    sourceComponentId?: string;
+    panelElementId?: string;
+    sweep?: string;
+    options?: readonly string[];
+    description?: string;
+}>;
+
+export type StompboxRuntimeControlDescriptor = Readonly<{
+    id: string;
+    label: string;
+    kind: StompboxRuntimeControlKind;
+    source: 'compiled' | 'source-panel';
+    value: number;
+    min: number;
+    max: number;
+    step: number;
+    normalizedValue: ControlValue;
+    sourceComponentId?: string;
+    panelElementId?: string;
+    runtimeControlId?: string;
+    controlKind?: StompboxCompiledControlLike['kind'];
+    unit?: string;
+    sweep?: string;
+    options?: readonly string[];
+    description?: string;
+    targetCount?: number;
+}>;
+
+export type StompboxRuntimeControlRoute = Readonly<{
+    publicControlId: string;
+    runtimeControlId?: string;
+    sourceComponentId?: string;
+    kind: StompboxRuntimeControlKind;
+    source: 'compiled' | 'source-panel';
+    min: number;
+    max: number;
+    step: number;
+}>;
+
+export type StompboxControlSurface = Readonly<{
+    schema: 'stompbox-control-surface/v1';
+    pedalId: string;
+    label?: string;
+    panel: Panel;
+    controls: readonly StompboxRuntimeControlDescriptor[];
+    routes: Readonly<Record<string, StompboxRuntimeControlRoute>>;
+    diagnostics: readonly StompboxDiagnostic[];
+}>;
+
+export type StompboxPedalState = Readonly<{
+    schema: 'stompbox-pedal-state/v1';
+    pedalId: string;
+    revision: number;
+    enabled: boolean;
+    controls: ControlState;
+}>;
+
+export type StompboxPedalStateCommand =
+    | Readonly<{ type: 'set-enabled'; enabled: boolean }>
+    | Readonly<{ type: 'set-control-value'; controlId: string; value: ControlValue }>
+    | Readonly<{ type: 'noop' }>
+    | Readonly<{ type: 'error'; reason: string; controlId?: string }>;
+
+export type StompboxRuntimeCommand =
+    | Readonly<{ kind: 'set-control-value'; pedalId: string; controlId: string; publicControlId: string; rawValue: number }>
+    | Readonly<{ kind: 'set-enabled'; pedalId: string; enabled: boolean }>
+    | Readonly<{ kind: 'noop' }>
+    | Readonly<{ kind: 'error'; reason: string; controlId?: string }>;
+
+export type StompboxPedalStateChange = Readonly<{
+    previous: StompboxPedalState;
+    current: StompboxPedalState;
+    changedControlIds: readonly string[];
+    enabledChanged: boolean;
+    command: StompboxPedalStateCommand;
+}>;
+
+export type StompboxPedalStateListener = (event: StompboxPedalStateChange) => void;
+export type StompboxControlStateListener = (value: ControlValue | undefined, event: StompboxPedalStateChange) => void;
+export type StompboxPreviewStatePatchListener = (patch: StompboxPreviewStatePatch, event: StompboxPedalStateChange) => void;
+export type StompboxUnsubscribe = () => void;
+
+export type StompboxPedalStateStore = Readonly<{
+    getSnapshot(): StompboxPedalState;
+    dispatch(command: StompboxPedalStateCommand): StompboxPedalState;
+    setEnabled(enabled: boolean): StompboxPedalState;
+    setControlValue(controlId: string, value: ControlValue): StompboxPedalState;
+    turnKnob(controlId: string, position: number): StompboxPedalState;
+    pressFootswitch(partIdOrControlId: string, pressed: boolean): StompboxPedalState;
+    subscribe(listener: StompboxPedalStateListener): StompboxUnsubscribe;
+    subscribeControl(controlId: string, listener: StompboxControlStateListener): StompboxUnsubscribe;
+    subscribePreviewPatch(listener: StompboxPreviewStatePatchListener): StompboxUnsubscribe;
+}>;
+
+export type StompboxPreviewStatePatchTarget = Readonly<{
+    targetId: string;
+    previewPartId: string;
+    partId: string;
+    family: StompboxPartProfile['family'];
+    controlId?: string;
+    value?: ControlValue;
+    stateTarget?: StompboxResolvedGlbStateTarget;
+    transform?: StompboxPreviewPart['transform'];
+    material?: StompboxPreviewMaterial;
+}>;
+
+export type StompboxPreviewStatePatch = Readonly<{
+    schema: 'stompbox-preview-state-patch/v1';
+    units: StompboxUnits;
+    pedalId: string;
+    revision: number;
+    parts: Readonly<Record<string, StompboxPreviewStatePatchTarget>>;
 }>;
 
 export type StompboxPreviewSvgViewId = 'top' | 'bottom' | 'left' | 'right' | 'back';
@@ -562,6 +783,7 @@ export type StompboxAppearanceOptions = Readonly<{
 
 export type StompboxPreviewOptions = StompboxLayoutOptions & StompboxAssetResolveOptions & StompboxDecalOptions & StompboxAppearanceOptions & Readonly<{
     state?: ControlState;
+    pedalState?: StompboxPedalState;
 }>;
 
 export type StompboxPreviewFromVdspOptions = StompboxPreviewOptions & Readonly<{
@@ -649,6 +871,7 @@ const STOMPBOX_LARGE_KNOB_DIAMETER_MM = 20;
 const STOMPBOX_SMALL_KNOB_DIAMETER_MM = 14.5;
 const STOMPBOX_LARGE_KNOB_MIN_PITCH_MM = 25;
 const STOMPBOX_HOLE_BACKING_OUTSET_MM = 0.12;
+const STOMPBOX_DC_JACK_HOLE_BACKING_INSET_MM = 0.7;
 const STOMPBOX_DECAL_OUTSET_MM = 0.2;
 const STOMPBOX_1590B_MIN_WIDTH_MM = 55;
 
@@ -666,6 +889,487 @@ export function resolveStompboxAssetPaths(
     return {
         glb: joinAssetBase(base, assets.glbRelativePath),
         step: joinAssetBase(base, assets.stepRelativePath),
+    };
+}
+
+export function validateStompboxGlbAsset(
+    bytes: Uint8Array,
+    partProfile: StompboxPartProfile,
+    options: StompboxGlbAssetValidationOptions = {},
+): StompboxGlbAssetValidation {
+    const assetPath = options.assetPath ?? partProfile.assets.glbRelativePath;
+    let parsed: ParsedGlb;
+    try {
+        parsed = parseGlbBytes(bytes, assetPath);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const diagnostic: StompboxDiagnostic = {
+            code: 'invalid-glb-asset',
+            message: `Invalid GLB asset for stompbox part "${partProfile.id}": ${message}`,
+            partId: partProfile.id,
+            assetPath,
+        };
+        return {
+            schema: 'stompbox-glb-asset-validation/v1',
+            partProfileId: partProfile.id,
+            assetPath,
+            valid: false,
+            targets: {},
+            diagnostics: [diagnostic],
+        };
+    }
+
+    const targets: Partial<Record<StompboxGlbStateTargetRole, StompboxResolvedGlbStateTarget>> = {};
+    const diagnostics: StompboxDiagnostic[] = [];
+    const candidates = glbStateTargetCandidates(parsed.json);
+    for (const required of requiredStateTargetsForPartProfile(partProfile)) {
+        const target = required.target;
+        if (target === undefined) {
+            diagnostics.push({
+                code: 'missing-state-target-contract',
+                message: `Stompbox part "${partProfile.id}" requires live-state GLB target "${required.role}"`,
+                partId: partProfile.id,
+                assetPath,
+                targetRole: required.role,
+            });
+            continue;
+        }
+        const matches = candidates.filter((candidate) => stateTargetCandidateMatches(candidate, target.selector));
+        if (matches.length === 0) {
+            diagnostics.push({
+                code: 'missing-state-target',
+                message: `GLB asset for stompbox part "${partProfile.id}" does not contain target "${required.role}"`,
+                partId: partProfile.id,
+                assetPath,
+                targetRole: required.role,
+            });
+            continue;
+        }
+        if (matches.length > 1) {
+            diagnostics.push({
+                code: 'ambiguous-state-target',
+                message: `GLB asset for stompbox part "${partProfile.id}" matched ${matches.length} nodes for target "${required.role}"`,
+                partId: partProfile.id,
+                assetPath,
+                targetRole: required.role,
+            });
+            continue;
+        }
+        const match = matches[0];
+        if (match === undefined) {
+            continue;
+        }
+        targets[required.role] = {
+            role: required.role,
+            selector: target.selector,
+            nodeName: match.nodeName,
+            ...(match.meshName === undefined ? {} : { meshName: match.meshName }),
+            ...(match.materialName === undefined ? {} : { materialName: match.materialName }),
+            ...(required.motion === undefined ? {} : required.motion),
+        };
+    }
+
+    return {
+        schema: 'stompbox-glb-asset-validation/v1',
+        partProfileId: partProfile.id,
+        assetPath,
+        valid: diagnostics.length === 0,
+        targets,
+        diagnostics,
+    };
+}
+
+export function validateStompboxGlbAssetFile(
+    path: string,
+    partProfile: StompboxPartProfile,
+): StompboxGlbAssetValidation {
+    try {
+        return validateStompboxGlbAsset(new Uint8Array(readFileSync(path)), partProfile, {
+            assetPath: path,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const diagnostic: StompboxDiagnostic = {
+            code: 'invalid-glb-asset',
+            message: `Invalid GLB asset for stompbox part "${partProfile.id}": ${message}`,
+            partId: partProfile.id,
+            assetPath: path,
+        };
+        return {
+            schema: 'stompbox-glb-asset-validation/v1',
+            partProfileId: partProfile.id,
+            assetPath: path,
+            valid: false,
+            targets: {},
+            diagnostics: [diagnostic],
+        };
+    }
+}
+
+export function validateStompboxHardwareProfileAssets(
+    hardwareProfile: StompboxHardwareProfile,
+    options: StompboxHardwareProfileAssetValidationOptions = {},
+): StompboxHardwareProfileAssetValidation {
+    const partIds = options.partIds ?? defaultLiveStatePartProfileIds(hardwareProfile);
+    const assets: Record<string, StompboxGlbAssetValidation> = {};
+    const diagnostics: StompboxDiagnostic[] = [];
+    for (const partId of uniqueStrings(partIds)) {
+        const partProfile = hardwareProfile.partProfiles[partId];
+        if (partProfile === undefined) {
+            const diagnostic: StompboxDiagnostic = {
+                code: 'unknown-part-profile',
+                message: `Unknown stompbox part profile "${partId}"`,
+                partId,
+            };
+            diagnostics.push(diagnostic);
+            continue;
+        }
+        const assetPath = resolveStompboxAssetPaths(partProfile.assets, options).glb;
+        const validation = validateStompboxGlbAssetFile(assetPath, partProfile);
+        assets[partId] = validation;
+        diagnostics.push(...validation.diagnostics);
+    }
+    return {
+        schema: 'stompbox-hardware-profile-asset-validation/v1',
+        valid: diagnostics.length === 0,
+        assets,
+        diagnostics,
+    };
+}
+
+export function createStompboxSourcePanelControls(document: CircuitDocument): readonly StompboxSourcePanelControl[] {
+    const componentsById = new Map(document.components.map((component) => [component.id, component]));
+    const controls: StompboxSourcePanelControl[] = [];
+    for (const face of document.panel?.faces ?? []) {
+        for (const element of face.elements) {
+            if (element.kind !== 'knob' && element.kind !== 'switch' && element.kind !== 'footswitch') {
+                continue;
+            }
+            const sourceComponentId = element.bind.componentId;
+            const component = sourceComponentId === undefined ? undefined : componentsById.get(sourceComponentId);
+            const label = nonEmptyText(element.label)
+                ?? nonEmptyText(component?.name)
+                ?? nonEmptyText(sourceComponentId)
+                ?? nonEmptyText(element.id)
+                ?? 'Control';
+            const kind = element.kind === 'knob' ? 'knob' : 'switch';
+            const sweep = sourcePanelControlPropertyText(component, 'Sweep');
+            const options = sourcePanelControlOptions(component);
+            const description = sourcePanelControlPropertyText(component, 'Description');
+            controls.push({
+                id: sourceComponentId ?? element.id ?? `${face.id}-${element.grid.row}-${element.grid.column}`,
+                label,
+                kind,
+                value: sourcePanelControlDefaultValue(kind, component),
+                ...(sourceComponentId === undefined ? {} : { sourceComponentId }),
+                ...(element.id === undefined ? {} : { panelElementId: element.id }),
+                ...(sweep === undefined ? {} : { sweep }),
+                ...(options === undefined ? {} : { options }),
+                ...(description === undefined ? {} : { description }),
+            });
+        }
+    }
+    return controls;
+}
+
+export function createStompboxControlSurface(
+    document: CircuitDocument,
+    options: Readonly<{
+        pedalId: string;
+        label?: string;
+        compiledControls?: readonly StompboxCompiledControlLike[];
+    }>,
+): StompboxControlSurface {
+    const diagnostics: StompboxDiagnostic[] = [];
+    const basePanel = extractPanel(document);
+    const panelControls = createStompboxSourcePanelControls(document);
+    const sourceControls = panelControls.length === 0 ? sourceControlsFromExtractedPanel(basePanel) : panelControls;
+    const unmatchedCompiled = [...(options.compiledControls ?? [])];
+    const descriptors: StompboxRuntimeControlDescriptor[] = [];
+
+    for (const sourceControl of sourceControls) {
+        const compiledIndex = findMatchingCompiledControlIndex(sourceControl, unmatchedCompiled, diagnostics);
+        const compiled = compiledIndex < 0 ? undefined : unmatchedCompiled.splice(compiledIndex, 1)[0];
+        descriptors.push(runtimeControlDescriptor(sourceControl, compiled));
+    }
+
+    descriptors.push(...unmatchedCompiled.map((control) => runtimeControlDescriptor(undefined, control)));
+
+    const panel = panelFromRuntimeControls(basePanel, descriptors);
+    const routes = Object.fromEntries(descriptors.map((descriptor) => [
+        descriptor.id,
+        runtimeRouteForDescriptor(descriptor),
+    ]));
+
+    return {
+        schema: 'stompbox-control-surface/v1',
+        pedalId: options.pedalId,
+        ...(options.label === undefined ? {} : { label: options.label }),
+        panel,
+        controls: descriptors,
+        routes,
+        diagnostics,
+    };
+}
+
+export function createStompboxPanelFromControlSurface(surface: StompboxControlSurface): Panel {
+    return surface.panel;
+}
+
+export function createDefaultStompboxPedalState(
+    document: CircuitDocument,
+    options: Readonly<{
+        pedalId: string;
+        enabled?: boolean;
+        compiledControls?: readonly StompboxCompiledControlLike[];
+    }>,
+): StompboxPedalState {
+    const surface = createStompboxControlSurface(document, {
+        pedalId: options.pedalId,
+        ...(options.compiledControls === undefined ? {} : { compiledControls: options.compiledControls }),
+    });
+    return createStompboxPedalStateFromControlSurface(surface, {
+        ...(options.enabled === undefined ? {} : { enabled: options.enabled }),
+    });
+}
+
+export function createDefaultStompboxPedalStateFromVdsp(
+    source: string,
+    options: Readonly<{
+        pedalId: string;
+        filename?: string;
+        enabled?: boolean;
+        compiledControls?: readonly StompboxCompiledControlLike[];
+    }>,
+): StompboxPedalState {
+    const document = parseCircuitDocumentFile(source, {
+        filename: options.filename ?? 'stompbox.vdsp',
+    });
+    return createDefaultStompboxPedalState(document, options);
+}
+
+export function createStompboxPedalStateFromControlSurface(
+    surface: StompboxControlSurface,
+    options: Readonly<{ enabled?: boolean }> = {},
+): StompboxPedalState {
+    return {
+        schema: 'stompbox-pedal-state/v1',
+        pedalId: surface.pedalId,
+        revision: 0,
+        enabled: options.enabled ?? false,
+        controls: defaultControlState(surface.panel),
+    };
+}
+
+export function normalizeStompboxControlValue(
+    descriptor: StompboxRuntimeControlDescriptor,
+    rawValue: number,
+): ControlValue {
+    if (descriptor.kind === 'switch') {
+        return { kind: 'switch', position: switchPositionForRawValue(rawValue, descriptor) };
+    }
+    return { kind: 'knob', position: normalizeRawPosition(rawValue, descriptor.min, descriptor.max) };
+}
+
+export function denormalizeStompboxControlValue(
+    descriptor: StompboxRuntimeControlDescriptor,
+    value: ControlValue,
+): number {
+    if (descriptor.kind === 'switch' && value.kind === 'switch') {
+        return descriptor.min + value.position * Math.max(1, descriptor.step);
+    }
+    if (descriptor.kind === 'knob' && value.kind === 'knob') {
+        return descriptor.min + clamp01(value.position) * (descriptor.max - descriptor.min);
+    }
+    return descriptor.value;
+}
+
+export function createStompboxRuntimeCommand(
+    surface: StompboxControlSurface,
+    command: StompboxPedalStateCommand,
+): StompboxRuntimeCommand {
+    if (command.type === 'noop') {
+        return { kind: 'noop' };
+    }
+    if (command.type === 'error') {
+        return { kind: 'error', reason: command.reason, ...(command.controlId === undefined ? {} : { controlId: command.controlId }) };
+    }
+    if (command.type === 'set-enabled') {
+        return { kind: 'set-enabled', pedalId: surface.pedalId, enabled: command.enabled };
+    }
+    const descriptor = surface.controls.find((control) => control.id === command.controlId);
+    if (descriptor === undefined) {
+        return { kind: 'error', reason: `unknown control id "${command.controlId}"`, controlId: command.controlId };
+    }
+    if (descriptor.runtimeControlId === undefined) {
+        return { kind: 'noop' };
+    }
+    return {
+        kind: 'set-control-value',
+        pedalId: surface.pedalId,
+        controlId: descriptor.runtimeControlId,
+        publicControlId: descriptor.id,
+        rawValue: denormalizeStompboxControlValue(descriptor, command.value),
+    };
+}
+
+export function setStompboxPedalEnabled(state: StompboxPedalState, enabled: boolean): StompboxPedalState {
+    return applyStompboxPedalStateCommand(state, { type: 'set-enabled', enabled });
+}
+
+export function setStompboxControlValue(
+    state: StompboxPedalState,
+    controlId: string,
+    value: ControlValue,
+): StompboxPedalState {
+    return applyStompboxPedalStateCommand(state, { type: 'set-control-value', controlId, value });
+}
+
+export function applyStompboxPedalStateCommand(
+    state: StompboxPedalState,
+    command: StompboxPedalStateCommand,
+): StompboxPedalState {
+    if (command.type === 'noop' || command.type === 'error') {
+        return state;
+    }
+    if (command.type === 'set-enabled') {
+        if (state.enabled === command.enabled) {
+            return state;
+        }
+        return {
+            ...state,
+            enabled: command.enabled,
+            revision: state.revision + 1,
+        };
+    }
+    const current = state.controls[command.controlId];
+    if (sameControlValue(current, command.value)) {
+        return state;
+    }
+    return {
+        ...state,
+        revision: state.revision + 1,
+        controls: {
+            ...state.controls,
+            [command.controlId]: normalizedControlValue(command.value),
+        },
+    };
+}
+
+export function createStompboxKnobTurnCommand(
+    surface: StompboxControlSurface,
+    input: Readonly<{ controlId: string; position: number }>,
+): StompboxPedalStateCommand {
+    const descriptor = surface.controls.find((control) => control.id === input.controlId);
+    if (descriptor === undefined) {
+        return { type: 'error', reason: `unknown control id "${input.controlId}"`, controlId: input.controlId };
+    }
+    if (descriptor.kind !== 'knob') {
+        return { type: 'error', reason: `control "${input.controlId}" is not a knob`, controlId: input.controlId };
+    }
+    return {
+        type: 'set-control-value',
+        controlId: input.controlId,
+        value: { kind: 'knob', position: clamp01(input.position) },
+    };
+}
+
+export function createStompboxFootswitchPressCommand(
+    surface: StompboxControlSurface,
+    input: Readonly<{ controlId?: string; partId?: string; pressed: boolean }>,
+): StompboxPedalStateCommand {
+    if (input.partId === 'switch-bypass' || input.controlId === 'stompbox:enabled') {
+        return { type: 'set-enabled', enabled: input.pressed };
+    }
+    const controlId = input.controlId ?? controlIdFromSwitchPartId(input.partId);
+    if (controlId === undefined) {
+        return { type: 'error', reason: 'footswitch press requires a controlId or partId' };
+    }
+    const descriptor = surface.controls.find((control) => control.id === controlId);
+    if (descriptor === undefined) {
+        return { type: 'error', reason: `unknown control id "${controlId}"`, controlId };
+    }
+    if (descriptor.kind !== 'switch') {
+        return { type: 'error', reason: `control "${controlId}" is not a switch`, controlId };
+    }
+    return {
+        type: 'set-control-value',
+        controlId,
+        value: { kind: 'switch', position: input.pressed ? 1 : 0 },
+    };
+}
+
+export function applyStompboxPreviewInteraction(
+    state: StompboxPedalState,
+    command: StompboxPedalStateCommand,
+): StompboxPedalState {
+    return applyStompboxPedalStateCommand(state, command);
+}
+
+export function createStompboxPedalStateStore(
+    initialState: StompboxPedalState,
+    options: Readonly<{ preview?: StompboxPreview }> = {},
+): StompboxPedalStateStore {
+    let state = initialState;
+    const listeners = new Set<StompboxPedalStateListener>();
+    const controlListeners = new Map<string, Set<StompboxControlStateListener>>();
+    const patchListeners = new Set<StompboxPreviewStatePatchListener>();
+
+    const notify = (previous: StompboxPedalState, current: StompboxPedalState, command: StompboxPedalStateCommand): void => {
+        const changedControlIds = changedControlIdsForState(previous, current);
+        const event: StompboxPedalStateChange = {
+            previous,
+            current,
+            changedControlIds,
+            enabledChanged: previous.enabled !== current.enabled,
+            command,
+        };
+        for (const listener of listeners) {
+            listener(event);
+        }
+        for (const controlId of changedControlIds) {
+            for (const listener of controlListeners.get(controlId) ?? []) {
+                listener(current.controls[controlId], event);
+            }
+        }
+        if (options.preview !== undefined && patchListeners.size > 0) {
+            const patch = createStompboxPreviewStatePatch(options.preview, current, previous);
+            if (Object.keys(patch.parts).length > 0) {
+                for (const listener of patchListeners) {
+                    listener(patch, event);
+                }
+            }
+        }
+    };
+
+    const dispatch = (command: StompboxPedalStateCommand): StompboxPedalState => {
+        const previous = state;
+        const current = applyStompboxPedalStateCommand(previous, command);
+        if (current !== previous) {
+            state = current;
+            notify(previous, current, command);
+        }
+        return state;
+    };
+
+    return {
+        getSnapshot: () => state,
+        dispatch,
+        setEnabled: (enabled) => dispatch({ type: 'set-enabled', enabled }),
+        setControlValue: (controlId, value) => dispatch({ type: 'set-control-value', controlId, value }),
+        turnKnob: (controlId, position) => dispatch({ type: 'set-control-value', controlId, value: { kind: 'knob', position: clamp01(position) } }),
+        pressFootswitch: (partIdOrControlId, pressed) => dispatch(
+            partIdOrControlId === 'switch-bypass'
+                ? { type: 'set-enabled', enabled: pressed }
+                : { type: 'set-control-value', controlId: controlIdFromSwitchPartId(partIdOrControlId) ?? partIdOrControlId, value: { kind: 'switch', position: pressed ? 1 : 0 } },
+        ),
+        subscribe: (listener) => subscribeSet(listeners, listener),
+        subscribeControl: (controlId, listener) => {
+            const listenersForControl = controlListeners.get(controlId) ?? new Set<StompboxControlStateListener>();
+            controlListeners.set(controlId, listenersForControl);
+            return subscribeSet(listenersForControl, listener);
+        },
+        subscribePreviewPatch: (listener) => subscribeSet(patchListeners, listener),
     };
 }
 
@@ -752,8 +1456,10 @@ export function createStompboxPreview(
     const panel = extractPanel(document);
     const controlMetadata = controlMetadataById(panel);
     const resolveOptions = assetResolveOptions(options);
+    const runtimeState = options.pedalState?.controls ?? options.state;
+    const enabled = options.pedalState?.enabled;
     const parts = drillLayout.holes.map((hole) =>
-        previewPartForHole(hole, drillLayout.enclosure, controlMetadata.get(hole.controlId ?? ''), options.state, resolveOptions, options.appearance)
+        previewPartForHole(hole, drillLayout.enclosure, controlMetadata.get(hole.controlId ?? ''), runtimeState, resolveOptions, options.appearance, enabled)
     );
     const decals = [
         ...normalizeDecals(options.decals, drillLayout.enclosure),
@@ -776,6 +1482,50 @@ export function createStompboxPreview(
         decals,
         drillLayout,
         diagnostics: drillLayout.diagnostics,
+    };
+}
+
+export function createStompboxPreviewStatePatch(
+    preview: StompboxPreview,
+    state: StompboxPedalState,
+    previousState?: StompboxPedalState,
+): StompboxPreviewStatePatch {
+    const parts = Object.fromEntries(preview.parts.flatMap((part) => {
+        const currentValue = previewStateValueForPart(part, state);
+        const previousValue = previousState === undefined ? undefined : previewStateValueForPart(part, previousState);
+        if (currentValue === undefined || sameControlValue(currentValue, previousValue)) {
+            return [];
+        }
+        const target = previewStatePatchTarget(part, currentValue, previousValue);
+        return [[target.targetId, target] as const];
+    }));
+    return {
+        schema: 'stompbox-preview-state-patch/v1',
+        units: 'mm',
+        pedalId: state.pedalId,
+        revision: state.revision,
+        parts,
+    };
+}
+
+export function applyStompboxPreviewStatePatch(
+    preview: StompboxPreview,
+    patch: StompboxPreviewStatePatch,
+): StompboxPreview {
+    const parts = preview.parts.map((part) => {
+        const target = patch.parts[`part-${part.id}`];
+        if (target === undefined) {
+            return part;
+        }
+        return {
+            ...part,
+            ...(target.transform === undefined ? {} : { transform: target.transform }),
+            ...(target.material === undefined ? {} : { material: target.material }),
+        };
+    });
+    return {
+        ...preview,
+        parts,
     };
 }
 
@@ -965,17 +1715,595 @@ export function createStompboxPreviewGlb(
     options: StompboxPreviewGlbOptions = {},
 ): StompboxPreviewGlb {
     const preview = createStompboxPreview(document, options);
+    const hardwareProfile = requireStompboxHardwareProfile(options);
+    const assetValidation = options.basePath === undefined
+        ? undefined
+        : validateStompboxHardwareProfileAssets(hardwareProfile, {
+            basePath: options.basePath,
+            partIds: liveStatePartProfileIdsForPreview(preview),
+        });
+    const diagnostics = [...preview.diagnostics, ...(assetValidation?.diagnostics ?? [])];
     return {
         schema: 'stompbox-preview-glb/v1',
         mimeType: 'model/gltf-binary',
-        bytes: previewGlb(preview, options),
+        bytes: previewGlb(preview, options, assetValidation),
         preview,
-        diagnostics: preview.diagnostics,
+        diagnostics,
     };
 }
 
 export function knobRotationDegForPosition(position: number): number {
-    return -135 + clamp01(position) * 270;
+    return 135 - clamp01(position) * 270;
+}
+
+function nonEmptyText(value: string | undefined): string | undefined {
+    const trimmed = value?.trim();
+    return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed;
+}
+
+function sourcePanelControlDefaultValue(
+    kind: StompboxRuntimeControlKind,
+    component: CircuitDocument['components'][number] | undefined,
+): number {
+    if (kind === 'switch') {
+        const rawPosition = sourcePanelControlPropertyText(component, 'Position');
+        const parsedPosition = rawPosition === undefined ? Number.NaN : Number.parseFloat(rawPosition);
+        return Number.isFinite(parsedPosition) ? parsedPosition : 0;
+    }
+    const rawWipe = sourcePanelControlPropertyText(component, 'Wipe');
+    const parsedWipe = rawWipe === undefined ? Number.NaN : Number.parseFloat(rawWipe);
+    return Number.isFinite(parsedWipe) ? clamp01(parsedWipe) : 0.5;
+}
+
+function sourcePanelControlPropertyText(
+    component: CircuitDocument['components'][number] | undefined,
+    key: string,
+): string | undefined {
+    const value = component?.properties[key];
+    if (value === undefined || value === null) {
+        return undefined;
+    }
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+    if (typeof value === 'object') {
+        if ('raw' in value && value.raw !== undefined && value.raw !== null) {
+            return String(value.raw);
+        }
+        if ('value' in value && value.value !== undefined && value.value !== null) {
+            return String(value.value);
+        }
+    }
+    return undefined;
+}
+
+function sourcePanelControlOptions(component: CircuitDocument['components'][number] | undefined): readonly string[] | undefined {
+    const raw = sourcePanelControlPropertyText(component, 'ControlOptions')
+        ?? sourcePanelControlPropertyText(component, 'StepLabels')
+        ?? sourcePanelControlPropertyText(component, 'Options');
+    const options = raw?.split(',').map((option) => option.trim()).filter((option) => option.length > 0) ?? [];
+    return options.length === 0 ? undefined : options;
+}
+
+function sourceControlsFromExtractedPanel(panel: Panel): readonly StompboxSourcePanelControl[] {
+    return [
+        ...panel.knobs.map((knob): StompboxSourcePanelControl => ({
+            id: knob.id,
+            label: knob.name,
+            kind: 'knob',
+            value: knob.defaultPosition,
+            sourceComponentId: knob.id,
+            ...(knob.description === undefined ? {} : { description: knob.description }),
+        })),
+        ...panel.switches.map((switchControl): StompboxSourcePanelControl => ({
+            id: switchControl.id,
+            label: switchControl.name,
+            kind: 'switch',
+            value: switchControl.defaultPosition,
+            sourceComponentId: switchControl.id,
+            ...(switchControl.description === undefined ? {} : { description: switchControl.description }),
+        })),
+    ];
+}
+
+function findMatchingCompiledControlIndex(
+    sourceControl: StompboxSourcePanelControl,
+    compiledControls: readonly StompboxCompiledControlLike[],
+    diagnostics: StompboxDiagnostic[],
+): number {
+    if (sourceControl.sourceComponentId !== undefined) {
+        const byComponent = compiledControls.findIndex((control) => control.sourceComponentId === sourceControl.sourceComponentId);
+        if (byComponent >= 0) {
+            return byComponent;
+        }
+    }
+
+    const normalizedLabel = normalizeRuntimeControlName(sourceControl.label);
+    const labelMatches = compiledControls
+        .map((control, index) => ({ control, index }))
+        .filter(({ control }) => normalizeRuntimeControlName(control.name) === normalizedLabel);
+    if (labelMatches.length > 1) {
+        diagnostics.push({
+            code: 'unsupported-control',
+            message: `Ambiguous compiled control match for source panel control "${sourceControl.label}"`,
+            controlId: sourceControl.id,
+        });
+        return -1;
+    }
+    return labelMatches[0]?.index ?? -1;
+}
+
+function runtimeControlDescriptor(
+    sourceControl: StompboxSourcePanelControl | undefined,
+    compiledControl: StompboxCompiledControlLike | undefined,
+): StompboxRuntimeControlDescriptor {
+    const kind: StompboxRuntimeControlKind = compiledControl === undefined
+        ? sourceControl?.kind ?? 'knob'
+        : compiledControl.kind === 'switch' ? 'switch' : 'knob';
+    const min = compiledControl?.min ?? (sourceControl?.kind === 'switch' ? 0 : 0);
+    const optionCount = sourceControl?.options?.length ?? compiledControl?.options?.length ?? 0;
+    const max = compiledControl?.max ?? (kind === 'switch' || optionCount > 0 ? Math.max(1, optionCount - 1) : 1);
+    const step = compiledControl?.step ?? (kind === 'switch' || optionCount > 0 ? 1 : 0.01);
+    const rawValue = compiledControl === undefined
+        ? sourceControl?.value ?? min
+        : effectiveCompiledControlValue(compiledControl);
+    const id = sourceControl?.sourceComponentId
+        ?? compiledControl?.sourceComponentId
+        ?? sourceControl?.id
+        ?? publicRuntimeControlId(compiledControl?.id ?? compiledControl?.name ?? 'control');
+    const label = sourceControl?.label ?? compiledControl?.name ?? id;
+    const normalizedValue = kind === 'switch'
+        ? { kind: 'switch' as const, position: switchPositionForRawValue(rawValue, { min, max, step }) }
+        : { kind: 'knob' as const, position: normalizeRawPosition(rawValue, min, max) };
+    const sourceComponentId = sourceControl?.sourceComponentId ?? compiledControl?.sourceComponentId;
+    const sweep = sourceControl?.sweep ?? compiledControl?.sweep;
+    const options = sourceControl?.options ?? compiledControl?.options;
+    return {
+        id,
+        label,
+        kind,
+        source: compiledControl === undefined ? 'source-panel' : 'compiled',
+        value: rawValue,
+        min,
+        max,
+        step,
+        normalizedValue,
+        ...(sourceComponentId === undefined ? {} : { sourceComponentId }),
+        ...(sourceControl?.panelElementId === undefined ? {} : { panelElementId: sourceControl.panelElementId }),
+        ...(compiledControl?.id === undefined ? {} : { runtimeControlId: compiledControl.id }),
+        ...(compiledControl?.kind === undefined ? {} : { controlKind: compiledControl.kind }),
+        ...(compiledControl?.unit === undefined ? {} : { unit: compiledControl.unit }),
+        ...(sweep === undefined ? {} : { sweep }),
+        ...(options === undefined ? {} : { options }),
+        ...(sourceControl?.description === undefined ? {} : { description: sourceControl.description }),
+        ...(compiledControl?.targets === undefined ? {} : { targetCount: compiledControl.targets.length }),
+    };
+}
+
+function effectiveCompiledControlValue(control: StompboxCompiledControlLike): number {
+    if (control.kind === 'switch' || control.options !== undefined || control.defaultBehavior === 'source') {
+        return control.value;
+    }
+    return control.min + (control.max - control.min) / 2;
+}
+
+function runtimeRouteForDescriptor(descriptor: StompboxRuntimeControlDescriptor): StompboxRuntimeControlRoute {
+    return {
+        publicControlId: descriptor.id,
+        ...(descriptor.runtimeControlId === undefined ? {} : { runtimeControlId: descriptor.runtimeControlId }),
+        ...(descriptor.sourceComponentId === undefined ? {} : { sourceComponentId: descriptor.sourceComponentId }),
+        kind: descriptor.kind,
+        source: descriptor.source,
+        min: descriptor.min,
+        max: descriptor.max,
+        step: descriptor.step,
+    };
+}
+
+function panelFromRuntimeControls(basePanel: Panel, controls: readonly StompboxRuntimeControlDescriptor[]): Panel {
+    return {
+        ...(basePanel.placement === undefined ? {} : { placement: basePanel.placement }),
+        knobs: controls.filter((control) => control.kind === 'knob').map((control): Knob => ({
+            id: control.id,
+            name: control.label,
+            taper: taperFromSweep(control.sweep),
+            defaultPosition: control.normalizedValue.kind === 'knob' ? control.normalizedValue.position : 0.5,
+            ...(control.description === undefined ? {} : { description: control.description }),
+        })),
+        ...(basePanel.sliders === undefined ? {} : { sliders: basePanel.sliders }),
+        switches: controls.filter((control) => control.kind === 'switch').map((control): SwitchControl => ({
+            id: control.id,
+            name: control.label,
+            switchKind: 'spst',
+            poles: 1,
+            positions: Math.max(2, Math.round((control.max - control.min) / Math.max(1, control.step)) + 1),
+            defaultPosition: control.normalizedValue.kind === 'switch' ? control.normalizedValue.position : 0,
+            ...(control.description === undefined ? {} : { description: control.description }),
+        })),
+        leds: basePanel.leds,
+        jacks: basePanel.jacks,
+    };
+}
+
+function taperFromSweep(sweep: string | undefined): Knob['taper'] {
+    const lower = sweep?.toLowerCase();
+    if (lower === undefined) {
+        return 'unknown';
+    }
+    if (lower.includes('rev') && lower.includes('log')) {
+        return 'reverse-log';
+    }
+    if (lower.includes('log') || lower.includes('audio')) {
+        return 'log';
+    }
+    if (lower.includes('lin')) {
+        return 'linear';
+    }
+    return 'unknown';
+}
+
+function normalizeRuntimeControlName(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function publicRuntimeControlId(value: string): string {
+    return value.startsWith('control-') ? value.slice('control-'.length) : value;
+}
+
+function normalizeRawPosition(value: number, min: number, max: number): number {
+    const span = max - min;
+    if (!Number.isFinite(span) || span <= 0) {
+        return 0;
+    }
+    return clamp01((value - min) / span);
+}
+
+function switchPositionForRawValue(
+    value: number,
+    range: Readonly<{ min: number; max: number; step: number }>,
+): number {
+    const step = Math.max(1, range.step);
+    const positions = Math.max(2, Math.round((range.max - range.min) / step) + 1);
+    return Math.max(0, Math.min(positions - 1, Math.round((value - range.min) / step)));
+}
+
+function normalizedControlValue(value: ControlValue): ControlValue {
+    if (value.kind === 'knob' || value.kind === 'slider') {
+        return { ...value, position: clamp01(value.position) };
+    }
+    if (value.kind === 'switch') {
+        return { kind: 'switch', position: Math.max(0, Math.round(value.position)) };
+    }
+    return {
+        kind: 'led',
+        on: value.on,
+        ...(value.intensity === undefined ? {} : { intensity: clamp01(value.intensity) }),
+    };
+}
+
+function sameControlValue(first: ControlValue | undefined, second: ControlValue | undefined): boolean {
+    if (first === undefined || second === undefined) {
+        return first === second;
+    }
+    if (first.kind !== second.kind) {
+        return false;
+    }
+    if (first.kind === 'knob' && second.kind === 'knob') {
+        return first.position === second.position;
+    }
+    if (first.kind === 'slider' && second.kind === 'slider') {
+        return first.position === second.position;
+    }
+    if (first.kind === 'switch' && second.kind === 'switch') {
+        return first.position === second.position;
+    }
+    if (first.kind === 'led' && second.kind === 'led') {
+        return first.on === second.on && (first.intensity ?? 0) === (second.intensity ?? 0);
+    }
+    return false;
+}
+
+function controlIdFromSwitchPartId(partId: string | undefined): string | undefined {
+    return partId?.startsWith('switch-') === true ? partId.slice('switch-'.length) : undefined;
+}
+
+function subscribeSet<T>(listeners: Set<T>, listener: T): StompboxUnsubscribe {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+}
+
+function changedControlIdsForState(previous: StompboxPedalState, current: StompboxPedalState): readonly string[] {
+    const ids = new Set([...Object.keys(previous.controls), ...Object.keys(current.controls)]);
+    return [...ids].filter((id) => !sameControlValue(previous.controls[id], current.controls[id]));
+}
+
+function stateValueForHole(
+    hole: StompboxDrillHole,
+    state: ControlState | undefined,
+    enabled: boolean | undefined,
+): ControlValue | undefined {
+    if (hole.controlId !== undefined) {
+        return state?.[hole.controlId];
+    }
+    if (enabled === undefined) {
+        return undefined;
+    }
+    if (hole.id === 'led-status') {
+        return { kind: 'led', on: enabled };
+    }
+    if (hole.id === 'switch-bypass') {
+        return { kind: 'switch', position: enabled ? 1 : 0 };
+    }
+    return undefined;
+}
+
+function previewStateValueForPart(part: StompboxPreviewPart, state: StompboxPedalState): ControlValue | undefined {
+    if (part.controlId !== undefined) {
+        return state.controls[part.controlId];
+    }
+    if (part.id === 'led-status') {
+        return { kind: 'led', on: state.enabled };
+    }
+    if (part.id === 'switch-bypass') {
+        return { kind: 'switch', position: state.enabled ? 1 : 0 };
+    }
+    return undefined;
+}
+
+function previewStatePatchTarget(
+    part: StompboxPreviewPart,
+    value: ControlValue,
+    previousValue: ControlValue | undefined,
+): StompboxPreviewStatePatchTarget {
+    const stateTarget = previewStateTargetForPart(part, value);
+    const transform = previewStateTransformForPart(part, value, previousValue, stateTarget);
+    const material = previewStateMaterialForPart(part, value);
+    return {
+        targetId: `part-${part.id}`,
+        previewPartId: part.id,
+        partId: part.partId,
+        family: part.family,
+        ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
+        value,
+        ...(stateTarget === undefined ? {} : { stateTarget }),
+        ...(transform === undefined ? {} : { transform }),
+        ...(material === undefined ? {} : { material }),
+    };
+}
+
+function previewStateTransformForPart(
+    part: StompboxPreviewPart,
+    value: ControlValue,
+    previousValue: ControlValue | undefined,
+    stateTarget: StompboxResolvedGlbStateTarget | undefined,
+): StompboxPreviewPart['transform'] | undefined {
+    if (part.geometry.kind === 'knob' && value.kind === 'knob') {
+        return {
+            ...part.transform,
+            rotationDeg: {
+                ...part.transform.rotationDeg,
+                z: knobRotationDegForPosition(value.position),
+            },
+        };
+    }
+    if (part.geometry.kind === 'footswitch' && value.kind === 'switch' && stateTarget === undefined) {
+        const previousOffset = previousValue?.kind === 'switch' && previousValue.position > 0
+            ? -part.geometry.pressedTravelMm
+            : 0;
+        const baseZ = part.transform.translationMm.z - previousOffset;
+        const nextOffset = value.position > 0 ? -part.geometry.pressedTravelMm : 0;
+        return {
+            ...part.transform,
+            translationMm: {
+                ...part.transform.translationMm,
+                z: roundMillimeters(baseZ + nextOffset),
+            },
+        };
+    }
+    return undefined;
+}
+
+function previewStateMaterialForPart(
+    part: StompboxPreviewPart,
+    value: ControlValue,
+): StompboxPreviewMaterial | undefined {
+    if (part.family !== 'led' || value.kind !== 'led') {
+        return undefined;
+    }
+    if (!value.on) {
+        return {
+            ...(part.material ?? {}),
+            emissive: false,
+            intensity: 0,
+        };
+    }
+    return {
+        ...(part.material ?? {}),
+        emissive: true,
+        intensity: value.intensity ?? 1,
+    };
+}
+
+function previewStateTargetForPart(
+    part: StompboxPreviewPart,
+    value: ControlValue,
+): StompboxResolvedGlbStateTarget | undefined {
+    if (part.family === 'led' && value.kind === 'led') {
+        return resolvedStateTargetForPart(part.id, 'led.lens', part.stateTargets?.led?.lens);
+    }
+    if (part.geometry.kind === 'footswitch' && value.kind === 'switch') {
+        return resolvedStateTargetForPart(part.id, 'footswitch.actuator', part.stateTargets?.footswitch?.actuator, {
+            travelAxis: part.stateTargets?.footswitch?.travelAxis ?? 'z',
+            travelMm: part.stateTargets?.footswitch?.travelMm ?? part.geometry.pressedTravelMm,
+        });
+    }
+    return undefined;
+}
+
+function resolvedStateTargetForPart(
+    previewPartId: string,
+    role: StompboxGlbStateTargetRole,
+    target: StompboxGlbStateTargetRef | undefined,
+    motion?: Readonly<{
+        travelAxis: StompboxFootswitchTravelAxis;
+        travelMm: number;
+    }>,
+): StompboxResolvedGlbStateTarget | undefined {
+    if (target?.selector.nodeName === undefined) {
+        return undefined;
+    }
+    return {
+        role,
+        selector: target.selector,
+        nodeName: `${previewPartId}/${target.selector.nodeName}`,
+        ...(target.selector.meshName === undefined ? {} : { meshName: `${previewPartId}/${target.selector.meshName}` }),
+        ...(target.selector.materialName === undefined ? {} : { materialName: `${previewPartId}/${target.selector.materialName}` }),
+        ...(motion === undefined ? {} : motion),
+    };
+}
+
+type RequiredGlbStateTarget = Readonly<{
+    role: StompboxGlbStateTargetRole;
+    target: StompboxGlbStateTargetRef | undefined;
+    motion?: Readonly<{
+        travelAxis: StompboxFootswitchTravelAxis;
+        travelMm: number;
+    }>;
+}>;
+
+type GlbStateTargetCandidate = Readonly<{
+    nodeName: string;
+    meshName?: string;
+    materialName?: string;
+    materialNames: readonly string[];
+    extras?: JsonObject;
+}>;
+
+function requiredStateTargetsForPartProfile(partProfile: StompboxPartProfile): readonly RequiredGlbStateTarget[] {
+    if (partProfile.family === 'led' && (partProfile.geometry.kind === 'led' || partProfile.geometry.kind === 'led-bezel')) {
+        return [{
+            role: 'led.lens',
+            target: partProfile.stateTargets?.led?.lens,
+        }];
+    }
+    if (partProfile.family === 'footswitch' && partProfile.geometry.kind === 'footswitch') {
+        return [{
+            role: 'footswitch.actuator',
+            target: partProfile.stateTargets?.footswitch?.actuator,
+            motion: {
+                travelAxis: partProfile.stateTargets?.footswitch?.travelAxis ?? 'z',
+                travelMm: partProfile.stateTargets?.footswitch?.travelMm ?? partProfile.geometry.pressedTravelMm,
+            },
+        }];
+    }
+    return [];
+}
+
+function defaultLiveStatePartProfileIds(hardwareProfile: StompboxHardwareProfile): readonly string[] {
+    return uniqueStrings([
+        hardwareProfile.defaultPartIds.led,
+        hardwareProfile.defaultPartIds.footswitch,
+    ]);
+}
+
+function liveStatePartProfileIdsForPreview(preview: StompboxPreview): readonly string[] {
+    return uniqueStrings(preview.parts.flatMap((part) =>
+        part.family === 'led' || part.family === 'footswitch' ? [part.partId] : []
+    ));
+}
+
+function uniqueStrings(values: readonly string[]): readonly string[] {
+    return [...new Set(values)];
+}
+
+function glbStateTargetCandidates(json: JsonObject): readonly GlbStateTargetCandidate[] {
+    const nodes = jsonObjectArray(json, 'nodes');
+    const meshes = jsonObjectArray(json, 'meshes');
+    const materials = jsonObjectArray(json, 'materials');
+    return nodes.flatMap((node) => {
+        const nodeName = typeof node.name === 'string' ? node.name : undefined;
+        if (nodeName === undefined) {
+            return [];
+        }
+        const mesh = typeof node.mesh === 'number' ? meshes[node.mesh] : undefined;
+        const meshName = typeof mesh?.name === 'string' ? mesh.name : undefined;
+        const materialNames = mesh === undefined ? [] : materialNamesForMesh(mesh, materials);
+        const materialName = materialNames[0];
+        const extras = jsonObjectValue(node.extras);
+        return [{
+            nodeName,
+            ...(meshName === undefined ? {} : { meshName }),
+            ...(materialName === undefined ? {} : { materialName }),
+            materialNames,
+            ...(extras === undefined ? {} : { extras }),
+        }];
+    });
+}
+
+function materialNamesForMesh(mesh: JsonObject, materials: readonly JsonObject[]): readonly string[] {
+    const names: string[] = [];
+    for (const primitive of jsonObjectArray(mesh, 'primitives')) {
+        if (typeof primitive.material !== 'number') {
+            continue;
+        }
+        const materialName = materials[primitive.material]?.name;
+        if (typeof materialName === 'string') {
+            names.push(materialName);
+        }
+    }
+    return uniqueStrings(names);
+}
+
+function stateTargetCandidateMatches(
+    candidate: GlbStateTargetCandidate,
+    selector: StompboxGlbStateTargetSelector,
+): boolean {
+    return stringSelectorMatches(candidate.nodeName, selector.nodeName, selector.nodeNameIncludes)
+        && stringSelectorMatches(candidate.meshName, selector.meshName, selector.meshNameIncludes)
+        && materialSelectorMatches(candidate.materialNames, selector.materialName, selector.materialNameIncludes)
+        && extrasSelectorMatches(candidate.extras, selector.extras);
+}
+
+function stringSelectorMatches(value: string | undefined, exact: string | undefined, includes: string | undefined): boolean {
+    if (exact !== undefined && value !== exact) {
+        return false;
+    }
+    if (includes !== undefined && value?.includes(includes) !== true) {
+        return false;
+    }
+    return true;
+}
+
+function materialSelectorMatches(
+    values: readonly string[],
+    exact: string | undefined,
+    includes: string | undefined,
+): boolean {
+    if (exact !== undefined && !values.includes(exact)) {
+        return false;
+    }
+    if (includes !== undefined && !values.some((value) => value.includes(includes))) {
+        return false;
+    }
+    return true;
+}
+
+function extrasSelectorMatches(
+    extras: JsonObject | undefined,
+    expected: Readonly<Record<string, string | number | boolean>> | undefined,
+): boolean {
+    if (expected === undefined) {
+        return true;
+    }
+    if (extras === undefined) {
+        return false;
+    }
+    return Object.entries(expected).every(([key, value]) => extras[key] === value);
 }
 
 function requireStompboxHardwareProfile(options: StompboxHardwareProfileOptions): StompboxHardwareProfile {
@@ -1412,6 +2740,7 @@ function drillHoleForCandidate(
         provenance: candidate.provenance,
         ...(candidate.locked === undefined ? {} : { locked: candidate.locked }),
         assets: part.assets,
+        ...(part.stateTargets === undefined ? {} : { stateTargets: part.stateTargets }),
     }];
 }
 
@@ -1535,9 +2864,10 @@ function previewPartForHole(
     state: ControlState | undefined,
     assetOptions: StompboxAssetResolveOptions,
     appearance: StompboxAppearance | undefined,
+    enabled: boolean | undefined,
 ): StompboxPreviewPart {
     const rotation = baseRotationForFace(hole.face);
-    const stateValue = hole.controlId === undefined ? undefined : state?.[hole.controlId];
+    const stateValue = stateValueForHole(hole, state, enabled);
     const knobPosition = stateValue?.kind === 'knob'
         ? stateValue.position
         : metadata?.defaultPosition;
@@ -1563,6 +2893,7 @@ function previewPartForHole(
         face: hole.face,
         provenance: hole.provenance,
         assets: resolveStompboxAssetPaths(hole.assets, assetOptions),
+        ...(hole.stateTargets === undefined ? {} : { stateTargets: hole.stateTargets }),
         transform,
         ...(material === undefined ? {} : { material }),
     };
@@ -2141,6 +3472,7 @@ type GltfAssemblySource = Readonly<{
     localGlbPath: string;
     material?: StompboxPreviewMaterial;
     materialTargets?: readonly GltfMaterialTarget[];
+    stateTargets?: StompboxResolvedPartStateTargets;
     transform: Readonly<{
         translation: readonly number[];
         rotation: readonly number[];
@@ -2697,11 +4029,12 @@ function previewPartShapeSvg(
     if (geometry.kind === 'knob') {
         const radius = geometry.diameterMm / 2;
         const fill = part.material?.color ?? '#334155';
-        const stroke = part.material?.strokeColor ?? '#0f172a';
+        const stroke = part.material?.strokeColor ?? '#eb7223';
         const indicator = '#f8fafc';
+        const svgIndicatorRotationDeg = -part.transform.rotationDeg.z;
         return [
             `<circle class="knob-body" cx="${svgNumber(point.x)}" cy="${svgNumber(point.y)}" r="${svgNumber(radius)}" fill="${escapeAttribute(fill)}" stroke="${escapeAttribute(stroke)}" stroke-width=".35"/>`,
-            `<line class="knob-indicator" x1="${svgNumber(point.x)}" y1="${svgNumber(point.y)}" x2="${svgNumber(point.x)}" y2="${svgNumber(point.y - radius + 2)}" stroke="${escapeAttribute(indicator)}" stroke-width=".8" stroke-linecap="round" transform="rotate(${svgNumber(part.transform.rotationDeg.z)} ${svgNumber(point.x)} ${svgNumber(point.y)})"/>`,
+            `<line class="knob-indicator" x1="${svgNumber(point.x)}" y1="${svgNumber(point.y)}" x2="${svgNumber(point.x)}" y2="${svgNumber(point.y - radius + 2)}" stroke="${escapeAttribute(indicator)}" stroke-width=".8" stroke-linecap="round" transform="rotate(${svgNumber(svgIndicatorRotationDeg)} ${svgNumber(point.x)} ${svgNumber(point.y)})"/>`,
         ].join('');
     }
     if (geometry.kind === 'led') {
@@ -2811,7 +4144,11 @@ function decalVisibleInView(decal: StompboxPreviewDecal, view: StompboxPreviewSv
     return decal.face === 'bottom';
 }
 
-function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions): Uint8Array {
+function previewGlb(
+    preview: StompboxPreview,
+    options: StompboxPreviewGlbOptions,
+    assetValidation?: StompboxHardwareProfileAssetValidation,
+): Uint8Array {
     const appearance = createStompboxAppearancePatch(preview, options.appearance);
     const state: GltfMergeState = {
         sourceAssets: [],
@@ -2834,11 +4171,11 @@ function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions
         binaryByteLength: 0,
     };
     const rootChildren: number[] = [];
-    for (const source of gltfAssemblySources(preview, options)) {
+    for (const source of gltfAssemblySources(preview, options, assetValidation)) {
         rootChildren.push(appendAssemblySource(state, source));
     }
     for (const part of preview.parts) {
-        const holeBacking = appendHoleBackingDiscForPart(state, part);
+        const holeBacking = appendHoleBackingDiscForPart(state, part, preview.drillLayout);
         if (holeBacking !== undefined) {
             rootChildren.push(holeBacking);
         }
@@ -2880,6 +4217,7 @@ function previewGlb(preview: StompboxPreview, options: StompboxPreviewGlbOptions
 function gltfAssemblySources(
     preview: StompboxPreview,
     options: StompboxPreviewGlbOptions,
+    assetValidation?: StompboxHardwareProfileAssetValidation,
 ): readonly GltfAssemblySource[] {
     if (options.basePath === undefined) {
         throw new Error('stompbox GLB assembly requires options.basePath for caller-provided asset files');
@@ -2910,7 +4248,7 @@ function gltfAssemblySources(
                 ...(preview.enclosure.material === undefined ? {} : { material: previewMaterialJson(preview.enclosure.material) }),
             },
         },
-        ...preview.parts.map((part) => partAssemblySource(part, preview.drillLayout, basePath)),
+        ...preview.parts.map((part) => partAssemblySource(part, preview.drillLayout, basePath, assetValidation?.assets[part.partId])),
     ];
 }
 
@@ -2918,6 +4256,7 @@ function partAssemblySource(
     part: StompboxPreviewPart,
     layout: StompboxDrillLayout,
     basePath: string,
+    validation: StompboxGlbAssetValidation | undefined,
 ): GltfAssemblySource {
     const sourceAssets = sourceAssetRefsForPreviewPart(layout, part);
     const sourceMaterial = part.geometry.kind === 'led-bezel' ? undefined : part.material;
@@ -2927,6 +4266,7 @@ function partAssemblySource(
         ...(part.assetScale === undefined ? {} : { scale: [part.assetScale, part.assetScale, part.assetScale] }),
     };
     const materialTargets = materialTargetsForPart(part);
+    const stateTargets = resolvedStateTargetsForAssembly(part, validation);
     return {
         id: part.id,
         kind: 'part',
@@ -2935,6 +4275,7 @@ function partAssemblySource(
         localGlbPath: resolveStompboxAssetPaths(sourceAssets, { basePath }).glb,
         ...(sourceMaterial === undefined ? {} : { material: sourceMaterial }),
         ...(materialTargets.length === 0 ? {} : { materialTargets }),
+        ...(stateTargets === undefined ? {} : { stateTargets }),
         transform,
         extras: {
             id: part.id,
@@ -2947,6 +4288,7 @@ function partAssemblySource(
             ...(part.assetScale === undefined ? {} : { assetScale: part.assetScale }),
             ...(part.controlId === undefined ? {} : { controlId: part.controlId }),
             ...(part.material === undefined ? {} : { material: previewMaterialJson(part.material) }),
+            ...(stateTargets === undefined ? {} : { stateTargets: partStateTargetsJson(stateTargets) }),
         },
     };
 }
@@ -2966,12 +4308,56 @@ function materialTargetsForPart(part: StompboxPreviewPart): readonly GltfMateria
     if (part.geometry.kind !== 'led-bezel' || part.material === undefined) {
         return [];
     }
+    const lensSelector = part.stateTargets?.led?.lens.selector;
+    const meshNameIncludes = lensSelector?.meshNameIncludes ?? lensSelector?.meshName;
+    if (meshNameIncludes === undefined) {
+        return [];
+    }
     return [
         {
-            meshNameIncludes: 'led_lens',
+            meshNameIncludes,
             material: part.material,
         },
     ];
+}
+
+function resolvedStateTargetsForAssembly(
+    part: StompboxPreviewPart,
+    validation: StompboxGlbAssetValidation | undefined,
+): StompboxResolvedPartStateTargets | undefined {
+    const ledLens = validation?.targets['led.lens'];
+    if (part.family === 'led' && ledLens !== undefined) {
+        return {
+            led: {
+                lens: prefixResolvedStateTarget(part.id, ledLens),
+            },
+        };
+    }
+    const actuator = validation?.targets['footswitch.actuator'];
+    if (part.family === 'footswitch' && actuator !== undefined) {
+        return {
+            footswitch: {
+                actuator: prefixResolvedStateTarget(part.id, actuator),
+            },
+        };
+    }
+    return undefined;
+}
+
+function prefixResolvedStateTarget(
+    previewPartId: string,
+    target: StompboxResolvedGlbStateTarget,
+): StompboxResolvedGlbStateTarget {
+    return {
+        ...target,
+        nodeName: `${previewPartId}/${target.nodeName}`,
+        ...(target.meshName === undefined ? {} : { meshName: `${previewPartId}/${target.meshName}` }),
+        ...(target.materialName === undefined ? {} : { materialName: `${previewPartId}/${target.materialName}` }),
+    };
+}
+
+function partStateTargetsJson(targets: StompboxResolvedPartStateTargets): JsonObject {
+    return cloneJsonObject(targets as unknown as JsonObject);
 }
 
 function previewMaterialJson(material: StompboxPreviewMaterial): JsonObject {
@@ -3088,12 +4474,13 @@ function appendDecalPlane(
 function appendHoleBackingDiscForPart(
     state: GltfMergeState,
     part: StompboxPreviewPart,
+    layout: StompboxDrillLayout,
 ): number | undefined {
     if (part.geometry.kind !== 'ring' || (part.family !== 'audio-jack' && part.family !== 'dc-jack')) {
         return undefined;
     }
     const materialIndex = holeBackingMaterialIndex(state);
-    const diameterMm = part.geometry.innerDiameterMm;
+    const diameterMm = holeBackingDiameterMm(part, layout.holes.find((hole) => hole.id === part.id));
     const meshIndex = state.meshes.length;
     state.meshes.push({
         name: `hole-backing-${part.id}/disc`,
@@ -3121,6 +4508,20 @@ function appendHoleBackingDiscForPart(
         },
     });
     return nodeIndex;
+}
+
+function holeBackingDiameterMm(part: StompboxPreviewPart, hole: StompboxDrillHole | undefined): number {
+    if (part.geometry.kind !== 'ring') {
+        return 0;
+    }
+    if (part.family === 'dc-jack') {
+        const drillDiameterMm = hole?.drillDiameterMm;
+        if (drillDiameterMm !== undefined) {
+            return Math.max(part.geometry.innerDiameterMm, drillDiameterMm - STOMPBOX_DC_JACK_HOLE_BACKING_INSET_MM);
+        }
+        return part.geometry.innerDiameterMm;
+    }
+    return part.geometry.innerDiameterMm;
 }
 
 function holeBackingMaterialIndex(state: GltfMergeState): number {
@@ -3581,9 +4982,13 @@ function sourceSceneRootNodeIndexes(json: JsonObject): readonly number[] {
 
 function parseGlbFile(path: string): ParsedGlb {
     const bytes = new Uint8Array(readFileSync(path));
+    return parseGlbBytes(bytes, path);
+}
+
+function parseGlbBytes(bytes: Uint8Array, context: string): ParsedGlb {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
-        throw new Error(`not a glTF 2.0 binary file: ${path}`);
+        throw new Error(`not a glTF 2.0 binary file: ${context}`);
     }
     let json: JsonObject | undefined;
     let binary = new Uint8Array();
@@ -3594,14 +4999,14 @@ function parseGlbFile(path: string): ParsedGlb {
         const chunkStart = offset + 8;
         const chunk = bytes.slice(chunkStart, chunkStart + chunkLength);
         if (chunkType === 0x4e4f534a) {
-            json = parseJsonObject(new TextDecoder().decode(chunk).trim(), path);
+            json = parseJsonObject(new TextDecoder().decode(chunk).trim(), context);
         } else if (chunkType === 0x004e4942) {
             binary = chunk;
         }
         offset = chunkStart + chunkLength;
     }
     if (json === undefined) {
-        throw new Error(`GLB file has no JSON chunk: ${path}`);
+        throw new Error(`GLB file has no JSON chunk: ${context}`);
     }
     return {
         json,

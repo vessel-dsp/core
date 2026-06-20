@@ -1,6 +1,6 @@
 ---
 title: Stompbox Layouts
-description: Generate headless stompbox drill layouts, templates, SVG views, and GLB previews.
+description: Generate headless stompbox drill layouts, templates, SVG/GLB previews, and live preview state patches.
 ---
 
 import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";
@@ -18,6 +18,7 @@ It stays headless. It must not import React, React DOM, Three.js, browser render
 - Orthographic preview SVG views for `top`, `bottom`, `left`, `right`, and `back`.
 - Mesh-backed preview GLB bytes assembled from caller-provided CAD part GLBs and STEP companions.
 - Optional text, SVG, or image decal metadata for brand, model, and sticker artwork.
+- Headless pedal state helpers and preview state patches for knobs, LEDs, and footswitches.
 
 ## Hardware profile boundary
 
@@ -117,6 +118,163 @@ const glb = createStompboxPreviewGlbFromVdsp(vdspSource, {
 
 Drill-template holes use fabrication clearance diameters from part profiles. Preview views and collision checks may use larger visible geometry such as jack rings, bushings, nuts, and bezels.
 
+## Live preview state
+
+Use the live-state helpers when a preview needs to reflect pedal state while a
+user drags a knob, presses a footswitch, or toggles the bypass state.
+`@vessel-dsp/stompbox` owns the physical preview state only. It does not compile
+`.vdsp`, post worklet messages, import React, or mutate SVG/Three.js objects.
+
+```ts
+import { parseCircuitDocumentFile } from "@vessel-dsp/core";
+import {
+	createDefaultStompboxPedalStateFromVdsp,
+	createStompboxControlSurface,
+	createStompboxPedalStateStore,
+	createStompboxPreviewFromVdsp,
+} from "@vessel-dsp/stompbox";
+
+const document = parseCircuitDocumentFile(vdspSource, {
+	filename: "pedal.vdsp",
+});
+const surface = createStompboxControlSurface(document, {
+	pedalId: "stage-1",
+	compiledControls: runtimeControlsFromYourCompiler,
+});
+const preview = createStompboxPreviewFromVdsp(vdspSource, {
+	hardwareProfile,
+	styleProfile,
+});
+const state = createDefaultStompboxPedalStateFromVdsp(vdspSource, {
+	pedalId: surface.pedalId,
+	compiledControls: runtimeControlsFromYourCompiler,
+});
+const store = createStompboxPedalStateStore(state, { preview });
+
+store.subscribePreviewPatch((patch) => {
+	applyPatchToYourSvgOrGlbViewer(patch);
+});
+
+store.turnKnob("GAIN", 0.82);
+store.pressFootswitch("switch-bypass", true);
+```
+
+`compiledControls` is optional. When a downstream `.vdsp` compiler already
+exposes control metadata, pass descriptors shaped like `{ id,
+sourceComponentId, name, kind, value, min, max, step }` plus optional `unit`,
+`sweep`, `options`, and `targets`. Stompbox merges that audio-bound metadata
+with source-panel labels and order, then returns headless command routes. It
+does not route audio itself.
+
+Live GLB previews require semantic state targets in user-provided LED and
+footswitch part profiles. The LED target should resolve to the lens/light node.
+The footswitch target should resolve to the moving actuator/plunger node; a tap
+animation can move that node and return it without moving the whole switch
+assembly.
+
+```ts
+const ledPartProfile = {
+	// ...
+	stateTargets: {
+		led: {
+			lens: {
+				selector: {
+					nodeName: "o1.2",
+					meshNameIncludes: "5mm_led_lens",
+				},
+			},
+		},
+	},
+};
+
+const footswitchPartProfile = {
+	// ...
+	stateTargets: {
+		footswitch: {
+			actuator: {
+				selector: {
+					nodeName: "o1.3",
+					meshNameIncludes: "plunger",
+				},
+			},
+			travelAxis: "z",
+			travelMm: 1.2,
+		},
+	},
+};
+```
+
+Validate the GLBs before using them for live preview state:
+
+```ts
+import {
+	validateStompboxGlbAssetFile,
+	validateStompboxHardwareProfileAssets,
+} from "@vessel-dsp/stompbox";
+
+const ledValidation = validateStompboxGlbAssetFile(
+	"/cad/parts/led-bezel-lh5/led.step.glb",
+	ledPartProfile,
+);
+
+const profileValidation = validateStompboxHardwareProfileAssets(hardwareProfile, {
+	basePath: "/cad/parts",
+});
+```
+
+Missing or ambiguous live targets produce diagnostics such as
+`missing-state-target-contract`, `missing-state-target`, and
+`ambiguous-state-target`. GLB generation includes the same diagnostics and
+stores resolved target metadata on preview part nodes, for example
+`extras.stateTargets.led.lens` or
+`extras.stateTargets.footswitch.actuator`.
+
+Pointer interaction stays in the consuming app. Convert pointer events into
+state commands, dispatch those commands, and apply the resulting preview patch
+to the renderer:
+
+```ts
+import {
+	applyStompboxPreviewInteraction,
+	createStompboxFootswitchPressCommand,
+	createStompboxKnobTurnCommand,
+	createStompboxPreviewStatePatch,
+} from "@vessel-dsp/stompbox";
+
+const knobCommand = createStompboxKnobTurnCommand(surface, {
+	controlId: "GAIN",
+	position: 0.65,
+});
+const nextState = applyStompboxPreviewInteraction(
+	store.getSnapshot(),
+	knobCommand,
+);
+const patch = createStompboxPreviewStatePatch(
+	preview,
+	nextState,
+	store.getSnapshot(),
+);
+
+store.dispatch(knobCommand);
+applyPatchToYourSvgOrGlbViewer(patch);
+
+const footswitchCommand = createStompboxFootswitchPressCommand(surface, {
+	partId: "switch-bypass",
+	pressed: true,
+});
+store.dispatch(footswitchCommand);
+```
+
+Synthesized `switch-bypass` and `led-status` follow the pedal-level `enabled`
+state. Source-declared knobs, switches, and LEDs follow their `ControlState`
+entries. The 9V connector remains a physical preview default and can be omitted
+with `includePowerJack: false`.
+
+Run the docs locally with `bun run docs:dev`, then open
+`http://localhost:4321/core/guides/stompbox/`. The 3D example below includes a
+docs-only live-state control panel that rotates generated knob nodes, depresses
+footswitch nodes, and changes LED lens materials in the loaded GLB.
+
 ## Stickers and decals
 
 Pass `decals` to preview and drill-template helpers when a frontend needs
@@ -185,8 +343,13 @@ names such as `enclosure-box-1590b`, `part-knob-GAIN`, and
 
 The docs viewer uses an orthographic camera for the top preview and a
 perspective camera with orbit controls for the 3D preview. Pass
-`linework={true}` and `lineworkColor` to enable CAD-style border linework with
-Three.js `EdgesGeometry` after the GLB loads:
+`backgroundColor`, `gridColor`, and `gridOpacity` to style the viewer
+background. The default docs viewer background is black with `#ccc` grid lines
+at `0.2` opacity. Pass `toon={true}` to replace imported CAD mesh materials
+with Three.js `MeshToonMaterial`, and pass `toonEdgeColor="#69145a"` for the
+toon edge pass and thicker outline. Pass `linework={true}` and `lineworkColor`
+to enable CAD-style border linework with Three.js `EdgesGeometry` after the GLB
+loads:
 
 ```ts
 function addCadLinework(root: THREE.Object3D, lineworkColor = "#111827") {
@@ -229,6 +392,9 @@ text. Use the document helpers when your app has already parsed or edited a
 | Preview manifest | `createStompboxPreviewFromVdsp` | `createStompboxPreview` |
 | Orthographic 2D SVG views | `createStompboxPreviewSvgViewsFromVdsp` | `createStompboxPreviewSvgViews` |
 | Mesh-backed 3D GLB bytes | `createStompboxPreviewGlbFromVdsp` | `createStompboxPreviewGlb` |
+| Default pedal state | `createDefaultStompboxPedalStateFromVdsp` | `createDefaultStompboxPedalState` |
+| Control surface | Parse with core first | `createStompboxControlSurface` |
+| Preview state patch | `createStompboxPreviewStatePatch` | `createStompboxPreviewStatePatch` |
 | Frontend recolor patch | `createStompboxAppearancePatch` | `createStompboxAppearancePatch` |
 | Resolved appearance alias | `resolveStompboxAppearance` | `resolveStompboxAppearance` |
 
@@ -247,7 +413,7 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 >
 	<h3>Orthographic GLB top preview</h3>
 
-	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" linework={true} lineworkColor="#0f172a" />
+	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" backgroundColor="#000000" gridColor="#cccccc" gridOpacity={0.2} toon={true} toonEdgeColor="#69145a" linework={true} lineworkColor="#ffffff" />
 
 	<div>
 		This uses the generated GLB with an orthographic top camera, so side-mounted
@@ -259,8 +425,14 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 
 	<StompboxGlbViewer
 		src="/core/examples/stompbox-mxr-style-preview.glb"
+		backgroundColor="#000000"
+		gridColor="#cccccc"
+		gridOpacity={0.2}
+		toon={true}
+		toonEdgeColor="#69145a"
 		linework={true}
-		lineworkColor="#0f172a"
+		lineworkColor="#eb7223"
+		liveStateDemo={true}
 	/>
 
 	<h3>Drill layout preview</h3>

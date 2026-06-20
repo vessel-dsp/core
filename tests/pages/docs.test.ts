@@ -121,10 +121,14 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("data-stompbox-drill-layout-download");
 		expect(stompboxPage).toContain("presets={demoProfiles.previewPresets}");
 		expect(stompboxPage).toContain('linework={true}');
-		expect(stompboxPage).toContain('lineworkColor="#0f172a"');
+		expect(stompboxPage).toContain('lineworkColor="#eb7223"');
 		expect(stompboxPage).toContain("orthographic top camera");
 		expect(stompboxPage).toContain("CAD-style linework");
 		expect(stompboxPage).toContain("EdgesGeometry");
+		expect(stompboxPage).toContain("backgroundColor");
+		expect(stompboxPage).toContain("gridColor");
+		expect(stompboxPage).toContain("gridOpacity");
+		expect(stompboxPage).toContain("toon edge pass and thicker outline");
 
 		const demoProfiles = readRepoJson<{
 			defaultStyleProfileId?: string;
@@ -148,6 +152,11 @@ describe("GitHub Pages documentation site", () => {
 				src?: string;
 				drillTemplateSrc?: string;
 				drillLayoutSrc?: string;
+				backgroundColor?: string;
+				gridColor?: string;
+				gridOpacity?: number;
+				toon?: boolean;
+				toonEdgeColor?: string;
 			}[];
 		}>("docs/src/data/stompbox-demo-profiles.json");
 		expect(demoProfiles.defaultStyleProfileId).toBe("mxr-style");
@@ -204,17 +213,52 @@ describe("GitHub Pages documentation site", () => {
 			"MXR style, two knobs",
 			"Boss style, three knobs",
 		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.backgroundColor)).toEqual([
+			"#000000",
+			"#000000",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.gridColor)).toEqual([
+			"#cccccc",
+			"#cccccc",
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.gridOpacity)).toEqual([
+			0.2,
+			0.2,
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.toon)).toEqual([
+			true,
+			true,
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.toonEdgeColor)).toEqual([
+			"#69145a",
+			"#69145a",
+		]);
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
 		expect(viewer).toContain("data-stompbox-glb-viewer");
 		expect(viewer).not.toContain("data-stompbox-preset-select");
 		expect(viewer).not.toContain("stompbox-glb-viewer__toolbar");
+		expect(viewer).not.toContain("data-stompbox-live-state-controls");
+		expect(viewer).not.toContain("stompbox-glb-viewer__live-state");
 		expect(viewer).toContain("data-view-mode");
 		expect(viewer).toContain("data-interactive");
 		expect(viewer).toContain("linework?: boolean;");
 		expect(viewer).toContain("lineworkColor?: string;");
+		expect(viewer).toContain("backgroundColor?: string;");
+		expect(viewer).toContain("gridColor?: string;");
+		expect(viewer).toContain("gridOpacity?: number;");
+		expect(viewer).toContain("toon?: boolean;");
+		expect(viewer).toContain("toonEdgeColor?: string;");
 		expect(viewer).toContain("data-linework");
 		expect(viewer).toContain("data-linework-color");
+		expect(viewer).toContain("data-background-color");
+		expect(viewer).toContain("data-grid-color");
+		expect(viewer).toContain("data-grid-opacity");
+		expect(viewer).toContain("data-toon");
+		expect(viewer).toContain("data-toon-edge-color");
+		expect(viewer).toContain("--stompbox-viewer-background-color");
+		expect(viewer).toContain("--stompbox-viewer-grid-color");
+		expect(viewer).toContain("--stompbox-viewer-grid-opacity");
 		expect(viewer).toContain('"three": "/core/vendor/three/build/three.module.js"');
 		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
 
@@ -223,6 +267,13 @@ describe("GitHub Pages documentation site", () => {
 		expect(presetGroup).toContain("data-stompbox-preview-preset-group");
 		expect(presetGroup).toContain("data-stompbox-preset-select");
 		expect(presetGroup).toContain("data-stompbox-presets");
+		expect(presetGroup).toContain("data-stompbox-live-state-controls");
+		expect(presetGroup).toContain("stompbox-preview-preset-group__live-state");
+		expect(presetGroup).toContain("backgroundColor?: string;");
+		expect(presetGroup).toContain("gridColor?: string;");
+		expect(presetGroup).toContain("gridOpacity?: number;");
+		expect(presetGroup).toContain("toon?: boolean;");
+		expect(presetGroup).toContain("toonEdgeColor?: string;");
 		expect(presetGroup).toContain("<slot />");
 
 		const viewerRuntime = readRepoFile("docs/public/stompbox-glb-viewer.js");
@@ -247,11 +298,61 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("applyFlatAppearanceColorMaterial");
 		expect(viewerRuntime).toContain("renderColorMode");
 		expect(viewerRuntime).toContain("THREE.MeshBasicMaterial");
+		expect(viewerRuntime).toContain("DEFAULT_BACKGROUND_COLOR");
+		expect(viewerRuntime).toContain("DEFAULT_GRID_COLOR");
+		expect(viewerRuntime).toContain("DEFAULT_GRID_OPACITY");
+		expect(viewerRuntime).toContain('DEFAULT_TOON_EDGE_COLOR = "#69145a"');
+		expect(viewerRuntime).toContain("THREE.MeshToonMaterial");
+		expect(viewerRuntime).toContain("createToonGradientMap");
+		expect(viewerRuntime).toContain("applyToonMaterials(model, preset)");
+		expect(viewerRuntime).toContain("material.userData.toonSourceMaterial");
+		expect(viewerRuntime).toContain("applyPresetBackground(viewer, preset)");
+		expect(viewerRuntime).toContain("viewer.style.setProperty(\"--stompbox-viewer-background-color\"");
+		expect(viewerRuntime).toContain("viewer.style.setProperty(\"--stompbox-viewer-grid-color\"");
+		expect(viewerRuntime).toContain("viewer.style.setProperty(\"--stompbox-viewer-grid-opacity\"");
+		expect(viewerRuntime).toContain("renderer.setClearColor(new THREE.Color(DEFAULT_BACKGROUND_COLOR), 0)");
+		expect(viewerRuntime).toContain("alpha: true");
 		expect(viewerRuntime).toContain("addCadLinework");
 		expect(viewerRuntime).toContain("initPresetLinkedAssets");
 		expect(viewerRuntime).toContain("updatePresetLinkedAssets");
 		expect(viewerRuntime).toContain("parsePresetOptions");
 		expect(viewerRuntime).toContain("presetSelectForViewer");
+		expect(viewerRuntime).toContain("liveStatePanelForViewer");
+		expect(viewerRuntime).toContain("liveStateStoreForViewer");
+		expect(viewerRuntime).toContain("applyLiveStateToRegisteredViewers");
+		expect(viewerRuntime).toContain("return group !== null && group.querySelector");
+		expect(viewerRuntime).toContain("FOOTSWITCH_AUTO_RELEASE_MS");
+		expect(viewerRuntime).toContain("FOOTSWITCH_ANIMATION_MS");
+		expect(viewerRuntime).toContain("KNOB_LEFT_END_ROTATION_DEG = 135");
+		expect(viewerRuntime).toContain("KNOB_ROTATION_SWEEP_DEG = -270");
+		expect(viewerRuntime).toContain("updateLiveStateAnimations(viewer, deltaMs)");
+		expect(viewerRuntime).toContain("simulateFootswitchTap");
+		expect(viewerRuntime).toContain("startFootswitchPress");
+		expect(viewerRuntime).toContain("releaseFootswitchPress");
+		expect(viewerRuntime).toContain('button.addEventListener("pointerdown"');
+		expect(viewerRuntime).toContain('button.addEventListener("pointerup"');
+		expect(viewerRuntime).toContain('button.addEventListener("keydown"');
+		expect(viewerRuntime).toContain('button.addEventListener("keyup"');
+		expect(viewerRuntime).toContain("store.pressStartedAt");
+		expect(viewerRuntime).toContain("store.releaseTimers");
+		expect(viewerRuntime).toContain("footswitch.targetTravelMm");
+		expect(viewerRuntime).toContain("footswitch.currentTravelMm");
+		expect(viewerRuntime).toContain("localTravelForWorldMillimeters");
+		expect(viewerRuntime).toContain("parentWorldScaleForLocalAxis");
+		expect(viewerRuntime).toContain("footswitch.actuator.position");
+		expect(viewerRuntime).not.toContain("footswitch.node.position");
+		expect(viewerRuntime).toContain("return KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG;");
+		expect(viewerRuntime).toContain("return clamp01((rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG);");
+		expect(viewerRuntime).toContain("updateFootswitchButton");
+		expect(viewerRuntime).toContain("syncLedStateControls");
+		expect(viewerRuntime).toContain("data-stompbox-led-toggle");
+		expect(viewerRuntime).toContain("window.setTimeout");
+		expect(viewerRuntime).toContain("store.state.latches");
+		expect(viewerRuntime).toContain("store.state.leds.size === 1");
+		expect(viewerRuntime).toContain("object.userData?.name === nodeName");
+		expect(viewerRuntime).not.toContain("button.disabled = pressed");
+		expect(viewerRuntime).toContain('input.type = "checkbox";');
+		expect(viewerRuntime).toContain('input.setAttribute("role", "switch");');
 		expect(viewerRuntime).toContain("loadPreset");
 		expect(viewerRuntime).toContain('select.addEventListener("change"');
 		expect(viewerRuntime).toContain("viewer.closest(\"[data-stompbox-preview-preset-group]\")");
@@ -260,10 +361,20 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("data-stompbox-drill-layout-download");
 		expect(viewerRuntime).toContain('const lineworkEnabled = viewer.dataset.linework === "true";');
 		expect(viewerRuntime).toContain('const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";');
-		expect(viewerRuntime).toContain("if (preset.linework)");
+		expect(viewerRuntime).toContain('const toonEnabled = viewer.dataset.toon === "true";');
+		expect(viewerRuntime).toContain("if (preset.toon)");
+		expect(viewerRuntime).toContain("const edgeColor = preset.toon ? preset.toonEdgeColor : preset.lineworkColor");
+		expect(viewerRuntime).toContain("const TOON_OUTLINE_SCALE = 1.025;");
+		expect(viewerRuntime).toContain("addToonOutline(model, preset.toonEdgeColor);");
 		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
 		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
 		expect(viewerRuntime).toContain("THREE.LineSegments");
+		expect(viewerRuntime).toContain("function addToonOutline(root, outlineColor = DEFAULT_TOON_EDGE_COLOR)");
+		expect(viewerRuntime).toContain("new THREE.MeshBasicMaterial");
+		expect(viewerRuntime).toContain("side: THREE.BackSide");
+		expect(viewerRuntime).toContain("outline.scale.setScalar(TOON_OUTLINE_SCALE);");
+		expect(viewerRuntime).toContain("outline.position.copy(center).multiplyScalar(1 - TOON_OUTLINE_SCALE);");
+		expect(viewerRuntime).toContain('outline.userData.kind = "toon-outline";');
 
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.module.js"))).toBe(true);
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.core.js"))).toBe(true);
@@ -314,12 +425,18 @@ describe("GitHub Pages documentation site", () => {
 
 		const glb = readRepoBytes("docs/public/examples/stompbox-mxr-style-preview.glb");
 		expect(glb.subarray(0, 4).toString("utf8")).toBe("glTF");
+		expect(glb.includes(Buffer.from("stateTargets"))).toBe(true);
+		expect(glb.includes(Buffer.from("led-LED1"))).toBe(true);
+		expect(glb.includes(Buffer.from("switch-SW1"))).toBe(true);
 		expect(glb.includes(Buffer.from("knob-indicator-knob-GAIN"))).toBe(false);
 		expect(glb.includes(Buffer.from("knob-indicator-knob-LEVEL"))).toBe(false);
 		expect(glb.includes(Buffer.from("label-led"))).toBe(false);
 
 		const bossGlb = readRepoBytes("docs/public/examples/stompbox-boss-style-preview.glb");
 		expect(bossGlb.subarray(0, 4).toString("utf8")).toBe("glTF");
+		expect(bossGlb.includes(Buffer.from("stateTargets"))).toBe(true);
+		expect(bossGlb.includes(Buffer.from("led-status"))).toBe(true);
+		expect(bossGlb.includes(Buffer.from("switch-bypass"))).toBe(true);
 		expect(bossGlb.includes(Buffer.from("#fae464"))).toBe(true);
 		expect(bossGlb.includes(Buffer.from("part-knob-RATE"))).toBe(true);
 		expect(bossGlb.includes(Buffer.from("label-led"))).toBe(false);

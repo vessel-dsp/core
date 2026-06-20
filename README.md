@@ -15,6 +15,7 @@ the emitted Circuit JSON.
 | Package | Status | Use it for |
 | --- | --- | --- |
 | `@vessel-dsp/core` | Public npm package | Parsing, validation, normalized `CircuitDocument` data, `.vdsp` / `.asc` / `.schx` serialization, and Circuit JSON import/export. |
+| `@vessel-dsp/stompbox` | Public npm package | Headless stompbox drill layouts, SVG/GLB previews, physical hardware defaults, live preview state patches, and GLB state-target validation. |
 
 ## Install
 

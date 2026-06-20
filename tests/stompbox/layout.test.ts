@@ -5,8 +5,15 @@ import { join } from 'node:path';
 import {
     STOMPBOX_DRILL_HOLE_PROFILE_CATALOG,
     createStompboxAppearancePatch,
+    applyStompboxPreviewInteraction,
+    createDefaultStompboxPedalStateFromVdsp,
     createStompboxDrillTemplateSvg,
     createStompboxDrillTemplateSvgFromVdsp as createStompboxDrillTemplateSvgFromVdspBase,
+    createStompboxControlSurface,
+    createStompboxFootswitchPressCommand,
+    createStompboxKnobTurnCommand,
+    createStompboxPedalStateStore,
+    createStompboxPreviewStatePatch,
     createStompboxPreviewGlbFromVdsp as createStompboxPreviewGlbFromVdspBase,
     createStompboxPreviewSvgViewsFromVdsp as createStompboxPreviewSvgViewsFromVdspBase,
     createStompboxDrillLayout as createStompboxDrillLayoutBase,
@@ -16,9 +23,13 @@ import {
     createStompboxPreview as createStompboxPreviewBase,
     createStompboxPreviewFromVdsp as createStompboxPreviewFromVdspBase,
     getAvailableStompboxStyleProfiles,
+    knobRotationDegForPosition,
     resolveStompboxAppearance,
     resolveStompboxAssetPaths,
+    validateStompboxGlbAssetFile,
+    validateStompboxHardwareProfileAssets,
     type StompboxAppearance,
+    type StompboxPedalStateCommand,
     type StompboxEnclosureProfileCatalog,
     type StompboxHardwareProfile,
     type StompboxPartProfileCatalog,
@@ -91,6 +102,7 @@ type GltfExtras = Readonly<{
     appearanceMaterial?: unknown;
     material?: unknown;
     renderColorMode?: string;
+    stateTargets?: unknown;
 }>;
 
 type GltfAccessor = NonNullable<GltfJson['accessors']>[number];
@@ -1276,6 +1288,121 @@ describe('stompbox catalog and assets', () => {
         expect(defaultLed.assetScale).toBeUndefined();
         expect(defaultLed.assets.glbRelativePath).toBe('led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb');
         expect(defaultLed.assets.stepRelativePath).toBe('led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step');
+        expect(defaultLed.stateTargets?.led?.lens.selector).toEqual({
+            nodeName: 'o1.2',
+            meshNameIncludes: '5mm_led_lens',
+        });
+
+        const footswitch = STOMPBOX_PART_CATALOG['switch-3pdt-pic-pbs24302'];
+        expect(footswitch).toBeDefined();
+        if (footswitch === undefined) {
+            return;
+        }
+        expect(footswitch.geometry.kind).toBe('footswitch');
+        expect(footswitch.stateTargets?.footswitch?.actuator.selector).toEqual({
+            nodeName: 'o1.3',
+            meshNameIncludes: 'plunger',
+        });
+        expect(footswitch.stateTargets?.footswitch?.travelAxis).toBe('z');
+        expect(footswitch.stateTargets?.footswitch?.travelMm).toBe(1.2);
+    });
+
+    test('validates live state targets in user-provided LED and footswitch GLBs', () => {
+        const led = STOMPBOX_PART_CATALOG['led-bezel-lh5'];
+        const footswitch = STOMPBOX_PART_CATALOG['switch-3pdt-pic-pbs24302'];
+        expect(led).toBeDefined();
+        expect(footswitch).toBeDefined();
+        if (led === undefined || footswitch === undefined) {
+            return;
+        }
+
+        const ledValidation = validateStompboxGlbAssetFile(
+            join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, led.assets.glbRelativePath),
+            led,
+        );
+        const footswitchValidation = validateStompboxGlbAssetFile(
+            join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, footswitch.assets.glbRelativePath),
+            footswitch,
+        );
+        const profileValidation = validateStompboxHardwareProfileAssets(DEMO_STOMPBOX_HARDWARE_PROFILE, {
+            basePath: DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+        });
+
+        expect(ledValidation.valid).toBe(true);
+        expect(ledValidation.diagnostics).toEqual([]);
+        expect(ledValidation.targets['led.lens']).toEqual(expect.objectContaining({
+            role: 'led.lens',
+            nodeName: 'o1.2',
+            meshName: 'pedal_parts_and_kits_bzl_5mm_p_bezel_stub_5mm_led_lens',
+        }));
+        expect(footswitchValidation.valid).toBe(true);
+        expect(footswitchValidation.targets['footswitch.actuator']).toEqual(expect.objectContaining({
+            role: 'footswitch.actuator',
+            nodeName: 'o1.3',
+            meshName: 'pic_pbs24302_3pdt_footswitch_exterior_stub_stepped_10mm_plunger_6p5mm_tall',
+        }));
+        expect(profileValidation.valid).toBe(true);
+        expect(profileValidation.assets['led-bezel-lh5']?.targets['led.lens']?.nodeName).toBe('o1.2');
+        expect(profileValidation.assets['switch-3pdt-pic-pbs24302']?.targets['footswitch.actuator']?.nodeName).toBe('o1.3');
+    });
+
+    test('reports live-state GLB diagnostics when required targets are missing', () => {
+        const led = STOMPBOX_PART_CATALOG['led-bezel-lh5'];
+        const footswitch = STOMPBOX_PART_CATALOG['switch-3pdt-pic-pbs24302'];
+        expect(led).toBeDefined();
+        expect(footswitch).toBeDefined();
+        if (led === undefined || footswitch === undefined) {
+            return;
+        }
+
+        const { stateTargets: _ledStateTargets, ...ledWithoutStateTargets } = led;
+        const hardwareProfileWithoutTargets: StompboxHardwareProfile = {
+            ...DEMO_STOMPBOX_HARDWARE_PROFILE,
+            partProfiles: {
+                ...DEMO_STOMPBOX_HARDWARE_PROFILE.partProfiles,
+                [led.id]: ledWithoutStateTargets,
+                [footswitch.id]: {
+                    ...footswitch,
+                    stateTargets: {
+                        footswitch: {
+                            actuator: { selector: { nodeNameIncludes: 'missing-plunger' } },
+                            travelAxis: 'z',
+                            travelMm: 1.2,
+                        },
+                    },
+                },
+            },
+        };
+        const validation = validateStompboxHardwareProfileAssets(hardwareProfileWithoutTargets, {
+            basePath: DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+        });
+        const assembly = createStompboxPreviewGlbFromVdsp(vdspWithoutPhysicalPlacement, {
+            hardwareProfile: hardwareProfileWithoutTargets,
+            styleProfile: DEFAULT_STOMPBOX_STYLE_PROFILE,
+            basePath: DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT,
+        });
+
+        expect(validation.valid).toBe(false);
+        expect(validation.assets['led-bezel-lh5']?.diagnostics).toContainEqual(expect.objectContaining({
+            code: 'missing-state-target-contract',
+            partId: 'led-bezel-lh5',
+            targetRole: 'led.lens',
+        }));
+        expect(validation.assets['switch-3pdt-pic-pbs24302']?.diagnostics).toContainEqual(expect.objectContaining({
+            code: 'missing-state-target',
+            partId: 'switch-3pdt-pic-pbs24302',
+            targetRole: 'footswitch.actuator',
+        }));
+        expect(assembly.diagnostics).toContainEqual(expect.objectContaining({
+            code: 'missing-state-target-contract',
+            partId: 'led-bezel-lh5',
+            targetRole: 'led.lens',
+        }));
+        expect(assembly.diagnostics).toContainEqual(expect.objectContaining({
+            code: 'missing-state-target',
+            partId: 'switch-3pdt-pic-pbs24302',
+            targetRole: 'footswitch.actuator',
+        }));
     });
 
     test('resolves catalog asset paths from a local base path or served base URL', () => {
@@ -2176,6 +2303,236 @@ describe('stompbox drill template modes', () => {
     });
 });
 
+describe('stompbox runtime preview state', () => {
+    test('merges source panel controls with compiled runtime controls without importing a runtime', () => {
+        const document = parseCircuitDocumentFile(vdspWithGridPlacementOnly, { filename: 'grid-layout.vdsp' });
+        const surface = createStompboxControlSurface(document, {
+            pedalId: 'stage-1',
+            compiledControls: [
+                {
+                    id: 'control-tone-runtime',
+                    sourceComponentId: 'TONE',
+                    name: 'Tone',
+                    kind: 'potentiometer',
+                    value: 250,
+                    defaultBehavior: 'source',
+                    min: 100,
+                    max: 1100,
+                    step: 10,
+                    unit: 'ohm',
+                    sweep: 'linear',
+                    targets: [{ resistorIndex: 0, role: 'variable' }],
+                },
+                {
+                    id: 'control-level-runtime',
+                    sourceComponentId: 'LEVEL',
+                    name: 'Level',
+                    kind: 'potentiometer',
+                    value: 0.9,
+                    min: 0,
+                    max: 1,
+                    step: 0.01,
+                    sweep: 'audio',
+                    targets: [{ resistorIndex: 1, role: 'pot-upper' }],
+                },
+            ],
+        });
+
+        expect(surface.schema).toBe('stompbox-control-surface/v1');
+        expect(surface.pedalId).toBe('stage-1');
+        expect(surface.controls.map((control) => ({
+            id: control.id,
+            runtimeControlId: control.runtimeControlId,
+            source: control.source,
+            label: control.label,
+            defaultValue: control.value,
+            unit: control.unit,
+            sweep: control.sweep,
+        }))).toEqual([
+            {
+                id: 'DRIVE',
+                runtimeControlId: undefined,
+                source: 'source-panel',
+                label: 'Drive',
+                defaultValue: 0.5,
+                unit: undefined,
+                sweep: undefined,
+            },
+            {
+                id: 'TONE',
+                runtimeControlId: 'control-tone-runtime',
+                source: 'compiled',
+                label: 'Tone',
+                defaultValue: 250,
+                unit: 'ohm',
+                sweep: 'linear',
+            },
+            {
+                id: 'LEVEL',
+                runtimeControlId: 'control-level-runtime',
+                source: 'compiled',
+                label: 'Level',
+                defaultValue: 0.5,
+                unit: undefined,
+                sweep: 'audio',
+            },
+        ]);
+        expect(surface.panel.knobs.map((knob) => ({ id: knob.id, name: knob.name, defaultPosition: knob.defaultPosition }))).toEqual([
+            { id: 'DRIVE', name: 'Drive', defaultPosition: 0.5 },
+            { id: 'TONE', name: 'Tone', defaultPosition: 0.15 },
+            { id: 'LEVEL', name: 'Level', defaultPosition: 0.5 },
+        ]);
+    });
+
+    test('turns knobs, presses synthesized footswitches, and emits preview patches without rendering', () => {
+        const preview = createStompboxPreviewFromVdsp(vdspWithControlsOnly);
+        const state = createDefaultStompboxPedalStateFromVdsp(vdspWithControlsOnly, {
+            pedalId: 'stage-1',
+            enabled: false,
+        });
+        const surface = createStompboxControlSurface(
+            parseCircuitDocumentFile(vdspWithControlsOnly, { filename: 'controls-only.vdsp' }),
+            { pedalId: 'stage-1' },
+        );
+        const knobCommand = createStompboxKnobTurnCommand(surface, {
+            controlId: 'GAIN',
+            position: 0.8,
+        });
+        const withGain = applyStompboxPreviewInteraction(state, knobCommand);
+        const footswitchCommand = createStompboxFootswitchPressCommand(surface, {
+            partId: 'switch-bypass',
+            pressed: true,
+        });
+        const enabled = applyStompboxPreviewInteraction(withGain, footswitchCommand);
+        const patch = createStompboxPreviewStatePatch(preview, enabled, state);
+
+        expect(knobCommand).toEqual({
+            type: 'set-control-value',
+            controlId: 'GAIN',
+            value: { kind: 'knob', position: 0.8 },
+        } satisfies StompboxPedalStateCommand);
+        expect(footswitchCommand).toEqual({
+            type: 'set-enabled',
+            enabled: true,
+        } satisfies StompboxPedalStateCommand);
+        expect(enabled.enabled).toBe(true);
+        expect(enabled.controls.GAIN).toEqual({ kind: 'knob', position: 0.8 });
+        expect(enabled.revision).toBe(state.revision + 2);
+        expect(patch.parts['part-knob-GAIN']).toEqual(expect.objectContaining({
+            targetId: 'part-knob-GAIN',
+            previewPartId: 'knob-GAIN',
+            controlId: 'GAIN',
+            value: { kind: 'knob', position: 0.8 },
+            transform: expect.objectContaining({
+                rotationDeg: expect.objectContaining({ z: -81 }),
+            }),
+        }));
+        expect(patch.parts['part-switch-bypass']).toEqual(expect.objectContaining({
+            targetId: 'part-switch-bypass',
+            previewPartId: 'switch-bypass',
+            value: { kind: 'switch', position: 1 },
+            stateTarget: expect.objectContaining({
+                role: 'footswitch.actuator',
+                nodeName: 'switch-bypass/o1.3',
+                travelAxis: 'z',
+                travelMm: 1.2,
+            }),
+        }));
+        expect(patch.parts['part-switch-bypass']?.transform).toBeUndefined();
+        expect(patch.parts['part-led-status']).toEqual(expect.objectContaining({
+            targetId: 'part-led-status',
+            previewPartId: 'led-status',
+            value: { kind: 'led', on: true },
+            stateTarget: expect.objectContaining({
+                role: 'led.lens',
+                nodeName: 'led-status/o1.2',
+            }),
+            material: expect.objectContaining({
+                emissive: true,
+                intensity: 1,
+            }),
+        }));
+        expect(patch.parts['part-knob-LEVEL']).toBeUndefined();
+    });
+
+    test('presses source-backed footswitch preview parts by resolving their control id', () => {
+        const state = createDefaultStompboxPedalStateFromVdsp(vdspWithoutPhysicalPlacement, {
+            pedalId: 'stage-1',
+        });
+        const surface = createStompboxControlSurface(
+            parseCircuitDocumentFile(vdspWithoutPhysicalPlacement, { filename: 'auto-layout.vdsp' }),
+            { pedalId: 'stage-1' },
+        );
+        const command = createStompboxFootswitchPressCommand(surface, {
+            partId: 'switch-SW1',
+            pressed: true,
+        });
+        const store = createStompboxPedalStateStore(state);
+
+        store.pressFootswitch('switch-SW1', true);
+
+        expect(command).toEqual({
+            type: 'set-control-value',
+            controlId: 'SW1',
+            value: { kind: 'switch', position: 1 },
+        } satisfies StompboxPedalStateCommand);
+        expect(applyStompboxPreviewInteraction(state, command).controls.SW1).toEqual({
+            kind: 'switch',
+            position: 1,
+        });
+        expect(store.getSnapshot().controls.SW1).toEqual({
+            kind: 'switch',
+            position: 1,
+        });
+    });
+
+    test('notifies targeted subscribers and preview patch listeners from the headless store', () => {
+        const preview = createStompboxPreviewFromVdsp(vdspWithControlsOnly);
+        const state = createDefaultStompboxPedalStateFromVdsp(vdspWithControlsOnly, {
+            pedalId: 'stage-1',
+        });
+        const store = createStompboxPedalStateStore(state, { preview });
+        const allEvents: string[] = [];
+        const gainEvents: unknown[] = [];
+        const levelEvents: unknown[] = [];
+        const patches: string[][] = [];
+
+        const unsubscribeAll = store.subscribe((event) => {
+            allEvents.push(`${event.previous.revision}->${event.current.revision}`);
+        });
+        const unsubscribeGain = store.subscribeControl('GAIN', (value) => {
+            gainEvents.push(value);
+        });
+        const unsubscribeLevel = store.subscribeControl('LEVEL', (value) => {
+            levelEvents.push(value);
+        });
+        const unsubscribePatch = store.subscribePreviewPatch((patch) => {
+            patches.push(Object.keys(patch.parts).sort());
+        });
+
+        store.turnKnob('GAIN', 1);
+        store.setEnabled(true);
+        unsubscribeGain();
+        store.turnKnob('GAIN', 0.25);
+        unsubscribeAll();
+        unsubscribeLevel();
+        unsubscribePatch();
+        store.turnKnob('LEVEL', 0.75);
+
+        expect(allEvents).toEqual(['0->1', '1->2', '2->3']);
+        expect(gainEvents).toEqual([
+            { kind: 'knob', position: 1 },
+        ]);
+        expect(levelEvents).toEqual([]);
+        expect(patches).toEqual([
+            ['part-knob-GAIN'],
+            ['part-led-status', 'part-switch-bypass'],
+            ['part-knob-GAIN'],
+        ]);
+        expect(store.getSnapshot().controls.LEVEL).toEqual({ kind: 'knob', position: 0.75 });
+    });
+});
+
 describe('stompbox preview manifest', () => {
     test('normalizes text and SVG customization decals for preview outputs', () => {
         const preview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, {
@@ -2650,6 +3007,12 @@ describe('stompbox preview manifest', () => {
         ]);
     });
 
+    test('maps knob positions from left end to right end', () => {
+        expect(knobRotationDegForPosition(0)).toBe(135);
+        expect(knobRotationDegForPosition(0.5)).toBe(0);
+        expect(knobRotationDegForPosition(1)).toBe(-135);
+    });
+
     test('uses drill placement and applies runtime visual state', () => {
         const preview = createStompboxPreviewFromVdsp(vdspWithoutPhysicalPlacement, {
             state: {
@@ -2666,7 +3029,7 @@ describe('stompbox preview manifest', () => {
 
         expect(preview.schema).toBe('stompbox-preview/v1');
         expect(gain.transform.translationMm).toEqual({ x: -14.625, y: 32.85, z: 15.5 });
-        expect(gain.transform.rotationDeg.z).toBe(135);
+        expect(gain.transform.rotationDeg.z).toBe(-135);
         expect(status.material).toEqual({ color: 'red', emissive: true, intensity: 0.7 });
         expect(bypass.transform.translationMm.z).toBe(14.3);
         expect(input.transform.rotationDeg).toEqual({ x: 0, y: 90, z: 0 });
@@ -2744,7 +3107,8 @@ describe('stompbox preview manifest', () => {
         expect(views.views.top).toContain('data-view="top"');
         expect(views.views.top).toContain('<title id="stompbox-preview-top-title">Stompbox preview top view</title>');
         expect(views.views.top).toContain('data-part-id="knob-GAIN"');
-        expect(views.views.top).toContain('data-knob-rotation-deg="135"');
+        expect(views.views.top).toContain('data-knob-rotation-deg="-135"');
+        expect(views.views.top).toContain('transform="rotate(135 15.625 22.9)"');
         expect(views.views.top).toContain('data-led-emissive="true"');
         expect(views.views.top).toContain('data-footswitch-pressed="true"');
         expect(views.views.top).toContain('data-decal-id="brand"');
@@ -2864,6 +3228,7 @@ describe('stompbox preview manifest', () => {
         expect(assembly.preview.decals.map((decal) => decal.id)).toContain('label-knob-GAIN');
 
         const gainNode = nodes.find((node) => node.name === 'part-knob-GAIN');
+        const ledNode = nodes.find((node) => node.name === 'part-led-LED1');
         const switchNode = nodes.find((node) => node.name === 'part-switch-SW1');
         const inputHoleBackingNode = nodes.find((node) => node.name === 'hole-backing-jack-IN');
         const outputHoleBackingNode = nodes.find((node) => node.name === 'hole-backing-jack-OUT');
@@ -2877,11 +3242,31 @@ describe('stompbox preview manifest', () => {
         const holeBackingMaterial = gltf.materials?.find((material) => material.name === 'hole-backing/material');
         expect(gainNode?.children?.length).toBeGreaterThan(0);
         expect(gainNode?.translation).toEqual([-14.625, 32.85, 15.5]);
-        expect(gainNode?.rotation).toEqual([0, 0, 0.92388, 0.382683]);
+        expect(gainNode?.rotation).toEqual([0, 0, -0.92388, 0.382683]);
         expect(gltfExtras(gainNode?.extras).glb).toBe(
             join(DEFAULT_STOMPBOX_ARTIFACT_CAD_PARTS_ROOT, 'knob-mxr-style-fluted/.daier-mf-b01.step.glb'),
         );
+        expect(gltfExtras(ledNode?.extras).stateTargets).toEqual({
+            led: {
+                lens: expect.objectContaining({
+                    role: 'led.lens',
+                    nodeName: 'led-LED1/o1.2',
+                    meshName: 'led-LED1/pedal_parts_and_kits_bzl_5mm_p_bezel_stub_5mm_led_lens',
+                }),
+            },
+        });
         expect(switchNode?.translation).toEqual([0, -21.9, 14.3]);
+        expect(gltfExtras(switchNode?.extras).stateTargets).toEqual({
+            footswitch: {
+                actuator: expect.objectContaining({
+                    role: 'footswitch.actuator',
+                    nodeName: 'switch-SW1/o1.3',
+                    meshName: 'switch-SW1/pic_pbs24302_3pdt_footswitch_exterior_stub_stepped_10mm_plunger_6p5mm_tall',
+                    travelAxis: 'z',
+                    travelMm: 1.2,
+                }),
+            },
+        });
         expect(inputHoleBackingNode?.mesh).toBeDefined();
         expect(outputHoleBackingNode?.mesh).toBeDefined();
         expect(powerHoleBackingNode?.mesh).toBeDefined();
@@ -2900,6 +3285,7 @@ describe('stompbox preview manifest', () => {
             partId: 'power-9v',
             sourcePartId: 'dc-socket-dc099',
             face: 'right',
+            diameterMm: 12,
         }));
         expect(holeBackingMaterial?.doubleSided).toBe(true);
         expect(holeBackingMaterial?.pbrMetallicRoughness?.baseColorFactor).toEqual([0, 0, 0, 1]);

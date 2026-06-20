@@ -230,6 +230,16 @@
 			"assets": {
 				"glbRelativePath": "led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
 				"stepRelativePath": "led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step"
+			},
+			"stateTargets": {
+				"led": {
+					"lens": {
+						"selector": {
+							"nodeName": "o1.2",
+							"meshNameIncludes": "5mm_led_lens"
+						}
+					}
+				}
 			}
 		},
 		"switch-3pdt-pic-pbs24302": {
@@ -251,6 +261,18 @@
 			"assets": {
 				"glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
 				"stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
+			},
+			"stateTargets": {
+				"footswitch": {
+					"actuator": {
+						"selector": {
+							"nodeName": "o1.3",
+							"meshNameIncludes": "plunger"
+						}
+					},
+					"travelAxis": "z",
+					"travelMm": 1.2
+				}
 			}
 		},
 		"jack-ts-pj629han": {
@@ -289,8 +311,13 @@
 			"src": "/core/examples/stompbox-mxr-style-preview.glb",
 			"drillTemplateSrc": "/core/examples/stompbox-mxr-style-drill-template-preview.svg",
 			"drillLayoutSrc": "/core/examples/stompbox-mxr-style-drill-layout.json",
+			"backgroundColor": "#000000",
+			"gridColor": "#cccccc",
+			"gridOpacity": 0.2,
+			"toon": true,
+			"toonEdgeColor": "#69145a",
 			"linework": true,
-			"lineworkColor": "#0f172a"
+			"lineworkColor": "#ffffff"
 		},
 		{
 			"id": "boss-style",
@@ -298,8 +325,13 @@
 			"src": "/core/examples/stompbox-boss-style-preview.glb",
 			"drillTemplateSrc": "/core/examples/stompbox-boss-style-drill-template-preview.svg",
 			"drillLayoutSrc": "/core/examples/stompbox-boss-style-drill-layout.json",
+			"backgroundColor": "#000000",
+			"gridColor": "#cccccc",
+			"gridOpacity": 0.2,
+			"toon": true,
+			"toonEdgeColor": "#69145a",
 			"linework": true,
-			"lineworkColor": "#0f172a"
+			"lineworkColor": "#eb7223"
 		}
 	]
 }

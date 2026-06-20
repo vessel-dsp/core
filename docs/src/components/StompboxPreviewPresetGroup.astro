@@ -7,6 +7,11 @@ type StompboxPreviewPreset = {
 	interactive?: boolean;
 	linework?: boolean;
 	lineworkColor?: string;
+	backgroundColor?: string;
+	gridColor?: string;
+	gridOpacity?: number;
+	toon?: boolean;
+	toonEdgeColor?: string;
 	drillTemplateSrc?: string;
 	drillLayoutSrc?: string;
 };
@@ -25,6 +30,11 @@ const normalizedPresets = props.presets.map((preset, index) => ({
 	...(preset.interactive === undefined ? {} : { interactive: preset.interactive }),
 	...(preset.linework === undefined ? {} : { linework: preset.linework }),
 	...(preset.lineworkColor === undefined ? {} : { lineworkColor: preset.lineworkColor }),
+	...(preset.backgroundColor === undefined ? {} : { backgroundColor: preset.backgroundColor }),
+	...(preset.gridColor === undefined ? {} : { gridColor: preset.gridColor }),
+	...(preset.gridOpacity === undefined ? {} : { gridOpacity: preset.gridOpacity }),
+	...(preset.toon === undefined ? {} : { toon: preset.toon }),
+	...(preset.toonEdgeColor === undefined ? {} : { toonEdgeColor: preset.toonEdgeColor }),
 	...(preset.drillTemplateSrc === undefined ? {} : { drillTemplateSrc: preset.drillTemplateSrc }),
 	...(preset.drillLayoutSrc === undefined ? {} : { drillLayoutSrc: preset.drillLayoutSrc }),
 }));
@@ -47,6 +57,11 @@ const label = props.label ?? "Preview preset";
 			</select>
 		</label>
 	</div>
+	<div
+		class="stompbox-preview-preset-group__live-state"
+		data-stompbox-live-state-controls
+		hidden
+	></div>
 	<slot />
 </section>
 
@@ -58,6 +73,24 @@ const label = props.label ?? "Preview preset";
 	.stompbox-preview-preset-group__toolbar {
 		display: flex;
 		margin: 0.25rem 0 1rem;
+	}
+
+	.stompbox-preview-preset-group__live-state {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+		gap: 0.6rem;
+		margin: -0.3rem 0 1rem;
+		padding: 0.7rem;
+		border: 1px solid #cbd5e1;
+		border-radius: 8px;
+		background: #f8fafc;
+		color: #0f172a;
+		font-size: 0.8125rem;
+		line-height: 1.25;
+	}
+
+	.stompbox-preview-preset-group__live-state[hidden] {
+		display: none;
 	}
 
 	.stompbox-preview-preset-group__control {
@@ -84,5 +117,50 @@ const label = props.label ?? "Preview preset";
 		font: inherit;
 		line-height: 1.2;
 		padding: 0.25rem 1.8rem 0.25rem 0.45rem;
+	}
+
+	:global(.stompbox-live-state-control) {
+		display: grid;
+		gap: 0.3rem;
+	}
+
+	:global(.stompbox-live-state-control__label) {
+		overflow-wrap: anywhere;
+		font-weight: 650;
+	}
+
+	:global(.stompbox-live-state-toggle) {
+		grid-template-columns: auto 1fr;
+		align-items: center;
+		column-gap: 0.5rem;
+	}
+
+	:global(.stompbox-live-state-control input[type="range"]) {
+		width: 100%;
+		accent-color: #2563eb;
+	}
+
+	:global(.stompbox-live-state-toggle input[type="checkbox"]) {
+		width: 1.05rem;
+		height: 1.05rem;
+		accent-color: #16a34a;
+	}
+
+	:global(.stompbox-live-state-control button) {
+		width: 100%;
+		min-height: 2rem;
+		border: 1px solid #94a3b8;
+		border-radius: 6px;
+		background: #ffffff;
+		color: #0f172a;
+		font: inherit;
+		font-weight: 650;
+		cursor: pointer;
+	}
+
+	:global(.stompbox-live-state-control button[aria-pressed="true"]) {
+		border-color: #15803d;
+		background: #dcfce7;
+		color: #14532d;
 	}
 </style>
