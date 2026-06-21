@@ -5,6 +5,17 @@ on:
         tags:
             - 'v*'
     workflow_dispatch:
+        inputs:
+            package:
+                description: Package to publish
+                required: true
+                type: choice
+                default: all
+                options:
+                    - all
+                    - core
+                    - control-ui
+                    - stompbox
 
 permissions:
     contents: read
@@ -32,20 +43,36 @@ jobs:
 
             - run: bun install --frozen-lockfile
 
-            - name: Verify package
+            - name: Verify all packages
+              if: github.event_name == 'push' || inputs.package == 'all'
               run: bun run pack:dry-run
 
+            - name: Verify core package
+              if: github.event_name == 'workflow_dispatch' && inputs.package == 'core'
+              run: bun run --cwd packages/core pack:dry-run
+
+            - name: Verify control-ui package
+              if: github.event_name == 'workflow_dispatch' && inputs.package == 'control-ui'
+              run: bun run --cwd packages/control-ui pack:dry-run
+
+            - name: Verify stompbox package
+              if: github.event_name == 'workflow_dispatch' && inputs.package == 'stompbox'
+              run: bun run --cwd packages/stompbox pack:dry-run
+
             - name: Publish core package
+              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'core'
               run: npm publish --workspace @vessel-dsp/core --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish control-ui package
+              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'control-ui'
               run: npm publish --workspace @vessel-dsp/control-ui --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish stompbox package
+              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'stompbox'
               run: npm publish --workspace @vessel-dsp/stompbox --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

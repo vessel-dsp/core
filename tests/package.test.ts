@@ -488,11 +488,18 @@ describe('published import surface', () => {
 });
 
 describe('npm publish workflow', () => {
-    test('publishes core, control-ui, and stompbox in dependency order', async () => {
+    test('publishes all packages on tags and supports individual workflow dispatch packages', async () => {
         const workflow = await readPublishWorkflow();
 
         expect(workflow).toContain('name: Publish to npm');
         expect(workflow).toContain('workflow_dispatch:');
+        expect(workflow).toContain('description: Package to publish');
+        expect(workflow).toContain('type: choice');
+        expect(workflow).toContain('default: all');
+        expect(workflow).toContain('- all');
+        expect(workflow).toContain('- core');
+        expect(workflow).toContain('- control-ui');
+        expect(workflow).toContain('- stompbox');
         expect(workflow).toContain('push:');
         expect(workflow).toContain('tags:');
         expect(workflow).toContain("- 'v*'");
@@ -503,7 +510,18 @@ describe('npm publish workflow', () => {
         expect(workflow).toContain('registry-url: https://registry.npmjs.org');
         expect(workflow).toContain("scope: '@vessel-dsp'");
         expect(workflow).toContain('bun install --frozen-lockfile');
-        expect(workflow).toContain('bun run pack:dry-run');
+        expect(workflow).toContain("github.event_name == 'push' || inputs.package == 'all'");
+        expect(workflow).toContain("inputs.package == 'core'");
+        expect(workflow).toContain("inputs.package == 'control-ui'");
+        expect(workflow).toContain("inputs.package == 'stompbox'");
+        expect(workflow).toContain('name: Verify all packages');
+        expect(workflow).toContain('run: bun run pack:dry-run');
+        expect(workflow).toContain('name: Verify core package');
+        expect(workflow).toContain('run: bun run --cwd packages/core pack:dry-run');
+        expect(workflow).toContain('name: Verify control-ui package');
+        expect(workflow).toContain('run: bun run --cwd packages/control-ui pack:dry-run');
+        expect(workflow).toContain('name: Verify stompbox package');
+        expect(workflow).toContain('run: bun run --cwd packages/stompbox pack:dry-run');
         expect(workflow).toContain('npm publish --workspace @vessel-dsp/core --access public --provenance');
         expect(workflow).toContain('npm publish --workspace @vessel-dsp/control-ui --access public --provenance');
         expect(workflow).toContain('npm publish --workspace @vessel-dsp/stompbox --access public --provenance');
