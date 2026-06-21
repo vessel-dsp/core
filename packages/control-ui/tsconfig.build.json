@@ -1,9 +1,15 @@
 {
-    "extends": "./tsconfig.json",
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "noEmit": false,
         "declaration": true,
         "declarationMap": true,
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "jsx": "react-jsx",
         "sourceMap": true,
         "outDir": "dist",
         "rootDir": "src",
@@ -13,5 +19,8 @@
         "tests/**/*",
         "**/*.test.ts",
         "**/*.test.tsx"
+    ],
+    "include": [
+        "src/**/*"
     ]
 }

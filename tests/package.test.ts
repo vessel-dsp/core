@@ -64,6 +64,10 @@ async function readPackageTsconfig(packageDir: string): Promise<JsonRecord> {
     return readJson(`../packages/${packageDir}/tsconfig.json`);
 }
 
+async function readPackageBuildTsconfig(packageDir: string): Promise<JsonRecord> {
+    return readJson(`../packages/${packageDir}/tsconfig.build.json`);
+}
+
 async function readPublishWorkflow(): Promise<string> {
     return Bun.file(new URL('../.github/workflows/publish.yml', import.meta.url)).text();
 }
@@ -360,12 +364,26 @@ describe('workspace package contract', () => {
         const controlUiCompilerOptions = isRecord(controlUiTsconfig.compilerOptions)
             ? controlUiTsconfig.compilerOptions
             : {};
+        const controlUiBuildTsconfig = await readPackageBuildTsconfig('control-ui');
+        const controlUiBuildCompilerOptions = isRecord(controlUiBuildTsconfig.compilerOptions)
+            ? controlUiBuildTsconfig.compilerOptions
+            : {};
         expect(compilerOptions.lib).toEqual(['ES2022']);
         expect(compilerOptions.jsx).toBeUndefined();
         expect(stompboxCompilerOptions.lib).toEqual(['ES2022']);
         expect(stompboxCompilerOptions.jsx).toBeUndefined();
         expect(controlUiCompilerOptions.lib).toEqual(['ES2022', 'DOM', 'DOM.Iterable']);
         expect(controlUiCompilerOptions.jsx).toBe('react-jsx');
+        expect(controlUiCompilerOptions.baseUrl).toBe('../..');
+        expect(controlUiCompilerOptions.paths).toEqual({
+            '@vessel-dsp/core': ['packages/core/src/index.ts'],
+            '@vessel-dsp/core/*': ['packages/core/src/*'],
+        });
+        expect(controlUiBuildTsconfig.extends).toBe('../../tsconfig.base.json');
+        expect(controlUiBuildCompilerOptions.lib).toEqual(['ES2022', 'DOM', 'DOM.Iterable']);
+        expect(controlUiBuildCompilerOptions.jsx).toBe('react-jsx');
+        expect(controlUiBuildCompilerOptions.paths).toBeUndefined();
+        expect(controlUiBuildTsconfig.include).toEqual(['src/**/*']);
     });
 
     test('Circuit JSON schema tooling is a core runtime dependency, not root-only test plumbing', async () => {

@@ -1,12 +1,21 @@
 {
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
+        "baseUrl": "../..",
         "lib": [
             "ES2022",
             "DOM",
             "DOM.Iterable"
         ],
-        "jsx": "react-jsx"
+        "jsx": "react-jsx",
+        "paths": {
+            "@vessel-dsp/core": [
+                "packages/core/src/index.ts"
+            ],
+            "@vessel-dsp/core/*": [
+                "packages/core/src/*"
+            ]
+        }
     },
     "include": [
         "src/**/*"
