@@ -4168,15 +4168,20 @@ describe("stompbox preview manifest", () => {
 			'<filter id="stompbox-preview-top-noise-filter"',
 		);
 		expect(grainViews.views.top).toContain(
-			'<feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="10" stitchTiles="stitch" result="noise"',
+			'<feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="10" stitchTiles="stitch" result="turbulence"',
 		);
 		expect(grainViews.views.top).toContain(
 			'<feColorMatrix in="noise" type="saturate" values="0" result="mono-noise"',
 		);
 		expect(grainViews.views.top).toContain(
-			'<feFuncR type="linear" slope="0.18" intercept="0.41"',
+			'<feComposite operator="in" in="turbulence" in2="SourceAlpha" result="composite"',
 		);
-		expect(grainViews.views.top).toContain('<feFuncA type="linear" slope="1"');
+		expect(grainViews.views.top).toContain(
+			'<feColorMatrix in="composite" type="luminanceToAlpha" />',
+		);
+		expect(grainViews.views.top).toContain(
+			'<feBlend in="SourceGraphic" in2="composite" mode="color-burn" />',
+		);
 		expect(grainViews.views.top).toContain(
 			'<clipPath id="stompbox-preview-top-grain-clip">',
 		);

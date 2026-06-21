@@ -23,7 +23,7 @@ const DEFAULT_TOON_EDGE_COLOR = "#69145a";
 const DEFAULT_GRAIN_SCALE = 1.15;
 const DEFAULT_GRAIN_INTENSITY = 0.1;
 const GRAIN_INTENSITY_SCALE = 0.35;
-const TOON_OUTLINE_SCALE = 1.025;
+const TOON_OUTLINE_SCALE = 1.02;
 const liveStateStores = new WeakMap();
 const parentWorldScaleScratch = new THREE.Vector3();
 let sharedToonGradientMap;

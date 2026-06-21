@@ -4856,14 +4856,10 @@ function previewSvgGrainFilter(
 	}
 	return [
 		`<filter id="${escapeAttribute(previewSvgGrainFilterId(view))}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">`,
-		`<feTurbulence type="fractalNoise" baseFrequency="${svgNumber(grain.baseFrequency)}" numOctaves="${svgNumber(grain.numOctaves)}" stitchTiles="stitch" result="noise"/>`,
-		'<feColorMatrix in="noise" type="saturate" values="0" result="mono-noise"/>',
-		'<feComponentTransfer in="mono-noise">',
-		'<feFuncR type="linear" slope="0.18" intercept="0.41"/>',
-		'<feFuncG type="linear" slope="0.18" intercept="0.41"/>',
-		'<feFuncB type="linear" slope="0.18" intercept="0.41"/>',
-		'<feFuncA type="linear" slope="1"/>',
-		"</feComponentTransfer>",
+		`<feTurbulence type="fractalNoise" baseFrequency="${svgNumber(grain.baseFrequency)}" numOctaves="${svgNumber(grain.numOctaves)}" stitchTiles="stitch" result="turbulence"/>`,
+		'<feComposite operator="in" in="turbulence" in2="SourceAlpha" result="composite"/>',
+		'<feColorMatrix in="composite" type="luminanceToAlpha" />',
+		'<feBlend in="SourceGraphic" in2="composite" mode="screen" />',
 		"</filter>",
 	].join("");
 }
