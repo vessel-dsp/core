@@ -1,0 +1,173 @@
+---
+title: Control UI
+description: Render core Panel data with optional React controls.
+---
+
+import ControlUiRenderedExample from "../../../components/ControlUiRenderedExample.astro";
+
+`@vessel-dsp/control-ui` is the optional React layer for core `Panel` data. It
+does not parse `.vdsp`, run DSP, manage an `AudioContext`, render schematics, or
+replace a host app shell.
+
+## Install
+
+```bash
+npm install @vessel-dsp/core @vessel-dsp/control-ui react react-dom
+```
+
+```tsx
+import "@vessel-dsp/control-ui/styles.css";
+```
+
+## Render a Surface
+
+```tsx
+import {
+  ControlSurface,
+  ControlUiThemeProvider,
+  createControlUiState,
+} from "@vessel-dsp/control-ui";
+import { extractPanel, parseCircuitDocumentFile } from "@vessel-dsp/core";
+
+const document = parseCircuitDocumentFile(vdspSource, {
+  filename: "pedal.vdsp",
+});
+const panel = extractPanel(document);
+const state = createControlUiState(panel);
+
+export function PedalControls() {
+  return (
+    <ControlUiThemeProvider theme={{ accentColor: "#f59e0b" }}>
+      <ControlSurface
+        panel={panel}
+        state={state}
+        onMessage={(message) => hostRuntime.send(message)}
+      />
+    </ControlUiThemeProvider>
+  );
+}
+```
+
+`ControlSurface` emits core `PanelMessage` values. Apps decide how to route
+those messages to an audio engine, WebSocket, worklet, MIDI bridge, or other
+runtime.
+
+## Rendered UI
+
+<ControlUiRenderedExample />
+
+## Controlled React Example
+
+Use `useControlState()` when the app wants local React state for a single panel
+while still forwarding every `PanelMessage` to a host runtime:
+
+```tsx
+import { useMemo } from "react";
+import {
+  ControlSurface,
+  ControlUiThemeProvider,
+  useControlState,
+} from "@vessel-dsp/control-ui";
+import { extractPanel, parseCircuitDocumentFile } from "@vessel-dsp/core";
+import type { PanelMessage } from "@vessel-dsp/core";
+
+type PedalControlExampleProps = {
+  vdspSource: string;
+  onPanelMessage: (message: PanelMessage) => void;
+};
+
+export function PedalControlExample({
+  vdspSource,
+  onPanelMessage,
+}: PedalControlExampleProps) {
+  const panel = useMemo(() => {
+    const document = parseCircuitDocumentFile(vdspSource, {
+      filename: "pedal.vdsp",
+    });
+    return extractPanel(document);
+  }, [vdspSource]);
+
+  const controls = useControlState(panel, {
+    onMessage: onPanelMessage,
+  });
+
+  return (
+    <ControlUiThemeProvider
+      theme={{
+        accentColor: "#f59e0b",
+        backgroundColor: "#0f172a",
+        controlColor: "#111827",
+        textColor: "#f8fafc",
+        mutedTextColor: "#94a3b8",
+        focusRingColor: "#38bdf8",
+      }}
+    >
+      <ControlSurface
+        panel={panel}
+        state={controls.state}
+        appearance={{
+          bypass: "footswitch",
+          mode: "detented-rotary-select",
+        }}
+        className="grid grid-cols-2 gap-4 sm:grid-cols-4"
+        classNames={{
+          frame: "min-w-0",
+          control: "transition focus-visible:ring-2",
+          knob: "shadow-lg",
+          footswitch: "mx-auto",
+          select: "w-full text-sm",
+          slider: "accent-amber-500",
+        }}
+        onMessage={controls.dispatchMessage}
+      />
+    </ControlUiThemeProvider>
+  );
+}
+```
+
+The example assumes `bypass` and `mode` are control ids from the extracted
+panel. If a document uses different ids, omit `appearance` or map the ids that
+exist in that panel.
+
+## Styling
+
+The package ships default CSS and stable `vdsp-control-ui-*` class names. Use
+`className` and `classNames` when an app wants to compose Tailwind or design
+system utility classes with the default styles:
+
+```tsx
+<ControlSurface
+  panel={panel}
+  state={state}
+  className="grid-cols-4 gap-4"
+  classNames={{
+    control: "shadow-sm",
+    knob: "ring-1 ring-slate-300",
+    select: "text-sm",
+  }}
+/>
+```
+
+Use `ControlUiThemeProvider` to set CSS variables for a subtree:
+
+```tsx
+<ControlUiThemeProvider
+  theme={{
+    accentColor: "#f59e0b",
+    controlColor: "#111827",
+    focusRingColor: "#38bdf8",
+  }}
+>
+  <ControlSurface panel={panel} state={state} />
+</ControlUiThemeProvider>
+```
+
+The provider maps theme values to variables such as
+`--vdsp-control-ui-accent-color`, `--vdsp-control-ui-control-color`, and
+`--vdsp-control-ui-focus-ring-color`.
+
+## Boundaries
+
+Core remains the parser and protocol source of truth. Stompbox remains headless
+and may drive preview state from the same `PanelMessage` values, but it does not
+import React or `@vessel-dsp/control-ui`.

@@ -3,6 +3,7 @@
 ## 0.6.3
 
 - Fix the exported `VERSION` constant in source and built package artifacts so it matches the published package manifest.
+- Add `@vessel-dsp/control-ui` as the optional React control-surface package for core `Panel` data, including default CSS, class hooks, and a theme provider.
 
 ## 0.6.2
 

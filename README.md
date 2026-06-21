@@ -2,13 +2,13 @@
 
 [![core npm version](https://img.shields.io/npm/v/%40vessel-dsp%2Fcore.svg)](https://www.npmjs.com/package/@vessel-dsp/core)
 
-Headless TypeScript tooling for converting audio-circuit documents between
-project `.vdsp`, LTspice `.asc`, LiveSPICE `.schx`, and tscircuit Circuit JSON.
+TypeScript tooling for converting audio-circuit documents between project
+`.vdsp`, LTspice `.asc`, LiveSPICE `.schx`, and tscircuit Circuit JSON, plus an
+optional React package for core `Panel` controls.
 
-The library is React-free and does not include a custom editor or realtime
-simulator. GitHub Pages publishes a static API reference for the conversion
-functions only; downstream apps should use tscircuit tooling to render or edit
-the emitted Circuit JSON.
+`@vessel-dsp/core` and `@vessel-dsp/stompbox` are React-free and do not include
+a custom editor or realtime simulator. Downstream apps should use tscircuit
+tooling to render or edit emitted Circuit JSON.
 
 ## Package
 
@@ -16,11 +16,13 @@ the emitted Circuit JSON.
 | --- | --- | --- |
 | `@vessel-dsp/core` | Public npm package | Parsing, validation, normalized `CircuitDocument` data, `.vdsp` / `.asc` / `.schx` serialization, and Circuit JSON import/export. |
 | `@vessel-dsp/stompbox` | Public npm package | Headless stompbox drill layouts, SVG/GLB previews, physical hardware defaults, live preview state patches, and GLB state-target validation. |
+| `@vessel-dsp/control-ui` | Public npm package | Optional React controls for core `Panel` data, with default CSS, class hooks, and a theme provider. |
 
 ## Install
 
 ```bash
 npm install @vessel-dsp/core
+npm install @vessel-dsp/control-ui react react-dom
 ```
 
 ## Convert Through Circuit JSON

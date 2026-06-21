@@ -9,7 +9,7 @@
         "packages/*"
     ],
     "scripts": {
-        "build": "bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run check:dist",
+        "build": "bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run --cwd packages/control-ui build && bun run check:dist",
         "build:pages": "astro build",
         "check:dist": "node scripts/check-dist-entrypoints.mjs",
         "clean": "rm -rf packages/*/dist gh-pages",
@@ -20,9 +20,9 @@
         "generate:symbols": "bun run scripts/generate-symbol-content.ts",
         "lint": "biome lint --diagnostic-level=error .",
         "prepack": "bun run clean:dist && bun run typecheck && bun test && bun run build",
-        "pack:dry-run": "bun run --cwd packages/core pack:dry-run && bun run --cwd packages/stompbox pack:dry-run",
+        "pack:dry-run": "bun run --cwd packages/core pack:dry-run && bun run --cwd packages/stompbox pack:dry-run && bun run --cwd packages/control-ui pack:dry-run",
         "test": "bun test",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit && bun run --cwd packages/control-ui typecheck"
     },
     "devDependencies": {
         "@astrojs/starlight": "^0.40.0",

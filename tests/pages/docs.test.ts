@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+	controlUiRenderedExampleInitialState,
+	controlUiRenderedExampleStateForMessage,
+} from "../../docs/src/components/control-ui-rendered-example-data";
 
 const ROOT_DIR = join(import.meta.dir, "..", "..");
 
@@ -50,6 +54,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('link: "/examples/pro-co-rat/"');
 		expect(astroConfig).toContain('"packages/core/src/index.ts"');
 		expect(astroConfig).toContain('"packages/stompbox/src/index.ts"');
+		expect(astroConfig).toContain('"packages/control-ui/src/index.ts"');
+		expect(astroConfig).toContain('tsconfig: "tsconfig.docs.json"');
+		expect(astroConfig).toContain('label: "Control UI"');
+		expect(astroConfig).toContain('link: "/guides/control-ui/"');
 
 		const stompboxPackage = JSON.parse(readRepoFile("packages/stompbox/package.json")) as {
 			dependencies?: Record<string, string>;
@@ -68,7 +76,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("title: VesselDSP Docs");
 		expect(landingPage).toContain("@vessel-dsp/core");
 		expect(landingPage).toContain("@vessel-dsp/stompbox");
+		expect(landingPage).toContain("@vessel-dsp/control-ui");
 		expect(landingPage).toContain("CircuitDocument");
+		expect(landingPage).toContain("class hooks");
+		expect(landingPage).toContain("theme provider");
 		expect(landingPage).toContain("/core/reference/api/readme/");
 		expect(landingPage).not.toMatch(/playground|workbench|custom editor/i);
 
@@ -131,6 +142,53 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("toon edge pass and thicker outline");
 		expect(stompboxPage).toContain("grain={true}");
 		expect(stompboxPage).toContain("screen-space grain");
+		expect(stompboxPage).toContain("@vessel-dsp/control-ui");
+		expect(stompboxPage).toContain("PanelMessage");
+
+		const controlUiPage = readRepoFile("docs/src/content/docs/guides/control-ui.mdx");
+		expect(controlUiPage).toContain("title: Control UI");
+		expect(controlUiPage).toContain('import ControlUiRenderedExample from "../../../components/ControlUiRenderedExample.astro";');
+		expect(controlUiPage).toContain("<ControlUiRenderedExample />");
+		expect(controlUiPage).toContain("## Rendered UI");
+		expect(controlUiPage).toContain("npm install @vessel-dsp/core @vessel-dsp/control-ui react react-dom");
+		expect(controlUiPage).toContain('@vessel-dsp/control-ui/styles.css');
+		expect(controlUiPage).toContain("ControlSurface");
+		expect(controlUiPage).toContain("ControlUiThemeProvider");
+		expect(controlUiPage).toContain("createControlUiState");
+		expect(controlUiPage).toContain("PedalControlExample");
+		expect(controlUiPage).toContain("useControlState");
+		expect(controlUiPage).toContain("onPanelMessage");
+		expect(controlUiPage).toContain('bypass: "footswitch"');
+		expect(controlUiPage).toContain('mode: "detented-rotary-select"');
+		expect(controlUiPage).toContain('onMessage={controls.dispatchMessage}');
+		expect(controlUiPage).toContain("className");
+		expect(controlUiPage).toContain("classNames");
+		expect(controlUiPage).toContain("Tailwind");
+		expect(controlUiPage).toContain("theme");
+		expect(controlUiPage).toContain("PanelMessage");
+		expect(controlUiPage).not.toMatch(/playground|workbench/i);
+
+		const controlUiExample = readRepoFile("docs/src/components/ControlUiRenderedExample.astro");
+		expect(controlUiExample).toContain("renderToStaticMarkup");
+		expect(controlUiExample).toContain("createRoot");
+		expect(controlUiExample).toContain("ControlUiRenderedExampleClient");
+		expect(controlUiExample).toContain("data-control-ui-rendered-example");
+		expect(controlUiExample).toContain("ControlSurface");
+		expect(controlUiExample).toContain("ControlUiThemeProvider");
+		expect(controlUiExample).toContain("../../../packages/control-ui/src/styles.css");
+		expect(controlUiExample).toContain("control-ui-rendered-example__panel");
+
+		const controlUiExampleClient = readRepoFile("docs/src/components/ControlUiRenderedExampleClient.tsx");
+		expect(controlUiExampleClient).toContain('import React from "react";');
+		expect(controlUiExampleClient).toContain("useControlState");
+		expect(controlUiExampleClient).toContain("controls.dispatchMessage");
+		expect(controlUiExampleClient).not.toContain("console.log");
+		expect(controlUiExampleClient).not.toContain("[vessel-dsp/control-ui] PanelMessage emitted");
+
+		const controlUiExampleData = readRepoFile("docs/src/components/control-ui-rendered-example-data.ts");
+		expect(controlUiExampleData).toContain("createControlUiState");
+		expect(controlUiExampleData).toContain('bypass: "footswitch"');
+		expect(controlUiExampleData).toContain('mode: "detented-rotary-select"');
 
 		const demoProfiles = readRepoJson<{
 			defaultStyleProfileId?: string;
@@ -330,7 +388,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("DEFAULT_GRID_OPACITY");
 		expect(viewerRuntime).toContain('DEFAULT_TOON_EDGE_COLOR = "#69145a"');
 		expect(viewerRuntime).toContain("DEFAULT_GRAIN_SCALE = 1.15");
-		expect(viewerRuntime).toContain("DEFAULT_GRAIN_INTENSITY = 0.05");
+		expect(viewerRuntime).toContain("DEFAULT_GRAIN_INTENSITY = 0.1");
 		expect(viewerRuntime).toContain("GRAIN_INTENSITY_SCALE = 0.35");
 		expect(viewerRuntime).toContain("applyScreenGrainMaterials(model, preset)");
 		expect(viewerRuntime).toContain("material.onBeforeCompile");
@@ -424,6 +482,38 @@ describe("GitHub Pages documentation site", () => {
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.core.js"))).toBe(true);
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/addons/loaders/GLTFLoader.js"))).toBe(true);
 		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/addons/controls/OrbitControls.js"))).toBe(true);
+	});
+
+	test("wires the rendered Control UI demo toggle to the status LED", () => {
+		const brightOnState = controlUiRenderedExampleStateForMessage(
+			{
+				...controlUiRenderedExampleInitialState,
+				bright: { kind: "switch", position: 1 },
+			},
+			{
+				type: "control/set",
+				controlId: "bright",
+				value: { kind: "switch", position: 1 },
+			},
+		);
+		expect(brightOnState.status).toEqual({
+			kind: "led",
+			on: true,
+			intensity: 0.85,
+		});
+
+		const brightOffState = controlUiRenderedExampleStateForMessage(
+			{
+				...controlUiRenderedExampleInitialState,
+				bright: { kind: "switch", position: 0 },
+			},
+			{
+				type: "control/set",
+				controlId: "bright",
+				value: { kind: "switch", position: 0 },
+			},
+		);
+		expect(brightOffState.status).toEqual({ kind: "led", on: false });
 	});
 
 	test("includes generated stompbox preview and drill layout example assets", () => {

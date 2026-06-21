@@ -2,8 +2,11 @@
     "extends": "./tsconfig.base.json",
     "compilerOptions": {
         "lib": [
-            "ES2022"
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
         ],
+        "jsx": "react-jsx",
         "baseUrl": ".",
         "paths": {
             "@vessel-dsp/core": [
@@ -27,15 +30,8 @@
         }
     },
     "include": [
-        "packages/**/*",
-        "tests/**/*",
-        "examples/**/*",
-        "scripts/fix-dist-imports.ts",
-        "scripts/generate-stompbox-doc-assets.ts",
-        "scripts/generate-symbol-content.ts"
-    ],
-    "exclude": [
-        "packages/control-ui/**/*",
-        "tests/control-ui/**/*"
+        "packages/core/src/index.ts",
+        "packages/stompbox/src/index.ts",
+        "packages/control-ui/src/index.ts"
     ]
 }

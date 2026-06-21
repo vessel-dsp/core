@@ -4,12 +4,14 @@ Guidance for coding agents working in this repository.
 
 ## Project
 
-VesselDSP Core is a TypeScript workspace centered on headless publishable
-packages. `@vessel-dsp/core` is the conversion library for audio-circuit
-documents and tscircuit Circuit JSON. `@vessel-dsp/stompbox` is a companion
-library that consumes core `.vdsp`/`CircuitDocument` panel data and emits
-stompbox drill-layout data, drill-template SVG, preview SVG, and assembled
-preview GLB artifacts.
+VesselDSP Core is a TypeScript workspace centered on publishable packages with
+strict package boundaries. `@vessel-dsp/core` is the headless conversion library
+for audio-circuit documents and tscircuit Circuit JSON. `@vessel-dsp/stompbox`
+is a headless companion library that consumes core `.vdsp`/`CircuitDocument`
+panel data and emits stompbox drill-layout data, drill-template SVG, preview
+SVG, and assembled preview GLB artifacts. `@vessel-dsp/control-ui` is the
+optional React/browser control-surface package for rendering core `Panel`
+controls.
 
 Current target formats:
 
@@ -19,15 +21,16 @@ Current target formats:
 - tscircuit `.circuit.json`;
 - legacy SPICE `.cir` / `.net` parser and netlist serializer support.
 
-The project no longer publishes repo-owned UI or realtime-runtime packages. Do
-not rebuild a custom React component library, custom schematic editor, or
-realtime simulator in this repo. Use tscircuit/Circuit JSON for rendering and
-downstream electronics workflows.
+Core and stompbox remain headless. Do not rebuild a custom schematic editor,
+repo-owned playground, realtime simulator, or audio runtime in this repo. Use
+tscircuit/Circuit JSON for schematic rendering and downstream electronics
+workflows.
 
 ## Packages
 
 - `packages/core/` -> npm package `@vessel-dsp/core`.
 - `packages/stompbox/` -> npm package `@vessel-dsp/stompbox`.
+- `packages/control-ui/` -> npm package `@vessel-dsp/control-ui`.
 - `scripts/build-pages.ts` -> static GitHub Pages generator for the core
   conversion API reference.
 
@@ -97,6 +100,9 @@ target-specific serializer.
 - `packages/stompbox/src/index.ts` - stompbox part/enclosure catalogs,
   declared/auto placement, drill layouts, drill-template SVG, preview SVG, and
   preview GLB assembly.
+- `packages/control-ui/src/index.ts` - optional React controls, state helpers,
+  class hooks, theme provider, and control-surface rendering for core `Panel`
+  data.
 - `tests/fixtures/*` - parser/conversion fixture corpus.
 
 ## Circuit JSON Contract
@@ -128,8 +134,10 @@ unsupported, lossy, or synthesized.
 - Do not add React or tscircuit preview packages to `packages/core`.
 - Do not add React, Three.js, canvas, editor, simulator, or browser rendering
   dependencies to `packages/stompbox`.
-- Do not add a repo-owned playground or reusable UI package. Render or edit
-  Circuit JSON in downstream tscircuit apps.
+- Keep React/browser UI code inside `packages/control-ui`; do not import it from
+  `packages/core` or `packages/stompbox`.
+- Do not add a repo-owned playground, schematic editor, or realtime runtime.
+  Render or edit Circuit JSON in downstream tscircuit apps.
 
 ## Verification
 
@@ -139,6 +147,8 @@ Pick the smallest check that covers the change:
 - LTspice changes: `bun test tests/formats/ltspice`.
 - `.vdsp` changes: `bun test tests/formats/interchange tests/formats/document.test.ts`.
 - Package contract changes: `bun test tests/package.test.ts tests/smoke.test.ts`.
+- Control UI changes: `bun test tests/control-ui` and
+  `bun run --cwd packages/control-ui typecheck`.
 - GitHub Pages docs changes: `bun test tests/pages tests/package.test.ts` and
   `bun run build:pages`.
 - Stompbox changes: `bun test tests/stompbox` and

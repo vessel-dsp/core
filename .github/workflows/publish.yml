@@ -40,6 +40,11 @@ jobs:
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+            - name: Publish control-ui package
+              run: npm publish --workspace @vessel-dsp/control-ui --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
             - name: Publish stompbox package
               run: npm publish --workspace @vessel-dsp/stompbox --access public --provenance
               env:

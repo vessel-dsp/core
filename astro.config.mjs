@@ -25,8 +25,12 @@ export default defineConfig({
 			],
 			plugins: [
 				starlightTypeDoc({
-					entryPoints: ["packages/core/src/index.ts", "packages/stompbox/src/index.ts"],
-					tsconfig: "tsconfig.json",
+					entryPoints: [
+						"packages/core/src/index.ts",
+						"packages/stompbox/src/index.ts",
+						"packages/control-ui/src/index.ts",
+					],
+					tsconfig: "tsconfig.docs.json",
 					output: "reference/api",
 					sidebar: {
 						label: "API Reference",
@@ -61,7 +65,10 @@ export default defineConfig({
 				},
 				{
 					label: "Guides",
-					items: [{ label: "Stompbox Layouts", link: "/guides/stompbox/" }],
+					items: [
+						{ label: "Stompbox Layouts", link: "/guides/stompbox/" },
+						{ label: "Control UI", link: "/guides/control-ui/" },
+					],
 				},
 				typeDocSidebarGroup,
 			],

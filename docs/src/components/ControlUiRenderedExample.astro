@@ -1,0 +1,109 @@
+---
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+	ControlSurface,
+	ControlUiThemeProvider,
+} from "../../../packages/control-ui/src/index";
+import "../../../packages/control-ui/src/styles.css";
+import {
+	controlUiRenderedExampleAppearance,
+	controlUiRenderedExampleClassNames,
+	controlUiRenderedExampleInitialState,
+	controlUiRenderedExamplePanel,
+	controlUiRenderedExampleTheme,
+} from "./control-ui-rendered-example-data";
+
+const previewHtml = renderToStaticMarkup(
+	createElement(
+		ControlUiThemeProvider,
+		{
+			theme: controlUiRenderedExampleTheme,
+			className: "control-ui-rendered-example__theme",
+		},
+		createElement(ControlSurface, {
+			panel: controlUiRenderedExamplePanel,
+			state: controlUiRenderedExampleInitialState,
+			appearance: controlUiRenderedExampleAppearance,
+			className: "control-ui-rendered-example__surface",
+			classNames: controlUiRenderedExampleClassNames,
+		}),
+	),
+);
+---
+
+<figure class="control-ui-rendered-example">
+	<div
+		class="control-ui-rendered-example__panel"
+		data-control-ui-rendered-example
+		set:html={previewHtml}
+	/>
+	<figcaption>
+		Interactive example of the default controls with theme and class hooks
+		applied. The hydrated controls use local React state while emitting the
+		same <code>PanelMessage</code> values a host app can forward to a runtime.
+	</figcaption>
+</figure>
+
+<script>
+	import { createElement } from "react";
+	import { createRoot } from "react-dom/client";
+	import { ControlUiRenderedExampleClient } from "./ControlUiRenderedExampleClient";
+
+	function mountControlUiRenderedExamples() {
+		for (const panel of document.querySelectorAll(
+			"[data-control-ui-rendered-example]",
+		)) {
+			const element = panel as HTMLElement;
+			if (element.dataset.controlUiMounted === "true") {
+				continue;
+			}
+			element.dataset.controlUiMounted = "true";
+			createRoot(element).render(createElement(ControlUiRenderedExampleClient));
+		}
+	}
+
+	mountControlUiRenderedExamples();
+	document.addEventListener("astro:page-load", mountControlUiRenderedExamples);
+</script>
+
+<style>
+	.control-ui-rendered-example {
+		margin: 1.5rem 0;
+	}
+
+	.control-ui-rendered-example__panel {
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 8px;
+		background: linear-gradient(180deg, #111827, #020617);
+		padding: clamp(1rem, 2.5vw, 1.5rem);
+		box-shadow: 0 18px 40px rgb(2 6 23 / 0.22);
+	}
+
+	.control-ui-rendered-example :global(.control-ui-rendered-example__theme) {
+		display: block;
+	}
+
+	.control-ui-rendered-example :global(.control-ui-rendered-example__surface) {
+		grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+		align-items: end;
+	}
+
+	.control-ui-rendered-example :global(.control-ui-rendered-example__control) {
+		max-width: 100%;
+	}
+
+	.control-ui-rendered-example :global(.control-ui-rendered-example__footswitch) {
+		margin-inline: auto;
+	}
+
+	.control-ui-rendered-example :global(.control-ui-rendered-example__select) {
+		color: #f8fafc;
+	}
+
+	.control-ui-rendered-example figcaption {
+		margin-top: 0.65rem;
+		color: var(--sl-color-gray-3);
+		font-size: 0.9rem;
+	}
+</style>

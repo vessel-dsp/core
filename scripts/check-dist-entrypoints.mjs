@@ -7,6 +7,7 @@ async function importDist(path) {
 
 const core = await importDist('packages/core/dist/index.js');
 const stompbox = await importDist('packages/stompbox/dist/index.js');
+const controlUi = await importDist('packages/control-ui/dist/index.js');
 
 if (typeof core.parseCircuitDocument !== 'function') {
     throw new Error('packages/core/dist/index.js does not export parseCircuitDocument');
@@ -58,6 +59,22 @@ if (typeof stompbox.createStompboxPreviewSvgViewsFromVdsp !== 'function') {
 
 if ('SchematicView' in stompbox || 'StompboxView' in stompbox) {
     throw new Error('packages/stompbox/dist/index.js must stay headless and not export UI views');
+}
+
+if (typeof controlUi.ControlSurface !== 'function') {
+    throw new Error('packages/control-ui/dist/index.js does not export ControlSurface');
+}
+
+if (typeof controlUi.KnobControl !== 'function') {
+    throw new Error('packages/control-ui/dist/index.js does not export KnobControl');
+}
+
+if (typeof controlUi.ControlUiThemeProvider !== 'function') {
+    throw new Error('packages/control-ui/dist/index.js does not export ControlUiThemeProvider');
+}
+
+if (typeof controlUi.createControlUiState !== 'function') {
+    throw new Error('packages/control-ui/dist/index.js does not export createControlUiState');
 }
 
 console.log('dist entrypoints ok');

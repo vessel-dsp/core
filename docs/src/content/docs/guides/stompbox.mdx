@@ -124,6 +124,9 @@ Use the live-state helpers when a preview needs to reflect pedal state while a
 user drags a knob, presses a footswitch, or toggles the bypass state.
 `@vessel-dsp/stompbox` owns the physical preview state only. It does not compile
 `.vdsp`, post worklet messages, import React, or mutate SVG/Three.js objects.
+Use [`@vessel-dsp/control-ui`](/core/guides/control-ui/) when the host app wants
+React controls that emit the same core `PanelMessage` values that can drive
+stompbox preview state.
 
 ```ts
 import { parseCircuitDocumentFile } from "@vessel-dsp/core";

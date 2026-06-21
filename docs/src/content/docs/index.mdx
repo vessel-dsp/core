@@ -1,9 +1,10 @@
 ---
 title: VesselDSP Docs
-description: Documentation for headless VesselDSP circuit conversion and stompbox layout packages.
+description: Documentation for VesselDSP circuit conversion, stompbox layout, and optional control UI packages.
 ---
 
-VesselDSP is a TypeScript workspace for headless audio-circuit tooling.
+VesselDSP is a TypeScript workspace for audio-circuit conversion, headless
+stompbox layout artifacts, and optional React controls for core panel data.
 
 The published packages are:
 
@@ -11,8 +12,11 @@ The published packages are:
 | --- | --- |
 | `@vessel-dsp/core` | Parse, validate, inspect, and convert circuit documents through `CircuitDocument`, `.vdsp`, LTspice `.asc`, LiveSPICE `.schx`, legacy SPICE netlists, and tscircuit Circuit JSON. |
 | `@vessel-dsp/stompbox` | Turn parsed `.vdsp` or `CircuitDocument` panel data into drill layouts, print templates, preview SVG/GLB artifacts, live preview state patches, and GLB state-target validation. |
+| `@vessel-dsp/control-ui` | Render core `Panel` controls in React with default CSS, class hooks for Tailwind-style customization, and a theme provider. |
 
-Both packages are headless. They do not ship a browser editor, realtime simulator, React component library, or custom rendering surface. Use downstream tscircuit applications to render or edit emitted Circuit JSON.
+Core and stompbox are headless. They do not ship a browser editor, realtime
+simulator, or custom schematic rendering surface. Use downstream tscircuit
+applications to render or edit emitted Circuit JSON.
 
 ## Core data flow
 
@@ -36,10 +40,23 @@ Both packages are headless. They do not ship a browser editor, realtime simulato
 
 When `.vdsp` panel placement exists, stompbox preserves it. When common enclosure hardware is missing, stompbox owns deterministic mechanical defaults for knobs, jacks, footswitches, status LEDs, and the optional 9V connector.
 
+## Control UI data flow
+
+```text
+.vdsp / CircuitDocument
+  -> core extractPanel()
+  -> control-ui React controls
+  -> PanelMessage callbacks to a host runtime
+```
+
+Control UI is intentionally optional. The consuming app still owns parsing,
+state transport, audio runtime integration, and any multi-pedal namespacing.
+
 ## Start reading
 
 - [Getting Started](/core/guides/getting-started/) covers installation and a first conversion.
 - [Supported Formats](/core/formats/) explains the conversion contract and lossy export policy.
 - [Pro Co Rat Schematic](/core/examples/pro-co-rat/) walks through a LiveSPICE pedal fixture.
 - [Stompbox Layouts](/core/guides/stompbox/) covers drill templates, previews, generated hardware defaults, and live preview state.
+- [Control UI](/core/guides/control-ui/) covers React controls, default CSS, class hooks, and theming.
 - [API Reference](/core/reference/api/readme/) is generated from the public TypeScript entrypoints.
