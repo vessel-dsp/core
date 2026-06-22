@@ -4,6 +4,7 @@
 
 - Fix the exported `VERSION` constant in source and built package artifacts so it matches the published package manifest.
 - Add `@vessel-dsp/control-ui` as the optional React control-surface package for core `Panel` data, including default CSS, class hooks, and a theme provider.
+- Add optional WebGL CRT and digital-glitch screen effects to the GitHub Pages stompbox GLB preview viewer (vendored from `gingerbeardman/webgl-crt-shader` and three.js `DigitalGlitch`, both MIT), with tunable scanlines, curvature, vignette, bloom, RGB shift, screen-space grain composited inside the CRT pass, and a randomized, motion-safe glitch schedule.
 
 ## 0.6.2
 

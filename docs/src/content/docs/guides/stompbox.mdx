@@ -383,6 +383,28 @@ function addCadLinework(root: THREE.Object3D, lineworkColor = "#111827") {
 }
 ```
 
+Pass `crt={true}` to apply a full-screen CRT post-processing pass over both the
+orthographic top (2D) and orbit (3D) views. The viewer renders the scene into an
+offscreen render target and then composites it through a tweakable
+cathode-ray-tube shader (scanlines, barrel curvature, vignette, bloom, and an
+optional RGB shift) on a full-screen triangle. Tune it with `crtCurvature`,
+`crtScanlineIntensity`, `crtScanlineCount`, `crtVignette`, `crtRgbShift`, and
+`crtFlicker`. Flicker is disabled automatically when the visitor prefers reduced
+motion. The CRT shader is vendored from
+[gingerbeardman/webgl-crt-shader](https://github.com/gingerbeardman/webgl-crt-shader)
+(MIT).
+
+Pass `glitch={true}` to add an occasional digital-glitch burst (displacement,
+RGB tearing, and noise) on top of the CRT look. It fires on a randomized, sparse
+schedule — `glitchInterval` (seconds, default `8`) sets the average gap between
+bursts, each lasting a few hundred milliseconds — so it reads as an intermittent
+signal fault rather than constant noise. The glitch runs as an intermediate pass
+before the CRT composite and is skipped entirely on frames with no active burst,
+so it is effectively free when idle. It is disabled when the visitor prefers
+reduced motion. The glitch shader is vendored from three.js'
+[`DigitalGlitch`](https://github.com/mrdoob/three.js/blob/master/examples/jsm/shaders/DigitalGlitch.js)
+(MIT).
+
 ## Helper reference
 
 Use the `FromVdsp` helpers when your frontend is holding serialized `.vdsp`
@@ -418,7 +440,7 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 >
 	<h3>Orthographic GLB top preview</h3>
 
-	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" backgroundColor="#000000" gridColor="#cccccc" gridOpacity={0.1} toon={true} toonEdgeColor="#69145a" linework={true} lineworkColor="#ffffff" grain={true} grainScale={1} grainIntensity={0.05} />
+	<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top" interactive={false} height="520px" backgroundColor="#091833" gridColor="#cccccc" gridOpacity={0.1} toon={true} toonEdgeColor="#69145a" linework={true} lineworkColor="#ffffff" grain={true} grainScale={1} grainIntensity={0.05} crt={true} />
 
 	<div>
 		This uses the generated GLB with an orthographic top camera, so side-mounted
@@ -430,9 +452,9 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 
 	<StompboxGlbViewer
 		src="/core/examples/stompbox-mxr-style-preview.glb"
-		backgroundColor="#000000"
+		backgroundColor="#091833"
 		gridColor="#cccccc"
-		gridOpacity={0.1}
+		gridOpacity={0.2}
 		toon={true}
 		toonEdgeColor="#69145a"
 		linework={true}
@@ -440,6 +462,9 @@ hardware and style profiles from `stompbox-demo-profiles.json`.
 		grain={true}
 		grainScale={1}
 		grainIntensity={0.1}
+		crt={true}
+		glitch={true}
+		glitchInterval={8}
 		liveStateDemo={true}
 	/>
 

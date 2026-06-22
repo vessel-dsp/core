@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { CRTShader } from "./vendor/crt-shader.js";
+import { DigitalGlitch } from "./vendor/glitch-shader.js";
 
 const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 const TEXT_DECAL_UVS = new Float32Array([
@@ -16,13 +18,26 @@ const FOOTSWITCH_AUTO_RELEASE_MS = 180;
 const FOOTSWITCH_ANIMATION_MS = 90;
 const LED_ON_COLOR = "#22c55e";
 const LED_OFF_COLOR = "#064e3b";
-const DEFAULT_BACKGROUND_COLOR = "#000000";
+const DEFAULT_BACKGROUND_COLOR = "#091833";
 const DEFAULT_GRID_COLOR = "#cccccc";
-const DEFAULT_GRID_OPACITY = 0.1;
+const DEFAULT_GRID_OPACITY = 0.3;
 const DEFAULT_TOON_EDGE_COLOR = "#69145a";
 const DEFAULT_GRAIN_SCALE = 1.15;
 const DEFAULT_GRAIN_INTENSITY = 0.1;
 const GRAIN_INTENSITY_SCALE = 0.35;
+const DEFAULT_CRT_CURVATURE = 0.15;
+const DEFAULT_CRT_SCANLINE_INTENSITY = 0.2;
+const DEFAULT_CRT_SCANLINE_COUNT = 500;
+const DEFAULT_CRT_VIGNETTE = 0.3;
+const DEFAULT_CRT_RGB_SHIFT = 1.0;
+const DEFAULT_CRT_FLICKER = 0.05;
+const DEFAULT_CRT_BLOOM_INTENSITY = 0.6;
+const DEFAULT_CRT_BLOOM_THRESHOLD = 0.2;
+const CRT_RENDER_TARGET_SAMPLES = 4;
+const DEFAULT_GLITCH_INTERVAL_SECONDS = 8;
+const GLITCH_BURST_MIN_MS = 120;
+const GLITCH_BURST_MAX_MS = 340;
+const GLITCH_DISPLACEMENT_TEXTURE_SIZE = 64;
 const TOON_OUTLINE_SCALE = 1.02;
 const liveStateStores = new WeakMap();
 const parentWorldScaleScratch = new THREE.Vector3();
@@ -72,6 +87,9 @@ function initStompboxViewer (viewer) {
 	renderer.setClearColor(new THREE.Color(DEFAULT_BACKGROUND_COLOR), 0);
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+	const crt = createCrtPostProcessing(renderer);
+	const glitch = createGlitchPass();
+
 	scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 2.2));
 
 	const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
@@ -109,6 +127,8 @@ function initStompboxViewer (viewer) {
 			updateOrthographicTopFrustum(camera, orthographicTopSize, width / height);
 		}
 		renderer.setSize(width, height, false);
+		crt.setSize(renderer);
+		glitch.setSize(renderer);
 	}
 
 	const resizeObserver = new ResizeObserver(resize);
@@ -125,7 +145,11 @@ function initStompboxViewer (viewer) {
 			controls.update();
 		}
 		updateLiveStateAnimations(viewer, deltaMs);
-		renderer.render(scene, camera);
+		if (crt.enabled) {
+			crt.render(renderer, scene, camera, frameMs, glitch);
+		} else {
+			renderer.render(scene, camera);
+		}
 	}
 	animate();
 
@@ -149,6 +173,10 @@ function initStompboxViewer (viewer) {
 		viewer.dataset.grain = preset.grain ? "true" : "false";
 		viewer.dataset.grainScale = String(preset.grainScale);
 		viewer.dataset.grainIntensity = String(preset.grainIntensity);
+		viewer.dataset.crt = preset.crt ? "true" : "false";
+		viewer.dataset.glitch = preset.glitch ? "true" : "false";
+		crt.configure(preset, reducedMotionQuery.matches);
+		glitch.configure(preset, reducedMotionQuery.matches);
 		applyPresetBackground(viewer, preset);
 		viewer.dataset.viewerLoaded = "false";
 		unregisterLiveStateViewer(viewer);
@@ -186,14 +214,18 @@ function initStompboxViewer (viewer) {
 				if (preset.toon) {
 					applyToonMaterials(model, preset);
 				}
-				if (preset.linework || preset.toon) {
-					const edgeColor = preset.toon ? preset.toonEdgeColor : preset.lineworkColor;
-					addCadLinework(model, edgeColor);
+				// In toon mode the outline pass owns the edges, so the CAD
+				// linework pass (and its lineworkColor) only applies when toon
+				// is off; otherwise it would just redraw the same edges.
+				if (preset.linework && !preset.toon) {
+					addCadLinework(model, preset.lineworkColor);
 				}
 				if (preset.toon) {
 					addToonOutline(model, preset.toonEdgeColor);
 				}
-				applyScreenGrainMaterials(model, preset);
+				if (!preset.crt) {
+					applyScreenGrainMaterials(model, preset);
+				}
 				modelRoot.add(model);
 				const aspect = Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
 				orthographicTopSize = frameModel(model, camera, controls, viewMode, aspect);
@@ -955,6 +987,17 @@ function parseGroupPresetOptions (group) {
 		grain: false,
 		grainScale: DEFAULT_GRAIN_SCALE,
 		grainIntensity: DEFAULT_GRAIN_INTENSITY,
+		crt: false,
+		crtCurvature: DEFAULT_CRT_CURVATURE,
+		crtScanlineIntensity: DEFAULT_CRT_SCANLINE_INTENSITY,
+		crtScanlineCount: DEFAULT_CRT_SCANLINE_COUNT,
+		crtVignette: DEFAULT_CRT_VIGNETTE,
+		crtRgbShift: DEFAULT_CRT_RGB_SHIFT,
+		crtFlicker: DEFAULT_CRT_FLICKER,
+		crtBloomIntensity: DEFAULT_CRT_BLOOM_INTENSITY,
+		crtBloomThreshold: DEFAULT_CRT_BLOOM_THRESHOLD,
+		glitch: false,
+		glitchInterval: DEFAULT_GLITCH_INTERVAL_SECONDS,
 	};
 	try {
 		const parsed = JSON.parse(presetsJson);
@@ -982,6 +1025,17 @@ function parsePresetOptions (viewer, src) {
 	const grainEnabled = viewer.dataset.grain === "true";
 	const grainScale = normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE);
 	const grainIntensity = normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY);
+	const crtEnabled = viewer.dataset.crt === "true";
+	const crtCurvature = normalizeUnitInterval(viewer.dataset.crtCurvature, DEFAULT_CRT_CURVATURE);
+	const crtScanlineIntensity = normalizeUnitInterval(viewer.dataset.crtScanlineIntensity, DEFAULT_CRT_SCANLINE_INTENSITY);
+	const crtScanlineCount = normalizePositiveNumber(viewer.dataset.crtScanlineCount, DEFAULT_CRT_SCANLINE_COUNT);
+	const crtVignette = normalizeUnitInterval(viewer.dataset.crtVignette, DEFAULT_CRT_VIGNETTE);
+	const crtRgbShift = normalizeUnitInterval(viewer.dataset.crtRgbShift, DEFAULT_CRT_RGB_SHIFT);
+	const crtFlicker = normalizeUnitInterval(viewer.dataset.crtFlicker, DEFAULT_CRT_FLICKER);
+	const crtBloomIntensity = normalizeNonNegativeNumber(viewer.dataset.crtBloomIntensity, DEFAULT_CRT_BLOOM_INTENSITY);
+	const crtBloomThreshold = normalizeUnitInterval(viewer.dataset.crtBloomThreshold, DEFAULT_CRT_BLOOM_THRESHOLD);
+	const glitchEnabled = viewer.dataset.glitch === "true";
+	const glitchInterval = normalizePositiveNumber(viewer.dataset.glitchInterval, DEFAULT_GLITCH_INTERVAL_SECONDS);
 	const presetsJson = viewer.dataset.stompboxPresets ?? group?.dataset.stompboxPresets;
 	const fallback = {
 		id: "default",
@@ -999,6 +1053,17 @@ function parsePresetOptions (viewer, src) {
 		grain: grainEnabled,
 		grainScale,
 		grainIntensity,
+		crt: crtEnabled,
+		crtBloomIntensity,
+		crtBloomThreshold,
+		crtCurvature,
+		crtScanlineIntensity,
+		crtScanlineCount,
+		crtVignette,
+		crtRgbShift,
+		crtFlicker,
+		glitch: glitchEnabled,
+		glitchInterval,
 	};
 	if (presetsJson === undefined) {
 		return [fallback];
@@ -1050,6 +1115,17 @@ function normalizePresetOption (preset, index, fallback) {
 		grain: typeof preset.grain === "boolean" ? preset.grain : fallback.grain,
 		grainScale,
 		grainIntensity,
+		crt: typeof preset.crt === "boolean" ? preset.crt : fallback.crt,
+		crtCurvature: normalizeUnitInterval(preset.crtCurvature, fallback.crtCurvature),
+		crtScanlineIntensity: normalizeUnitInterval(preset.crtScanlineIntensity, fallback.crtScanlineIntensity),
+		crtScanlineCount: normalizePositiveNumber(preset.crtScanlineCount, fallback.crtScanlineCount),
+		crtVignette: normalizeUnitInterval(preset.crtVignette, fallback.crtVignette),
+		crtRgbShift: normalizeUnitInterval(preset.crtRgbShift, fallback.crtRgbShift),
+		crtFlicker: normalizeUnitInterval(preset.crtFlicker, fallback.crtFlicker),
+		crtBloomIntensity: normalizeNonNegativeNumber(preset.crtBloomIntensity, fallback.crtBloomIntensity),
+		crtBloomThreshold: normalizeUnitInterval(preset.crtBloomThreshold, fallback.crtBloomThreshold),
+		glitch: typeof preset.glitch === "boolean" ? preset.glitch : fallback.glitch,
+		glitchInterval: normalizePositiveNumber(preset.glitchInterval, fallback.glitchInterval),
 		drillTemplateSrc: typeof preset.drillTemplateSrc === "string" ? preset.drillTemplateSrc : undefined,
 		drillLayoutSrc: typeof preset.drillLayoutSrc === "string" ? preset.drillLayoutSrc : undefined,
 	}];
@@ -1093,6 +1169,14 @@ function normalizeUnitInterval (value, fallback) {
 		return fallback;
 	}
 	return Math.max(0, Math.min(1, number));
+}
+
+function normalizeNonNegativeNumber (value, fallback) {
+	const number = typeof value === "number" ? value : Number(value);
+	if (!Number.isFinite(number) || number < 0) {
+		return fallback;
+	}
+	return number;
 }
 
 function applyScreenGrainMaterials (root, preset) {
@@ -1160,6 +1244,244 @@ function screenGrainFragmentShader (fragmentShader) {
 		return shader.replace("#include <dithering_fragment>", `${grainApply}\n\t#include <dithering_fragment>`);
 	}
 	return shader.replace(/\n}\s*$/, `\n${grainApply}\n}`);
+}
+
+function createCrtPostProcessing (renderer) {
+	const renderTarget = new THREE.WebGLRenderTarget(1, 1, {
+		type: THREE.HalfFloatType,
+		samples: crtRenderTargetSamples(renderer),
+		depthBuffer: true,
+		stencilBuffer: false,
+	});
+
+	const postScene = new THREE.Scene();
+	const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+	const uniforms = THREE.UniformsUtils.clone(CRTShader.uniforms);
+	// Grain is applied in this pass (screen-space, on the final pixel) rather
+	// than per-material: the CRT resample/bloom would otherwise blur fine
+	// material-scoped grain away.
+	uniforms.grainScale = { value: DEFAULT_GRAIN_SCALE };
+	uniforms.grainIntensity = { value: 0 };
+	uniforms.grainIntensityScale = { value: GRAIN_INTENSITY_SCALE };
+	const material = new THREE.ShaderMaterial({
+		uniforms,
+		vertexShader: CRTShader.vertexShader,
+		fragmentShader: crtFragmentShaderWithOutputEncoding(CRTShader.fragmentShader),
+		transparent: true,
+		depthTest: false,
+		depthWrite: false,
+	});
+
+	// Full-screen triangle covering the viewport; uv spans 0..2 so the visible
+	// region maps to 0..1. Avoids a PlaneGeometry full-screen quad.
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute(
+		"position",
+		new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
+	);
+	geometry.setAttribute(
+		"uv",
+		new THREE.BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2),
+	);
+	postScene.add(new THREE.Mesh(geometry, material));
+
+	const drawingBufferSize = new THREE.Vector2();
+	let flickerEnabled = false;
+
+	return {
+		enabled: false,
+		setSize (activeRenderer) {
+			activeRenderer.getDrawingBufferSize(drawingBufferSize);
+			renderTarget.setSize(Math.max(1, drawingBufferSize.x), Math.max(1, drawingBufferSize.y));
+		},
+		configure (preset, reducedMotion) {
+			this.enabled = preset.crt === true;
+			if (!this.enabled) {
+				return;
+			}
+			uniforms.curvature.value = preset.crtCurvature;
+			uniforms.scanlineIntensity.value = preset.crtScanlineIntensity;
+			uniforms.scanlineCount.value = preset.crtScanlineCount;
+			uniforms.vignetteStrength.value = preset.crtVignette;
+			uniforms.rgbShift.value = preset.crtRgbShift;
+			uniforms.bloomIntensity.value = preset.crtBloomIntensity;
+			uniforms.bloomThreshold.value = preset.crtBloomThreshold;
+			uniforms.grainScale.value = preset.grainScale;
+			uniforms.grainIntensity.value = preset.grain === true ? preset.grainIntensity : 0;
+			flickerEnabled = reducedMotion !== true && preset.crtFlicker > 0.001;
+			uniforms.flickerStrength.value = flickerEnabled ? preset.crtFlicker : 0;
+		},
+		render (activeRenderer, sceneToRender, sceneCamera, frameMs, glitchPass) {
+			if (flickerEnabled) {
+				uniforms.time.value = frameMs / 1000;
+			}
+			activeRenderer.setRenderTarget(renderTarget);
+			activeRenderer.render(sceneToRender, sceneCamera);
+			// Optional glitch pass between the scene render and the CRT
+			// composite. When no glitch is active this frame it returns the
+			// input texture unchanged (no extra draw).
+			let sourceTexture = renderTarget.texture;
+			if (glitchPass?.enabled) {
+				sourceTexture = glitchPass.apply(activeRenderer, sourceTexture, frameMs);
+			}
+			activeRenderer.setRenderTarget(null);
+			uniforms.tDiffuse.value = sourceTexture;
+			activeRenderer.render(postScene, postCamera);
+		},
+	};
+}
+
+function createGlitchPass () {
+	const renderTarget = new THREE.WebGLRenderTarget(1, 1, {
+		type: THREE.HalfFloatType,
+		depthBuffer: false,
+		stencilBuffer: false,
+	});
+
+	const postScene = new THREE.Scene();
+	const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+	const uniforms = THREE.UniformsUtils.clone(DigitalGlitch.uniforms);
+	uniforms.tDisp.value = createGlitchDisplacementTexture();
+	const material = new THREE.ShaderMaterial({
+		uniforms,
+		vertexShader: DigitalGlitch.vertexShader,
+		// Keep the transparent background clean: the vendored shader adds white
+		// "snow" to every channel including alpha, which would speckle the grid.
+		// Restore the (displaced) source alpha after the noise add.
+		fragmentShader: DigitalGlitch.fragmentShader.replace(
+			"gl_FragColor = gl_FragColor+ snow;",
+			"gl_FragColor = gl_FragColor + snow;\n\t\t\t\tgl_FragColor.a = cga.a;",
+		),
+		transparent: true,
+		depthTest: false,
+		depthWrite: false,
+	});
+
+	const geometry = new THREE.BufferGeometry();
+	geometry.setAttribute(
+		"position",
+		new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
+	);
+	geometry.setAttribute(
+		"uv",
+		new THREE.BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2),
+	);
+	postScene.add(new THREE.Mesh(geometry, material));
+
+	const drawingBufferSize = new THREE.Vector2();
+	let minGapMs = DEFAULT_GLITCH_INTERVAL_SECONDS * 600;
+	let maxGapMs = DEFAULT_GLITCH_INTERVAL_SECONDS * 1400;
+	let nextAtMs;
+	let burstEndMs = 0;
+	let hardEndMs = 0;
+
+	function scheduleNext (frameMs) {
+		nextAtMs = frameMs + randomInRange(minGapMs, maxGapMs);
+	}
+
+	return {
+		enabled: false,
+		setSize (activeRenderer) {
+			activeRenderer.getDrawingBufferSize(drawingBufferSize);
+			renderTarget.setSize(Math.max(1, drawingBufferSize.x), Math.max(1, drawingBufferSize.y));
+		},
+		configure (preset, reducedMotion) {
+			this.enabled = preset.glitch === true && reducedMotion !== true;
+			const intervalSeconds = preset.glitchInterval > 0 ? preset.glitchInterval : DEFAULT_GLITCH_INTERVAL_SECONDS;
+			minGapMs = intervalSeconds * 600;
+			maxGapMs = intervalSeconds * 1400;
+			nextAtMs = undefined;
+			burstEndMs = 0;
+			hardEndMs = 0;
+		},
+		apply (activeRenderer, inputTexture, frameMs) {
+			if (nextAtMs === undefined) {
+				scheduleNext(frameMs);
+			}
+			const glitching = frameMs < burstEndMs;
+			if (!glitching && frameMs >= nextAtMs) {
+				const burstMs = randomInRange(GLITCH_BURST_MIN_MS, GLITCH_BURST_MAX_MS);
+				burstEndMs = frameMs + burstMs;
+				hardEndMs = frameMs + burstMs * randomInRange(0.25, 0.5);
+				scheduleNext(burstEndMs);
+			}
+			if (frameMs >= burstEndMs) {
+				return inputTexture;
+			}
+			uniforms.seed.value = Math.random();
+			uniforms.byp.value = 0;
+			if (frameMs < hardEndMs) {
+				uniforms.amount.value = Math.random() / 30;
+				uniforms.angle.value = randomInRange(-Math.PI, Math.PI);
+				uniforms.seed_x.value = randomInRange(-1, 1);
+				uniforms.seed_y.value = randomInRange(-1, 1);
+				uniforms.distortion_x.value = Math.random();
+				uniforms.distortion_y.value = Math.random();
+			} else {
+				uniforms.amount.value = Math.random() / 90;
+				uniforms.angle.value = randomInRange(-Math.PI, Math.PI);
+				uniforms.distortion_x.value = Math.random();
+				uniforms.distortion_y.value = Math.random();
+				uniforms.seed_x.value = randomInRange(-0.3, 0.3);
+				uniforms.seed_y.value = randomInRange(-0.3, 0.3);
+			}
+			uniforms.tDiffuse.value = inputTexture;
+			activeRenderer.setRenderTarget(renderTarget);
+			activeRenderer.render(postScene, postCamera);
+			return renderTarget.texture;
+		},
+	};
+}
+
+function createGlitchDisplacementTexture () {
+	const size = GLITCH_DISPLACEMENT_TEXTURE_SIZE;
+	const data = new Float32Array(size * size);
+	for (let index = 0; index < data.length; index += 1) {
+		data[index] = Math.random();
+	}
+	const texture = new THREE.DataTexture(data, size, size, THREE.RedFormat, THREE.FloatType);
+	texture.needsUpdate = true;
+	return texture;
+}
+
+function randomInRange (min, max) {
+	return min + Math.random() * (max - min);
+}
+
+function crtRenderTargetSamples (renderer) {
+	const maxSamples = renderer.capabilities?.maxSamples;
+	if (!Number.isFinite(maxSamples)) {
+		return CRT_RENDER_TARGET_SAMPLES;
+	}
+	return Math.max(0, Math.min(CRT_RENDER_TARGET_SAMPLES, maxSamples));
+}
+
+function crtFragmentShaderWithOutputEncoding (fragmentShader) {
+	// The CRT pass runs as a raw ShaderMaterial straight to the default
+	// framebuffer, so Three does not apply its automatic sRGB output
+	// conversion. The scene is sampled from a linear render target, so encode
+	// the final color to sRGB here to match the non-CRT render path.
+	//
+	// Screen-space grain is applied here too, on the final composited pixel,
+	// because the CRT resample (curvature) and bloom blur would otherwise wash
+	// out fine per-material grain rendered into the offscreen target.
+	const grainPars = `varying vec2 vUv;
+
+		uniform float grainScale;
+		uniform float grainIntensity;
+		uniform float grainIntensityScale;
+
+		float stompboxCrtGrainRandom(vec2 value) {
+			return fract(sin(dot(value, vec2(12.9898, 78.233))) * 43758.5453123);
+		}`;
+	const outputEncoding = `float stompboxCrtGrainValue = stompboxCrtGrainRandom(floor(gl_FragCoord.xy / max(grainScale, 0.001)));
+			float stompboxCrtGrainDelta = (stompboxCrtGrainValue - 0.5) * grainIntensity * grainIntensityScale;
+			pixel.rgb = clamp(pixel.rgb + vec3(stompboxCrtGrainDelta), 0.0, 1.0);
+			pixel.rgb = mix(pixel.rgb * 12.92, 1.055 * pow(pixel.rgb, vec3(0.41666)) - 0.055, step(0.0031308, pixel.rgb));
+			gl_FragColor = pixel;`;
+	return fragmentShader
+		.replace("varying vec2 vUv;", grainPars)
+		.replace("gl_FragColor = pixel;", outputEncoding);
 }
 
 function applyToonMaterials (root, preset) {

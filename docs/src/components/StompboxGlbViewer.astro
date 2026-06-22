@@ -15,6 +15,17 @@ type Props = {
 	grain?: boolean;
 	grainScale?: number;
 	grainIntensity?: number;
+	crt?: boolean;
+	crtCurvature?: number;
+	crtScanlineIntensity?: number;
+	crtScanlineCount?: number;
+	crtVignette?: number;
+	crtRgbShift?: number;
+	crtFlicker?: number;
+	crtBloomIntensity?: number;
+	crtBloomThreshold?: number;
+	glitch?: boolean;
+	glitchInterval?: number;
 	liveStateDemo?: boolean;
 };
 
@@ -32,6 +43,17 @@ const toonEdgeColor = props.toonEdgeColor ?? "#69145a";
 const grain = props.grain ?? false;
 const grainScale = props.grainScale ?? 1.15;
 const grainIntensity = props.grainIntensity ?? 0.05;
+const crt = props.crt ?? false;
+const crtCurvature = props.crtCurvature ?? 0.15;
+const crtScanlineIntensity = props.crtScanlineIntensity ?? 0.15;
+const crtScanlineCount = props.crtScanlineCount ?? 400;
+const crtVignette = props.crtVignette ?? 0.3;
+const crtRgbShift = props.crtRgbShift ?? 0;
+const crtFlicker = props.crtFlicker ?? 0.01;
+const crtBloomIntensity = props.crtBloomIntensity ?? 0.2;
+const crtBloomThreshold = props.crtBloomThreshold ?? 0.5;
+const glitch = props.glitch ?? false;
+const glitchInterval = props.glitchInterval ?? 8;
 const liveStateDemo = props.liveStateDemo ?? false;
 const label = props.label ?? (
 	view === "top"
@@ -57,6 +79,17 @@ const height = props.height ?? "360px";
 	data-grain={grain ? "true" : "false"}
 	data-grain-scale={String(grainScale)}
 	data-grain-intensity={String(grainIntensity)}
+	data-crt={crt ? "true" : "false"}
+	data-crt-curvature={String(crtCurvature)}
+	data-crt-scanline-intensity={String(crtScanlineIntensity)}
+	data-crt-scanline-count={String(crtScanlineCount)}
+	data-crt-vignette={String(crtVignette)}
+	data-crt-rgb-shift={String(crtRgbShift)}
+	data-crt-flicker={String(crtFlicker)}
+	data-crt-bloom-intensity={String(crtBloomIntensity)}
+	data-crt-bloom-threshold={String(crtBloomThreshold)}
+	data-glitch={glitch ? "true" : "false"}
+	data-glitch-interval={String(glitchInterval)}
 	data-live-state-demo={liveStateDemo ? "true" : "false"}
 	style={`--stompbox-viewer-height: ${height}; --stompbox-viewer-background-color: ${backgroundColor}; --stompbox-viewer-grid-color: ${gridColor}; --stompbox-viewer-grid-opacity: ${gridOpacity};`}
 >

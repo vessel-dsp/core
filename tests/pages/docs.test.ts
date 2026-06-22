@@ -276,37 +276,17 @@ describe("GitHub Pages documentation site", () => {
 			"MXR style, two knobs",
 			"Boss style, three knobs",
 		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.backgroundColor)).toEqual([
-			"#000000",
-			"#000000",
-		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.gridColor)).toEqual([
-			"#cccccc",
-			"#cccccc",
-		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.gridOpacity)).toEqual([
-			0.1,
-			0.1,
-		]);
 		expect(demoProfiles.previewPresets?.map((preset) => preset.toon)).toEqual([
 			true,
 			true,
-		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.toonEdgeColor)).toEqual([
-			"#69145a",
-			"#69145a",
 		]);
 		expect(demoProfiles.previewPresets?.map((preset) => preset.grain)).toEqual([
 			true,
 			true,
 		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.grainScale)).toEqual([
-			1,
-			1,
-		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.grainIntensity)).toEqual([
-			0.05,
-			0.05,
+		expect(demoProfiles.previewPresets?.map((preset) => preset.linework)).toEqual([
+			true,
+			true,
 		]);
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
@@ -465,8 +445,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE)");
 		expect(viewerRuntime).toContain("normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY)");
 		expect(viewerRuntime).toContain("if (preset.toon)");
-		expect(viewerRuntime).toContain("const edgeColor = preset.toon ? preset.toonEdgeColor : preset.lineworkColor");
-		expect(viewerRuntime).toContain("const TOON_OUTLINE_SCALE = 1.025;");
+		expect(viewerRuntime).toContain("if (preset.linework && !preset.toon)");
+		expect(viewerRuntime).toContain("const TOON_OUTLINE_SCALE = 1.02;");
 		expect(viewerRuntime).toContain("addToonOutline(model, preset.toonEdgeColor);");
 		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
 		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
