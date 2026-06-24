@@ -331,3 +331,29 @@
 .vdsp-control-ui-surface.is-disabled .vdsp-control-ui-control {
     cursor: not-allowed;
 }
+
+.vdsp-control-ui-jack {
+    width: 26px;
+    height: 26px;
+    aspect-ratio: 1;
+    border: 2px solid color-mix(in srgb, var(--vdsp-control-ui-border-color) 80%, black);
+    border-radius: 50%;
+    background:
+        radial-gradient(
+            circle at center,
+            #111827 0 32%,
+            color-mix(in srgb, var(--vdsp-control-ui-control-color) 60%, #4b5563) 33% 100%
+        );
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5);
+}
+
+.vdsp-control-ui-concentric {
+    display: grid;
+    place-items: center;
+    gap: 4px;
+}
+
+.vdsp-control-ui-concentric__stacked .vdsp-control-ui-knob {
+    width: 44px;
+    height: 44px;
+}

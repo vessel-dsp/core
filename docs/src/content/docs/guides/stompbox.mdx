@@ -69,6 +69,43 @@ const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
 });
 ```
 
+## Stacked concentric potentiometers
+
+The circuit/PCB model is packaging-agnostic: two pots are two pots. A stacked
+concentric pot is an **optional part-variant choice**, not a circuit property.
+By default a layout auto-generates separate pots; concentric realization happens
+only when the placement selects a multi-surface concentric part.
+
+A concentric part profile declares an ordered `surfaces` array (bottom to top),
+each with its own dial `geometry` and `stackOffsetMm`. To stack N controls onto
+it, give each pot's placement element a shared `physical.mountId`, the same
+`physical.partProfileId`, the same `centerMm`, and a distinct `physical.surface`
+naming one of the part's surfaces:
+
+```yaml
+elements:
+  - bind: { componentId: BASS }
+    physical: { partProfileId: pot-concentric-3, mountId: m-tone, surface: lower, centerMm: { x: 30, y: 28 } }
+  - bind: { componentId: MID }
+    physical: { partProfileId: pot-concentric-3, mountId: m-tone, surface: middle, centerMm: { x: 30, y: 28 } }
+  - bind: { componentId: TREBLE }
+    physical: { partProfileId: pot-concentric-3, mountId: m-tone, surface: upper, centerMm: { x: 30, y: 28 } }
+```
+
+Stompbox groups elements by `mountId` into a **single drill hole** at the shared
+center and emits **N stacked dials** (one per surface, sized and lifted per the
+part profile), each wired to its own control so every section rotates
+independently. This handles dual, triple, or any N concentric pot with one
+mechanism.
+
+Orphan and inconsistent bindings are diagnosed. Core reports catalog-free
+structural problems (`panel-mount-orphan` for a `surface` without a `mountId`, a
+mount member missing its `surface` or `partProfileId`; `panel-mount-inconsistent`
+for duplicate surfaces or mixed `partProfileId`/`centerMm` within a mount).
+Stompbox reports catalog-aware problems (`unknown-part-surface` for a surface the
+part does not declare; `concentric-mount-incomplete` when a declared surface is
+left unfilled).
+
 ## Placement validation
 
 Layout diagnostics report physical placement problems. `placement-collision` means visible part geometry overlaps. `placement-clearance` means parts do not overlap, but the gap is below the requested clearance. `placement-out-of-bounds` means a hole exceeds the enclosure face bounds.

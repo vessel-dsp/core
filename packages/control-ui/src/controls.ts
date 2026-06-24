@@ -33,6 +33,11 @@ export function findPanelControl(panel: Panel, controlId: string): ControlUiCont
         return { kind: 'led', control: led };
     }
 
+    const jack = panel.jacks.find((control) => control.id === controlId);
+    if (jack !== undefined) {
+        return { kind: 'jack', control: jack };
+    }
+
     return undefined;
 }
 
@@ -91,6 +96,12 @@ export function valueForControl(control: ControlUiControlRef, value: ControlValu
             }
             throw new Error(`LED control "${control.control.id}" is read-only in control-ui`);
         }
+        case 'jack':
+            throw new Error(`Jack "${control.control.id}" is read-only in control-ui`);
+        case 'concentric-knob':
+            throw new Error(
+                `Concentric knob "${control.control.id}" is set per tier in control-ui`,
+            );
     }
 }
 
@@ -120,6 +131,9 @@ export function formatControlValue(control: ControlUiControlRef, value: ControlV
                 return '';
             }
             return value.on ? 'On' : 'Off';
+        case 'jack':
+        case 'concentric-knob':
+            return '';
     }
 }
 

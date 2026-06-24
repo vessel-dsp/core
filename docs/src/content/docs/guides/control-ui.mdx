@@ -129,6 +129,20 @@ The example assumes `bypass` and `mode` are control ids from the extracted
 panel. If a document uses different ids, omit `appearance` or map the ids that
 exist in that panel.
 
+## Control coverage
+
+The surface renders every panel control family:
+
+- **Knobs** render as continuous dials, or as detented rotary selects when the
+  knob carries `steps`.
+- **Stacked concentric pots** — knobs whose placement elements share a
+  `physical.mountId` (a concentric part variant) — render as one `ConcentricKnob`
+  with N independent dials in stack order, each emitting its own `control/set`.
+- **Sliders** render as graphic-EQ faders.
+- **Switches** render as footswitches, toggles, or rotary selects by switch kind.
+- **LEDs** and **jacks** render read-only: they reflect state but never emit
+  `control/set`. Jacks appear as panel ports for orientation only.
+
 ## Styling
 
 The package ships default CSS and stable `vdsp-control-ui-*` class names. Use

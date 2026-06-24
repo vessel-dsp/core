@@ -312,6 +312,19 @@ export type PanelElementPhysicalPlacement = VdspBuildDataObject & Readonly<{
     drillDiameterMm?: number;
     partProfileId?: string;
     locked?: boolean;
+    /**
+     * Groups peer placement elements that share one physical part occupying a
+     * single mounting hole — e.g. the stacked sections of a concentric pot.
+     * Every element in a mount group references the same `partProfileId` and
+     * `centerMm`; each names a distinct `surface` of that part.
+     */
+    mountId?: string;
+    /**
+     * Which surface of a multi-surface part this element occupies (e.g. a
+     * concentric pot's stacked dial id such as `lower`/`upper`, declared by the
+     * part profile). Only meaningful together with `mountId`.
+     */
+    surface?: string;
 }>;
 
 export type BuildIntent = 'diy-build-artifact' | 'schema-review-sample';

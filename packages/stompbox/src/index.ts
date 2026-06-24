@@ -329,6 +329,18 @@ export type StompboxPartGeometry =
 			depthMm: number;
 	  }>;
 
+/**
+ * One stacked dial of a multi-surface part (e.g. a concentric pot). The
+ * ordered `surfaces` array runs bottom (on the panel) to top; each dial's
+ * `geometry` and `stackOffsetMm` (height above the base) describe how it nests.
+ * A placement element's `physical.surface` references one of these `id`s.
+ */
+export type StompboxPartSurface = Readonly<{
+	id: string;
+	geometry: StompboxPartGeometry;
+	stackOffsetMm: number;
+}>;
+
 export type StompboxPartProfile = Readonly<{
 	id: string;
 	label: string;
@@ -338,6 +350,7 @@ export type StompboxPartProfile = Readonly<{
 	panelHoleDrillMm: number;
 	drillHoleProfileId?: string;
 	geometry: StompboxPartGeometry;
+	surfaces?: readonly StompboxPartSurface[];
 	assets: StompboxAssetRefs;
 	assetScale?: number;
 	stateTargets?: StompboxPartStateTargets;
@@ -397,6 +410,8 @@ export type StompboxDiagnosticCode =
 	| "placement-auto-generated"
 	| "unsupported-control"
 	| "unknown-part-profile"
+	| "unknown-part-surface"
+	| "concentric-mount-incomplete"
 	| "placement-collision"
 	| "placement-clearance"
 	| "placement-out-of-bounds"
@@ -414,6 +429,19 @@ export type StompboxDiagnostic = Readonly<{
 	face?: StompboxFaceId;
 	assetPath?: string;
 	targetRole?: StompboxGlbStateTargetRole;
+}>;
+
+/**
+ * An additional stacked dial sharing a concentric part's single hole, above
+ * the hole's base (lower) dial. One per upper surface, in stack order.
+ */
+export type StompboxConcentricDial = Readonly<{
+	surface: string;
+	partGeometry: StompboxPartGeometry;
+	stackOffsetMm: number;
+	controlId?: string;
+	componentId?: string;
+	label?: string;
 }>;
 
 export type StompboxDrillHole = Readonly<{
@@ -434,6 +462,8 @@ export type StompboxDrillHole = Readonly<{
 	locked?: boolean;
 	assets: StompboxAssetRefs;
 	stateTargets?: StompboxPartStateTargets;
+	/** Upper dials of a concentric mount; empty/absent for a plain part. */
+	concentricDials?: readonly StompboxConcentricDial[];
 }>;
 
 export type StompboxDrillLayout = Readonly<{
@@ -932,6 +962,9 @@ type PlacementCandidate = Readonly<{
 	drillDiameterMm?: number;
 	locked?: boolean;
 	provenance: StompboxPlacementProvenance;
+	mountId?: string;
+	surface?: string;
+	concentricDials?: readonly StompboxConcentricDial[];
 }>;
 
 type AutoKnobPlacement = Readonly<{
@@ -1671,7 +1704,11 @@ export function createStompboxDrillLayout(
 		placementStyle,
 		diagnostics,
 	);
-	const holes = [...panelDeclared, ...auto].flatMap((candidate) =>
+	const holes = collapseConcentricMounts(
+		[...panelDeclared, ...auto],
+		hardwareProfile,
+		diagnostics,
+	).flatMap((candidate) =>
 		drillHoleForCandidate(candidate, hardwareProfile, diagnostics),
 	);
 	diagnostics.push(
@@ -1712,8 +1749,8 @@ export function createStompboxPreview(
 	const resolveOptions = assetResolveOptions(options);
 	const runtimeState = options.pedalState?.controls ?? options.state;
 	const enabled = options.pedalState?.enabled;
-	const parts = drillLayout.holes.map((hole) =>
-		previewPartForHole(
+	const parts = drillLayout.holes.flatMap((hole) => {
+		const base = previewPartForHole(
 			hole,
 			drillLayout.enclosure,
 			controlMetadata.get(hole.controlId ?? ""),
@@ -1721,8 +1758,34 @@ export function createStompboxPreview(
 			resolveOptions,
 			options.appearance,
 			enabled,
-		),
-	);
+		);
+		const dials = hole.concentricDials ?? [];
+		if (dials.length === 0) {
+			return [base];
+		}
+		const stacked = dials.map((dial) => {
+			const dialPart = previewPartForHole(
+				concentricDialHole(hole, dial),
+				drillLayout.enclosure,
+				controlMetadata.get(dial.controlId ?? ""),
+				runtimeState,
+				resolveOptions,
+				options.appearance,
+				enabled,
+			);
+			return {
+				...dialPart,
+				transform: {
+					...dialPart.transform,
+					translationMm: {
+						...dialPart.transform.translationMm,
+						z: dialPart.transform.translationMm.z + dial.stackOffsetMm,
+					},
+				},
+			};
+		});
+		return [base, ...stacked];
+	});
 	const decals = [
 		...normalizeDecals(options.decals, drillLayout.enclosure),
 		...controlLabelDecals(drillLayout, placementStyle, options.appearance),
@@ -3039,6 +3102,12 @@ function declaredPhysicalPlacements(
 				...(element.physical.locked === undefined
 					? {}
 					: { locked: element.physical.locked }),
+				...(element.physical.mountId === undefined
+					? {}
+					: { mountId: element.physical.mountId }),
+				...(element.physical.surface === undefined
+					? {}
+					: { surface: element.physical.surface }),
 				provenance: "vdsp-declared",
 			});
 		}
@@ -3103,6 +3172,12 @@ function gridPhysicalPlacements(
 						...(element.physical?.locked === undefined
 							? {}
 							: { locked: element.physical.locked }),
+						...(element.physical?.mountId === undefined
+							? {}
+							: { mountId: element.physical.mountId }),
+						...(element.physical?.surface === undefined
+							? {}
+							: { surface: element.physical.surface }),
 					},
 					diagnostics,
 				),
@@ -3383,6 +3458,94 @@ function autoCandidate(
 	};
 }
 
+/**
+ * Collapses placement candidates that share a `mountId` onto a multi-surface
+ * part into a single base candidate carrying the upper dials as
+ * `concentricDials`. One mount becomes one drill hole with N stacked dials,
+ * ordered by the part profile's `surfaces`. Candidates without a `mountId`, or
+ * whose part declares no `surfaces`, pass through unchanged (one hole each).
+ */
+function collapseConcentricMounts(
+	candidates: readonly PlacementCandidate[],
+	hardwareProfile: StompboxHardwareProfile,
+	diagnostics: StompboxDiagnostic[],
+): readonly PlacementCandidate[] {
+	const result: PlacementCandidate[] = [];
+	const groups = new Map<string, PlacementCandidate[]>();
+	for (const candidate of candidates) {
+		if (candidate.mountId === undefined) {
+			result.push(candidate);
+			continue;
+		}
+		const members = groups.get(candidate.mountId) ?? [];
+		members.push(candidate);
+		groups.set(candidate.mountId, members);
+	}
+
+	for (const [mountId, members] of groups) {
+		const part = hardwareProfile.partProfiles[members[0]?.partId ?? ""];
+		const surfaces = part?.surfaces;
+		if (part === undefined || surfaces === undefined || surfaces.length === 0) {
+			// Not a multi-surface part: keep each member as its own hole.
+			result.push(...members);
+			continue;
+		}
+
+		const memberBySurface = new Map<string, PlacementCandidate>();
+		for (const member of members) {
+			if (member.surface === undefined) {
+				result.push(member);
+				continue;
+			}
+			if (!surfaces.some((surface) => surface.id === member.surface)) {
+				diagnostics.push({
+					code: "unknown-part-surface",
+					message: `Mount "${mountId}" references surface "${member.surface}" not declared by part "${part.id}"`,
+					...(member.controlId === undefined ? {} : { controlId: member.controlId }),
+					placementId: member.id,
+					face: member.face,
+				});
+				result.push(member);
+				continue;
+			}
+			memberBySurface.set(member.surface, member);
+		}
+
+		const missing = surfaces.filter((surface) => !memberBySurface.has(surface.id));
+		if (missing.length > 0) {
+			diagnostics.push({
+				code: "concentric-mount-incomplete",
+				message: `Concentric mount "${mountId}" (part "${part.id}") is missing surface(s): ${missing.map((surface) => surface.id).join(", ")}`,
+				placementId: members[0]?.id ?? mountId,
+				face: members[0]?.face ?? "top",
+			});
+		}
+
+		const ordered: Array<{ surface: StompboxPartSurface; member: PlacementCandidate }> = [];
+		for (const surface of surfaces) {
+			const member = memberBySurface.get(surface.id);
+			if (member !== undefined) {
+				ordered.push({ surface, member });
+			}
+		}
+		const base = ordered[0];
+		if (base === undefined) {
+			continue;
+		}
+		const upperDials: StompboxConcentricDial[] = ordered.slice(1).map(({ surface, member }) => ({
+			surface: surface.id,
+			partGeometry: surface.geometry,
+			stackOffsetMm: surface.stackOffsetMm,
+			...(member.controlId === undefined ? {} : { controlId: member.controlId }),
+			...(member.componentId === undefined ? {} : { componentId: member.componentId }),
+			...(member.label === undefined ? {} : { label: member.label }),
+		}));
+		result.push({ ...base.member, concentricDials: upperDials });
+	}
+
+	return result;
+}
+
 function drillHoleForCandidate(
 	candidate: PlacementCandidate,
 	hardwareProfile: StompboxHardwareProfile,
@@ -3428,6 +3591,9 @@ function drillHoleForCandidate(
 			...(part.stateTargets === undefined
 				? {}
 				: { stateTargets: part.stateTargets }),
+			...(candidate.concentricDials === undefined || candidate.concentricDials.length === 0
+				? {}
+				: { concentricDials: candidate.concentricDials }),
 		},
 	];
 }
@@ -3571,6 +3737,39 @@ function isOutOfBounds(
 		);
 	}
 	return false;
+}
+
+/**
+ * Builds a synthetic drill hole for one upper dial of a concentric mount so it
+ * can be rendered as its own preview part. It reuses the base hole's position
+ * but carries the dial's geometry and control; the caller applies the dial's
+ * `stackOffsetMm` to lift it above the base dial.
+ */
+function concentricDialHole(
+	hole: StompboxDrillHole,
+	dial: StompboxConcentricDial,
+): StompboxDrillHole {
+	return {
+		id: `${hole.id}-${dial.surface}`,
+		face: hole.face,
+		centerMm: hole.centerMm,
+		drillDiameterMm: hole.drillDiameterMm,
+		...(hole.drillHoleProfileId === undefined
+			? {}
+			: { drillHoleProfileId: hole.drillHoleProfileId }),
+		partId: hole.partId,
+		partLabel: hole.partLabel,
+		partFamily: hole.partFamily,
+		partGeometry: dial.partGeometry,
+		...(hole.assetScale === undefined ? {} : { assetScale: hole.assetScale }),
+		...(dial.controlId === undefined ? {} : { controlId: dial.controlId }),
+		...(dial.componentId === undefined ? {} : { componentId: dial.componentId }),
+		...(dial.label === undefined ? {} : { label: dial.label }),
+		provenance: hole.provenance,
+		...(hole.locked === undefined ? {} : { locked: hole.locked }),
+		assets: hole.assets,
+		...(hole.stateTargets === undefined ? {} : { stateTargets: hole.stateTargets }),
+	};
 }
 
 function previewPartForHole(

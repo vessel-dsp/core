@@ -8,7 +8,7 @@ import {
     useControlState,
 } from '@vessel-dsp/control-ui';
 import type { ControlState, PanelMessage } from '@vessel-dsp/core';
-import { controlUiTestPanel } from './fixtures';
+import { controlUiConcentricPanel, controlUiJackPanel, controlUiTestPanel } from './fixtures';
 
 describe('ControlSurface', () => {
     test('renders a panel with appearance overrides and class hooks', () => {
@@ -123,5 +123,44 @@ describe('ControlSurface', () => {
                 }),
             }),
         );
+    });
+
+    test('renders every dial of a concentric mount and emits per tier', () => {
+        const messages: PanelMessage[] = [];
+        const renderer = create(
+            <ControlSurface
+                panel={controlUiConcentricPanel}
+                state={createControlUiState(controlUiConcentricPanel)}
+                onMessage={(message) => messages.push(message)}
+            />,
+        );
+
+        for (const id of ['bass', 'mid', 'treble']) {
+            expect(renderer.root.findByProps({ 'data-vdsp-control-id': id })).toBeDefined();
+        }
+
+        const treble = renderer.root.findByProps({ 'data-vdsp-control-id': 'treble' });
+        act(() => {
+            treble.props.onKeyDown({ key: 'Home', preventDefault() {} });
+        });
+        expect(messages).toEqual([
+            { type: 'control/set', controlId: 'treble', value: { kind: 'knob', position: 0 } },
+        ]);
+    });
+
+    test('renders jacks as non-interactive panel ports', () => {
+        const messages: PanelMessage[] = [];
+        const renderer = create(
+            <ControlSurface
+                panel={controlUiJackPanel}
+                state={createControlUiState(controlUiJackPanel)}
+                onMessage={(message) => messages.push(message)}
+            />,
+        );
+
+        const jack = renderer.root.findByProps({ 'data-vdsp-control-id': 'in' });
+        expect(jack.props.onChange).toBeUndefined();
+        expect(jack.props.onClick).toBeUndefined();
+        expect(messages).toEqual([]);
     });
 });

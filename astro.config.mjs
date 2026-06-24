@@ -67,6 +67,7 @@ export default defineConfig({
 					label: "Guides",
 					items: [
 						{ label: "Stompbox Layouts", link: "/guides/stompbox/" },
+						{ label: "Controls", link: "/guides/controls/" },
 						{ label: "Control UI", link: "/guides/control-ui/" },
 					],
 				},

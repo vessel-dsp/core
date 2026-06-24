@@ -4,9 +4,11 @@ import { createControlSurfaceRenderPlan, type ControlSurfaceRenderItem } from '.
 import { applyControlUiMessage, controlMessageForValue } from './state';
 import type { ControlAppearanceMap, ControlFrameClassNames, ControlSurfaceClassNames } from './types';
 import { cx } from './utils';
+import { ConcentricKnob } from './components/ConcentricKnob';
 import { DetentedRotarySelect } from './components/DetentedRotarySelect';
 import { FootswitchButton } from './components/FootswitchButton';
 import { GraphicEqSlider } from './components/GraphicEqSlider';
+import { JackIndicator } from './components/JackIndicator';
 import { KnobControl } from './components/KnobControl';
 import { LedIndicator } from './components/LedIndicator';
 import { SwitchSelectControl } from './components/SwitchSelectControl';
@@ -151,6 +153,30 @@ function renderControlItem(
         );
     }
 
+    if (item.control.kind === 'concentric-knob') {
+        const tiers = item.control.tiers.map((knob) => {
+            const tierValue = controlValueForId(state, knob.id);
+            return {
+                control: knob,
+                position: tierValue?.kind === 'knob' ? tierValue.position : knob.defaultPosition,
+                label: knob.name,
+                onPositionChange: (position: number) => emitControlValue(knob.id, position),
+            };
+        });
+        return <ConcentricKnob tiers={tiers} disabled={disabled} classNames={frameClassNames} />;
+    }
+
+    if (item.control.kind === 'jack') {
+        return (
+            <JackIndicator
+                control={item.control.control}
+                disabled={disabled}
+                label={item.label}
+                classNames={frameClassNames}
+            />
+        );
+    }
+
     return (
         <LedIndicator
             control={item.control.control}
@@ -187,6 +213,8 @@ function controlSpecificClassName(
             return classNames.knob;
         case 'detented-rotary-select':
             return classNames.select;
+        case 'concentric-knob':
+            return cx(classNames.knob, classNames.concentric);
         case 'footswitch':
             return classNames.footswitch;
         case 'toggle':
@@ -196,6 +224,8 @@ function controlSpecificClassName(
             return classNames.slider;
         case 'led':
             return classNames.led;
+        case 'jack':
+            return classNames.jack;
         case 'hidden':
             return undefined;
     }

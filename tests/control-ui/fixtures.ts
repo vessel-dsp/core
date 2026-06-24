@@ -120,3 +120,54 @@ export const controlUiTestPanel: Panel = {
     ],
     jacks: [],
 };
+
+export const controlUiJackPanel: Panel = {
+    knobs: [
+        { id: 'volume', name: 'Volume', taper: 'log', defaultPosition: 0.7 },
+    ],
+    switches: [],
+    leds: [],
+    jacks: [
+        { id: 'in', name: 'Input', role: 'input' },
+        { id: 'out', name: 'Output', role: 'output' },
+    ],
+};
+
+const concentricMount = (componentId: string, surface: string) => ({
+    kind: 'knob' as const,
+    bind: { componentId, controlId: componentId },
+    grid: { row: 1, column: 1 },
+    physical: { partProfileId: 'pot-concentric-3', mountId: 'tone', surface, centerMm: { x: 30, y: 28 } },
+});
+
+export const controlUiConcentricPanel: Panel = {
+    placement: {
+        faces: [
+            {
+                id: 'top',
+                label: 'Top',
+                layout: { kind: 'stompbox-grid', rows: 1, columns: 2, indexing: 'one-based' },
+                elements: [
+                    concentricMount('bass', 'lower'),
+                    concentricMount('mid', 'middle'),
+                    concentricMount('treble', 'upper'),
+                    {
+                        kind: 'knob',
+                        label: 'Volume',
+                        bind: { componentId: 'volume', controlId: 'volume' },
+                        grid: { row: 1, column: 2 },
+                    },
+                ],
+            },
+        ],
+    },
+    knobs: [
+        { id: 'bass', name: 'Bass', taper: 'log', defaultPosition: 0.5 },
+        { id: 'mid', name: 'Mid', taper: 'log', defaultPosition: 0.5 },
+        { id: 'treble', name: 'Treble', taper: 'log', defaultPosition: 0.4 },
+        { id: 'volume', name: 'Volume', taper: 'log', defaultPosition: 0.7 },
+    ],
+    switches: [],
+    leds: [],
+    jacks: [],
+};

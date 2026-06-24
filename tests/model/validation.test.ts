@@ -11,6 +11,7 @@ import {
     type CircuitDocument,
     type Component,
     type ComponentKind,
+    type PanelElementPhysicalPlacement,
     type Point,
     type PropertyValue,
     type Wire,
@@ -49,6 +50,29 @@ function makeWire(id: string, a: Point, b: Point): Wire {
 
 function withParts(components: readonly Component[], wires: readonly Wire[] = []): CircuitDocument {
     return { ...EMPTY_DOCUMENT, components, wires };
+}
+
+function concentricMountDoc(
+    members: ReadonlyArray<{ id: string; physical: PanelElementPhysicalPlacement }>,
+): CircuitDocument {
+    return {
+        ...EMPTY_DOCUMENT,
+        components: members.map((member) =>
+            makeComponent(member.id, 'potentiometer', { R: '250k' }, 'Circuit.Potentiometer, Circuit'),
+        ),
+        panel: {
+            faces: [{
+                id: 'top',
+                layout: { kind: 'stompbox-grid', rows: 1, columns: members.length, indexing: 'one-based' },
+                elements: members.map((member, index) => ({
+                    bind: { componentId: member.id, controlId: member.id },
+                    kind: 'knob' as const,
+                    grid: { row: 1, column: index + 1 },
+                    physical: member.physical,
+                })),
+            }],
+        },
+    };
 }
 
 describe('validateDocument', () => {
@@ -166,6 +190,7 @@ describe('validateDocument', () => {
         const issues = validateDocument(doc);
         expect(issues.some((i) => i.code === 'value-out-of-range')).toBe(true);
     });
+
 
     test('aliases are accepted (Resistance instead of R)', () => {
         const doc = withParts([makeComponent('R1', 'resistor', { Resistance: '10k' })]);
@@ -552,6 +577,65 @@ describe('validateDocument', () => {
             message: 'Panel face "top" has overlapping elements at row 1, column 2',
             componentId: 'J2',
         });
+    });
+
+    test('valid concentric mount group emits no mount-binding issues', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { partProfileId: 'pot-concentric-3', mountId: 'm-tone', surface: 'lower', centerMm: { x: 30, y: 28 } } },
+            { id: 'MID', physical: { partProfileId: 'pot-concentric-3', mountId: 'm-tone', surface: 'middle', centerMm: { x: 30, y: 28 } } },
+            { id: 'TREBLE', physical: { partProfileId: 'pot-concentric-3', mountId: 'm-tone', surface: 'upper', centerMm: { x: 30, y: 28 } } },
+        ]);
+        const issues = validateDocument(doc);
+        expect(issues.filter((i) => i.code === 'panel-mount-orphan' || i.code === 'panel-mount-inconsistent')).toEqual([]);
+    });
+
+    test('surface without a mountId is an orphan binding', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { partProfileId: 'pot-x', surface: 'lower' } },
+        ]);
+        const issue = validateDocument(doc).find((i) => i.code === 'panel-mount-orphan');
+        expect(issue?.severity).toBe('warning');
+        expect(issue?.componentId).toBe('BASS');
+    });
+
+    test('mountId without a surface is an orphan binding', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { partProfileId: 'pot-x', mountId: 'm', centerMm: { x: 0, y: 0 } } },
+            { id: 'MID', physical: { partProfileId: 'pot-x', mountId: 'm', surface: 'upper', centerMm: { x: 0, y: 0 } } },
+        ]);
+        expect(validateDocument(doc).some((i) => i.code === 'panel-mount-orphan')).toBe(true);
+    });
+
+    test('mountId without a partProfileId is an orphan binding', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { mountId: 'm', surface: 'lower', centerMm: { x: 0, y: 0 } } },
+            { id: 'MID', physical: { mountId: 'm', surface: 'upper', centerMm: { x: 0, y: 0 } } },
+        ]);
+        expect(validateDocument(doc).some((i) => i.code === 'panel-mount-orphan')).toBe(true);
+    });
+
+    test('duplicate surface within a mount group is inconsistent', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { partProfileId: 'pot-x', mountId: 'm', surface: 'lower', centerMm: { x: 0, y: 0 } } },
+            { id: 'MID', physical: { partProfileId: 'pot-x', mountId: 'm', surface: 'lower', centerMm: { x: 0, y: 0 } } },
+        ]);
+        expect(validateDocument(doc).some((i) => i.code === 'panel-mount-inconsistent')).toBe(true);
+    });
+
+    test('mismatched partProfileId within a mount group is inconsistent', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { partProfileId: 'pot-x', mountId: 'm', surface: 'lower', centerMm: { x: 0, y: 0 } } },
+            { id: 'MID', physical: { partProfileId: 'pot-y', mountId: 'm', surface: 'upper', centerMm: { x: 0, y: 0 } } },
+        ]);
+        expect(validateDocument(doc).some((i) => i.code === 'panel-mount-inconsistent')).toBe(true);
+    });
+
+    test('mismatched centerMm within a mount group is inconsistent', () => {
+        const doc = concentricMountDoc([
+            { id: 'BASS', physical: { partProfileId: 'pot-x', mountId: 'm', surface: 'lower', centerMm: { x: 0, y: 0 } } },
+            { id: 'MID', physical: { partProfileId: 'pot-x', mountId: 'm', surface: 'upper', centerMm: { x: 5, y: 0 } } },
+        ]);
+        expect(validateDocument(doc).some((i) => i.code === 'panel-mount-inconsistent')).toBe(true);
     });
 
     test('device interface metadata validates duplicate ids and unresolved references', () => {

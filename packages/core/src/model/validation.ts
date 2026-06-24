@@ -15,6 +15,7 @@ import type {
     OffBoardSignalRef,
     OffBoardWiringEndpoint,
     PanelControlKind,
+    PanelElementPhysicalPlacement,
     PanelElementPlacement,
     PanelFace,
     ParsedQuantity,
@@ -51,6 +52,8 @@ export type ValidationCode =
     | 'panel-control-unresolved'
     | 'panel-kind-mismatch'
     | 'panel-cell-collision'
+    | 'panel-mount-orphan'
+    | 'panel-mount-inconsistent'
     | 'build-board-unresolved'
     | 'build-harness-unresolved'
     | 'bom-ref-unresolved'
@@ -319,6 +322,10 @@ export function validateDocument(doc: CircuitDocument): readonly ValidationIssue
     }
 
     for (const issue of validatePanel(doc, seen, new Set(doc.deviceInterface?.controls.map((control) => control.id) ?? []))) {
+        issues.push(issue);
+    }
+
+    for (const issue of validateMountGroups(doc)) {
         issues.push(issue);
     }
 
@@ -995,6 +1002,106 @@ function deviceInterfaceBindingSignature(binding: DeviceInterfaceBinding | undef
         binding.property ?? '',
         binding.externalInterfaceId ?? '',
     ].join(':');
+}
+
+/**
+ * Structural (catalog-free) validation of multi-surface part mounts, where
+ * several placement elements share one physical part in one hole (e.g. a
+ * concentric pot). Catches orphan bindings and inconsistent mount groups.
+ * Surface-existence and completeness against the part catalog are validated
+ * downstream in the stompbox build layer, which owns the part profiles.
+ */
+function validateMountGroups(doc: CircuitDocument): readonly ValidationIssue[] {
+    if (doc.panel === undefined) {
+        return [];
+    }
+    const issues: ValidationIssue[] = [];
+    const groups = new Map<string, Array<{ componentId: string; physical: PanelElementPhysicalPlacement }>>();
+
+    for (const face of doc.panel.faces) {
+        for (const element of face.elements) {
+            const physical = element.physical;
+            if (physical === undefined) {
+                continue;
+            }
+            const componentId = element.bind.componentId;
+            if (physical.mountId === undefined) {
+                if (physical.surface !== undefined) {
+                    issues.push({
+                        code: 'panel-mount-orphan',
+                        severity: 'warning',
+                        message: `Panel element for "${componentId}" sets physical.surface "${physical.surface}" without a mountId`,
+                        componentId,
+                    });
+                }
+                continue;
+            }
+            if (physical.surface === undefined) {
+                issues.push({
+                    code: 'panel-mount-orphan',
+                    severity: 'warning',
+                    message: `Panel element for "${componentId}" joins mount "${physical.mountId}" without a surface`,
+                    componentId,
+                });
+            }
+            if (physical.partProfileId === undefined) {
+                issues.push({
+                    code: 'panel-mount-orphan',
+                    severity: 'warning',
+                    message: `Panel element for "${componentId}" joins mount "${physical.mountId}" without a partProfileId`,
+                    componentId,
+                });
+            }
+            const members = groups.get(physical.mountId) ?? [];
+            members.push({ componentId, physical });
+            groups.set(physical.mountId, members);
+        }
+    }
+
+    for (const [mountId, members] of groups) {
+        const anchorId = members[0]?.componentId;
+        const surfaces = new Set<string>();
+        const partIds = new Set<string>();
+        const centers = new Set<string>();
+        for (const member of members) {
+            const { surface, partProfileId, centerMm } = member.physical;
+            if (surface !== undefined) {
+                if (surfaces.has(surface)) {
+                    issues.push({
+                        code: 'panel-mount-inconsistent',
+                        severity: 'warning',
+                        message: `Mount "${mountId}" has duplicate surface "${surface}"`,
+                        componentId: member.componentId,
+                    });
+                }
+                surfaces.add(surface);
+            }
+            if (partProfileId !== undefined) {
+                partIds.add(partProfileId);
+            }
+            if (centerMm !== undefined) {
+                centers.add(`${centerMm.x},${centerMm.y}`);
+            }
+        }
+        if (partIds.size > 1) {
+            issues.push({
+                code: 'panel-mount-inconsistent',
+                severity: 'warning',
+                message: `Mount "${mountId}" mixes part profiles: ${[...partIds].join(', ')}`,
+                ...(anchorId === undefined ? {} : { componentId: anchorId }),
+            });
+        }
+        if (centers.size > 1) {
+            issues.push({
+                code: 'panel-mount-inconsistent',
+                severity: 'warning',
+                message: `Mount "${mountId}" members are not at one shared centerMm`,
+                ...(anchorId === undefined ? {} : { componentId: anchorId }),
+            });
+        }
+    }
+
+    return issues;
 }
 
 function validatePanel(

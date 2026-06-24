@@ -117,6 +117,52 @@ describe('serializeInterchangeYaml', () => {
         expect(yaml).toContain('property: SamplerTriggerControl');
     });
 
+    test('round-trips concentric mount/surface physical bindings through .vdsp v3', () => {
+        const pot = (id: string): CircuitDocument['components'][number] => ({
+            id,
+            kind: 'potentiometer',
+            name: id,
+            origin: { x: 0, y: 0 },
+            rotation: 0,
+            flipped: false,
+            terminals: [],
+            properties: { Resistance: '250k' },
+            sourceTypeName: 'Circuit.Potentiometer, Circuit',
+        });
+        const doc: CircuitDocument = {
+            ...EMPTY_DOCUMENT,
+            components: [pot('BASS'), pot('TREBLE')],
+            panel: {
+                faces: [{
+                    id: 'top',
+                    layout: { kind: 'stompbox-grid', rows: 1, columns: 1, indexing: 'one-based' },
+                    elements: [
+                        {
+                            bind: { componentId: 'BASS', controlId: 'BASS' },
+                            kind: 'knob',
+                            grid: { row: 1, column: 1 },
+                            physical: { partProfileId: 'pot-concentric-2', mountId: 'm-tone', surface: 'lower', centerMm: { x: 30, y: 28 } },
+                        },
+                        {
+                            bind: { componentId: 'TREBLE', controlId: 'TREBLE' },
+                            kind: 'knob',
+                            grid: { row: 1, column: 1 },
+                            physical: { partProfileId: 'pot-concentric-2', mountId: 'm-tone', surface: 'upper', centerMm: { x: 30, y: 28 } },
+                        },
+                    ],
+                }],
+            },
+        };
+
+        const yaml = serializeInterchangeYaml(doc);
+        expect(yaml).toContain('mountId: m-tone');
+        expect(yaml).toContain('surface: lower');
+        expect(yaml).toContain('surface: upper');
+
+        const reparsed = parseInterchangeYaml(yaml);
+        expect(reparsed.panel).toEqual(doc.panel);
+    });
+
     test('serializes standalone control accessory device metadata and outputs', () => {
         const doc: CircuitDocument = {
             ...EMPTY_DOCUMENT,

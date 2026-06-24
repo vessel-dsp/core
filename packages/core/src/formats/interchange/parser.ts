@@ -1423,6 +1423,8 @@ function parseOptionalPanelElementPhysical(
             ? {}
             : { partProfileId: expectString(physical.partProfileId, `${path}.partProfileId`) }),
         ...(physical.locked === undefined ? {} : { locked: expectBoolean(physical.locked, `${path}.locked`) }),
+        ...(physical.mountId === undefined ? {} : { mountId: expectString(physical.mountId, `${path}.mountId`) }),
+        ...(physical.surface === undefined ? {} : { surface: expectString(physical.surface, `${path}.surface`) }),
     };
 }
 

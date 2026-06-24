@@ -27,6 +27,9 @@ export function controlMessageForValue(
     if (control.kind === 'led') {
         throw new Error(`LED control "${controlId}" is read-only in control-ui`);
     }
+    if (control.kind === 'jack') {
+        throw new Error(`Jack "${controlId}" is read-only in control-ui`);
+    }
 
     const message: PanelMessage = {
         type: 'control/set',

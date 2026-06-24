@@ -163,6 +163,73 @@
 				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b03.step"
 			}
 		},
+		"pot-concentric-2": {
+			"id": "pot-concentric-2",
+			"label": "Dual-gang concentric pot generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 9.525,
+			"drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+			"geometry": {
+				"kind": "knob",
+				"diameterMm": 24,
+				"depthMm": 12,
+				"shaftDiameterMm": 6.4
+			},
+			"surfaces": [
+				{
+					"id": "lower",
+					"geometry": { "kind": "knob", "diameterMm": 24, "depthMm": 12, "shaftDiameterMm": 6.4 },
+					"stackOffsetMm": 0
+				},
+				{
+					"id": "upper",
+					"geometry": { "kind": "knob", "diameterMm": 14, "depthMm": 10, "shaftDiameterMm": 6.4 },
+					"stackOffsetMm": 12
+				}
+			],
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b03.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b03.step"
+			}
+		},
+		"pot-concentric-3": {
+			"id": "pot-concentric-3",
+			"label": "Triple-gang concentric pot generated CAD",
+			"family": "knob",
+			"level": "exterior",
+			"status": "generated-stub",
+			"panelHoleDrillMm": 9.525,
+			"drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+			"geometry": {
+				"kind": "knob",
+				"diameterMm": 24,
+				"depthMm": 12,
+				"shaftDiameterMm": 6.4
+			},
+			"surfaces": [
+				{
+					"id": "lower",
+					"geometry": { "kind": "knob", "diameterMm": 24, "depthMm": 12, "shaftDiameterMm": 6.4 },
+					"stackOffsetMm": 0
+				},
+				{
+					"id": "middle",
+					"geometry": { "kind": "knob", "diameterMm": 18, "depthMm": 10, "shaftDiameterMm": 6.4 },
+					"stackOffsetMm": 12
+				},
+				{
+					"id": "upper",
+					"geometry": { "kind": "knob", "diameterMm": 12, "depthMm": 9, "shaftDiameterMm": 6.4 },
+					"stackOffsetMm": 22
+				}
+			],
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b03.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b03.step"
+			}
+		},
 		"knob-davies-1100": {
 			"id": "knob-davies-1100",
 			"label": "Davies 1100 19.81 mm knob generated CAD",

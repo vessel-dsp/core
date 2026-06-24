@@ -56,6 +56,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('"packages/stompbox/src/index.ts"');
 		expect(astroConfig).toContain('"packages/control-ui/src/index.ts"');
 		expect(astroConfig).toContain('tsconfig: "tsconfig.docs.json"');
+		expect(astroConfig).toContain('label: "Controls"');
+		expect(astroConfig).toContain('link: "/guides/controls/"');
 		expect(astroConfig).toContain('label: "Control UI"');
 		expect(astroConfig).toContain('link: "/guides/control-ui/"');
 
@@ -80,6 +82,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("CircuitDocument");
 		expect(landingPage).toContain("class hooks");
 		expect(landingPage).toContain("theme provider");
+		expect(landingPage).toContain("/core/guides/controls/");
 		expect(landingPage).toContain("/core/reference/api/readme/");
 		expect(landingPage).not.toMatch(/playground|workbench|custom editor/i);
 
@@ -144,6 +147,26 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("screen-space grain");
 		expect(stompboxPage).toContain("@vessel-dsp/control-ui");
 		expect(stompboxPage).toContain("PanelMessage");
+
+		const controlsPage = readRepoFile("docs/src/content/docs/guides/controls.mdx");
+		expect(controlsPage).toContain("title: Controls");
+		expect(controlsPage).toContain("extractPanel(document)");
+		expect(controlsPage).toContain("parseCircuitDocumentFile");
+		expect(controlsPage).toContain("CircuitDocument");
+		expect(controlsPage).toContain("PanelPlacementMetadata");
+		expect(controlsPage).toContain("kind: \"potentiometer\"");
+		expect(controlsPage).toContain("RuntimeDescriptor: \"true\"");
+		expect(controlsPage).toContain("Wipe");
+		expect(controlsPage).toContain("StepLabels");
+		expect(controlsPage).toContain("ControlStyle");
+		expect(controlsPage).toContain("Role");
+		expect(controlsPage).toContain("panel.faces[]");
+		expect(controlsPage).toContain("extractDeviceInterface");
+		expect(controlsPage).toContain("PanelMessage");
+		expect(controlsPage).toContain("defaultControlState");
+		expect(controlsPage).toContain("@vessel-dsp/control-ui");
+		expect(controlsPage).toContain("@vessel-dsp/stompbox");
+		expect(controlsPage).not.toMatch(/playground|workbench|custom editor/i);
 
 		const controlUiPage = readRepoFile("docs/src/content/docs/guides/control-ui.mdx");
 		expect(controlUiPage).toContain("title: Control UI");
@@ -216,11 +239,13 @@ describe("GitHub Pages documentation site", () => {
 				gridColor?: string;
 				gridOpacity?: number;
 				toon?: boolean;
-				toonEdgeColor?: string;
-				grain?: boolean;
-				grainScale?: number;
-				grainIntensity?: number;
-			}[];
+					toonEdgeColor?: string;
+					grain?: boolean;
+					grainScale?: number;
+					grainIntensity?: number;
+					linework?: boolean;
+					lineworkColor?: string;
+				}[];
 		}>("docs/src/data/stompbox-demo-profiles.json");
 		expect(demoProfiles.defaultStyleProfileId).toBe("mxr-style");
 		expect(demoProfiles.artifactCadPartsRoot).toBe("packages/stompbox/assets/cad/parts");

@@ -347,6 +347,73 @@ function visibleKnobDiameterMm(partId: string): number {
 	return profile.geometry.diameterMm;
 }
 
+function vdspWithConcentricMount(
+	surfaces: readonly string[],
+	partProfileId = "pot-concentric-3",
+): string {
+	const ids = surfaces.map((_unused, index) => `POT${index + 1}`);
+	const components = ids
+		.map(
+			(id) => `  - id: ${id}
+    kind: potentiometer
+    name: ${id}
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.5
+      Resistance: 250k
+    sourceTypeName: "Circuit.Potentiometer, Circuit"`,
+		)
+		.join("\n");
+	const elements = ids
+		.map(
+			(id, index) => `        - bind:
+            componentId: ${id}
+            controlId: ${id}
+          kind: knob
+          grid:
+            row: 1
+            column: 1
+          physical:
+            partProfileId: ${partProfileId}
+            mountId: m-tone
+            surface: ${surfaces[index]}
+            centerMm:
+              x: 30
+              y: 28`,
+		)
+		.join("\n");
+	return `schema: circuit-interchange/v3
+metadata:
+  name: Concentric Mount
+source:
+  format: interchange
+  filename: concentric.vdsp
+components:
+${components}
+panel:
+  faces:
+    - id: top
+      label: Top
+      layout:
+        kind: stompbox-grid
+        rows: 1
+        columns: 1
+        indexing: one-based
+      elements:
+${elements}
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+`;
+}
+
 function minimumKnobClearanceMm(
 	holes: readonly Readonly<{
 		partId: string;
@@ -1217,6 +1284,8 @@ describe("stompbox catalog and assets", () => {
 			"led-3mm-red-kento-5408urc",
 			"led-5mm-red-kento-5408urc",
 			"led-bezel-lh5",
+			"pot-concentric-2",
+			"pot-concentric-3",
 			"switch-3pdt-pic-pbs24302",
 		]);
 
@@ -2678,6 +2747,77 @@ describe("stompbox drill layout", () => {
 				(diagnostic) => diagnostic.code === "placement-collision",
 			),
 		).toBe(false);
+	});
+});
+
+describe("stompbox concentric mounts", () => {
+	test("collapses a triple concentric mount into one hole with stacked dials", () => {
+		const layout = createStompboxDrillLayoutFromVdsp(
+			vdspWithConcentricMount(["lower", "middle", "upper"]),
+			{ includePowerJack: false },
+		);
+		const knobHoles = layout.holes.filter((hole) => hole.partFamily === "knob");
+
+		expect(knobHoles).toHaveLength(1);
+		const hole = knobHoles[0];
+		expect(hole?.controlId).toBe("POT1");
+		expect(hole?.concentricDials?.map((dial) => dial.controlId)).toEqual([
+			"POT2",
+			"POT3",
+		]);
+		expect(
+			layout.diagnostics.some(
+				(diagnostic) =>
+					diagnostic.code === "concentric-mount-incomplete" ||
+					diagnostic.code === "unknown-part-surface",
+			),
+		).toBe(false);
+	});
+
+	test("renders a triple concentric mount as three stacked dials", () => {
+		const document = parseCircuitDocumentFile(
+			vdspWithConcentricMount(["lower", "middle", "upper"]),
+			{ filename: "concentric.vdsp" },
+		);
+		const preview = createStompboxPreview(document, { includePowerJack: false });
+		const dials = preview.parts.filter((part) => part.family === "knob");
+
+		expect(dials.map((part) => part.controlId)).toEqual(["POT1", "POT2", "POT3"]);
+		const zById = (controlId: string): number =>
+			dials.find((part) => part.controlId === controlId)?.transform.translationMm
+				.z ?? 0;
+		expect(zById("POT2")).toBeGreaterThan(zById("POT1"));
+		expect(zById("POT3")).toBeGreaterThan(zById("POT2"));
+		const diameterById = (controlId: string): number => {
+			const geometry = dials.find((part) => part.controlId === controlId)?.geometry;
+			return geometry?.kind === "knob" ? geometry.diameterMm : 0;
+		};
+		expect(diameterById("POT1")).toBeGreaterThan(diameterById("POT2"));
+		expect(diameterById("POT2")).toBeGreaterThan(diameterById("POT3"));
+	});
+
+	test("flags an incomplete concentric mount", () => {
+		const layout = createStompboxDrillLayoutFromVdsp(
+			vdspWithConcentricMount(["lower", "upper"], "pot-concentric-3"),
+			{ includePowerJack: false },
+		);
+		expect(
+			layout.diagnostics.some(
+				(diagnostic) => diagnostic.code === "concentric-mount-incomplete",
+			),
+		).toBe(true);
+	});
+
+	test("flags an unknown surface for the chosen part", () => {
+		const layout = createStompboxDrillLayoutFromVdsp(
+			vdspWithConcentricMount(["lower", "bottom"], "pot-concentric-2"),
+			{ includePowerJack: false },
+		);
+		expect(
+			layout.diagnostics.some(
+				(diagnostic) => diagnostic.code === "unknown-part-surface",
+			),
+		).toBe(true);
 	});
 });
 
@@ -4171,16 +4311,13 @@ describe("stompbox preview manifest", () => {
 			'<feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="10" stitchTiles="stitch" result="turbulence"',
 		);
 		expect(grainViews.views.top).toContain(
-			'<feColorMatrix in="noise" type="saturate" values="0" result="mono-noise"',
-		);
-		expect(grainViews.views.top).toContain(
 			'<feComposite operator="in" in="turbulence" in2="SourceAlpha" result="composite"',
 		);
 		expect(grainViews.views.top).toContain(
 			'<feColorMatrix in="composite" type="luminanceToAlpha" />',
 		);
 		expect(grainViews.views.top).toContain(
-			'<feBlend in="SourceGraphic" in2="composite" mode="color-burn" />',
+			'<feBlend in="SourceGraphic" in2="composite" mode="screen" />',
 		);
 		expect(grainViews.views.top).toContain(
 			'<clipPath id="stompbox-preview-top-grain-clip">',

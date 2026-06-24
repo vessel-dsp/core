@@ -1,0 +1,232 @@
+---
+title: Controls
+description: Understand how core derives Panel controls from CircuitDocument data and .vdsp metadata.
+---
+
+Controls are a derived view over a `CircuitDocument`. Source importers parse
+schematics into normalized components, wires, properties, and optional `.vdsp`
+metadata. Hosts call `extractPanel(document)` when they need the typed `Panel`
+descriptor for a UI, control protocol, or stompbox layout workflow.
+
+`extractPanel()` is pure: it reads the document and returns controls. It does
+not mutate `.vdsp`, run DSP, create React elements, render schematics, or add
+hardware placement.
+
+## Basic extraction
+
+```ts
+import { extractPanel, parseCircuitDocumentFile } from "@vessel-dsp/core";
+
+const document = parseCircuitDocumentFile(sourceText, {
+	filename: "pedal.vdsp",
+});
+
+const panel = extractPanel(document);
+```
+
+The returned `Panel` groups controls by family:
+
+```ts
+type Panel = {
+	placement?: PanelPlacementMetadata;
+	knobs: readonly Knob[];
+	sliders?: readonly SliderControl[];
+	switches: readonly SwitchControl[];
+	leds: readonly LedIndicator[];
+	jacks: readonly JackPort[];
+};
+```
+
+If the source `.vdsp` declares `panel.faces[]`, the same placement metadata is
+returned as `panel.placement`. If no placement is present, `extractPanel()`
+still reports inferred controls and ports.
+
+## Imported schematics
+
+When a schematic such as `.schx` or `.asc` is imported, the importer first
+creates a `CircuitDocument`. Control extraction then uses normalized component
+kind, component properties, and source type metadata.
+
+```text
+.vdsp / .asc / .schx / .cir / .net / .circuit.json
+  -> parseCircuitDocumentFile()
+  -> CircuitDocument
+  -> extractPanel()
+  -> Panel
+```
+
+The `.vdsp` serializer preserves the document model and any authored placement
+metadata. It does not automatically write a computed `panel.faces[]` block for
+every imported schematic. Consumers should call `extractPanel()` after parsing
+when they need the runtime control descriptor.
+
+## Control families
+
+`extractPanel()` recognizes these normalized source components:
+
+| Component data | Panel output |
+| --- | --- |
+| `kind: "potentiometer"` | `Knob`, unless slider metadata is present |
+| `kind: "variable-resistor"` | `Knob` or `SliderControl` when it has control metadata such as `Wipe`, `Sweep`, `Taper`, or slider style |
+| `kind: "switch"` | `SwitchControl` |
+| `kind: "led"` | `LedIndicator` |
+| `kind: "jack"` | `JackPort` |
+| `kind: "ic"` plus `RuntimeDescriptor: "true"` | Runtime descriptor knobs and external jack ports |
+
+Unsupported component kinds stay in the circuit document but do not become
+panel controls.
+
+## Knobs and sliders
+
+Potentiometers become knobs by default. These properties affect the extracted
+control:
+
+| Property | Effect |
+| --- | --- |
+| `Wipe` | Default normalized position, clamped to `0..1`; defaults to `0.5` |
+| `Sweep` or `Taper` | Taper classification: `linear`, `log`, `reverse-log`, or `unknown` |
+| `Resistance` | Preserved as parsed quantity metadata |
+| `Group` | Shared gang group for related controls |
+| `Description` | Control description |
+| `StepLabels`, `Steps`, `StepCount`, `Detents`, `Positions` | Detented/stepped knob metadata |
+
+Slider controls are detected when `ControlStyle`, `ControlType`,
+`PanelControl`, `UiControl`, or `Style` contains `slider` or `fader`.
+Slider range metadata can come from `RangeMin`, `RangeMax`, `Min`, `Max`,
+`Unit`, `RangeUnit`, `Center`, `CenterValue`, or `RangeCenter`.
+
+```yaml
+components:
+  - id: BAND_800
+    kind: potentiometer
+    name: 800Hz
+    properties:
+      Wipe: "0.5"
+      ControlStyle: Slider
+      Orientation: Vertical
+      RangeMin: "-15"
+      RangeMax: "15"
+      Unit: dB
+      Center: "0"
+```
+
+## Switches, LEDs, and jacks
+
+Switches report their switch kind, pole count, position count, and default
+position. The extractor uses explicit source type names such as `SPDT`, `SP3T`,
+`SP4T`, `3PDT`, `Toggle`, and `Rotary` when available, then falls back to
+terminal count.
+
+LEDs preserve `Color`, `PartNumber`, and `Description`. If `Color` is absent,
+common color names are inferred from `PartNumber`.
+
+Jacks prefer semantic metadata over source type fallback:
+
+| Property | Effect |
+| --- | --- |
+| `Role` | Audio or control role such as `input`, `output`, `direct-output`, `send`, `return`, `expression`, `tempo-tap`, or `external-control` |
+| `ControlRole` | Specific control role for external controls |
+| `Interface` | Interface name such as `audio`, `audio-input`, `tap-tempo`, or `external-control-input` |
+| `AudioRole` | More specific audio role such as `guitar-input`, `output-a-mono`, or `stereo-output-b` |
+| `JackLabel` or `Label` | Display label |
+
+If semantic metadata is missing, source type names such as `Circuit.Input`,
+`Circuit.Speaker`, `ltspice:InputJack`, and `ltspice:OutputJack` provide the
+basic jack role.
+
+## Runtime descriptors
+
+LiveSPICE runtime descriptor symbols import as `ic` components with
+`RuntimeDescriptor: "true"`. These can expose source-visible controls without
+turning DSP internals into regular schematic parts.
+
+Continuous descriptor controls use property pairs such as:
+
+- `TimeControl`, `TimeControlWipe`, `TimeControlSweep`
+- `FeedbackControl`, `FeedbackControlWipe`, `FeedbackControlSweep`
+- `MixControl`, `MixControlWipe`, `MixControlSweep`
+- `LevelControl`, `ToneControl`, `ModRateControl`, and `ModDepthControl`
+
+Mode controls use `ModeControl` plus `ModeLabels`, `ModeOptions`,
+`ModeStepCount`, `ModeSteps`, or `ModeCount`.
+
+External descriptor ports can be exposed with properties such as
+`TempoTapControl` or `DirectOutputJack`.
+
+## Placement metadata
+
+`.vdsp` placement metadata describes where a control belongs. It does not
+define whether the bound component is a knob, LED, jack, or switch.
+
+```yaml
+panel:
+  faces:
+    - id: top
+      layout:
+        kind: stompbox-grid
+        rows: 2
+        columns: 3
+        indexing: one-based
+      elements:
+        - bind:
+            componentId: Tone
+            controlId: Tone
+          kind: knob
+          label: Tone
+          grid:
+            row: 1
+            column: 2
+```
+
+In `.vdsp` v3, placement elements can also carry `physical` data such as
+`centerMm`, `drillDiameterMm`, `partProfileId`, `mountId`, and `surface`.
+Stompbox consumes that physical placement when building drill layouts and
+previews.
+
+## Device interface
+
+Use `extractDeviceInterface(document)` when an app needs stable semantic
+controls for routing or product-level UI. It merges declared `.vdsp`
+`deviceInterface.controls` with controls inferred from the extracted panel, and
+returns provenance for each control.
+
+```ts
+import { extractDeviceInterface } from "@vessel-dsp/core";
+
+const deviceInterface = extractDeviceInterface(document);
+```
+
+Declared `controlGroups`, `controlContexts`, `controlInterfaces`, and
+`deviceInterface` metadata are preserved by strict `.vdsp` parse and serialize
+flows. Inferred bindings stay separate when they would conflict with authored
+metadata.
+
+## Runtime state
+
+The core panel protocol is shared by host UIs and preview workflows:
+
+```ts
+import {
+	applyControlMessage,
+	defaultControlState,
+	validateMessage,
+	type PanelMessage,
+} from "@vessel-dsp/core";
+
+let state = defaultControlState(panel);
+
+const message: PanelMessage = {
+	type: "control/set",
+	controlId: "Tone",
+	value: { kind: "knob", position: 0.72 },
+};
+
+const error = validateMessage(panel, message);
+if (error === null) {
+	state = applyControlMessage(state, message);
+}
+```
+
+`@vessel-dsp/control-ui` renders these controls in React. `@vessel-dsp/stompbox`
+uses the same panel data for headless layout and live preview state. Core owns
+the extraction and protocol types.

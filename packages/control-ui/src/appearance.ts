@@ -28,5 +28,9 @@ export function resolveControlAppearance(
             return 'detented-rotary-select';
         case 'led':
             return 'led';
+        case 'jack':
+            return 'jack';
+        case 'concentric-knob':
+            return 'concentric-knob';
     }
 }

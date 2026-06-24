@@ -11,7 +11,7 @@ import {
     resolveControlAppearance,
     snapControlPosition,
 } from '@vessel-dsp/control-ui';
-import { controlUiTestPanel } from './fixtures';
+import { controlUiConcentricPanel, controlUiJackPanel, controlUiTestPanel } from './fixtures';
 
 describe('control-ui state helpers', () => {
     test('initializes core panel state and snaps stepped knob defaults', () => {
@@ -107,5 +107,30 @@ describe('control-ui state helpers', () => {
             expect.objectContaining({ controlId: 'gain' }),
         );
         expect(resolveControlAppearance({ kind: 'switch', control: controlUiTestPanel.switches[1] })).toBe('toggle');
+    });
+
+    test('exposes jacks as read-only controls and renders them in the plan', () => {
+        const jack = findPanelControl(controlUiJackPanel, 'in');
+        expect(jack?.kind).toBe('jack');
+        expect(jack === undefined ? undefined : resolveControlAppearance(jack)).toBe('jack');
+        expect(() => controlMessageForValue(controlUiJackPanel, 'in', 1)).toThrow('read-only');
+
+        const plan = createControlSurfaceRenderPlan(controlUiJackPanel);
+        expect(
+            plan.filter((item) => item.appearance === 'jack').map((item) => item.controlId).sort(),
+        ).toEqual(['in', 'out']);
+    });
+
+    test('groups a concentric mount of N pots into one render item', () => {
+        const plan = createControlSurfaceRenderPlan(controlUiConcentricPanel);
+
+        const concentric = plan.filter((item) => item.appearance === 'concentric-knob');
+        expect(concentric).toHaveLength(1);
+        expect(concentric[0]?.controlId).toBe('bass');
+        // The other tiers must not render as their own items.
+        expect(plan.filter((item) => item.controlId === 'mid')).toHaveLength(0);
+        expect(plan.filter((item) => item.controlId === 'treble')).toHaveLength(0);
+        // The unrelated knob still renders on its own.
+        expect(plan.filter((item) => item.controlId === 'volume')).toHaveLength(1);
     });
 });
