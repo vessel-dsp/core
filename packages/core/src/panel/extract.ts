@@ -2,6 +2,7 @@ import { isParsedQuantity, propertyNumericValue, propertyStringValue } from '../
 import type {
     CircuitDocument,
     Component,
+    ControlGroup,
     ControlInterface,
     DeviceInterfaceBinding,
     DeviceInterfaceControl,
@@ -12,6 +13,7 @@ import type {
 } from '../model/types';
 import type {
     DeviceInterfaceProvenance,
+    ExtractedControlGroupMembership,
     ExtractedDeviceInterface,
     ExtractedDeviceInterfaceControl,
     ExternalControlAssignmentHint,
@@ -159,13 +161,61 @@ export function extractDeviceInterface(doc: CircuitDocument): ExtractedDeviceInt
         }
     }
 
+    const resolvedControls = Array.from(controls.values());
+
     return {
         groups: doc.controlGroups ?? [],
         contexts: doc.controlContexts ?? [],
-        controls: Array.from(controls.values()),
+        controls: resolvedControls,
+        groupMemberships: resolveControlGroupMemberships(doc.controlGroups ?? [], controls),
         ...(panel.placement === undefined ? {} : { placement: panel.placement }),
         diagnostics,
     };
+}
+
+function resolveControlGroupMemberships(
+    groups: readonly ControlGroup[],
+    controls: ReadonlyMap<string, ExtractedDeviceInterfaceControl>,
+): readonly ExtractedControlGroupMembership[] {
+    const memberships: ExtractedControlGroupMembership[] = [];
+    const groupsById = new Map(groups.map((group) => [group.id, group]));
+    const explicitMemberships = new Set<string>();
+
+    for (const group of groups) {
+        for (const member of group.members ?? []) {
+            const control = controls.get(member.controlId);
+            if (control === undefined) {
+                continue;
+            }
+            explicitMemberships.add(`${group.id}:${control.id}`);
+            memberships.push({
+                group,
+                control,
+                ...(member.order === undefined ? {} : { order: member.order }),
+                ...(member.appliesWhen === undefined ? {} : { appliesWhen: member.appliesWhen }),
+                ...(member.description === undefined ? {} : { description: member.description }),
+            });
+        }
+    }
+
+    for (const control of controls.values()) {
+        if (control.groupId === undefined) {
+            continue;
+        }
+        const group = groupsById.get(control.groupId);
+        if (group === undefined || explicitMemberships.has(`${group.id}:${control.id}`)) {
+            continue;
+        }
+        memberships.push({
+            group,
+            control,
+            ...(control.order === undefined ? {} : { order: control.order }),
+            ...(control.appliesWhen === undefined ? {} : { appliesWhen: control.appliesWhen }),
+            ...(control.description === undefined ? {} : { description: control.description }),
+        });
+    }
+
+    return memberships;
 }
 
 function inferDeviceInterfaceControls(

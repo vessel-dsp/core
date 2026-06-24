@@ -1,4 +1,4 @@
-export const VERSION = '0.6.3';
+export const VERSION = '0.6.4';
 
 export type {
     BoardApplicability,
@@ -38,6 +38,7 @@ export type {
     ControlApplicabilityPredicate,
     ControlContext,
     ControlGroup,
+    ControlGroupMember,
     ControlInterface,
     ControlInterfaceAssignmentHint,
     ControlInterfaceBinding,
@@ -215,6 +216,7 @@ export type {
     ControlValue,
     DeviceInterfaceProvenance,
     ExternalControlAssignmentHint,
+    ExtractedControlGroupMembership,
     ExtractedDeviceInterface,
     ExtractedDeviceInterfaceControl,
     JackAudioRole,

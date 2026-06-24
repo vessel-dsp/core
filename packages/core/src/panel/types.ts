@@ -1,5 +1,6 @@
 import type {
     ControlContext,
+    ControlApplicabilityPredicate,
     ControlGroup,
     ControlInterfaceAssignmentHint,
     ControlInterfaceBinding,
@@ -140,10 +141,19 @@ export type ExtractedDeviceInterfaceControl = DeviceInterfaceControl & Readonly<
     inferredBinding?: DeviceInterfaceBinding;
 }>;
 
+export type ExtractedControlGroupMembership = Readonly<{
+    group: ControlGroup;
+    control: ExtractedDeviceInterfaceControl;
+    order?: number;
+    appliesWhen?: ControlApplicabilityPredicate;
+    description?: string;
+}>;
+
 export type ExtractedDeviceInterface = Readonly<{
     groups: readonly ControlGroup[];
     contexts: readonly ControlContext[];
     controls: readonly ExtractedDeviceInterfaceControl[];
+    groupMemberships: readonly ExtractedControlGroupMembership[];
     placement?: PanelPlacementMetadata;
     diagnostics: readonly Warning[];
 }>;

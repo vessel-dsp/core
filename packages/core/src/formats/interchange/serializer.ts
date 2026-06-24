@@ -7,6 +7,7 @@ import type {
     ControlApplicabilityPredicate,
     ControlContext,
     ControlGroup,
+    ControlGroupMember,
     DeviceInterface,
     DeviceInterfaceBinding,
     DeviceInterfaceControl,
@@ -167,8 +168,27 @@ function controlGroupBlock(group: ControlGroup): MutableYamlObject {
     if (group.contextIds !== undefined) {
         out.contextIds = group.contextIds;
     }
+    if (group.members !== undefined) {
+        out.members = group.members.map(controlGroupMemberBlock);
+    }
     if (group.description !== undefined) {
         out.description = group.description;
+    }
+    return out;
+}
+
+function controlGroupMemberBlock(member: ControlGroupMember): MutableYamlObject {
+    const out: MutableYamlObject = {
+        controlId: member.controlId,
+    };
+    if (member.order !== undefined) {
+        out.order = member.order;
+    }
+    if (member.appliesWhen !== undefined) {
+        out.appliesWhen = controlApplicabilityPredicateBlock(member.appliesWhen);
+    }
+    if (member.description !== undefined) {
+        out.description = member.description;
     }
     return out;
 }

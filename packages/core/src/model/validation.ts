@@ -8,6 +8,8 @@ import type {
     CircuitDocument,
     Component,
     ComponentKind,
+    ControlGroup,
+    ControlGroupMember,
     DeviceInterfaceBinding,
     DeviceInterfaceControl,
     OffBoardSignalRef,
@@ -37,6 +39,9 @@ export type ValidationCode =
     | 'duplicate-device-interface-control-id'
     | 'invalid-device-interface-token'
     | 'control-group-context-unresolved'
+    | 'control-group-member-unresolved'
+    | 'control-group-member-context-unresolved'
+    | 'control-group-member-order-duplicate'
     | 'device-interface-group-unresolved'
     | 'device-interface-context-unresolved'
     | 'device-interface-binding-unresolved'
@@ -585,6 +590,7 @@ function validateDeviceInterface(
     const issues: ValidationIssue[] = [];
     const groupIds = new Set(doc.controlGroups?.map((group) => group.id) ?? []);
     const contextIds = new Set(doc.controlContexts?.map((context) => context.id) ?? []);
+    const declaredControlIds = new Set(doc.deviceInterface?.controls.map((control) => control.id) ?? []);
     const semanticControlIds = new Set<string>();
     const externalInterfaceIds = new Set(doc.controlInterfaces?.map((controlInterface) => controlInterface.id) ?? []);
     const componentsById = new Map(doc.components.map((component) => [component.id, component]));
@@ -603,6 +609,7 @@ function validateDeviceInterface(
                 });
             }
         }
+        issues.push(...validateControlGroupMembers(group, declaredControlIds, contextIds));
     }
 
     for (const context of doc.controlContexts ?? []) {
@@ -646,9 +653,132 @@ function validateDeviceInterface(
         }
     }
 
-    issues.push(...validateDuplicateDeviceInterfaceRoles(doc.deviceInterface?.controls ?? []));
+    issues.push(...validateDuplicateDeviceInterfaceRoles(doc.deviceInterface?.controls ?? [], doc.controlGroups ?? []));
 
     return issues;
+}
+
+function validateControlGroupMembers(
+    group: ControlGroup,
+    controlIds: ReadonlySet<string>,
+    contextIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+    const issues: ValidationIssue[] = [];
+    const orderOwners = new Map<number, string>();
+
+    for (const member of group.members ?? []) {
+        if (!controlIds.has(member.controlId)) {
+            issues.push({
+                code: 'control-group-member-unresolved',
+                severity: 'warning',
+                message: `Control group "${group.id}" references missing member control "${member.controlId}"`,
+                componentId: group.id,
+                property: 'members.controlId',
+            });
+        }
+
+        if (member.order !== undefined) {
+            const existingControlId = orderOwners.get(member.order);
+            if (existingControlId !== undefined) {
+                issues.push({
+                    code: 'control-group-member-order-duplicate',
+                    severity: 'warning',
+                    message: `Control group "${group.id}" assigns order ${member.order} to both "${existingControlId}" and "${member.controlId}"`,
+                    componentId: group.id,
+                    property: 'members.order',
+                });
+            }
+            orderOwners.set(member.order, member.controlId);
+        }
+
+        issues.push(...validateControlGroupMemberApplicability(group.id, member, contextIds));
+    }
+
+    return issues;
+}
+
+function validateControlGroupMemberApplicability(
+    groupId: string,
+    member: ControlGroupMember,
+    contextIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+    const issues: ValidationIssue[] = [];
+    if (member.appliesWhen === undefined) {
+        return issues;
+    }
+
+    issues.push(...validateGroupMemberContextList(groupId, member, 'members.appliesWhen.allOf', member.appliesWhen.allOf, contextIds));
+    issues.push(...validateGroupMemberContextList(groupId, member, 'members.appliesWhen.anyOf', member.appliesWhen.anyOf, contextIds));
+
+    if (
+        member.appliesWhen.allOf !== undefined
+        && member.appliesWhen.allOf.length === 0
+        && member.appliesWhen.anyOf === undefined
+    ) {
+        issues.push(emptyGroupMemberApplicabilityIssue(groupId, member.controlId, 'members.appliesWhen.allOf'));
+    }
+    if (
+        member.appliesWhen.anyOf !== undefined
+        && member.appliesWhen.anyOf.length === 0
+        && member.appliesWhen.allOf === undefined
+    ) {
+        issues.push(emptyGroupMemberApplicabilityIssue(groupId, member.controlId, 'members.appliesWhen.anyOf'));
+    }
+
+    return issues;
+}
+
+function validateGroupMemberContextList(
+    groupId: string,
+    member: ControlGroupMember,
+    property: string,
+    values: readonly string[] | undefined,
+    contextIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+    if (values === undefined) {
+        return [];
+    }
+
+    const issues: ValidationIssue[] = [];
+    const seen = new Set<string>();
+    if (values.length === 0) {
+        issues.push(emptyGroupMemberApplicabilityIssue(groupId, member.controlId, property));
+    }
+
+    for (const contextId of values) {
+        if (seen.has(contextId)) {
+            issues.push({
+                code: 'control-group-member-context-unresolved',
+                severity: 'warning',
+                message: `Control group "${groupId}" member "${member.controlId}" repeats context "${contextId}" in ${property}`,
+                componentId: groupId,
+                property,
+            });
+        }
+        seen.add(contextId);
+
+        if (!contextIds.has(contextId)) {
+            issues.push({
+                code: 'control-group-member-context-unresolved',
+                severity: 'warning',
+                message: `Control group "${groupId}" member "${member.controlId}" references missing context "${contextId}"`,
+                componentId: groupId,
+                property,
+            });
+        }
+    }
+
+    return issues;
+}
+
+function emptyGroupMemberApplicabilityIssue(groupId: string, controlId: string, property: string): ValidationIssue {
+    return {
+        code: 'control-group-member-context-unresolved',
+        severity: 'warning',
+        message: `Control group "${groupId}" member "${controlId}" has empty ${property}; omit the predicate instead`,
+        componentId: groupId,
+        property,
+    };
 }
 
 function validateOpenToken(value: string, componentId: string, property: string): readonly ValidationIssue[] {
@@ -807,26 +937,51 @@ function validateDeviceInterfaceBinding(
 
 function validateDuplicateDeviceInterfaceRoles(
     controls: readonly DeviceInterfaceControl[],
+    groups: readonly ControlGroup[],
 ): readonly ValidationIssue[] {
     const issues: ValidationIssue[] = [];
-    const seen = new Map<string, DeviceInterfaceControl>();
+    const layoutsByControlId = deviceInterfaceRoleLayoutsByControlId(groups);
+    const seen = new Map<string, { control: DeviceInterfaceControl; order?: number }>();
     for (const control of controls) {
-        const key = `${control.groupId ?? ''}:${control.role}`;
-        const existing = seen.get(key);
-        if (existing !== undefined && existing.order === undefined && control.order === undefined) {
-            if (deviceInterfaceBindingSignature(existing.binding) === deviceInterfaceBindingSignature(control.binding)) {
-                issues.push({
-                    code: 'device-interface-duplicate-role',
-                    severity: 'warning',
-                    message: `Device interface controls "${existing.id}" and "${control.id}" share role "${control.role}" without order or distinct binding`,
-                    componentId: control.id,
-                    property: 'role',
-                });
+        const layouts = layoutsByControlId.get(control.id) ?? [{ groupId: control.groupId ?? '', order: control.order }];
+        for (const layout of layouts) {
+            const key = `${layout.groupId}:${control.role}`;
+            const existing = seen.get(key);
+            if (existing !== undefined && existing.order === undefined && layout.order === undefined) {
+                if (
+                    deviceInterfaceBindingSignature(existing.control.binding)
+                    === deviceInterfaceBindingSignature(control.binding)
+                ) {
+                    issues.push({
+                        code: 'device-interface-duplicate-role',
+                        severity: 'warning',
+                        message: `Device interface controls "${existing.control.id}" and "${control.id}" share role "${control.role}" without order or distinct binding`,
+                        componentId: control.id,
+                        property: 'role',
+                    });
+                }
             }
+            seen.set(key, { control, ...(layout.order === undefined ? {} : { order: layout.order }) });
         }
-        seen.set(key, control);
     }
     return issues;
+}
+
+function deviceInterfaceRoleLayoutsByControlId(
+    groups: readonly ControlGroup[],
+): ReadonlyMap<string, readonly { groupId: string; order?: number }[]> {
+    const layoutsByControlId = new Map<string, { groupId: string; order?: number }[]>();
+    for (const group of groups) {
+        for (const member of group.members ?? []) {
+            const layouts = layoutsByControlId.get(member.controlId) ?? [];
+            layouts.push({
+                groupId: group.id,
+                ...(member.order === undefined ? {} : { order: member.order }),
+            });
+            layoutsByControlId.set(member.controlId, layouts);
+        }
+    }
+    return layoutsByControlId;
 }
 
 function deviceInterfaceBindingSignature(binding: DeviceInterfaceBinding | undefined): string {

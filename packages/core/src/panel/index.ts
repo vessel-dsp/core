@@ -3,6 +3,7 @@ export type {
     ControlValue,
     DeviceInterfaceProvenance,
     ExternalControlAssignmentHint,
+    ExtractedControlGroupMembership,
     ExtractedDeviceInterface,
     ExtractedDeviceInterfaceControl,
     JackAudioRole,

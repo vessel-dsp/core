@@ -32,6 +32,7 @@ import type {
     ControlApplicabilityPredicate,
     ControlContext,
     ControlGroup,
+    ControlGroupMember,
     DeviceInterface,
     DeviceInterfaceBinding,
     DeviceInterfaceControlKind,
@@ -681,12 +682,33 @@ function parseControlGroups(value: YamlValue | undefined): readonly ControlGroup
         const path = `controlGroups[${index}]`;
         const group = expectObject(item, path);
         const contextIds = parseOptionalStringArray(group.contextIds, `${path}.contextIds`);
+        const members = parseControlGroupMembers(group.members, `${path}.members`);
         const description = parseOptionalString(group.description, `${path}.description`);
         return {
             id: expectString(group.id, `${path}.id`),
             name: expectString(group.name, `${path}.name`),
             role: expectString(group.role, `${path}.role`),
             ...(contextIds === undefined ? {} : { contextIds }),
+            ...(description === undefined ? {} : { description }),
+            ...(members === undefined ? {} : { members }),
+        };
+    });
+}
+
+function parseControlGroupMembers(value: YamlValue | undefined, path: string): readonly ControlGroupMember[] | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    return optionalArray(value, path).map((item, index) => {
+        const memberPath = `${path}[${index}]`;
+        const member = expectObject(item, memberPath);
+        const order = parseOptionalNumber(member.order, `${memberPath}.order`);
+        const appliesWhen = parseOptionalApplicabilityPredicate(member.appliesWhen, `${memberPath}.appliesWhen`);
+        const description = parseOptionalString(member.description, `${memberPath}.description`);
+        return {
+            controlId: expectString(member.controlId, `${memberPath}.controlId`),
+            ...(order === undefined ? {} : { order }),
+            ...(appliesWhen === undefined ? {} : { appliesWhen }),
             ...(description === undefined ? {} : { description }),
         };
     });

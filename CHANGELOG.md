@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.4
+
+- Add `.vdsp` control group membership records so one physical device-interface control can appear in multiple channel/context layouts without cloned control identities.
+- Validate control group member references, context predicates, and duplicate member order while treating ordered memberships as the layout distinction for same-role physical controls.
+- Expose resolved `extractDeviceInterface().groupMemberships` alongside one-row-per-physical-control device interface extraction.
+
 ## 0.6.3
 
 - Fix the exported `VERSION` constant in source and built package artifacts so it matches the published package manifest.

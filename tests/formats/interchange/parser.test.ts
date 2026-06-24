@@ -162,6 +162,14 @@ rawAttributes: {}`;
                 name: 'Channel 1',
                 role: 'channel-section',
                 contextIds: ['channel-1'],
+                members: [{
+                    controlId: 'ch1-gain',
+                    order: 1,
+                    appliesWhen: {
+                        anyOf: ['channel-1'],
+                    },
+                    description: 'First control in the Channel 1 strip.',
+                }],
             }],
             controlContexts: [{
                 id: 'channel-1',
@@ -174,8 +182,6 @@ rawAttributes: {}`;
                     label: 'Gain',
                     kind: 'knob',
                     role: 'gain',
-                    groupId: 'channel-1-panel',
-                    order: 1,
                     binding: {
                         componentId: 'CH1_GAIN',
                         controlId: 'CH1_GAIN',
@@ -227,6 +233,8 @@ rawAttributes: {}`;
         const parsed = parseInterchangeYaml(yaml);
 
         expect(yaml).toContain('controlGroups:');
+        expect(yaml).toContain('members:');
+        expect(yaml).toContain('controlId: ch1-gain');
         expect(yaml).toContain('controlContexts:');
         expect(yaml).toContain('deviceInterface:');
         expect(yaml).toContain('interfaceControlId: ch1-gain');

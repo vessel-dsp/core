@@ -584,6 +584,59 @@ describe('extractPanel', () => {
         expect(iface.diagnostics).toEqual([]);
     });
 
+    test('extracts group membership separately from physical controls', () => {
+        const doc: CircuitDocument = {
+            ...EMPTY_DOCUMENT,
+            controlContexts: [
+                { id: 'normal', name: 'Normal', role: 'channel' },
+                { id: 'bright', name: 'Bright', role: 'channel' },
+            ],
+            controlGroups: [
+                {
+                    id: 'normal-panel',
+                    name: 'Normal panel',
+                    role: 'channel-section',
+                    contextIds: ['normal'],
+                    members: [
+                        { controlId: 'volume', order: 1, appliesWhen: { anyOf: ['normal'] } },
+                        { controlId: 'tone', order: 2, appliesWhen: { anyOf: ['normal'] } },
+                    ],
+                },
+                {
+                    id: 'bright-panel',
+                    name: 'Bright panel',
+                    role: 'channel-section',
+                    contextIds: ['bright'],
+                    members: [
+                        { controlId: 'volume', order: 1, appliesWhen: { anyOf: ['bright'] } },
+                        { controlId: 'tone', order: 2, appliesWhen: { anyOf: ['bright'] } },
+                    ],
+                },
+            ],
+            deviceInterface: {
+                controls: [
+                    { id: 'volume', label: 'Volume', kind: 'knob', role: 'volume' },
+                    { id: 'tone', label: 'Tone', kind: 'knob', role: 'tone' },
+                ],
+            },
+        };
+
+        const iface = extractDeviceInterface(doc);
+
+        expect(iface.controls.map((control) => control.id)).toEqual(['volume', 'tone']);
+        expect(iface.groupMemberships.map((membership) => ({
+            groupId: membership.group.id,
+            controlId: membership.control.id,
+            order: membership.order,
+            appliesWhen: membership.appliesWhen,
+        }))).toEqual([
+            { groupId: 'normal-panel', controlId: 'volume', order: 1, appliesWhen: { anyOf: ['normal'] } },
+            { groupId: 'normal-panel', controlId: 'tone', order: 2, appliesWhen: { anyOf: ['normal'] } },
+            { groupId: 'bright-panel', controlId: 'volume', order: 1, appliesWhen: { anyOf: ['bright'] } },
+            { groupId: 'bright-panel', controlId: 'tone', order: 2, appliesWhen: { anyOf: ['bright'] } },
+        ]);
+    });
+
     test('extracts inferred controls when no declared device interface exists', () => {
         const doc: CircuitDocument = {
             ...EMPTY_DOCUMENT,

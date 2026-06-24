@@ -175,12 +175,25 @@ export type ControlContext = Readonly<{
     description?: string;
 }>;
 
+export type ControlApplicabilityPredicate = Readonly<{
+    allOf?: readonly string[];
+    anyOf?: readonly string[];
+}>;
+
+export type ControlGroupMember = Readonly<{
+    controlId: string;
+    order?: number;
+    appliesWhen?: ControlApplicabilityPredicate;
+    description?: string;
+}>;
+
 export type ControlGroup = Readonly<{
     id: string;
     name: string;
     role: string;
     contextIds?: readonly string[];
     description?: string;
+    members?: readonly ControlGroupMember[];
 }>;
 
 export type DeviceInterfaceControlKind =
@@ -198,11 +211,6 @@ export type DeviceInterfaceBinding = Readonly<{
     controlName?: string;
     property?: string;
     externalInterfaceId?: string;
-}>;
-
-export type ControlApplicabilityPredicate = Readonly<{
-    allOf?: readonly string[];
-    anyOf?: readonly string[];
 }>;
 
 export type DeviceInterfaceControl = Readonly<{

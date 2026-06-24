@@ -562,6 +562,16 @@ describe('validateDocument', () => {
                 name: 'Channel 1',
                 role: 'channel-section',
                 contextIds: ['missing-display-context'],
+                members: [{
+                    controlId: 'missing-member-control',
+                    order: 1,
+                    appliesWhen: {
+                        anyOf: ['missing-member-context'],
+                    },
+                }, {
+                    controlId: 'gain',
+                    order: 1,
+                }],
             }],
             controlContexts: [{
                 id: 'channel-1',
@@ -641,11 +651,55 @@ describe('validateDocument', () => {
             componentId: 'channel-1-panel',
             property: 'contextIds',
         });
+        expect(issues.find((i) =>
+            i.code === 'control-group-member-unresolved' && i.property === 'members.controlId'
+        )).toMatchObject({
+            severity: 'warning',
+            componentId: 'channel-1-panel',
+            property: 'members.controlId',
+        });
+        expect(issues.find((i) =>
+            i.code === 'control-group-member-context-unresolved' && i.property === 'members.appliesWhen.anyOf'
+        )).toMatchObject({
+            severity: 'warning',
+            componentId: 'channel-1-panel',
+            property: 'members.appliesWhen.anyOf',
+        });
+        expect(issues.find((i) =>
+            i.code === 'control-group-member-order-duplicate' && i.property === 'members.order'
+        )).toMatchObject({
+            severity: 'warning',
+            componentId: 'channel-1-panel',
+            property: 'members.order',
+        });
         expect(issues.find((i) => i.code === 'panel-interface-control-unresolved')).toMatchObject({
             severity: 'warning',
             componentId: 'missing-interface-control',
             property: 'interfaceControlId',
         });
+    });
+
+    test('ordered control group members distinguish physical controls with the same semantic role', () => {
+        const doc: CircuitDocument = {
+            ...EMPTY_DOCUMENT,
+            controlGroups: [{
+                id: 'shared-panel',
+                name: 'Shared panel',
+                role: 'source-panel',
+                members: [
+                    { controlId: 'normal-volume', order: 1 },
+                    { controlId: 'bright-volume', order: 2 },
+                ],
+            }],
+            deviceInterface: {
+                controls: [
+                    { id: 'normal-volume', label: 'Normal Volume', kind: 'knob', role: 'input-level' },
+                    { id: 'bright-volume', label: 'Bright Volume', kind: 'knob', role: 'input-level' },
+                ],
+            },
+        };
+
+        expect(validateDocument(doc).find((issue) => issue.code === 'device-interface-duplicate-role')).toBeUndefined();
     });
 
     test('view-only interface controls waive electrical requirements but still validate present values', () => {
