@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Document `.vdsp` as the portable source-visible CircuitDocument for
+  schematic inspection and host-owned simulation/runtime lowering, while
+  keeping provenance-only evidence outside the portable file.
 - Add physical mount metadata for concentric panel controls, including `mountId`/`surface` parsing, model types, validation, and `.vdsp` round-trip coverage.
 - Add stompbox concentric control support that collapses stacked dial surfaces into one drill hole while preserving per-surface preview and layout metadata.
 - Add Control UI rendering for concentric knobs and panel jacks, plus docs for control semantics, physical controls, and CAD-style preview linework.

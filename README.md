@@ -7,8 +7,12 @@ TypeScript tooling for converting audio-circuit documents between project
 optional React package for core `Panel` controls.
 
 `@vessel-dsp/core` and `@vessel-dsp/stompbox` are React-free and do not include
-a custom editor or realtime simulator. Downstream apps should use tscircuit
-tooling to render or edit emitted Circuit JSON.
+a custom editor or realtime simulator. They do preserve the source-visible
+CircuitDocument data that downstream apps need to render, edit, or simulate a
+`.vdsp` as an inspectable schematic. A host runtime may lower that document into
+compact MNA, reusable kernels, or macro DSP, but the `.vdsp` authoring graph
+should remain the user-facing schematic and control surface. Downstream apps can
+use tscircuit tooling to render or edit emitted Circuit JSON.
 
 ## Package
 
@@ -70,6 +74,14 @@ perfboard, breadboard-pattern protoboard, and fabricated PCB. Conversion from
 v3 `.vdsp` to formats that cannot preserve those fields errors by default; use
 `convertCircuitDocumentFileWithReport()` with `lossPolicy:
 'drop-with-diagnostics'` only when that loss is intentional.
+
+`.vdsp` is also the portable source-visible circuit document for simulation
+hosts. It can carry schematic layout, source component identity, reference
+labels, controls, and boundary metadata so users can inspect a source-like
+schematic while the host owns any realtime/kernel lowering. Provenance ledgers,
+private source paths, and source-trace evidence should live beside the `.vdsp`
+in the consuming project's packet or catalog metadata, not inside the portable
+file.
 
 SPICE `.cir` / `.net` parsing remains available as legacy connectivity support,
 but it is not part of the new v1 bidirectional Circuit JSON contract.

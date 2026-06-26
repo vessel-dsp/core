@@ -1,26 +1,16 @@
 {
-    "extends": "../../tsconfig.base.json",
-    "compilerOptions": {
-        "noEmit": false,
-        "declaration": true,
-        "declarationMap": true,
-        "lib": [
-            "ES2022",
-            "DOM",
-            "DOM.Iterable"
-        ],
-        "jsx": "react-jsx",
-        "sourceMap": true,
-        "outDir": "dist",
-        "rootDir": "src",
-        "types": []
-    },
-    "exclude": [
-        "tests/**/*",
-        "**/*.test.ts",
-        "**/*.test.tsx"
-    ],
-    "include": [
-        "src/**/*"
-    ]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"declaration": true,
+		"declarationMap": true,
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"jsx": "react-jsx",
+		"sourceMap": true,
+		"outDir": "dist",
+		"rootDir": "src",
+		"types": []
+	},
+	"exclude": ["tests/**/*", "**/*.test.ts", "**/*.test.tsx"],
+	"include": ["src/**/*"]
 }

@@ -34,11 +34,15 @@ describe("GitHub Pages documentation site", () => {
 		expect(packageJson.devDependencies).toHaveProperty("astro");
 		expect(packageJson.devDependencies).toHaveProperty("starlight-typedoc");
 		expect(packageJson.devDependencies).toHaveProperty("typedoc");
-		expect(packageJson.devDependencies).toHaveProperty("typedoc-plugin-markdown");
+		expect(packageJson.devDependencies).toHaveProperty(
+			"typedoc-plugin-markdown",
+		);
 		expect(packageJson.devDependencies).toHaveProperty("three");
 
 		expect(existsSync(join(ROOT_DIR, "scripts/build-pages.ts"))).toBe(false);
-		expect(existsSync(join(ROOT_DIR, "docs", "public", ".nojekyll"))).toBe(true);
+		expect(existsSync(join(ROOT_DIR, "docs", "public", ".nojekyll"))).toBe(
+			true,
+		);
 
 		const astroConfig = readRepoFile("astro.config.mjs");
 		expect(astroConfig).toContain("starlight");
@@ -49,7 +53,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('srcDir: "./docs/src"');
 		expect(astroConfig).toContain('publicDir: "./docs/public"');
 		expect(astroConfig).toContain('outDir: "./gh-pages"');
-		expect(astroConfig).toContain('baseUrl: "https://github.com/vessel-dsp/core/edit/main/"');
+		expect(astroConfig).toContain(
+			'baseUrl: "https://github.com/vessel-dsp/core/edit/main/"',
+		);
 		expect(astroConfig).toContain('label: "Examples"');
 		expect(astroConfig).toContain('link: "/examples/pro-co-rat/"');
 		expect(astroConfig).toContain('"packages/core/src/index.ts"');
@@ -61,7 +67,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('label: "Control UI"');
 		expect(astroConfig).toContain('link: "/guides/control-ui/"');
 
-		const stompboxPackage = JSON.parse(readRepoFile("packages/stompbox/package.json")) as {
+		const stompboxPackage = JSON.parse(
+			readRepoFile("packages/stompbox/package.json"),
+		) as {
 			dependencies?: Record<string, string>;
 			devDependencies?: Record<string, string>;
 		};
@@ -86,7 +94,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("/core/reference/api/readme/");
 		expect(landingPage).not.toMatch(/playground|workbench|custom editor/i);
 
-		const gettingStarted = readRepoFile("docs/src/content/docs/guides/getting-started.mdx");
+		const gettingStarted = readRepoFile(
+			"docs/src/content/docs/guides/getting-started.mdx",
+		);
 		expect(gettingStarted).toContain("npm install @vessel-dsp/core");
 		expect(gettingStarted).toContain("parseCircuitDocumentFile");
 		expect(gettingStarted).toContain("serializeCircuitJsonDocument");
@@ -98,7 +108,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(formatsPage).toContain(".circuit.json");
 		expect(formatsPage).toContain("drop-with-diagnostics");
 
-		const stompboxPage = readRepoFile("docs/src/content/docs/guides/stompbox.mdx");
+		const stompboxPage = readRepoFile(
+			"docs/src/content/docs/guides/stompbox.mdx",
+		);
 		expect(stompboxPage).toContain("vdsp-declared");
 		expect(stompboxPage).toContain("auto-generated");
 		expect(stompboxPage).toContain("includePowerJack: false");
@@ -111,30 +123,48 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("createStompboxAppearancePatch");
 		expect(stompboxPage).toContain("resolveStompboxAppearance");
 		expect(stompboxPage).toContain("createStompboxDrillTemplateSvgFromVdsp");
-		expect(stompboxPage).toContain("Optional text, SVG, or image decal metadata");
+		expect(stompboxPage).toContain(
+			"Optional text, SVG, or image decal metadata",
+		);
 		expect(stompboxPage).toContain("Stickers and decals");
 		expect(stompboxPage).toContain('placement: { kind: "grid"');
 		expect(stompboxPage).toContain('kind: "image"');
 		expect(stompboxPage).toContain('face: "back"');
 		expect(stompboxPage).toContain("at least 12 mm");
 		expect(stompboxPage).toContain("40 mm wide face can address");
-		expect(stompboxPage).toContain('fontFamily: \'"Roboto", sans-serif\'');
+		expect(stompboxPage).toContain("fontFamily: '\"Roboto\", sans-serif'");
 		expect(stompboxPage).toContain("Google Font");
 		expect(stompboxPage).toContain("Knob bodies keep the");
-		expect(stompboxPage).toContain("material colors from their imported CAD/GLB assets");
-		expect(stompboxPage).not.toContain('knob: { color:');
-		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-preview.glb");
-		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-template-preview.svg");
-		expect(stompboxPage).toContain("/core/examples/stompbox-mxr-style-drill-layout.json");
-		expect(stompboxPage).toContain('import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";');
-		expect(stompboxPage).toContain('import StompboxPreviewPresetGroup from "../../../components/StompboxPreviewPresetGroup.astro";');
+		expect(stompboxPage).toContain(
+			"material colors from their imported CAD/GLB assets",
+		);
+		expect(stompboxPage).not.toContain("knob: { color:");
+		expect(stompboxPage).toContain(
+			"/core/examples/stompbox-mxr-style-preview.glb",
+		);
+		expect(stompboxPage).toContain(
+			"/core/examples/stompbox-mxr-style-drill-template-preview.svg",
+		);
+		expect(stompboxPage).toContain(
+			"/core/examples/stompbox-mxr-style-drill-layout.json",
+		);
+		expect(stompboxPage).toContain(
+			'import StompboxGlbViewer from "../../../components/StompboxGlbViewer.astro";',
+		);
+		expect(stompboxPage).toContain(
+			'import StompboxPreviewPresetGroup from "../../../components/StompboxPreviewPresetGroup.astro";',
+		);
 		expect(stompboxPage).toContain("<StompboxPreviewPresetGroup");
-		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top"');
-		expect(stompboxPage).toContain('<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb"');
+		expect(stompboxPage).toContain(
+			'<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb" view="top"',
+		);
+		expect(stompboxPage).toContain(
+			'<StompboxGlbViewer src="/core/examples/stompbox-mxr-style-preview.glb"',
+		);
 		expect(stompboxPage).toContain("data-stompbox-drill-template-preview");
 		expect(stompboxPage).toContain("data-stompbox-drill-layout-download");
 		expect(stompboxPage).toContain("presets={demoProfiles.previewPresets}");
-		expect(stompboxPage).toContain('linework={true}');
+		expect(stompboxPage).toContain("linework={true}");
 		expect(stompboxPage).toContain('lineworkColor="#eb7223"');
 		expect(stompboxPage).toContain("orthographic top camera");
 		expect(stompboxPage).toContain("CAD-style linework");
@@ -148,14 +178,16 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("@vessel-dsp/control-ui");
 		expect(stompboxPage).toContain("PanelMessage");
 
-		const controlsPage = readRepoFile("docs/src/content/docs/guides/controls.mdx");
+		const controlsPage = readRepoFile(
+			"docs/src/content/docs/guides/controls.mdx",
+		);
 		expect(controlsPage).toContain("title: Controls");
 		expect(controlsPage).toContain("extractPanel(document)");
 		expect(controlsPage).toContain("parseCircuitDocumentFile");
 		expect(controlsPage).toContain("CircuitDocument");
 		expect(controlsPage).toContain("PanelPlacementMetadata");
-		expect(controlsPage).toContain("kind: \"potentiometer\"");
-		expect(controlsPage).toContain("RuntimeDescriptor: \"true\"");
+		expect(controlsPage).toContain('kind: "potentiometer"');
+		expect(controlsPage).toContain('RuntimeDescriptor: "true"');
 		expect(controlsPage).toContain("Wipe");
 		expect(controlsPage).toContain("StepLabels");
 		expect(controlsPage).toContain("ControlStyle");
@@ -168,13 +200,19 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlsPage).toContain("@vessel-dsp/stompbox");
 		expect(controlsPage).not.toMatch(/playground|workbench|custom editor/i);
 
-		const controlUiPage = readRepoFile("docs/src/content/docs/guides/control-ui.mdx");
+		const controlUiPage = readRepoFile(
+			"docs/src/content/docs/guides/control-ui.mdx",
+		);
 		expect(controlUiPage).toContain("title: Control UI");
-		expect(controlUiPage).toContain('import ControlUiRenderedExample from "../../../components/ControlUiRenderedExample.astro";');
+		expect(controlUiPage).toContain(
+			'import ControlUiRenderedExample from "../../../components/ControlUiRenderedExample.astro";',
+		);
 		expect(controlUiPage).toContain("<ControlUiRenderedExample />");
 		expect(controlUiPage).toContain("## Rendered UI");
-		expect(controlUiPage).toContain("npm install @vessel-dsp/core @vessel-dsp/control-ui react react-dom");
-		expect(controlUiPage).toContain('@vessel-dsp/control-ui/styles.css');
+		expect(controlUiPage).toContain(
+			"npm install @vessel-dsp/core @vessel-dsp/control-ui react react-dom",
+		);
+		expect(controlUiPage).toContain("@vessel-dsp/control-ui/styles.css");
 		expect(controlUiPage).toContain("ControlSurface");
 		expect(controlUiPage).toContain("ControlUiThemeProvider");
 		expect(controlUiPage).toContain("createControlUiState");
@@ -183,7 +221,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlUiPage).toContain("onPanelMessage");
 		expect(controlUiPage).toContain('bypass: "footswitch"');
 		expect(controlUiPage).toContain('mode: "detented-rotary-select"');
-		expect(controlUiPage).toContain('onMessage={controls.dispatchMessage}');
+		expect(controlUiPage).toContain("onMessage={controls.dispatchMessage}");
 		expect(controlUiPage).toContain("className");
 		expect(controlUiPage).toContain("classNames");
 		expect(controlUiPage).toContain("Tailwind");
@@ -191,24 +229,34 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlUiPage).toContain("PanelMessage");
 		expect(controlUiPage).not.toMatch(/playground|workbench/i);
 
-		const controlUiExample = readRepoFile("docs/src/components/ControlUiRenderedExample.astro");
+		const controlUiExample = readRepoFile(
+			"docs/src/components/ControlUiRenderedExample.astro",
+		);
 		expect(controlUiExample).toContain("renderToStaticMarkup");
 		expect(controlUiExample).toContain("createRoot");
 		expect(controlUiExample).toContain("ControlUiRenderedExampleClient");
 		expect(controlUiExample).toContain("data-control-ui-rendered-example");
 		expect(controlUiExample).toContain("ControlSurface");
 		expect(controlUiExample).toContain("ControlUiThemeProvider");
-		expect(controlUiExample).toContain("../../../packages/control-ui/src/styles.css");
+		expect(controlUiExample).toContain(
+			"../../../packages/control-ui/src/styles.css",
+		);
 		expect(controlUiExample).toContain("control-ui-rendered-example__panel");
 
-		const controlUiExampleClient = readRepoFile("docs/src/components/ControlUiRenderedExampleClient.tsx");
+		const controlUiExampleClient = readRepoFile(
+			"docs/src/components/ControlUiRenderedExampleClient.tsx",
+		);
 		expect(controlUiExampleClient).toContain('import React from "react";');
 		expect(controlUiExampleClient).toContain("useControlState");
 		expect(controlUiExampleClient).toContain("controls.dispatchMessage");
 		expect(controlUiExampleClient).not.toContain("console.log");
-		expect(controlUiExampleClient).not.toContain("[vessel-dsp/control-ui] PanelMessage emitted");
+		expect(controlUiExampleClient).not.toContain(
+			"[vessel-dsp/control-ui] PanelMessage emitted",
+		);
 
-		const controlUiExampleData = readRepoFile("docs/src/components/control-ui-rendered-example-data.ts");
+		const controlUiExampleData = readRepoFile(
+			"docs/src/components/control-ui-rendered-example-data.ts",
+		);
 		expect(controlUiExampleData).toContain("createControlUiState");
 		expect(controlUiExampleData).toContain('bypass: "footswitch"');
 		expect(controlUiExampleData).toContain('mode: "detented-rotary-select"');
@@ -216,17 +264,38 @@ describe("GitHub Pages documentation site", () => {
 		const demoProfiles = readRepoJson<{
 			defaultStyleProfileId?: string;
 			artifactCadPartsRoot?: string;
-			partProfiles?: Record<string, {
-				label?: string;
-				geometry?: { kind?: string; diameterMm?: number; outerDiameterMm?: number };
-				assets?: { glbRelativePath?: string; stepRelativePath?: string };
-			}>;
-			enclosureProfiles?: Record<string, {
-				topFace?: { usableRectMm?: { x?: number; y?: number; width?: number; height?: number } };
-			}>;
+			partProfiles?: Record<
+				string,
+				{
+					label?: string;
+					geometry?: {
+						kind?: string;
+						diameterMm?: number;
+						outerDiameterMm?: number;
+					};
+					assets?: { glbRelativePath?: string; stepRelativePath?: string };
+				}
+			>;
+			enclosureProfiles?: Record<
+				string,
+				{
+					topFace?: {
+						usableRectMm?: {
+							x?: number;
+							y?: number;
+							width?: number;
+							height?: number;
+						};
+					};
+				}
+			>;
 			styleProfiles?: readonly {
 				id?: string;
-				defaultPartIds?: { largeKnob?: string; knob?: string; smallKnob?: string };
+				defaultPartIds?: {
+					largeKnob?: string;
+					knob?: string;
+					smallKnob?: string;
+				};
 				layout?: { knobGrid?: string; sideHardware?: string };
 			}[];
 			previewPresets?: readonly {
@@ -239,48 +308,78 @@ describe("GitHub Pages documentation site", () => {
 				gridColor?: string;
 				gridOpacity?: number;
 				toon?: boolean;
-					toonEdgeColor?: string;
-					grain?: boolean;
-					grainScale?: number;
-					grainIntensity?: number;
-					linework?: boolean;
-					lineworkColor?: string;
-				}[];
+				toonEdgeColor?: string;
+				grain?: boolean;
+				grainScale?: number;
+				grainIntensity?: number;
+				linework?: boolean;
+				lineworkColor?: string;
+			}[];
 		}>("docs/src/data/stompbox-demo-profiles.json");
 		expect(demoProfiles.defaultStyleProfileId).toBe("mxr-style");
-		expect(demoProfiles.artifactCadPartsRoot).toBe("packages/stompbox/assets/cad/parts");
-		expect(demoProfiles.enclosureProfiles?.["box-1590b"]?.topFace?.usableRectMm).toEqual({
+		expect(demoProfiles.artifactCadPartsRoot).toBe(
+			"packages/stompbox/assets/cad/parts",
+		);
+		expect(
+			demoProfiles.enclosureProfiles?.["box-1590b"]?.topFace?.usableRectMm,
+		).toEqual({
 			x: -29.25,
 			y: -54.75,
 			width: 58.5,
 			height: 109.5,
 		});
-		expect(demoProfiles.enclosureProfiles?.["box-1590a"]?.topFace?.usableRectMm).toEqual({
+		expect(
+			demoProfiles.enclosureProfiles?.["box-1590a"]?.topFace?.usableRectMm,
+		).toEqual({
 			x: -18.5,
 			y: -45.25,
 			width: 37,
 			height: 90.5,
 		});
-		expect(demoProfiles.styleProfiles?.map((profile) => profile.id)).toEqual(["mxr-style", "boss-style"]);
-		expect(demoProfiles.styleProfiles?.find((profile) => profile.id === "boss-style")?.defaultPartIds).toEqual({
+		expect(demoProfiles.styleProfiles?.map((profile) => profile.id)).toEqual([
+			"mxr-style",
+			"boss-style",
+		]);
+		expect(
+			demoProfiles.styleProfiles?.find((profile) => profile.id === "boss-style")
+				?.defaultPartIds,
+		).toEqual({
 			largeKnob: "knob-davies-1105",
 			knob: "knob-davies-1100",
 			smallKnob: "knob-davies-1900h",
 		});
-		expect(demoProfiles.styleProfiles?.find((profile) => profile.id === "mxr-style")?.defaultPartIds).toEqual({
+		expect(
+			demoProfiles.styleProfiles?.find((profile) => profile.id === "mxr-style")
+				?.defaultPartIds,
+		).toEqual({
 			largeKnob: "knob-mxr-style-fluted-large",
 			knob: "knob-mxr-style-fluted-medium",
 			smallKnob: "knob-mxr-style-fluted-small",
 		});
-		expect(demoProfiles.partProfiles?.["knob-davies-1100"]?.geometry?.diameterMm).toBeCloseTo(19.81, 2);
-		expect(demoProfiles.partProfiles?.["knob-davies-1105"]?.geometry?.diameterMm).toBeCloseTo(26.92, 2);
-		expect(demoProfiles.partProfiles?.["knob-davies-1900h"]?.geometry?.diameterMm).toBeCloseTo(12.8, 2);
-		expect(demoProfiles.partProfiles?.["knob-mxr-style-fluted-small"]?.geometry?.diameterMm).toBeCloseTo(20.2, 2);
-		expect(demoProfiles.partProfiles?.["knob-mxr-style-fluted-medium"]?.geometry?.diameterMm).toBeCloseTo(24.4, 2);
-		expect(demoProfiles.partProfiles?.["knob-mxr-style-fluted-large"]?.geometry?.diameterMm).toBeCloseTo(29.9, 2);
-		expect(demoProfiles.partProfiles?.["led-bezel-lh5"]?.assets?.glbRelativePath).toBe(
-			"led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
-		);
+		expect(
+			demoProfiles.partProfiles?.["knob-davies-1100"]?.geometry?.diameterMm,
+		).toBeCloseTo(19.81, 2);
+		expect(
+			demoProfiles.partProfiles?.["knob-davies-1105"]?.geometry?.diameterMm,
+		).toBeCloseTo(26.92, 2);
+		expect(
+			demoProfiles.partProfiles?.["knob-davies-1900h"]?.geometry?.diameterMm,
+		).toBeCloseTo(12.8, 2);
+		expect(
+			demoProfiles.partProfiles?.["knob-mxr-style-fluted-small"]?.geometry
+				?.diameterMm,
+		).toBeCloseTo(20.2, 2);
+		expect(
+			demoProfiles.partProfiles?.["knob-mxr-style-fluted-medium"]?.geometry
+				?.diameterMm,
+		).toBeCloseTo(24.4, 2);
+		expect(
+			demoProfiles.partProfiles?.["knob-mxr-style-fluted-large"]?.geometry
+				?.diameterMm,
+		).toBeCloseTo(29.9, 2);
+		expect(
+			demoProfiles.partProfiles?.["led-bezel-lh5"]?.assets?.glbRelativePath,
+		).toBe("led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb");
 		expect(demoProfiles.previewPresets?.map((preset) => preset.id)).toEqual([
 			"mxr-style",
 			"boss-style",
@@ -289,11 +388,15 @@ describe("GitHub Pages documentation site", () => {
 			"/core/examples/stompbox-mxr-style-preview.glb",
 			"/core/examples/stompbox-boss-style-preview.glb",
 		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.drillTemplateSrc)).toEqual([
+		expect(
+			demoProfiles.previewPresets?.map((preset) => preset.drillTemplateSrc),
+		).toEqual([
 			"/core/examples/stompbox-mxr-style-drill-template-preview.svg",
 			"/core/examples/stompbox-boss-style-drill-template-preview.svg",
 		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.drillLayoutSrc)).toEqual([
+		expect(
+			demoProfiles.previewPresets?.map((preset) => preset.drillLayoutSrc),
+		).toEqual([
 			"/core/examples/stompbox-mxr-style-drill-layout.json",
 			"/core/examples/stompbox-boss-style-drill-layout.json",
 		]);
@@ -309,10 +412,9 @@ describe("GitHub Pages documentation site", () => {
 			true,
 			true,
 		]);
-		expect(demoProfiles.previewPresets?.map((preset) => preset.linework)).toEqual([
-			true,
-			true,
-		]);
+		expect(
+			demoProfiles.previewPresets?.map((preset) => preset.linework),
+		).toEqual([true, true]);
 
 		const viewer = readRepoFile("docs/src/components/StompboxGlbViewer.astro");
 		expect(viewer).toContain("data-stompbox-glb-viewer");
@@ -346,10 +448,14 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewer).toContain("--stompbox-viewer-background-color");
 		expect(viewer).toContain("--stompbox-viewer-grid-color");
 		expect(viewer).toContain("--stompbox-viewer-grid-opacity");
-		expect(viewer).toContain('"three": "/core/vendor/three/build/three.module.js"');
+		expect(viewer).toContain(
+			'"three": "/core/vendor/three/build/three.module.js"',
+		);
 		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
 
-		const presetGroup = readRepoFile("docs/src/components/StompboxPreviewPresetGroup.astro");
+		const presetGroup = readRepoFile(
+			"docs/src/components/StompboxPreviewPresetGroup.astro",
+		);
 		expect(presetGroup).toContain("type StompboxPreviewPreset");
 		expect(presetGroup).toContain("data-stompbox-preview-preset-group");
 		expect(presetGroup).toContain("data-stompbox-preset-select");
@@ -368,8 +474,12 @@ describe("GitHub Pages documentation site", () => {
 
 		const viewerRuntime = readRepoFile("docs/public/stompbox-glb-viewer.js");
 		expect(viewerRuntime).toContain('import * as THREE from "three";');
-		expect(viewerRuntime).toContain('import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";');
-		expect(viewerRuntime).toContain('import { OrbitControls } from "three/addons/controls/OrbitControls.js";');
+		expect(viewerRuntime).toContain(
+			'import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";',
+		);
+		expect(viewerRuntime).toContain(
+			'import { OrbitControls } from "three/addons/controls/OrbitControls.js";',
+		);
 		expect(viewerRuntime).toContain("THREE.OrthographicCamera");
 		expect(viewerRuntime).toContain("frameOrthographicTopModel");
 		expect(viewerRuntime).toContain("findEnclosureFrame");
@@ -377,7 +487,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("createDecalTexture");
 		expect(viewerRuntime).toContain('decal.decalKind === "svg"');
 		expect(viewerRuntime).toContain("createImageDecalTexture");
-		expect(viewerRuntime).toContain("decal.decalKind === \"image\"");
+		expect(viewerRuntime).toContain('decal.decalKind === "image"');
 		expect(viewerRuntime).toContain("ensureDecalUv");
 		expect(viewerRuntime).toContain("TEXT_DECAL_UVS");
 		expect(viewerRuntime).toContain("THREE.CanvasTexture");
@@ -403,7 +513,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("stompboxScreenGrainValue - 0.5");
 		expect(viewerRuntime).not.toContain("max(gl_FragColor.rgb");
 		expect(viewerRuntime).not.toContain("createGrainOverlayScene");
-		expect(viewerRuntime).not.toContain("applyGrainOverlay(renderer, grainOverlay, preset)");
+		expect(viewerRuntime).not.toContain(
+			"applyGrainOverlay(renderer, grainOverlay, preset)",
+		);
 		expect(viewerRuntime).not.toContain("renderer.autoClear = false");
 		expect(viewerRuntime).not.toContain("new THREE.PlaneGeometry(2, 2)");
 		expect(viewerRuntime).toContain("THREE.MeshToonMaterial");
@@ -411,10 +523,18 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("applyToonMaterials(model, preset)");
 		expect(viewerRuntime).toContain("material.userData.toonSourceMaterial");
 		expect(viewerRuntime).toContain("applyPresetBackground(viewer, preset)");
-		expect(viewerRuntime).toContain("viewer.style.setProperty(\"--stompbox-viewer-background-color\"");
-		expect(viewerRuntime).toContain("viewer.style.setProperty(\"--stompbox-viewer-grid-color\"");
-		expect(viewerRuntime).toContain("viewer.style.setProperty(\"--stompbox-viewer-grid-opacity\"");
-		expect(viewerRuntime).toContain("renderer.setClearColor(new THREE.Color(DEFAULT_BACKGROUND_COLOR), 0)");
+		expect(viewerRuntime).toContain(
+			'viewer.style.setProperty("--stompbox-viewer-background-color"',
+		);
+		expect(viewerRuntime).toContain(
+			'viewer.style.setProperty("--stompbox-viewer-grid-color"',
+		);
+		expect(viewerRuntime).toContain(
+			'viewer.style.setProperty("--stompbox-viewer-grid-opacity"',
+		);
+		expect(viewerRuntime).toContain(
+			"renderer.setClearColor(new THREE.Color(DEFAULT_BACKGROUND_COLOR), 0)",
+		);
 		expect(viewerRuntime).toContain("alpha: true");
 		expect(viewerRuntime).toContain("addCadLinework");
 		expect(viewerRuntime).toContain("initPresetLinkedAssets");
@@ -424,12 +544,16 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("liveStatePanelForViewer");
 		expect(viewerRuntime).toContain("liveStateStoreForViewer");
 		expect(viewerRuntime).toContain("applyLiveStateToRegisteredViewers");
-		expect(viewerRuntime).toContain("return group !== null && group.querySelector");
+		expect(viewerRuntime).toContain(
+			"return group !== null && group.querySelector",
+		);
 		expect(viewerRuntime).toContain("FOOTSWITCH_AUTO_RELEASE_MS");
 		expect(viewerRuntime).toContain("FOOTSWITCH_ANIMATION_MS");
 		expect(viewerRuntime).toContain("KNOB_LEFT_END_ROTATION_DEG = 135");
 		expect(viewerRuntime).toContain("KNOB_ROTATION_SWEEP_DEG = -270");
-		expect(viewerRuntime).toContain("updateLiveStateAnimations(viewer, deltaMs)");
+		expect(viewerRuntime).toContain(
+			"updateLiveStateAnimations(viewer, deltaMs)",
+		);
 		expect(viewerRuntime).toContain("simulateFootswitchTap");
 		expect(viewerRuntime).toContain("startFootswitchPress");
 		expect(viewerRuntime).toContain("releaseFootswitchPress");
@@ -445,8 +569,12 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("parentWorldScaleForLocalAxis");
 		expect(viewerRuntime).toContain("footswitch.actuator.position");
 		expect(viewerRuntime).not.toContain("footswitch.node.position");
-		expect(viewerRuntime).toContain("return KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG;");
-		expect(viewerRuntime).toContain("return clamp01((rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG);");
+		expect(viewerRuntime).toContain(
+			"return KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG;",
+		);
+		expect(viewerRuntime).toContain(
+			"return clamp01((rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG);",
+		);
 		expect(viewerRuntime).toContain("updateFootswitchButton");
 		expect(viewerRuntime).toContain("syncLedStateControls");
 		expect(viewerRuntime).toContain("data-stompbox-led-toggle");
@@ -459,34 +587,75 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain('input.setAttribute("role", "switch");');
 		expect(viewerRuntime).toContain("loadPreset");
 		expect(viewerRuntime).toContain('select.addEventListener("change"');
-		expect(viewerRuntime).toContain("viewer.closest(\"[data-stompbox-preview-preset-group]\")");
+		expect(viewerRuntime).toContain(
+			'viewer.closest("[data-stompbox-preview-preset-group]")',
+		);
 		expect(viewerRuntime).toContain("group?.dataset.stompboxPresets");
 		expect(viewerRuntime).toContain("data-stompbox-drill-template-preview");
 		expect(viewerRuntime).toContain("data-stompbox-drill-layout-download");
-		expect(viewerRuntime).toContain('const lineworkEnabled = viewer.dataset.linework === "true";');
-		expect(viewerRuntime).toContain('const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";');
-		expect(viewerRuntime).toContain('const toonEnabled = viewer.dataset.toon === "true";');
-		expect(viewerRuntime).toContain('const grainEnabled = viewer.dataset.grain === "true";');
-		expect(viewerRuntime).toContain("normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE)");
-		expect(viewerRuntime).toContain("normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY)");
+		expect(viewerRuntime).toContain(
+			'const lineworkEnabled = viewer.dataset.linework === "true";',
+		);
+		expect(viewerRuntime).toContain(
+			'const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";',
+		);
+		expect(viewerRuntime).toContain(
+			'const toonEnabled = viewer.dataset.toon === "true";',
+		);
+		expect(viewerRuntime).toContain(
+			'const grainEnabled = viewer.dataset.grain === "true";',
+		);
+		expect(viewerRuntime).toContain(
+			"normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE)",
+		);
+		expect(viewerRuntime).toContain(
+			"normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY)",
+		);
 		expect(viewerRuntime).toContain("if (preset.toon)");
 		expect(viewerRuntime).toContain("if (preset.linework && !preset.toon)");
 		expect(viewerRuntime).toContain("const TOON_OUTLINE_SCALE = 1.02;");
-		expect(viewerRuntime).toContain("addToonOutline(model, preset.toonEdgeColor);");
+		expect(viewerRuntime).toContain(
+			"addToonOutline(model, preset.toonEdgeColor);",
+		);
 		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
 		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
 		expect(viewerRuntime).toContain("THREE.LineSegments");
-		expect(viewerRuntime).toContain("function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR)");
+		expect(viewerRuntime).toContain(
+			"function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR)",
+		);
 		expect(viewerRuntime).toContain("new THREE.MeshBasicMaterial");
 		expect(viewerRuntime).toContain("side: THREE.BackSide");
-		expect(viewerRuntime).toContain("outline.scale.setScalar(TOON_OUTLINE_SCALE);");
-		expect(viewerRuntime).toContain("outline.position.copy(center).multiplyScalar(1 - TOON_OUTLINE_SCALE);");
+		expect(viewerRuntime).toContain(
+			"outline.scale.setScalar(TOON_OUTLINE_SCALE);",
+		);
+		expect(viewerRuntime).toContain(
+			"outline.position.copy(center).multiplyScalar(1 - TOON_OUTLINE_SCALE);",
+		);
 		expect(viewerRuntime).toContain('outline.userData.kind = "toon-outline";');
 
-		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.module.js"))).toBe(true);
-		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/build/three.core.js"))).toBe(true);
-		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/addons/loaders/GLTFLoader.js"))).toBe(true);
-		expect(existsSync(join(ROOT_DIR, "docs/public/vendor/three/addons/controls/OrbitControls.js"))).toBe(true);
+		expect(
+			existsSync(
+				join(ROOT_DIR, "docs/public/vendor/three/build/three.module.js"),
+			),
+		).toBe(true);
+		expect(
+			existsSync(
+				join(ROOT_DIR, "docs/public/vendor/three/build/three.core.js"),
+			),
+		).toBe(true);
+		expect(
+			existsSync(
+				join(ROOT_DIR, "docs/public/vendor/three/addons/loaders/GLTFLoader.js"),
+			),
+		).toBe(true);
+		expect(
+			existsSync(
+				join(
+					ROOT_DIR,
+					"docs/public/vendor/three/addons/controls/OrbitControls.js",
+				),
+			),
+		).toBe(true);
 	});
 
 	test("wires the rendered Control UI demo toggle to the status LED", () => {
@@ -522,17 +691,25 @@ describe("GitHub Pages documentation site", () => {
 	});
 
 	test("includes generated stompbox preview and drill layout example assets", () => {
-		const topPreview = readRepoFile("docs/public/examples/stompbox-mxr-style-preview-top.svg");
+		const topPreview = readRepoFile(
+			"docs/public/examples/stompbox-mxr-style-preview-top.svg",
+		);
 		expect(topPreview).toContain("<svg");
 		expect(topPreview).toContain("Stompbox preview top view");
 		expect(topPreview).toContain("data-control-id");
-		expect(topPreview).toContain('transform="translate(54.2 55.75) rotate(90)"');
-		expect(topPreview).toContain('transform="translate(6.3 55.75) rotate(-90)"');
+		expect(topPreview).toContain(
+			'transform="translate(54.2 55.75) rotate(90)"',
+		);
+		expect(topPreview).toContain(
+			'transform="translate(6.3 55.75) rotate(-90)"',
+		);
 		expect(topPreview).not.toContain("label-led");
 		expect(topPreview).not.toContain("READY");
-		expect(topPreview).not.toContain('data-top-edge-projection');
+		expect(topPreview).not.toContain("data-top-edge-projection");
 
-		const drillPreview = readRepoFile("docs/public/examples/stompbox-mxr-style-drill-template-preview.svg");
+		const drillPreview = readRepoFile(
+			"docs/public/examples/stompbox-mxr-style-drill-template-preview.svg",
+		);
 		expect(drillPreview).toContain("<svg");
 		expect(drillPreview).toContain("Stompbox drill template preview");
 		expect(drillPreview).toContain("drill-hole-center-dot");
@@ -542,27 +719,57 @@ describe("GitHub Pages documentation site", () => {
 		expect(drillPreview).not.toContain("#7c2d12");
 		expect(drillPreview).not.toContain('fill="#faf5ff"');
 
-		const layout = JSON.parse(readRepoFile("docs/public/examples/stompbox-mxr-style-drill-layout.json")) as {
+		const layout = JSON.parse(
+			readRepoFile("docs/public/examples/stompbox-mxr-style-drill-layout.json"),
+		) as {
 			schema?: string;
 			holes?: readonly { partId?: string }[];
 		};
 		expect(layout.schema).toBe("stompbox-drill-layout/v1");
-		expect(layout.holes?.filter((hole) => hole.partId === "knob-mxr-style-fluted-small")).toHaveLength(2);
+		expect(
+			layout.holes?.filter(
+				(hole) => hole.partId === "knob-mxr-style-fluted-small",
+			),
+		).toHaveLength(2);
 
-		const bossDrillPreview = readRepoFile("docs/public/examples/stompbox-boss-style-drill-template-preview.svg");
+		const bossDrillPreview = readRepoFile(
+			"docs/public/examples/stompbox-boss-style-drill-template-preview.svg",
+		);
 		expect(bossDrillPreview).toContain("<svg");
 		expect(bossDrillPreview).toContain("Stompbox drill template preview");
-		const bossLayout = JSON.parse(readRepoFile("docs/public/examples/stompbox-boss-style-drill-layout.json")) as {
+		const bossLayout = JSON.parse(
+			readRepoFile(
+				"docs/public/examples/stompbox-boss-style-drill-layout.json",
+			),
+		) as {
 			schema?: string;
 			holes?: readonly { partId?: string }[];
 		};
 		expect(bossLayout.schema).toBe("stompbox-drill-layout/v1");
-		expect(bossLayout.holes?.filter((hole) => hole.partId === "knob-davies-1100")).toHaveLength(2);
+		expect(
+			bossLayout.holes?.filter((hole) => hole.partId === "knob-davies-1100"),
+		).toHaveLength(2);
 
-		expect(existsSync(join(ROOT_DIR, "docs/public/examples/stompbox-compact-1590a-drill-template-preview.svg"))).toBe(false);
-		expect(existsSync(join(ROOT_DIR, "docs/public/examples/stompbox-compact-1590a-drill-layout.json"))).toBe(false);
+		expect(
+			existsSync(
+				join(
+					ROOT_DIR,
+					"docs/public/examples/stompbox-compact-1590a-drill-template-preview.svg",
+				),
+			),
+		).toBe(false);
+		expect(
+			existsSync(
+				join(
+					ROOT_DIR,
+					"docs/public/examples/stompbox-compact-1590a-drill-layout.json",
+				),
+			),
+		).toBe(false);
 
-		const glb = readRepoBytes("docs/public/examples/stompbox-mxr-style-preview.glb");
+		const glb = readRepoBytes(
+			"docs/public/examples/stompbox-mxr-style-preview.glb",
+		);
 		expect(glb.subarray(0, 4).toString("utf8")).toBe("glTF");
 		expect(glb.includes(Buffer.from("stateTargets"))).toBe(true);
 		expect(glb.includes(Buffer.from("led-LED1"))).toBe(true);
@@ -571,7 +778,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(glb.includes(Buffer.from("knob-indicator-knob-LEVEL"))).toBe(false);
 		expect(glb.includes(Buffer.from("label-led"))).toBe(false);
 
-		const bossGlb = readRepoBytes("docs/public/examples/stompbox-boss-style-preview.glb");
+		const bossGlb = readRepoBytes(
+			"docs/public/examples/stompbox-boss-style-preview.glb",
+		);
 		expect(bossGlb.subarray(0, 4).toString("utf8")).toBe("glTF");
 		expect(bossGlb.includes(Buffer.from("stateTargets"))).toBe(true);
 		expect(bossGlb.includes(Buffer.from("led-status"))).toBe(true);
@@ -580,13 +789,24 @@ describe("GitHub Pages documentation site", () => {
 		expect(bossGlb.includes(Buffer.from("part-knob-RATE"))).toBe(true);
 		expect(bossGlb.includes(Buffer.from("label-led"))).toBe(false);
 
-		expect(existsSync(join(ROOT_DIR, "docs/public/examples/stompbox-compact-1590a-preview.glb"))).toBe(false);
+		expect(
+			existsSync(
+				join(
+					ROOT_DIR,
+					"docs/public/examples/stompbox-compact-1590a-preview.glb",
+				),
+			),
+		).toBe(false);
 	});
 
 	test("includes a Pro Co Rat schematic example backed by the LiveSPICE fixture", () => {
-		const examplesPage = readRepoFile("docs/src/content/docs/examples/pro-co-rat.mdx");
+		const examplesPage = readRepoFile(
+			"docs/src/content/docs/examples/pro-co-rat.mdx",
+		);
 		expect(examplesPage).toContain("title: Pro Co Rat Schematic");
-		expect(examplesPage).toContain("tests/fixtures/schx/livespice-examples/Pro Co Rat.schx");
+		expect(examplesPage).toContain(
+			"tests/fixtures/schx/livespice-examples/Pro Co Rat.schx",
+		);
 		expect(examplesPage).toContain("/core/examples/pro-co-rat-schematic.svg");
 		expect(examplesPage).toContain("LM308");
 		expect(examplesPage).toContain("1N914");
@@ -605,7 +825,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(examplesPage).toContain('PartNumber: "1N914"');
 		expect(examplesPage).toContain("The preview is intentionally excerpted");
 		expect(examplesPage).toContain("## Control panel from VDSP");
-		expect(examplesPage).toContain("Yes. Use `extractPanel(document)` from `@vessel-dsp/core`.");
+		expect(examplesPage).toContain(
+			"Yes. Use `extractPanel(document)` from `@vessel-dsp/core`.",
+		);
 		expect(examplesPage).toContain("extractPanel");
 		expect(examplesPage).toContain("const panel = extractPanel(vdspDocument);");
 		expect(examplesPage).toContain('["Distortion", "Tone", "Volume"]');
@@ -613,7 +835,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(examplesPage).toContain("movePanelElement");
 		expect(examplesPage).toContain('elementId: "tone-knob"');
 		expect(examplesPage).toContain("centerMm: { x: 12, y: -18 }");
-		expect(examplesPage).toContain('serializeCircuitDocumentFile(movedDocument, { format: "vdsp" })');
+		expect(examplesPage).toContain(
+			'serializeCircuitDocumentFile(movedDocument, { format: "vdsp" })',
+		);
 
 		const svg = readRepoFile("docs/public/examples/pro-co-rat-schematic.svg");
 		expect(svg).toContain("<svg");

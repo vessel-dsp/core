@@ -41,30 +41,62 @@ const normalizedPresets = props.presets.map((preset, index) => ({
 	label: preset.label,
 	src: preset.src,
 	...(preset.view === undefined ? {} : { view: preset.view }),
-	...(preset.interactive === undefined ? {} : { interactive: preset.interactive }),
+	...(preset.interactive === undefined
+		? {}
+		: { interactive: preset.interactive }),
 	...(preset.linework === undefined ? {} : { linework: preset.linework }),
-	...(preset.lineworkColor === undefined ? {} : { lineworkColor: preset.lineworkColor }),
-	...(preset.backgroundColor === undefined ? {} : { backgroundColor: preset.backgroundColor }),
+	...(preset.lineworkColor === undefined
+		? {}
+		: { lineworkColor: preset.lineworkColor }),
+	...(preset.backgroundColor === undefined
+		? {}
+		: { backgroundColor: preset.backgroundColor }),
 	...(preset.gridColor === undefined ? {} : { gridColor: preset.gridColor }),
-	...(preset.gridOpacity === undefined ? {} : { gridOpacity: preset.gridOpacity }),
+	...(preset.gridOpacity === undefined
+		? {}
+		: { gridOpacity: preset.gridOpacity }),
 	...(preset.toon === undefined ? {} : { toon: preset.toon }),
-	...(preset.toonEdgeColor === undefined ? {} : { toonEdgeColor: preset.toonEdgeColor }),
+	...(preset.toonEdgeColor === undefined
+		? {}
+		: { toonEdgeColor: preset.toonEdgeColor }),
 	...(preset.grain === undefined ? {} : { grain: preset.grain }),
 	...(preset.grainScale === undefined ? {} : { grainScale: preset.grainScale }),
-	...(preset.grainIntensity === undefined ? {} : { grainIntensity: preset.grainIntensity }),
+	...(preset.grainIntensity === undefined
+		? {}
+		: { grainIntensity: preset.grainIntensity }),
 	...(preset.crt === undefined ? {} : { crt: preset.crt }),
-	...(preset.crtCurvature === undefined ? {} : { crtCurvature: preset.crtCurvature }),
-	...(preset.crtScanlineIntensity === undefined ? {} : { crtScanlineIntensity: preset.crtScanlineIntensity }),
-	...(preset.crtScanlineCount === undefined ? {} : { crtScanlineCount: preset.crtScanlineCount }),
-	...(preset.crtVignette === undefined ? {} : { crtVignette: preset.crtVignette }),
-	...(preset.crtRgbShift === undefined ? {} : { crtRgbShift: preset.crtRgbShift }),
+	...(preset.crtCurvature === undefined
+		? {}
+		: { crtCurvature: preset.crtCurvature }),
+	...(preset.crtScanlineIntensity === undefined
+		? {}
+		: { crtScanlineIntensity: preset.crtScanlineIntensity }),
+	...(preset.crtScanlineCount === undefined
+		? {}
+		: { crtScanlineCount: preset.crtScanlineCount }),
+	...(preset.crtVignette === undefined
+		? {}
+		: { crtVignette: preset.crtVignette }),
+	...(preset.crtRgbShift === undefined
+		? {}
+		: { crtRgbShift: preset.crtRgbShift }),
 	...(preset.crtFlicker === undefined ? {} : { crtFlicker: preset.crtFlicker }),
-	...(preset.crtBloomIntensity === undefined ? {} : { crtBloomIntensity: preset.crtBloomIntensity }),
-	...(preset.crtBloomThreshold === undefined ? {} : { crtBloomThreshold: preset.crtBloomThreshold }),
+	...(preset.crtBloomIntensity === undefined
+		? {}
+		: { crtBloomIntensity: preset.crtBloomIntensity }),
+	...(preset.crtBloomThreshold === undefined
+		? {}
+		: { crtBloomThreshold: preset.crtBloomThreshold }),
 	...(preset.glitch === undefined ? {} : { glitch: preset.glitch }),
-	...(preset.glitchInterval === undefined ? {} : { glitchInterval: preset.glitchInterval }),
-	...(preset.drillTemplateSrc === undefined ? {} : { drillTemplateSrc: preset.drillTemplateSrc }),
-	...(preset.drillLayoutSrc === undefined ? {} : { drillLayoutSrc: preset.drillLayoutSrc }),
+	...(preset.glitchInterval === undefined
+		? {}
+		: { glitchInterval: preset.glitchInterval }),
+	...(preset.drillTemplateSrc === undefined
+		? {}
+		: { drillTemplateSrc: preset.drillTemplateSrc }),
+	...(preset.drillLayoutSrc === undefined
+		? {}
+		: { drillLayoutSrc: preset.drillLayoutSrc }),
 }));
 const presetsJson = JSON.stringify(normalizedPresets);
 const label = props.label ?? "Preview preset";

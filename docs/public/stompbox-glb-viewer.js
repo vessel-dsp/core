@@ -4,13 +4,10 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { CRTShader } from "./vendor/crt-shader.js";
 import { DigitalGlitch } from "./vendor/glitch-shader.js";
 
-const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-const TEXT_DECAL_UVS = new Float32Array([
-	0, 1,
-	1, 1,
-	1, 0,
-	0, 0,
-]);
+const reducedMotionQuery = window.matchMedia(
+	"(prefers-reduced-motion: reduce)",
+);
+const TEXT_DECAL_UVS = new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]);
 const KNOB_LEFT_END_ROTATION_DEG = 135;
 const KNOB_ROTATION_SWEEP_DEG = -270;
 const FOOTSWITCH_TRAVEL_MM = 2;
@@ -51,7 +48,9 @@ for (const viewer of document.querySelectorAll("[data-stompbox-glb-viewer]")) {
 	initStompboxViewer(viewer);
 }
 
-for (const group of document.querySelectorAll("[data-stompbox-preview-preset-group]")) {
+for (const group of document.querySelectorAll(
+	"[data-stompbox-preview-preset-group]",
+)) {
 	if (group.dataset.presetLinkedAssetsReady === "true") {
 		continue;
 	}
@@ -59,7 +58,7 @@ for (const group of document.querySelectorAll("[data-stompbox-preview-preset-gro
 	initPresetLinkedAssets(group);
 }
 
-function initStompboxViewer (viewer) {
+function initStompboxViewer(viewer) {
 	const canvas = viewer.querySelector("canvas");
 	const status = viewer.querySelector("[data-stompbox-glb-status]");
 	const src = viewer.dataset.glbSrc;
@@ -110,13 +109,16 @@ function initStompboxViewer (viewer) {
 	const loader = new GLTFLoader();
 	if (select instanceof HTMLSelectElement) {
 		select.addEventListener("change", () => {
-			const nextPreset = presets.find((preset) => preset.id === select.value) ?? presets[0];
+			const nextPreset =
+				presets.find((preset) => preset.id === select.value) ?? presets[0];
 			loadPreset(nextPreset);
 		});
 	}
-	loadPreset(presets.find((preset) => preset.id === select?.value) ?? presets[0]);
+	loadPreset(
+		presets.find((preset) => preset.id === select?.value) ?? presets[0],
+	);
 
-	function resize () {
+	function resize() {
 		const width = Math.max(1, viewer.clientWidth);
 		const height = Math.max(1, viewer.clientHeight);
 		if (camera.isPerspectiveCamera) {
@@ -136,7 +138,7 @@ function initStompboxViewer (viewer) {
 	resize();
 
 	let previousFrameMs = performance.now();
-	function animate (frameMs = performance.now()) {
+	function animate(frameMs = performance.now()) {
 		requestAnimationFrame(animate);
 		const deltaMs = Math.min(Math.max(0, frameMs - previousFrameMs), 100);
 		previousFrameMs = frameMs;
@@ -153,7 +155,7 @@ function initStompboxViewer (viewer) {
 	}
 	animate();
 
-	function loadPreset (preset) {
+	function loadPreset(preset) {
 		if (preset === undefined) {
 			return;
 		}
@@ -201,7 +203,9 @@ function initStompboxViewer (viewer) {
 					child.receiveShadow = true;
 					applyDecalMaterial(child);
 					applyFlatAppearanceColorMaterial(child);
-					const materials = Array.isArray(child.material) ? child.material : [child.material];
+					const materials = Array.isArray(child.material)
+						? child.material
+						: [child.material];
 					for (const material of materials) {
 						if ("metalness" in material) {
 							material.metalness = Math.min(material.metalness, 0.55);
@@ -227,8 +231,15 @@ function initStompboxViewer (viewer) {
 					applyScreenGrainMaterials(model, preset);
 				}
 				modelRoot.add(model);
-				const aspect = Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
-				orthographicTopSize = frameModel(model, camera, controls, viewMode, aspect);
+				const aspect =
+					Math.max(1, viewer.clientWidth) / Math.max(1, viewer.clientHeight);
+				orthographicTopSize = frameModel(
+					model,
+					camera,
+					controls,
+					viewMode,
+					aspect,
+				);
 				resize();
 				initLiveStateDemo(viewer, model);
 				if (status !== null) {
@@ -249,7 +260,7 @@ function initStompboxViewer (viewer) {
 		);
 	}
 
-	function configureControls (preset) {
+	function configureControls(preset) {
 		if (controls !== undefined) {
 			controls.dispose();
 			controls = undefined;
@@ -267,7 +278,7 @@ function initStompboxViewer (viewer) {
 	}
 }
 
-function initLiveStateDemo (viewer, model) {
+function initLiveStateDemo(viewer, model) {
 	if (!liveStateEnabledForViewer(viewer)) {
 		return;
 	}
@@ -282,7 +293,7 @@ function initLiveStateDemo (viewer, model) {
 	applyLiveStateToRegisteredViewers(store);
 }
 
-function unregisterLiveStateViewer (viewer) {
+function unregisterLiveStateViewer(viewer) {
 	const store = existingLiveStateStoreForViewer(viewer);
 	if (store === undefined) {
 		return;
@@ -296,15 +307,20 @@ function unregisterLiveStateViewer (viewer) {
 	applyLiveStateToRegisteredViewers(store);
 }
 
-function liveStateEnabledForViewer (viewer) {
+function liveStateEnabledForViewer(viewer) {
 	if (viewer.dataset.liveStateDemo === "true") {
 		return true;
 	}
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
-	return group !== null && group.querySelector('[data-stompbox-glb-viewer][data-live-state-demo="true"]') !== null;
+	return (
+		group !== null &&
+		group.querySelector(
+			'[data-stompbox-glb-viewer][data-live-state-demo="true"]',
+		) !== null
+	);
 }
 
-function liveStateStoreForViewer (viewer) {
+function liveStateStoreForViewer(viewer) {
 	const owner = liveStateOwnerForViewer(viewer);
 	const panel = liveStatePanelForViewer(viewer);
 	if (owner === undefined || !(panel instanceof HTMLElement)) {
@@ -325,33 +341,43 @@ function liveStateStoreForViewer (viewer) {
 	return store;
 }
 
-function existingLiveStateStoreForViewer (viewer) {
+function existingLiveStateStoreForViewer(viewer) {
 	const owner = liveStateOwnerForViewer(viewer);
 	return owner === undefined ? undefined : liveStateStores.get(owner);
 }
 
-function liveStateOwnerForViewer (viewer) {
+function liveStateOwnerForViewer(viewer) {
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
-	if (group?.querySelector("[data-stompbox-live-state-controls]") instanceof HTMLElement) {
+	if (
+		group?.querySelector("[data-stompbox-live-state-controls]") instanceof
+		HTMLElement
+	) {
 		return group;
 	}
-	if (viewer.querySelector("[data-stompbox-live-state-controls]") instanceof HTMLElement) {
+	if (
+		viewer.querySelector("[data-stompbox-live-state-controls]") instanceof
+		HTMLElement
+	) {
 		return viewer;
 	}
 	return undefined;
 }
 
-function liveStatePanelForViewer (viewer) {
+function liveStatePanelForViewer(viewer) {
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
-	const groupPanel = group?.querySelector("[data-stompbox-live-state-controls]");
+	const groupPanel = group?.querySelector(
+		"[data-stompbox-live-state-controls]",
+	);
 	if (groupPanel instanceof HTMLElement) {
 		return groupPanel;
 	}
-	const localPanel = viewer.querySelector("[data-stompbox-live-state-controls]");
+	const localPanel = viewer.querySelector(
+		"[data-stompbox-live-state-controls]",
+	);
 	return localPanel instanceof HTMLElement ? localPanel : undefined;
 }
 
-function createLiveState () {
+function createLiveState() {
 	return {
 		knobs: new Map(),
 		switches: new Map(),
@@ -360,7 +386,7 @@ function createLiveState () {
 	};
 }
 
-function resetLiveStateStore (store) {
+function resetLiveStateStore(store) {
 	for (const timer of store.releaseTimers.values()) {
 		window.clearTimeout(timer);
 	}
@@ -371,7 +397,7 @@ function resetLiveStateStore (store) {
 	store.panel.hidden = true;
 }
 
-function seedLiveStateFromParts (store, parts) {
+function seedLiveStateFromParts(store, parts) {
 	for (const knob of parts.knobs) {
 		if (!store.state.knobs.has(knob.id)) {
 			store.state.knobs.set(knob.id, knob.position);
@@ -392,10 +418,14 @@ function seedLiveStateFromParts (store, parts) {
 	}
 }
 
-function renderLiveStateControls (store) {
+function renderLiveStateControls(store) {
 	const controls = liveStateControlDefinitions(store);
 	store.panel.replaceChildren();
-	if (controls.knobs.length === 0 && controls.switches.length === 0 && controls.leds.length === 0) {
+	if (
+		controls.knobs.length === 0 &&
+		controls.switches.length === 0 &&
+		controls.leds.length === 0
+	) {
 		store.panel.hidden = true;
 		return;
 	}
@@ -411,7 +441,7 @@ function renderLiveStateControls (store) {
 	store.panel.hidden = false;
 }
 
-function liveStateControlDefinitions (store) {
+function liveStateControlDefinitions(store) {
 	const knobs = new Map();
 	const switches = new Map();
 	const leds = new Map();
@@ -423,7 +453,10 @@ function liveStateControlDefinitions (store) {
 		}
 		for (const footswitch of parts.switches) {
 			if (!switches.has(footswitch.id)) {
-				switches.set(footswitch.id, { id: footswitch.id, label: footswitch.label });
+				switches.set(footswitch.id, {
+					id: footswitch.id,
+					label: footswitch.label,
+				});
 			}
 		}
 		for (const led of parts.leds) {
@@ -439,24 +472,28 @@ function liveStateControlDefinitions (store) {
 	};
 }
 
-function sortedLiveStateDefinitions (definitions) {
-	return [...definitions.values()].sort((a, b) => a.label.localeCompare(b.label));
+function sortedLiveStateDefinitions(definitions) {
+	return [...definitions.values()].sort((a, b) =>
+		a.label.localeCompare(b.label),
+	);
 }
 
-function applyLiveStateToRegisteredViewers (store) {
+function applyLiveStateToRegisteredViewers(store) {
 	for (const parts of store.viewers.values()) {
 		applyLiveStateToParts(parts, store.state);
 	}
 }
 
-function applyLiveStateToParts (parts, state) {
+function applyLiveStateToParts(parts, state) {
 	for (const knob of parts.knobs) {
 		if (!state.knobs.has(knob.id)) {
 			continue;
 		}
 		const position = clamp01(state.knobs.get(knob.id));
 		knob.position = position;
-		knob.node.rotation.z = THREE.MathUtils.degToRad(knobRotationDegForPosition(position));
+		knob.node.rotation.z = THREE.MathUtils.degToRad(
+			knobRotationDegForPosition(position),
+		);
 	}
 	for (const footswitch of parts.switches) {
 		const pressed = state.switches.get(footswitch.id) === true;
@@ -470,14 +507,15 @@ function applyLiveStateToParts (parts, state) {
 	}
 }
 
-function discoverLiveStateParts (model) {
+function discoverLiveStateParts(model) {
 	const parts = {
 		knobs: [],
 		switches: [],
 		leds: [],
 	};
 	model.traverse((object) => {
-		const id = typeof object.userData?.id === "string" ? object.userData.id : "";
+		const id =
+			typeof object.userData?.id === "string" ? object.userData.id : "";
 		if (object.userData?.kind !== "part" || id.length === 0) {
 			return;
 		}
@@ -492,7 +530,10 @@ function discoverLiveStateParts (model) {
 			return;
 		}
 		if (id.startsWith("switch-")) {
-			const actuator = actuatorObjectForStateTarget(model, object.userData.stateTargets?.footswitch?.actuator);
+			const actuator = actuatorObjectForStateTarget(
+				model,
+				object.userData.stateTargets?.footswitch?.actuator,
+			);
 			if (actuator === undefined) {
 				return;
 			}
@@ -507,12 +548,17 @@ function discoverLiveStateParts (model) {
 				currentTravelMm: 0,
 				targetTravelMm: 0,
 				travelAxis: footswitchTravelAxis(stateTarget.travelAxis),
-				travelMm: Number.isFinite(stateTarget.travelMm) ? stateTarget.travelMm : FOOTSWITCH_TRAVEL_MM,
+				travelMm: Number.isFinite(stateTarget.travelMm)
+					? stateTarget.travelMm
+					: FOOTSWITCH_TRAVEL_MM,
 			});
 			return;
 		}
 		if (id.startsWith("led-")) {
-			const lens = objectForStateTarget(model, object.userData.stateTargets?.led?.lens);
+			const lens = objectForStateTarget(
+				model,
+				object.userData.stateTargets?.led?.lens,
+			);
 			if (lens === undefined) {
 				return;
 			}
@@ -531,7 +577,7 @@ function discoverLiveStateParts (model) {
 	return parts;
 }
 
-function createKnobStateControl (knob, store) {
+function createKnobStateControl(knob, store) {
 	const control = document.createElement("label");
 	control.className = "stompbox-live-state-control";
 
@@ -561,7 +607,7 @@ function createKnobStateControl (knob, store) {
 	return control;
 }
 
-function createFootswitchStateControl (footswitch, store) {
+function createFootswitchStateControl(footswitch, store) {
 	const control = document.createElement("div");
 	control.className = "stompbox-live-state-control";
 	const button = document.createElement("button");
@@ -584,7 +630,10 @@ function createFootswitchStateControl (footswitch, store) {
 			return;
 		}
 		event.preventDefault();
-		if (activePointerId !== undefined && button.hasPointerCapture(activePointerId)) {
+		if (
+			activePointerId !== undefined &&
+			button.hasPointerCapture(activePointerId)
+		) {
 			button.releasePointerCapture(activePointerId);
 		}
 		activePointerId = undefined;
@@ -628,12 +677,12 @@ function createFootswitchStateControl (footswitch, store) {
 	return control;
 }
 
-function simulateFootswitchTap (footswitch, store, button) {
+function simulateFootswitchTap(footswitch, store, button) {
 	startFootswitchPress(footswitch, store, button);
 	releaseFootswitchPress(footswitch, store, button);
 }
 
-function startFootswitchPress (footswitch, store, button) {
+function startFootswitchPress(footswitch, store, button) {
 	clearFootswitchReleaseTimer(footswitch.id, store);
 	if (store.state.switches.get(footswitch.id) === true) {
 		return;
@@ -646,18 +695,19 @@ function startFootswitchPress (footswitch, store, button) {
 	applyLiveStateToRegisteredViewers(store);
 }
 
-function releaseFootswitchPress (footswitch, store, button) {
+function releaseFootswitchPress(footswitch, store, button) {
 	if (store.state.switches.get(footswitch.id) !== true) {
 		return;
 	}
-	const startedAt = store.pressStartedAt.get(footswitch.id) ?? performance.now();
+	const startedAt =
+		store.pressStartedAt.get(footswitch.id) ?? performance.now();
 	store.pressStartedAt.delete(footswitch.id);
 	const elapsedMs = performance.now() - startedAt;
 	const delayMs = Math.max(0, FOOTSWITCH_AUTO_RELEASE_MS - elapsedMs);
 	scheduleFootswitchRelease(footswitch, store, button, delayMs);
 }
 
-function scheduleFootswitchRelease (footswitch, store, button, delayMs) {
+function scheduleFootswitchRelease(footswitch, store, button, delayMs) {
 	if (store.releaseTimers.has(footswitch.id)) {
 		return;
 	}
@@ -675,7 +725,7 @@ function scheduleFootswitchRelease (footswitch, store, button, delayMs) {
 	store.releaseTimers.set(footswitch.id, timer);
 }
 
-function clearFootswitchReleaseTimer (footswitchId, store) {
+function clearFootswitchReleaseTimer(footswitchId, store) {
 	const timer = store.releaseTimers.get(footswitchId);
 	if (timer === undefined) {
 		return;
@@ -684,7 +734,7 @@ function clearFootswitchReleaseTimer (footswitchId, store) {
 	store.releaseTimers.delete(footswitchId);
 }
 
-function toggleFootswitchLatch (footswitch, store) {
+function toggleFootswitchLatch(footswitch, store) {
 	const nextLatched = !(store.state.latches.get(footswitch.id) === true);
 	store.state.latches.set(footswitch.id, nextLatched);
 	const ledId = linkedLedIdForFootswitch(footswitch.id, store);
@@ -693,7 +743,7 @@ function toggleFootswitchLatch (footswitch, store) {
 	}
 }
 
-function linkedLedIdForFootswitch (footswitchId, store) {
+function linkedLedIdForFootswitch(footswitchId, store) {
 	if (footswitchId === "switch-bypass" && store.state.leds.has("led-status")) {
 		return "led-status";
 	}
@@ -703,17 +753,19 @@ function linkedLedIdForFootswitch (footswitchId, store) {
 	return undefined;
 }
 
-function isFootswitchActivationKey (event) {
+function isFootswitchActivationKey(event) {
 	return event.key === " " || event.key === "Enter";
 }
 
-function updateFootswitchButton (button, footswitch, store) {
+function updateFootswitchButton(button, footswitch, store) {
 	const pressed = store.state.switches.get(footswitch.id) === true;
 	button.setAttribute("aria-pressed", pressed ? "true" : "false");
-	button.textContent = pressed ? `${footswitch.label}: pressed` : `Tap / hold ${footswitch.label}`;
+	button.textContent = pressed
+		? `${footswitch.label}: pressed`
+		: `Tap / hold ${footswitch.label}`;
 }
 
-function createLedStateControl (led, store) {
+function createLedStateControl(led, store) {
 	const control = document.createElement("label");
 	control.className = "stompbox-live-state-control stompbox-live-state-toggle";
 	const input = document.createElement("input");
@@ -741,8 +793,10 @@ function createLedStateControl (led, store) {
 	return control;
 }
 
-function syncLedStateControls (store) {
-	for (const input of store.panel.querySelectorAll("[data-stompbox-led-toggle]")) {
+function syncLedStateControls(store) {
+	for (const input of store.panel.querySelectorAll(
+		"[data-stompbox-led-toggle]",
+	)) {
 		if (!(input instanceof HTMLInputElement)) {
 			continue;
 		}
@@ -750,14 +804,17 @@ function syncLedStateControls (store) {
 		if (id === null || id.length === 0) {
 			continue;
 		}
-		const label = input.closest(".stompbox-live-state-toggle")?.querySelector("[data-stompbox-led-toggle-label]");
-		const controlLabel = input.getAttribute("data-stompbox-control-label") ?? id;
+		const label = input
+			.closest(".stompbox-live-state-toggle")
+			?.querySelector("[data-stompbox-led-toggle-label]");
+		const controlLabel =
+			input.getAttribute("data-stompbox-control-label") ?? id;
 		const on = store.state.leds.get(id) !== false;
 		updateLedStateControl(input, label, controlLabel, on);
 	}
 }
 
-function updateLedStateControl (input, label, controlLabel, on) {
+function updateLedStateControl(input, label, controlLabel, on) {
 	input.checked = on;
 	input.setAttribute("aria-label", `${controlLabel} LED`);
 	input.setAttribute("aria-checked", on ? "true" : "false");
@@ -766,11 +823,11 @@ function updateLedStateControl (input, label, controlLabel, on) {
 	}
 }
 
-function applyFootswitchState (footswitch, pressed) {
+function applyFootswitchState(footswitch, pressed) {
 	footswitch.targetTravelMm = pressed ? footswitch.travelMm : 0;
 }
 
-function updateLiveStateAnimations (viewer, deltaMs) {
+function updateLiveStateAnimations(viewer, deltaMs) {
 	const store = existingLiveStateStoreForViewer(viewer);
 	if (store === undefined) {
 		return;
@@ -784,33 +841,45 @@ function updateLiveStateAnimations (viewer, deltaMs) {
 	}
 }
 
-function updateFootswitchAnimation (footswitch, deltaMs) {
-	const currentTravelMm = Number.isFinite(footswitch.currentTravelMm) ? footswitch.currentTravelMm : 0;
-	const targetTravelMm = Number.isFinite(footswitch.targetTravelMm) ? footswitch.targetTravelMm : 0;
+function updateFootswitchAnimation(footswitch, deltaMs) {
+	const currentTravelMm = Number.isFinite(footswitch.currentTravelMm)
+		? footswitch.currentTravelMm
+		: 0;
+	const targetTravelMm = Number.isFinite(footswitch.targetTravelMm)
+		? footswitch.targetTravelMm
+		: 0;
 	const remainingTravelMm = targetTravelMm - currentTravelMm;
 	if (reducedMotionQuery.matches || Math.abs(remainingTravelMm) < 0.005) {
 		setFootswitchActuatorTravel(footswitch, targetTravelMm);
 		return;
 	}
-	const progress = THREE.MathUtils.clamp(deltaMs / FOOTSWITCH_ANIMATION_MS, 0, 1);
-	const easedProgress = 1 - ((1 - progress) * (1 - progress) * (1 - progress));
-	setFootswitchActuatorTravel(footswitch, currentTravelMm + remainingTravelMm * easedProgress);
+	const progress = THREE.MathUtils.clamp(
+		deltaMs / FOOTSWITCH_ANIMATION_MS,
+		0,
+		1,
+	);
+	const easedProgress = 1 - (1 - progress) * (1 - progress) * (1 - progress);
+	setFootswitchActuatorTravel(
+		footswitch,
+		currentTravelMm + remainingTravelMm * easedProgress,
+	);
 }
 
-function setFootswitchActuatorTravel (footswitch, travelMm) {
+function setFootswitchActuatorTravel(footswitch, travelMm) {
 	const axis = footswitch.travelAxis ?? "z";
 	const localTravel = localTravelForWorldMillimeters(footswitch, travelMm);
 	footswitch.currentTravelMm = travelMm;
 	footswitch.actuator.position.copy(footswitch.basePosition);
-	footswitch.actuator.position[axis] = footswitch.basePosition[axis] - localTravel;
+	footswitch.actuator.position[axis] =
+		footswitch.basePosition[axis] - localTravel;
 }
 
-function localTravelForWorldMillimeters (footswitch, travelMm) {
+function localTravelForWorldMillimeters(footswitch, travelMm) {
 	const axis = footswitch.travelAxis ?? "z";
 	return travelMm / parentWorldScaleForLocalAxis(footswitch.actuator, axis);
 }
 
-function parentWorldScaleForLocalAxis (object, axis) {
+function parentWorldScaleForLocalAxis(object, axis) {
 	const parent = object.parent;
 	if (parent === null) {
 		return 1;
@@ -821,7 +890,7 @@ function parentWorldScaleForLocalAxis (object, axis) {
 	return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
-function applyLedState (led, on) {
+function applyLedState(led, on) {
 	const meshes = [];
 	led.lens.traverse((object) => {
 		if (!object.isMesh) {
@@ -833,14 +902,19 @@ function applyLedState (led, on) {
 		ensureEditableMeshMaterials(mesh);
 		for (const material of materialsForMesh(mesh)) {
 			const appearance = material.userData?.appearanceMaterial;
-			const onColor = typeof appearance?.color === "string" ? appearance.color : LED_ON_COLOR;
+			const onColor =
+				typeof appearance?.color === "string" ? appearance.color : LED_ON_COLOR;
 			const color = on ? onColor : LED_OFF_COLOR;
 			if ("color" in material) {
 				material.color.set(color);
 			}
 			if ("emissive" in material) {
 				material.emissive.set(color);
-				material.emissiveIntensity = on ? (Number.isFinite(appearance?.intensity) ? appearance.intensity : 1.4) : 0;
+				material.emissiveIntensity = on
+					? Number.isFinite(appearance?.intensity)
+						? appearance.intensity
+						: 1.4
+					: 0;
 			}
 			material.opacity = on ? 1 : Math.min(material.opacity ?? 1, 0.7);
 			material.transparent = !on || material.transparent === true;
@@ -849,12 +923,15 @@ function applyLedState (led, on) {
 	}
 }
 
-function actuatorObjectForStateTarget (root, stateTarget) {
+function actuatorObjectForStateTarget(root, stateTarget) {
 	const actuator = objectForStateTarget(root, stateTarget);
 	if (actuator === undefined || actuator.isMesh) {
 		return actuator;
 	}
-	const meshName = typeof stateTarget?.meshName === "string" ? stateTarget.meshName : undefined;
+	const meshName =
+		typeof stateTarget?.meshName === "string"
+			? stateTarget.meshName
+			: undefined;
 	if (meshName === undefined) {
 		return actuator;
 	}
@@ -863,32 +940,42 @@ function actuatorObjectForStateTarget (root, stateTarget) {
 		if (found !== undefined || !object.isMesh) {
 			return;
 		}
-		if (object.name === meshName || object.userData?.name === meshName || object.geometry?.name === meshName) {
+		if (
+			object.name === meshName ||
+			object.userData?.name === meshName ||
+			object.geometry?.name === meshName
+		) {
 			found = object;
 		}
 	});
 	return found ?? actuator;
 }
 
-function objectForStateTarget (root, stateTarget) {
-	const nodeName = typeof stateTarget?.nodeName === "string" ? stateTarget.nodeName : undefined;
+function objectForStateTarget(root, stateTarget) {
+	const nodeName =
+		typeof stateTarget?.nodeName === "string"
+			? stateTarget.nodeName
+			: undefined;
 	if (nodeName === undefined) {
 		return undefined;
 	}
 	let found;
 	root.traverse((object) => {
-		if (found === undefined && (object.name === nodeName || object.userData?.name === nodeName)) {
+		if (
+			found === undefined &&
+			(object.name === nodeName || object.userData?.name === nodeName)
+		) {
 			found = object;
 		}
 	});
 	return found;
 }
 
-function footswitchTravelAxis (value) {
+function footswitchTravelAxis(value) {
 	return value === "x" || value === "y" || value === "z" ? value : "z";
 }
 
-function ensureEditableMeshMaterials (mesh) {
+function ensureEditableMeshMaterials(mesh) {
 	if (mesh.userData.liveStateMaterialCloned === true) {
 		return;
 	}
@@ -900,38 +987,45 @@ function ensureEditableMeshMaterials (mesh) {
 	mesh.userData.liveStateMaterialCloned = true;
 }
 
-function materialsForMesh (mesh) {
+function materialsForMesh(mesh) {
 	if (Array.isArray(mesh.material)) {
 		return mesh.material;
 	}
 	return mesh.material === undefined ? [] : [mesh.material];
 }
 
-function controlLabelForPart (object) {
-	const id = typeof object.userData?.id === "string" ? object.userData.id : "control";
-	const rawLabel = typeof object.userData?.controlId === "string" && object.userData.controlId.length > 0
-		? object.userData.controlId
-		: id.replace(/^(knob|switch|led)-/, "");
+function controlLabelForPart(object) {
+	const id =
+		typeof object.userData?.id === "string" ? object.userData.id : "control";
+	const rawLabel =
+		typeof object.userData?.controlId === "string" &&
+		object.userData.controlId.length > 0
+			? object.userData.controlId
+			: id.replace(/^(knob|switch|led)-/, "");
 	return rawLabel.replace(/[-_]+/g, " ");
 }
 
-function knobPositionFromRotation (rotationRad) {
+function knobPositionFromRotation(rotationRad) {
 	const rotationDeg = THREE.MathUtils.radToDeg(rotationRad);
-	return clamp01((rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG);
+	return clamp01(
+		(rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG,
+	);
 }
 
-function knobRotationDegForPosition (position) {
-	return KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG;
+function knobRotationDegForPosition(position) {
+	return (
+		KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG
+	);
 }
 
-function clamp01 (value) {
+function clamp01(value) {
 	if (!Number.isFinite(value)) {
 		return 0;
 	}
 	return Math.max(0, Math.min(1, value));
 }
 
-function initPresetLinkedAssets (group) {
+function initPresetLinkedAssets(group) {
 	const select = group.querySelector("[data-stompbox-preset-select]");
 	const presets = parseGroupPresetOptions(group);
 	if (!(select instanceof HTMLSelectElement) || presets.length === 0) {
@@ -939,34 +1033,45 @@ function initPresetLinkedAssets (group) {
 	}
 
 	const update = () => {
-		const preset = presets.find((candidate) => candidate.id === select.value) ?? presets[0];
+		const preset =
+			presets.find((candidate) => candidate.id === select.value) ?? presets[0];
 		updatePresetLinkedAssets(group, preset);
 	};
 	select.addEventListener("change", update);
 	update();
 }
 
-function updatePresetLinkedAssets (group, preset) {
+function updatePresetLinkedAssets(group, preset) {
 	if (preset === undefined) {
 		return;
 	}
 	applyPresetBackground(group, preset);
-	for (const image of group.querySelectorAll("[data-stompbox-drill-template-preview]")) {
-		if (!(image instanceof HTMLImageElement) || typeof preset.drillTemplateSrc !== "string") {
+	for (const image of group.querySelectorAll(
+		"[data-stompbox-drill-template-preview]",
+	)) {
+		if (
+			!(image instanceof HTMLImageElement) ||
+			typeof preset.drillTemplateSrc !== "string"
+		) {
 			continue;
 		}
 		image.src = preset.drillTemplateSrc;
 		image.alt = `${preset.label} drill layout preview`;
 	}
-	for (const link of group.querySelectorAll("[data-stompbox-drill-layout-download]")) {
-		if (!(link instanceof HTMLAnchorElement) || typeof preset.drillLayoutSrc !== "string") {
+	for (const link of group.querySelectorAll(
+		"[data-stompbox-drill-layout-download]",
+	)) {
+		if (
+			!(link instanceof HTMLAnchorElement) ||
+			typeof preset.drillLayoutSrc !== "string"
+		) {
 			continue;
 		}
 		link.href = preset.drillLayoutSrc;
 	}
 }
 
-function parseGroupPresetOptions (group) {
+function parseGroupPresetOptions(group) {
 	const presetsJson = group.dataset.stompboxPresets;
 	if (presetsJson === undefined) {
 		return [];
@@ -1004,42 +1109,84 @@ function parseGroupPresetOptions (group) {
 		if (!Array.isArray(parsed)) {
 			return [];
 		}
-		return parsed.flatMap((preset, index) => normalizePresetOption(preset, index, fallback));
+		return parsed.flatMap((preset, index) =>
+			normalizePresetOption(preset, index, fallback),
+		);
 	} catch (error) {
 		console.error("Failed to parse stompbox preview presets", error);
 		return [];
 	}
 }
 
-function parsePresetOptions (viewer, src) {
+function parsePresetOptions(viewer, src) {
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
 	const viewMode = viewer.dataset.viewMode === "top" ? "top" : "orbit";
 	const interactive = viewer.dataset.interactive !== "false";
 	const lineworkEnabled = viewer.dataset.linework === "true";
 	const lineworkColor = viewer.dataset.lineworkColor ?? "#111827";
-	const backgroundColor = viewer.dataset.backgroundColor ?? DEFAULT_BACKGROUND_COLOR;
+	const backgroundColor =
+		viewer.dataset.backgroundColor ?? DEFAULT_BACKGROUND_COLOR;
 	const gridColor = viewer.dataset.gridColor ?? DEFAULT_GRID_COLOR;
-	const gridOpacity = normalizeGridOpacity(viewer.dataset.gridOpacity, DEFAULT_GRID_OPACITY);
+	const gridOpacity = normalizeGridOpacity(
+		viewer.dataset.gridOpacity,
+		DEFAULT_GRID_OPACITY,
+	);
 	const toonEnabled = viewer.dataset.toon === "true";
 	const toonEdgeColor = viewer.dataset.toonEdgeColor ?? DEFAULT_TOON_EDGE_COLOR;
 	const grainEnabled = viewer.dataset.grain === "true";
-	const grainScale = normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE);
-	const grainIntensity = normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY);
+	const grainScale = normalizePositiveNumber(
+		viewer.dataset.grainScale,
+		DEFAULT_GRAIN_SCALE,
+	);
+	const grainIntensity = normalizeUnitInterval(
+		viewer.dataset.grainIntensity,
+		DEFAULT_GRAIN_INTENSITY,
+	);
 	const crtEnabled = viewer.dataset.crt === "true";
-	const crtCurvature = normalizeUnitInterval(viewer.dataset.crtCurvature, DEFAULT_CRT_CURVATURE);
-	const crtScanlineIntensity = normalizeUnitInterval(viewer.dataset.crtScanlineIntensity, DEFAULT_CRT_SCANLINE_INTENSITY);
-	const crtScanlineCount = normalizePositiveNumber(viewer.dataset.crtScanlineCount, DEFAULT_CRT_SCANLINE_COUNT);
-	const crtVignette = normalizeUnitInterval(viewer.dataset.crtVignette, DEFAULT_CRT_VIGNETTE);
-	const crtRgbShift = normalizeUnitInterval(viewer.dataset.crtRgbShift, DEFAULT_CRT_RGB_SHIFT);
-	const crtFlicker = normalizeUnitInterval(viewer.dataset.crtFlicker, DEFAULT_CRT_FLICKER);
-	const crtBloomIntensity = normalizeNonNegativeNumber(viewer.dataset.crtBloomIntensity, DEFAULT_CRT_BLOOM_INTENSITY);
-	const crtBloomThreshold = normalizeUnitInterval(viewer.dataset.crtBloomThreshold, DEFAULT_CRT_BLOOM_THRESHOLD);
+	const crtCurvature = normalizeUnitInterval(
+		viewer.dataset.crtCurvature,
+		DEFAULT_CRT_CURVATURE,
+	);
+	const crtScanlineIntensity = normalizeUnitInterval(
+		viewer.dataset.crtScanlineIntensity,
+		DEFAULT_CRT_SCANLINE_INTENSITY,
+	);
+	const crtScanlineCount = normalizePositiveNumber(
+		viewer.dataset.crtScanlineCount,
+		DEFAULT_CRT_SCANLINE_COUNT,
+	);
+	const crtVignette = normalizeUnitInterval(
+		viewer.dataset.crtVignette,
+		DEFAULT_CRT_VIGNETTE,
+	);
+	const crtRgbShift = normalizeUnitInterval(
+		viewer.dataset.crtRgbShift,
+		DEFAULT_CRT_RGB_SHIFT,
+	);
+	const crtFlicker = normalizeUnitInterval(
+		viewer.dataset.crtFlicker,
+		DEFAULT_CRT_FLICKER,
+	);
+	const crtBloomIntensity = normalizeNonNegativeNumber(
+		viewer.dataset.crtBloomIntensity,
+		DEFAULT_CRT_BLOOM_INTENSITY,
+	);
+	const crtBloomThreshold = normalizeUnitInterval(
+		viewer.dataset.crtBloomThreshold,
+		DEFAULT_CRT_BLOOM_THRESHOLD,
+	);
 	const glitchEnabled = viewer.dataset.glitch === "true";
-	const glitchInterval = normalizePositiveNumber(viewer.dataset.glitchInterval, DEFAULT_GLITCH_INTERVAL_SECONDS);
-	const presetsJson = viewer.dataset.stompboxPresets ?? group?.dataset.stompboxPresets;
+	const glitchInterval = normalizePositiveNumber(
+		viewer.dataset.glitchInterval,
+		DEFAULT_GLITCH_INTERVAL_SECONDS,
+	);
+	const presetsJson =
+		viewer.dataset.stompboxPresets ?? group?.dataset.stompboxPresets;
 	const fallback = {
 		id: "default",
-		label: viewer.querySelector("canvas")?.getAttribute("aria-label") ?? "Stompbox preview",
+		label:
+			viewer.querySelector("canvas")?.getAttribute("aria-label") ??
+			"Stompbox preview",
 		src,
 		view: viewMode,
 		interactive,
@@ -1073,7 +1220,9 @@ function parsePresetOptions (viewer, src) {
 		if (!Array.isArray(parsed)) {
 			return [fallback];
 		}
-		const presets = parsed.flatMap((preset, index) => normalizePresetOption(preset, index, fallback));
+		const presets = parsed.flatMap((preset, index) =>
+			normalizePresetOption(preset, index, fallback),
+		);
 		return presets.length === 0 ? [fallback] : presets;
 	} catch (error) {
 		console.error("Failed to parse stompbox preview presets", error);
@@ -1081,73 +1230,152 @@ function parsePresetOptions (viewer, src) {
 	}
 }
 
-function normalizePresetOption (preset, index, fallback) {
+function normalizePresetOption(preset, index, fallback) {
 	if (preset === null || typeof preset !== "object") {
 		return [];
 	}
-	const src = typeof preset.src === "string" && preset.src.length > 0 ? preset.src : fallback.src;
-	const view = preset.view === "top" || preset.view === "orbit" ? preset.view : fallback.view;
-	const lineworkColor = typeof preset.lineworkColor === "string" ? preset.lineworkColor : fallback.lineworkColor;
-	const backgroundColor = typeof preset.backgroundColor === "string" && preset.backgroundColor.length > 0
-		? preset.backgroundColor
-		: fallback.backgroundColor;
-	const gridColor = typeof preset.gridColor === "string" && preset.gridColor.length > 0
-		? preset.gridColor
-		: fallback.gridColor;
-	const toonEdgeColor = typeof preset.toonEdgeColor === "string" && preset.toonEdgeColor.length > 0
-		? preset.toonEdgeColor
-		: fallback.toonEdgeColor;
-	const grainScale = normalizePositiveNumber(preset.grainScale, fallback.grainScale);
-	const grainIntensity = normalizeUnitInterval(preset.grainIntensity, fallback.grainIntensity);
-	return [{
-		id: typeof preset.id === "string" && preset.id.length > 0 ? preset.id : `preset-${index + 1}`,
-		label: typeof preset.label === "string" && preset.label.length > 0 ? preset.label : `Preset ${index + 1}`,
-		src,
-		view,
-		interactive: typeof preset.interactive === "boolean" ? preset.interactive : view !== "top",
-		linework: typeof preset.linework === "boolean" ? preset.linework : fallback.linework,
-		lineworkColor,
-		backgroundColor,
-		gridColor,
-		gridOpacity: normalizeGridOpacity(preset.gridOpacity, fallback.gridOpacity),
-		toon: typeof preset.toon === "boolean" ? preset.toon : fallback.toon,
-		toonEdgeColor,
-		grain: typeof preset.grain === "boolean" ? preset.grain : fallback.grain,
-		grainScale,
-		grainIntensity,
-		crt: typeof preset.crt === "boolean" ? preset.crt : fallback.crt,
-		crtCurvature: normalizeUnitInterval(preset.crtCurvature, fallback.crtCurvature),
-		crtScanlineIntensity: normalizeUnitInterval(preset.crtScanlineIntensity, fallback.crtScanlineIntensity),
-		crtScanlineCount: normalizePositiveNumber(preset.crtScanlineCount, fallback.crtScanlineCount),
-		crtVignette: normalizeUnitInterval(preset.crtVignette, fallback.crtVignette),
-		crtRgbShift: normalizeUnitInterval(preset.crtRgbShift, fallback.crtRgbShift),
-		crtFlicker: normalizeUnitInterval(preset.crtFlicker, fallback.crtFlicker),
-		crtBloomIntensity: normalizeNonNegativeNumber(preset.crtBloomIntensity, fallback.crtBloomIntensity),
-		crtBloomThreshold: normalizeUnitInterval(preset.crtBloomThreshold, fallback.crtBloomThreshold),
-		glitch: typeof preset.glitch === "boolean" ? preset.glitch : fallback.glitch,
-		glitchInterval: normalizePositiveNumber(preset.glitchInterval, fallback.glitchInterval),
-		drillTemplateSrc: typeof preset.drillTemplateSrc === "string" ? preset.drillTemplateSrc : undefined,
-		drillLayoutSrc: typeof preset.drillLayoutSrc === "string" ? preset.drillLayoutSrc : undefined,
-	}];
+	const src =
+		typeof preset.src === "string" && preset.src.length > 0
+			? preset.src
+			: fallback.src;
+	const view =
+		preset.view === "top" || preset.view === "orbit"
+			? preset.view
+			: fallback.view;
+	const lineworkColor =
+		typeof preset.lineworkColor === "string"
+			? preset.lineworkColor
+			: fallback.lineworkColor;
+	const backgroundColor =
+		typeof preset.backgroundColor === "string" &&
+		preset.backgroundColor.length > 0
+			? preset.backgroundColor
+			: fallback.backgroundColor;
+	const gridColor =
+		typeof preset.gridColor === "string" && preset.gridColor.length > 0
+			? preset.gridColor
+			: fallback.gridColor;
+	const toonEdgeColor =
+		typeof preset.toonEdgeColor === "string" && preset.toonEdgeColor.length > 0
+			? preset.toonEdgeColor
+			: fallback.toonEdgeColor;
+	const grainScale = normalizePositiveNumber(
+		preset.grainScale,
+		fallback.grainScale,
+	);
+	const grainIntensity = normalizeUnitInterval(
+		preset.grainIntensity,
+		fallback.grainIntensity,
+	);
+	return [
+		{
+			id:
+				typeof preset.id === "string" && preset.id.length > 0
+					? preset.id
+					: `preset-${index + 1}`,
+			label:
+				typeof preset.label === "string" && preset.label.length > 0
+					? preset.label
+					: `Preset ${index + 1}`,
+			src,
+			view,
+			interactive:
+				typeof preset.interactive === "boolean"
+					? preset.interactive
+					: view !== "top",
+			linework:
+				typeof preset.linework === "boolean"
+					? preset.linework
+					: fallback.linework,
+			lineworkColor,
+			backgroundColor,
+			gridColor,
+			gridOpacity: normalizeGridOpacity(
+				preset.gridOpacity,
+				fallback.gridOpacity,
+			),
+			toon: typeof preset.toon === "boolean" ? preset.toon : fallback.toon,
+			toonEdgeColor,
+			grain: typeof preset.grain === "boolean" ? preset.grain : fallback.grain,
+			grainScale,
+			grainIntensity,
+			crt: typeof preset.crt === "boolean" ? preset.crt : fallback.crt,
+			crtCurvature: normalizeUnitInterval(
+				preset.crtCurvature,
+				fallback.crtCurvature,
+			),
+			crtScanlineIntensity: normalizeUnitInterval(
+				preset.crtScanlineIntensity,
+				fallback.crtScanlineIntensity,
+			),
+			crtScanlineCount: normalizePositiveNumber(
+				preset.crtScanlineCount,
+				fallback.crtScanlineCount,
+			),
+			crtVignette: normalizeUnitInterval(
+				preset.crtVignette,
+				fallback.crtVignette,
+			),
+			crtRgbShift: normalizeUnitInterval(
+				preset.crtRgbShift,
+				fallback.crtRgbShift,
+			),
+			crtFlicker: normalizeUnitInterval(preset.crtFlicker, fallback.crtFlicker),
+			crtBloomIntensity: normalizeNonNegativeNumber(
+				preset.crtBloomIntensity,
+				fallback.crtBloomIntensity,
+			),
+			crtBloomThreshold: normalizeUnitInterval(
+				preset.crtBloomThreshold,
+				fallback.crtBloomThreshold,
+			),
+			glitch:
+				typeof preset.glitch === "boolean" ? preset.glitch : fallback.glitch,
+			glitchInterval: normalizePositiveNumber(
+				preset.glitchInterval,
+				fallback.glitchInterval,
+			),
+			drillTemplateSrc:
+				typeof preset.drillTemplateSrc === "string"
+					? preset.drillTemplateSrc
+					: undefined,
+			drillLayoutSrc:
+				typeof preset.drillLayoutSrc === "string"
+					? preset.drillLayoutSrc
+					: undefined,
+		},
+	];
 }
 
-function applyPresetBackground (viewer, preset) {
-	const backgroundColor = typeof preset.backgroundColor === "string" && preset.backgroundColor.length > 0
-		? preset.backgroundColor
-		: DEFAULT_BACKGROUND_COLOR;
-	const gridColor = typeof preset.gridColor === "string" && preset.gridColor.length > 0
-		? preset.gridColor
-		: DEFAULT_GRID_COLOR;
-	const gridOpacity = normalizeGridOpacity(preset.gridOpacity, DEFAULT_GRID_OPACITY);
+function applyPresetBackground(viewer, preset) {
+	const backgroundColor =
+		typeof preset.backgroundColor === "string" &&
+		preset.backgroundColor.length > 0
+			? preset.backgroundColor
+			: DEFAULT_BACKGROUND_COLOR;
+	const gridColor =
+		typeof preset.gridColor === "string" && preset.gridColor.length > 0
+			? preset.gridColor
+			: DEFAULT_GRID_COLOR;
+	const gridOpacity = normalizeGridOpacity(
+		preset.gridOpacity,
+		DEFAULT_GRID_OPACITY,
+	);
 	viewer.dataset.backgroundColor = backgroundColor;
 	viewer.dataset.gridColor = gridColor;
 	viewer.dataset.gridOpacity = String(gridOpacity);
-	viewer.style.setProperty("--stompbox-viewer-background-color", backgroundColor);
+	viewer.style.setProperty(
+		"--stompbox-viewer-background-color",
+		backgroundColor,
+	);
 	viewer.style.setProperty("--stompbox-viewer-grid-color", gridColor);
-	viewer.style.setProperty("--stompbox-viewer-grid-opacity", String(gridOpacity));
+	viewer.style.setProperty(
+		"--stompbox-viewer-grid-opacity",
+		String(gridOpacity),
+	);
 }
 
-function normalizeGridOpacity (value, fallback) {
+function normalizeGridOpacity(value, fallback) {
 	const opacity = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(opacity)) {
 		return fallback;
@@ -1155,7 +1383,7 @@ function normalizeGridOpacity (value, fallback) {
 	return Math.max(0, Math.min(1, opacity));
 }
 
-function normalizePositiveNumber (value, fallback) {
+function normalizePositiveNumber(value, fallback) {
 	const number = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(number) || number <= 0) {
 		return fallback;
@@ -1163,7 +1391,7 @@ function normalizePositiveNumber (value, fallback) {
 	return number;
 }
 
-function normalizeUnitInterval (value, fallback) {
+function normalizeUnitInterval(value, fallback) {
 	const number = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(number)) {
 		return fallback;
@@ -1171,7 +1399,7 @@ function normalizeUnitInterval (value, fallback) {
 	return Math.max(0, Math.min(1, number));
 }
 
-function normalizeNonNegativeNumber (value, fallback) {
+function normalizeNonNegativeNumber(value, fallback) {
 	const number = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(number) || number < 0) {
 		return fallback;
@@ -1179,7 +1407,7 @@ function normalizeNonNegativeNumber (value, fallback) {
 	return number;
 }
 
-function applyScreenGrainMaterials (root, preset) {
+function applyScreenGrainMaterials(root, preset) {
 	if (preset?.grain !== true) {
 		return;
 	}
@@ -1193,8 +1421,12 @@ function applyScreenGrainMaterials (root, preset) {
 	});
 }
 
-function applyScreenGrainMaterial (material, preset) {
-	if (material === undefined || (material.userData !== undefined && material.userData.screenGrainApplied === true)) {
+function applyScreenGrainMaterial(material, preset) {
+	if (
+		material === undefined ||
+		(material.userData !== undefined &&
+			material.userData.screenGrainApplied === true)
+	) {
 		return;
 	}
 	const previousOnBeforeCompile = material.onBeforeCompile;
@@ -1209,9 +1441,10 @@ function applyScreenGrainMaterial (material, preset) {
 		shader.fragmentShader = screenGrainFragmentShader(shader.fragmentShader);
 	};
 	material.customProgramCacheKey = () => {
-		const previousKey = typeof previousProgramCacheKey === "function"
-			? previousProgramCacheKey.call(material)
-			: "";
+		const previousKey =
+			typeof previousProgramCacheKey === "function"
+				? previousProgramCacheKey.call(material)
+				: "";
 		return `${previousKey}|stompbox-screen-grain`;
 	};
 	material.userData = {
@@ -1221,7 +1454,7 @@ function applyScreenGrainMaterial (material, preset) {
 	material.needsUpdate = true;
 }
 
-function screenGrainFragmentShader (fragmentShader) {
+function screenGrainFragmentShader(fragmentShader) {
 	const grainPars = `
 		uniform float grainScale;
 		uniform float grainIntensity;
@@ -1238,15 +1471,21 @@ function screenGrainFragmentShader (fragmentShader) {
 	`;
 	const shader = `${grainPars}\n${fragmentShader}`;
 	if (shader.includes("#include <colorspace_fragment>")) {
-		return shader.replace("#include <colorspace_fragment>", `${grainApply}\n\t#include <colorspace_fragment>`);
+		return shader.replace(
+			"#include <colorspace_fragment>",
+			`${grainApply}\n\t#include <colorspace_fragment>`,
+		);
 	}
 	if (shader.includes("#include <dithering_fragment>")) {
-		return shader.replace("#include <dithering_fragment>", `${grainApply}\n\t#include <dithering_fragment>`);
+		return shader.replace(
+			"#include <dithering_fragment>",
+			`${grainApply}\n\t#include <dithering_fragment>`,
+		);
 	}
 	return shader.replace(/\n}\s*$/, `\n${grainApply}\n}`);
 }
 
-function createCrtPostProcessing (renderer) {
+function createCrtPostProcessing(renderer) {
 	const renderTarget = new THREE.WebGLRenderTarget(1, 1, {
 		type: THREE.HalfFloatType,
 		samples: crtRenderTargetSamples(renderer),
@@ -1266,7 +1505,9 @@ function createCrtPostProcessing (renderer) {
 	const material = new THREE.ShaderMaterial({
 		uniforms,
 		vertexShader: CRTShader.vertexShader,
-		fragmentShader: crtFragmentShaderWithOutputEncoding(CRTShader.fragmentShader),
+		fragmentShader: crtFragmentShaderWithOutputEncoding(
+			CRTShader.fragmentShader,
+		),
 		transparent: true,
 		depthTest: false,
 		depthWrite: false,
@@ -1277,7 +1518,10 @@ function createCrtPostProcessing (renderer) {
 	const geometry = new THREE.BufferGeometry();
 	geometry.setAttribute(
 		"position",
-		new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
+		new THREE.BufferAttribute(
+			new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]),
+			3,
+		),
 	);
 	geometry.setAttribute(
 		"uv",
@@ -1290,11 +1534,14 @@ function createCrtPostProcessing (renderer) {
 
 	return {
 		enabled: false,
-		setSize (activeRenderer) {
+		setSize(activeRenderer) {
 			activeRenderer.getDrawingBufferSize(drawingBufferSize);
-			renderTarget.setSize(Math.max(1, drawingBufferSize.x), Math.max(1, drawingBufferSize.y));
+			renderTarget.setSize(
+				Math.max(1, drawingBufferSize.x),
+				Math.max(1, drawingBufferSize.y),
+			);
 		},
-		configure (preset, reducedMotion) {
+		configure(preset, reducedMotion) {
 			this.enabled = preset.crt === true;
 			if (!this.enabled) {
 				return;
@@ -1307,11 +1554,12 @@ function createCrtPostProcessing (renderer) {
 			uniforms.bloomIntensity.value = preset.crtBloomIntensity;
 			uniforms.bloomThreshold.value = preset.crtBloomThreshold;
 			uniforms.grainScale.value = preset.grainScale;
-			uniforms.grainIntensity.value = preset.grain === true ? preset.grainIntensity : 0;
+			uniforms.grainIntensity.value =
+				preset.grain === true ? preset.grainIntensity : 0;
 			flickerEnabled = reducedMotion !== true && preset.crtFlicker > 0.001;
 			uniforms.flickerStrength.value = flickerEnabled ? preset.crtFlicker : 0;
 		},
-		render (activeRenderer, sceneToRender, sceneCamera, frameMs, glitchPass) {
+		render(activeRenderer, sceneToRender, sceneCamera, frameMs, glitchPass) {
 			if (flickerEnabled) {
 				uniforms.time.value = frameMs / 1000;
 			}
@@ -1322,7 +1570,11 @@ function createCrtPostProcessing (renderer) {
 			// input texture unchanged (no extra draw).
 			let sourceTexture = renderTarget.texture;
 			if (glitchPass?.enabled) {
-				sourceTexture = glitchPass.apply(activeRenderer, sourceTexture, frameMs);
+				sourceTexture = glitchPass.apply(
+					activeRenderer,
+					sourceTexture,
+					frameMs,
+				);
 			}
 			activeRenderer.setRenderTarget(null);
 			uniforms.tDiffuse.value = sourceTexture;
@@ -1331,7 +1583,7 @@ function createCrtPostProcessing (renderer) {
 	};
 }
 
-function createGlitchPass () {
+function createGlitchPass() {
 	const renderTarget = new THREE.WebGLRenderTarget(1, 1, {
 		type: THREE.HalfFloatType,
 		depthBuffer: false,
@@ -1360,7 +1612,10 @@ function createGlitchPass () {
 	const geometry = new THREE.BufferGeometry();
 	geometry.setAttribute(
 		"position",
-		new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3),
+		new THREE.BufferAttribute(
+			new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]),
+			3,
+		),
 	);
 	geometry.setAttribute(
 		"uv",
@@ -1375,26 +1630,32 @@ function createGlitchPass () {
 	let burstEndMs = 0;
 	let hardEndMs = 0;
 
-	function scheduleNext (frameMs) {
+	function scheduleNext(frameMs) {
 		nextAtMs = frameMs + randomInRange(minGapMs, maxGapMs);
 	}
 
 	return {
 		enabled: false,
-		setSize (activeRenderer) {
+		setSize(activeRenderer) {
 			activeRenderer.getDrawingBufferSize(drawingBufferSize);
-			renderTarget.setSize(Math.max(1, drawingBufferSize.x), Math.max(1, drawingBufferSize.y));
+			renderTarget.setSize(
+				Math.max(1, drawingBufferSize.x),
+				Math.max(1, drawingBufferSize.y),
+			);
 		},
-		configure (preset, reducedMotion) {
+		configure(preset, reducedMotion) {
 			this.enabled = preset.glitch === true && reducedMotion !== true;
-			const intervalSeconds = preset.glitchInterval > 0 ? preset.glitchInterval : DEFAULT_GLITCH_INTERVAL_SECONDS;
+			const intervalSeconds =
+				preset.glitchInterval > 0
+					? preset.glitchInterval
+					: DEFAULT_GLITCH_INTERVAL_SECONDS;
 			minGapMs = intervalSeconds * 600;
 			maxGapMs = intervalSeconds * 1400;
 			nextAtMs = undefined;
 			burstEndMs = 0;
 			hardEndMs = 0;
 		},
-		apply (activeRenderer, inputTexture, frameMs) {
+		apply(activeRenderer, inputTexture, frameMs) {
 			if (nextAtMs === undefined) {
 				scheduleNext(frameMs);
 			}
@@ -1433,22 +1694,28 @@ function createGlitchPass () {
 	};
 }
 
-function createGlitchDisplacementTexture () {
+function createGlitchDisplacementTexture() {
 	const size = GLITCH_DISPLACEMENT_TEXTURE_SIZE;
 	const data = new Float32Array(size * size);
 	for (let index = 0; index < data.length; index += 1) {
 		data[index] = Math.random();
 	}
-	const texture = new THREE.DataTexture(data, size, size, THREE.RedFormat, THREE.FloatType);
+	const texture = new THREE.DataTexture(
+		data,
+		size,
+		size,
+		THREE.RedFormat,
+		THREE.FloatType,
+	);
 	texture.needsUpdate = true;
 	return texture;
 }
 
-function randomInRange (min, max) {
+function randomInRange(min, max) {
 	return min + Math.random() * (max - min);
 }
 
-function crtRenderTargetSamples (renderer) {
+function crtRenderTargetSamples(renderer) {
 	const maxSamples = renderer.capabilities?.maxSamples;
 	if (!Number.isFinite(maxSamples)) {
 		return CRT_RENDER_TARGET_SAMPLES;
@@ -1456,7 +1723,7 @@ function crtRenderTargetSamples (renderer) {
 	return Math.max(0, Math.min(CRT_RENDER_TARGET_SAMPLES, maxSamples));
 }
 
-function crtFragmentShaderWithOutputEncoding (fragmentShader) {
+function crtFragmentShaderWithOutputEncoding(fragmentShader) {
 	// The CRT pass runs as a raw ShaderMaterial straight to the default
 	// framebuffer, so Three does not apply its automatic sRGB output
 	// conversion. The scene is sampled from a linear render target, so encode
@@ -1484,26 +1751,37 @@ function crtFragmentShaderWithOutputEncoding (fragmentShader) {
 		.replace("gl_FragColor = pixel;", outputEncoding);
 }
 
-function applyToonMaterials (root, preset) {
+function applyToonMaterials(root, preset) {
 	const gradientMap = createToonGradientMap();
 	root.traverse((object) => {
 		if (!object.isMesh || object.userData?.kind === "decal") {
 			return;
 		}
 		if (Array.isArray(object.material)) {
-			object.material = object.material.map((material) => toonMaterialForSource(material, gradientMap, preset));
+			object.material = object.material.map((material) =>
+				toonMaterialForSource(material, gradientMap, preset),
+			);
 			return;
 		}
-		object.material = toonMaterialForSource(object.material, gradientMap, preset);
+		object.material = toonMaterialForSource(
+			object.material,
+			gradientMap,
+			preset,
+		);
 	});
 }
 
-function createToonGradientMap () {
+function createToonGradientMap() {
 	if (sharedToonGradientMap !== undefined) {
 		return sharedToonGradientMap;
 	}
 	const shadeSteps = new Uint8Array([64, 128, 190, 255]);
-	const texture = new THREE.DataTexture(shadeSteps, shadeSteps.length, 1, THREE.RedFormat);
+	const texture = new THREE.DataTexture(
+		shadeSteps,
+		shadeSteps.length,
+		1,
+		THREE.RedFormat,
+	);
 	texture.minFilter = THREE.NearestFilter;
 	texture.magFilter = THREE.NearestFilter;
 	texture.generateMipmaps = false;
@@ -1512,14 +1790,16 @@ function createToonGradientMap () {
 	return texture;
 }
 
-function toonMaterialForSource (sourceMaterial, gradientMap, preset) {
+function toonMaterialForSource(sourceMaterial, gradientMap, preset) {
 	const source = sourceMaterial ?? {};
 	const material = new THREE.MeshToonMaterial({
 		color: materialColor(source),
 		gradientMap,
 		map: source.map ?? null,
 		alphaMap: source.alphaMap ?? null,
-		transparent: source.transparent === true || (Number.isFinite(source.opacity) && source.opacity < 1),
+		transparent:
+			source.transparent === true ||
+			(Number.isFinite(source.opacity) && source.opacity < 1),
 		opacity: Number.isFinite(source.opacity) ? source.opacity : 1,
 		side: source.side ?? THREE.FrontSide,
 	});
@@ -1542,7 +1822,7 @@ function toonMaterialForSource (sourceMaterial, gradientMap, preset) {
 	return material;
 }
 
-function materialColor (material) {
+function materialColor(material) {
 	const appearanceColor = material.userData?.appearanceMaterial?.color;
 	if (typeof appearanceColor === "string" && appearanceColor.length > 0) {
 		return new THREE.Color(appearanceColor);
@@ -1553,7 +1833,7 @@ function materialColor (material) {
 	return new THREE.Color(0xffffff);
 }
 
-function presetSelectForViewer (viewer) {
+function presetSelectForViewer(viewer) {
 	const localSelect = viewer.querySelector("[data-stompbox-preset-select]");
 	if (localSelect instanceof HTMLSelectElement) {
 		return localSelect;
@@ -1563,7 +1843,7 @@ function presetSelectForViewer (viewer) {
 	return groupSelect instanceof HTMLSelectElement ? groupSelect : undefined;
 }
 
-function frameModel (model, camera, controls, viewMode, aspect) {
+function frameModel(model, camera, controls, viewMode, aspect) {
 	const box = new THREE.Box3().setFromObject(model);
 	const sphere = box.getBoundingSphere(new THREE.Sphere());
 	const radius = Math.max(sphere.radius, 1);
@@ -1571,7 +1851,13 @@ function frameModel (model, camera, controls, viewMode, aspect) {
 	model.position.sub(enclosureFrame?.center ?? sphere.center);
 
 	if (viewMode === "top" && camera.isOrthographicCamera) {
-		return frameOrthographicTopModel(model, camera, controls, aspect, enclosureFrame?.size);
+		return frameOrthographicTopModel(
+			model,
+			camera,
+			controls,
+			aspect,
+			enclosureFrame?.size,
+		);
 	}
 
 	const distance = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2);
@@ -1590,15 +1876,22 @@ function frameModel (model, camera, controls, viewMode, aspect) {
 	return undefined;
 }
 
-function frameOrthographicTopModel (model, camera, controls, aspect, enclosureSize) {
+function frameOrthographicTopModel(
+	model,
+	camera,
+	controls,
+	aspect,
+	enclosureSize,
+) {
 	const box = new THREE.Box3().setFromObject(model);
-	const size = enclosureSize === undefined
-		? box.getSize(new THREE.Vector3())
-		: new THREE.Vector3(
-			enclosureSize.x + enclosureSize.z,
-			enclosureSize.y,
-			enclosureSize.z,
-		);
+	const size =
+		enclosureSize === undefined
+			? box.getSize(new THREE.Vector3())
+			: new THREE.Vector3(
+					enclosureSize.x + enclosureSize.z,
+					enclosureSize.y,
+					enclosureSize.z,
+				);
 	const maxDimension = Math.max(size.x, size.y, size.z, 1);
 	updateOrthographicTopFrustum(camera, size, aspect);
 
@@ -1617,7 +1910,7 @@ function frameOrthographicTopModel (model, camera, controls, aspect, enclosureSi
 	return size;
 }
 
-function addCadLinework (root, lineworkColor = "#111827") {
+function addCadLinework(root, lineworkColor = "#111827") {
 	const meshes = [];
 	const material = new THREE.LineBasicMaterial({
 		color: new THREE.Color(lineworkColor),
@@ -1645,7 +1938,7 @@ function addCadLinework (root, lineworkColor = "#111827") {
 	}
 }
 
-function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
+function addToonOutline(root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
 	const meshes = [];
 	const material = new THREE.MeshBasicMaterial({
 		color: new THREE.Color(outlineColor),
@@ -1657,9 +1950,9 @@ function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
 
 	root.traverse((object) => {
 		if (
-			object.isMesh
-			&& object.userData?.kind !== "decal"
-			&& object.userData?.kind !== "toon-outline"
+			object.isMesh &&
+			object.userData?.kind !== "decal" &&
+			object.userData?.kind !== "toon-outline"
 		) {
 			meshes.push(object);
 		}
@@ -1669,7 +1962,10 @@ function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
 		if (mesh.geometry === undefined) {
 			continue;
 		}
-		if (mesh.geometry.boundingBox === null || mesh.geometry.boundingBox === undefined) {
+		if (
+			mesh.geometry.boundingBox === null ||
+			mesh.geometry.boundingBox === undefined
+		) {
 			mesh.geometry.computeBoundingBox();
 		}
 		if (mesh.geometry.boundingBox === null) {
@@ -1689,13 +1985,16 @@ function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
 	}
 }
 
-function findEnclosureFrame (model) {
+function findEnclosureFrame(model) {
 	let enclosure;
 	model.traverse((object) => {
 		if (enclosure !== undefined) {
 			return;
 		}
-		if (object.userData?.kind === "enclosure" && object.userData?.dimensionsMm !== undefined) {
+		if (
+			object.userData?.kind === "enclosure" &&
+			object.userData?.dimensionsMm !== undefined
+		) {
 			enclosure = object;
 		}
 	});
@@ -1703,17 +2002,25 @@ function findEnclosureFrame (model) {
 		return undefined;
 	}
 	const dimensions = enclosure.userData.dimensionsMm;
-	if (!Number.isFinite(dimensions.widthMm) || !Number.isFinite(dimensions.lengthMm) || !Number.isFinite(dimensions.depthMm)) {
+	if (
+		!Number.isFinite(dimensions.widthMm) ||
+		!Number.isFinite(dimensions.lengthMm) ||
+		!Number.isFinite(dimensions.depthMm)
+	) {
 		return undefined;
 	}
 	return {
-		center: new THREE.Box3().setFromObject(enclosure).getCenter(new THREE.Vector3()),
-		size: new THREE.Box3().setFromObject(enclosure).getSize(new THREE.Vector3()),
+		center: new THREE.Box3()
+			.setFromObject(enclosure)
+			.getCenter(new THREE.Vector3()),
+		size: new THREE.Box3()
+			.setFromObject(enclosure)
+			.getSize(new THREE.Vector3()),
 		dimensions,
 	};
 }
 
-function updateOrthographicTopFrustum (camera, size, aspect) {
+function updateOrthographicTopFrustum(camera, size, aspect) {
 	const padding = 1.08;
 	const modelWidth = Math.max(size.x, 1) * padding;
 	const modelHeight = Math.max(size.y, 1) * padding;
@@ -1732,7 +2039,7 @@ function updateOrthographicTopFrustum (camera, size, aspect) {
 	camera.updateProjectionMatrix();
 }
 
-function applyDecalMaterial (mesh) {
+function applyDecalMaterial(mesh) {
 	const decal = mesh.userData;
 	if (decal?.kind !== "decal") {
 		return;
@@ -1752,12 +2059,14 @@ function applyDecalMaterial (mesh) {
 	mesh.renderOrder = 20;
 }
 
-function createDecalTexture (decal) {
+function createDecalTexture(decal) {
 	if (decal.decalKind === "text" && typeof decal.text === "string") {
 		return createTextDecalTexture(decal);
 	}
 	if (decal.decalKind === "svg" && typeof decal.svg === "string") {
-		return createImageDecalTexture(svgDataUri(colorizedSvg(decal.svg, decal.color)));
+		return createImageDecalTexture(
+			svgDataUri(colorizedSvg(decal.svg, decal.color)),
+		);
 	}
 	if (decal.decalKind === "image" && typeof decal.href === "string") {
 		return createImageDecalTexture(decal.href);
@@ -1765,18 +2074,25 @@ function createDecalTexture (decal) {
 	return undefined;
 }
 
-function applyFlatAppearanceColorMaterial (mesh) {
+function applyFlatAppearanceColorMaterial(mesh) {
 	if (mesh.userData?.kind === "decal") {
 		return;
 	}
-	const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-	const converted = materials.map((material) => flatAppearanceMaterial(material));
+	const materials = Array.isArray(mesh.material)
+		? mesh.material
+		: [mesh.material];
+	const converted = materials.map((material) =>
+		flatAppearanceMaterial(material),
+	);
 	mesh.material = Array.isArray(mesh.material) ? converted : converted[0];
 }
 
-function flatAppearanceMaterial (material) {
+function flatAppearanceMaterial(material) {
 	const appearance = material.userData?.appearanceMaterial;
-	if (material.userData?.renderColorMode !== "flat-color" || typeof appearance?.color !== "string") {
+	if (
+		material.userData?.renderColorMode !== "flat-color" ||
+		typeof appearance?.color !== "string"
+	) {
 		return material;
 	}
 	const opacity = Number.isFinite(appearance.opacity) ? appearance.opacity : 1;
@@ -1793,14 +2109,17 @@ function flatAppearanceMaterial (material) {
 	return flatMaterial;
 }
 
-function ensureDecalUv (mesh) {
+function ensureDecalUv(mesh) {
 	if (mesh.geometry.getAttribute("uv") !== undefined) {
 		return;
 	}
-	mesh.geometry.setAttribute("uv", new THREE.BufferAttribute(TEXT_DECAL_UVS, 2));
+	mesh.geometry.setAttribute(
+		"uv",
+		new THREE.BufferAttribute(TEXT_DECAL_UVS, 2),
+	);
 }
 
-function createTextDecalTexture (decal) {
+function createTextDecalTexture(decal) {
 	const widthMm = Math.max(decal.sizeMm?.widthMm ?? 12, 1);
 	const heightMm = Math.max(decal.sizeMm?.heightMm ?? 4, 1);
 	const pixelScale = 48;
@@ -1823,23 +2142,25 @@ function createTextDecalTexture (decal) {
 	return texture;
 }
 
-function createImageDecalTexture (href) {
+function createImageDecalTexture(href) {
 	const texture = new THREE.TextureLoader().load(href);
 	texture.colorSpace = THREE.SRGBColorSpace;
 	texture.flipY = false;
 	return texture;
 }
 
-function textDecalFont (decal, pixelScale) {
+function textDecalFont(decal, pixelScale) {
 	const sizePx = Math.max(10, (decal.fontSizeMm ?? 3) * pixelScale);
 	const family = decal.fontFamily ?? "Arial, sans-serif";
 	return `600 ${sizePx}px ${family}`;
 }
 
-function svgDataUri (svg) {
+function svgDataUri(svg) {
 	return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function colorizedSvg (svg, color) {
-	return typeof color === "string" ? svg.replaceAll("currentColor", color) : svg;
+function colorizedSvg(svg, color) {
+	return typeof color === "string"
+		? svg.replaceAll("currentColor", color)
+		: svg;
 }

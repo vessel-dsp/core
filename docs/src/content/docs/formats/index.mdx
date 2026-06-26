@@ -7,13 +7,28 @@ description: File formats supported by @vessel-dsp/core and their conversion bou
 
 | Format | Extension | Support |
 | --- | --- | --- |
-| VesselDSP Source | `.vdsp`, `.yaml` | Project-native `circuit-interchange/v2` and `circuit-interchange/v3` YAML documents. |
+| VesselDSP Source | `.vdsp`, `.yaml` | Project-native `circuit-interchange/v2` and `circuit-interchange/v3` YAML documents for source-visible, simulatable CircuitDocument graphs. |
 | LTspice | `.asc` | Parsed and serialized as schematic data. |
 | LiveSPICE | `.schx` | Parsed and serialized as schematic data. |
 | tscircuit Circuit JSON | `.circuit.json` | Imported and exported using official `circuit-json` schema validation. |
 | Legacy SPICE netlist | `.cir`, `.net`, `.spice` | Connectivity parser and serializer support outside the v1 bidirectional Circuit JSON contract. |
 
 `.vsdp` and `.asr` are treated as typos, not aliases.
+
+## VDSP source-visible role
+
+`.vdsp` is the portable circuit document a host can render as a schematic and
+lower into a simulator/runtime. It should preserve source-visible component
+identity, schematic layout, reference labels, controls, and boundary metadata so
+users can inspect what was modeled and what was lowered. Host runtimes may map
+source-visible sections to compact MNA, reusable kernels, macro DSP, or
+view-only evidence, but those lowerings should not erase the source-facing
+schematic semantics.
+
+Keep provenance-only material outside the portable `.vdsp`: source-trace
+ledgers, private artifact paths, source hashes, and packet-local evidence belong
+in the consuming project's README, catalog, validation, or source-boundary
+metadata.
 
 ## Circuit JSON contract
 

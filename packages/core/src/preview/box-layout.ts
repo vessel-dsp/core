@@ -1,5 +1,5 @@
-import type { Bounds } from './bounds';
-import type { Component } from '../model/types';
+import type { Bounds } from "./bounds";
+import type { Component } from "../model/types";
 
 // Every component renders in a uniform square container centered on its origin.
 // HALF_SIZE=20 matches the symbol viewBox (−25..25 with body content within ±20).
@@ -8,17 +8,17 @@ import type { Component } from '../model/types';
 const HALF_SIZE = 20;
 
 export function computeComponentBox(component: Component): Bounds {
-    const minX = component.origin.x - HALF_SIZE;
-    const minY = component.origin.y - HALF_SIZE;
-    const maxX = component.origin.x + HALF_SIZE;
-    const maxY = component.origin.y + HALF_SIZE;
+	const minX = component.origin.x - HALF_SIZE;
+	const minY = component.origin.y - HALF_SIZE;
+	const maxX = component.origin.x + HALF_SIZE;
+	const maxY = component.origin.y + HALF_SIZE;
 
-    return {
-        minX,
-        minY,
-        maxX,
-        maxY,
-        width: maxX - minX,
-        height: maxY - minY,
-    };
+	return {
+		minX,
+		minY,
+		maxX,
+		maxY,
+		width: maxX - minX,
+		height: maxY - minY,
+	};
 }

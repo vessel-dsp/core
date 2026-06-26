@@ -1,56 +1,56 @@
 {
-    "name": "@vessel-dsp/core",
-    "version": "0.6.4",
-    "description": "Headless VesselDSP circuit, device, format conversion, and layout model APIs.",
-    "keywords": [
-        "guitar-pedal",
-        "electronics",
-        "spice",
-        "ltspice",
-        "livespice",
-        "circuit"
-    ],
-    "homepage": "https://vessel-dsp.github.io/core/",
-    "bugs": {
-        "url": "https://github.com/vessel-dsp/core/issues"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/vessel-dsp/core.git"
-    },
-    "license": "MIT",
-    "sideEffects": false,
-    "type": "module",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "bun": "./dist/index.js",
-            "import": "./dist/index.js"
-        },
-        "./package.json": {
-            "default": "./package.json"
-        }
-    },
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "files": [
-        "dist",
-        "README.md",
-        "LICENSE.md"
-    ],
-    "scripts": {
-        "build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
-        "clean": "rm -rf dist",
-        "prepack": "bun run build",
-        "pack:dry-run": "npm pack --dry-run",
-        "typecheck": "tsc --noEmit -p tsconfig.json"
-    },
-    "dependencies": {
-        "circuit-json": "0.0.433",
-        "zod": "3"
-    },
-    "publishConfig": {
-        "access": "public"
-    }
+	"name": "@vessel-dsp/core",
+	"version": "0.6.4",
+	"description": "Headless VesselDSP circuit, device, format conversion, and layout model APIs.",
+	"keywords": [
+		"guitar-pedal",
+		"electronics",
+		"spice",
+		"ltspice",
+		"livespice",
+		"circuit"
+	],
+	"homepage": "https://vessel-dsp.github.io/core/",
+	"bugs": {
+		"url": "https://github.com/vessel-dsp/core/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/vessel-dsp/core.git"
+	},
+	"license": "MIT",
+	"sideEffects": false,
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"bun": "./dist/index.js",
+			"import": "./dist/index.js"
+		},
+		"./package.json": {
+			"default": "./package.json"
+		}
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE.md"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"clean": "rm -rf dist",
+		"prepack": "bun run build",
+		"pack:dry-run": "npm pack --dry-run",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"dependencies": {
+		"circuit-json": "0.0.433",
+		"zod": "3"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
 }

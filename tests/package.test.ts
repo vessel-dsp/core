@@ -1,658 +1,803 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from "bun:test";
 import {
-    VERSION,
-    convertCircuitDocumentFileWithReport,
-    movePanelElement,
-    parseCircuitJsonDocument,
-    serializeCircuitJsonDocument,
-    validateCircuitJsonDocument,
-} from '@vessel-dsp/core';
+	VERSION,
+	convertCircuitDocumentFileWithReport,
+	movePanelElement,
+	parseCircuitJsonDocument,
+	serializeCircuitJsonDocument,
+	validateCircuitJsonDocument,
+} from "@vessel-dsp/core";
 import {
-    applyStompboxPreviewInteraction,
-    createStompboxAppearancePatch,
-    createDefaultStompboxPedalStateFromVdsp,
-    createStompboxControlSurface,
-    createStompboxDrillLayoutFromVdsp,
-    createStompboxDrillTemplateFromVdsp,
-    createStompboxDrillTemplateSvgFromVdsp,
-    createStompboxFootswitchPressCommand,
-    createStompboxKnobTurnCommand,
-    createStompboxPedalStateStore,
-    createStompboxPreviewGlbFromVdsp,
-    createStompboxPreviewFromVdsp,
-    createStompboxPreviewSvgViewsFromVdsp,
-    createStompboxPreviewStatePatch,
-    resolveStompboxAppearance,
-    validateStompboxGlbAssetFile,
-    validateStompboxHardwareProfileAssets,
-} from '@vessel-dsp/stompbox';
-import { fileURLToPath } from 'node:url';
-import { rewriteRelativeEsmSpecifiers } from '../scripts/fix-dist-imports';
+	applyStompboxPreviewInteraction,
+	createStompboxAppearancePatch,
+	createDefaultStompboxPedalStateFromVdsp,
+	createStompboxControlSurface,
+	createStompboxDrillLayoutFromVdsp,
+	createStompboxDrillTemplateFromVdsp,
+	createStompboxDrillTemplateSvgFromVdsp,
+	createStompboxFootswitchPressCommand,
+	createStompboxKnobTurnCommand,
+	createStompboxPedalStateStore,
+	createStompboxPreviewFromVdsp,
+	createStompboxPreviewSvgViewsFromVdsp,
+	createStompboxPreviewStatePatch,
+	resolveStompboxAppearance,
+} from "@vessel-dsp/stompbox";
+import {
+	createStompboxPreviewGlbFromVdsp,
+	validateStompboxGlbAssetFile,
+	validateStompboxHardwareProfileAssets,
+} from "@vessel-dsp/stompbox/node";
+import { fileURLToPath } from "node:url";
+import { rewriteRelativeEsmSpecifiers } from "../scripts/fix-dist-imports";
 
 type JsonRecord = Readonly<Record<string, unknown>>;
 
 const removedScopedPackageNames = [
-    `@vessel-dsp/${'react' + '-component'}`,
-    `@vessel-dsp/${'sim' + 'ulation'}`,
+	`@vessel-dsp/${"react" + "-component"}`,
+	`@vessel-dsp/${"sim" + "ulation"}`,
 ] as const;
 const removedWorkspacePackageDirs = [
-    `packages/${'react' + '-component'}`,
-    `packages/${'sim' + 'ulation'}`,
+	`packages/${"react" + "-component"}`,
+	`packages/${"sim" + "ulation"}`,
 ] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function readJson(path: string): Promise<JsonRecord> {
-    const value = await Bun.file(new URL(path, import.meta.url)).json();
-    if (!isRecord(value)) {
-        throw new Error(`${path} did not parse to an object`);
-    }
-    return value;
+	const value = await Bun.file(new URL(path, import.meta.url)).json();
+	if (!isRecord(value)) {
+		throw new Error(`${path} did not parse to an object`);
+	}
+	return value;
 }
 
 async function readRootPackageJson(): Promise<JsonRecord> {
-    return readJson('../package.json');
+	return readJson("../package.json");
 }
 
 async function readPackageJson(packageDir: string): Promise<JsonRecord> {
-    return readJson(`../packages/${packageDir}/package.json`);
+	return readJson(`../packages/${packageDir}/package.json`);
 }
 
 async function readPackageTsconfig(packageDir: string): Promise<JsonRecord> {
-    return readJson(`../packages/${packageDir}/tsconfig.json`);
+	return readJson(`../packages/${packageDir}/tsconfig.json`);
 }
 
-async function readPackageBuildTsconfig(packageDir: string): Promise<JsonRecord> {
-    return readJson(`../packages/${packageDir}/tsconfig.build.json`);
+async function readPackageBuildTsconfig(
+	packageDir: string,
+): Promise<JsonRecord> {
+	return readJson(`../packages/${packageDir}/tsconfig.build.json`);
 }
 
 async function readPublishWorkflow(): Promise<string> {
-    return Bun.file(new URL('../.github/workflows/publish.yml', import.meta.url)).text();
+	return Bun.file(
+		new URL("../.github/workflows/publish.yml", import.meta.url),
+	).text();
 }
 
 async function readDeployWorkflow(): Promise<string> {
-    return Bun.file(new URL('../.github/workflows/deploy.yml', import.meta.url)).text();
+	return Bun.file(
+		new URL("../.github/workflows/deploy.yml", import.meta.url),
+	).text();
 }
 
 async function readReadme(): Promise<string> {
-    return Bun.file(new URL('../README.md', import.meta.url)).text();
+	return Bun.file(new URL("../README.md", import.meta.url)).text();
 }
 
 async function readChangelog(): Promise<string> {
-    return Bun.file(new URL('../CHANGELOG.md', import.meta.url)).text();
+	return Bun.file(new URL("../CHANGELOG.md", import.meta.url)).text();
 }
 
 async function readCoreDistIndexJs(): Promise<string> {
-    return Bun.file(new URL('../packages/core/dist/index.js', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/core/dist/index.js", import.meta.url),
+	).text();
 }
 
 async function readCoreDistIndexDts(): Promise<string> {
-    return Bun.file(new URL('../packages/core/dist/index.d.ts', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/core/dist/index.d.ts", import.meta.url),
+	).text();
 }
 
 async function readStompboxDistIndexJs(): Promise<string> {
-    return Bun.file(new URL('../packages/stompbox/dist/index.js', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/stompbox/dist/index.js", import.meta.url),
+	).text();
 }
 
 async function readStompboxDistIndexDts(): Promise<string> {
-    return Bun.file(new URL('../packages/stompbox/dist/index.d.ts', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/stompbox/dist/index.d.ts", import.meta.url),
+	).text();
+}
+
+async function readStompboxDistNodeJs(): Promise<string> {
+	return Bun.file(
+		new URL("../packages/stompbox/dist/node.js", import.meta.url),
+	).text();
+}
+
+async function readStompboxDistNodeDts(): Promise<string> {
+	return Bun.file(
+		new URL("../packages/stompbox/dist/node.d.ts", import.meta.url),
+	).text();
 }
 
 async function readControlUiDistIndexJs(): Promise<string> {
-    return Bun.file(new URL('../packages/control-ui/dist/index.js', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/control-ui/dist/index.js", import.meta.url),
+	).text();
 }
 
 async function readControlUiDistIndexDts(): Promise<string> {
-    return Bun.file(new URL('../packages/control-ui/dist/index.d.ts', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/control-ui/dist/index.d.ts", import.meta.url),
+	).text();
 }
 
 async function readStompboxSourceIndex(): Promise<string> {
-    return Bun.file(new URL('../packages/stompbox/src/index.ts', import.meta.url)).text();
+	return Bun.file(
+		new URL("../packages/stompbox/src/index.ts", import.meta.url),
+	).text();
 }
 
 function shouldScanRepositoryPath(path: string): boolean {
-    return !(
-        path.startsWith('.git/') ||
-        path.startsWith('node_modules/') ||
-        path.startsWith('packages/core/dist/') ||
-        path.startsWith('packages/stompbox/dist/') ||
-        path.startsWith('packages/control-ui/dist/') ||
-        path.startsWith('gh-pages/') ||
-        path === 'bun.lock'
-    );
+	return !(
+		path.startsWith(".git/") ||
+		path.startsWith("node_modules/") ||
+		path.startsWith("packages/core/dist/") ||
+		path.startsWith("packages/stompbox/dist/") ||
+		path.startsWith("packages/control-ui/dist/") ||
+		path.startsWith("gh-pages/") ||
+		path === "bun.lock"
+	);
 }
 
 async function readTextIfScannable(path: string): Promise<string | undefined> {
-    const file = Bun.file(new URL(`../${path}`, import.meta.url));
-    if (!(await file.exists())) {
-        return undefined;
-    }
+	const file = Bun.file(new URL(`../${path}`, import.meta.url));
+	if (!(await file.exists())) {
+		return undefined;
+	}
 
-    const contents = await file.arrayBuffer();
-    const bytes = new Uint8Array(contents);
-    if (bytes.includes(0)) {
-        return undefined;
-    }
+	const contents = await file.arrayBuffer();
+	const bytes = new Uint8Array(contents);
+	if (bytes.includes(0)) {
+		return undefined;
+	}
 
-    return new TextDecoder().decode(bytes);
+	return new TextDecoder().decode(bytes);
 }
 
 function runtimeDependencies(pkg: JsonRecord): JsonRecord {
-    return isRecord(pkg.dependencies) ? pkg.dependencies : {};
+	return isRecord(pkg.dependencies) ? pkg.dependencies : {};
 }
 
 function devDependencies(pkg: JsonRecord): JsonRecord {
-    return isRecord(pkg.devDependencies) ? pkg.devDependencies : {};
+	return isRecord(pkg.devDependencies) ? pkg.devDependencies : {};
 }
 
 function expectExport(
-    exportsField: unknown,
-    exportName: string,
-    expected: { readonly importPath: string; readonly typesPath: string },
+	exportsField: unknown,
+	exportName: string,
+	expected: { readonly importPath: string; readonly typesPath: string },
 ): void {
-    expect(isRecord(exportsField)).toBe(true);
-    if (!isRecord(exportsField)) {
-        return;
-    }
+	expect(isRecord(exportsField)).toBe(true);
+	if (!isRecord(exportsField)) {
+		return;
+	}
 
-    const target = exportsField[exportName];
-    expect(isRecord(target)).toBe(true);
-    if (!isRecord(target)) {
-        return;
-    }
+	const target = exportsField[exportName];
+	expect(isRecord(target)).toBe(true);
+	if (!isRecord(target)) {
+		return;
+	}
 
-    expect(target.import).toBe(expected.importPath);
-    expect(target.types).toBe(expected.typesPath);
+	expect(target.import).toBe(expected.importPath);
+	expect(target.types).toBe(expected.typesPath);
 }
 
 function expectNoReactRuntimeDependency(pkg: JsonRecord): void {
-    const deps = runtimeDependencies(pkg);
-    expect(deps.react).toBeUndefined();
-    expect(deps['react-dom']).toBeUndefined();
+	const deps = runtimeDependencies(pkg);
+	expect(deps.react).toBeUndefined();
+	expect(deps["react-dom"]).toBeUndefined();
 }
 
 function collectExportTargets(value: unknown): readonly string[] {
-    if (typeof value === 'string') {
-        return [value];
-    }
-    if (!isRecord(value)) {
-        return [];
-    }
-    return Object.values(value).flatMap((target) => collectExportTargets(target));
+	if (typeof value === "string") {
+		return [value];
+	}
+	if (!isRecord(value)) {
+		return [];
+	}
+	return Object.values(value).flatMap((target) => collectExportTargets(target));
 }
 
-describe('workspace package contract', () => {
-    test('root manifest is a private Bun workspace for publishable packages', async () => {
-        const pkg = await readRootPackageJson();
-        const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
+describe("workspace package contract", () => {
+	test("root manifest is a private Bun workspace for publishable packages", async () => {
+		const pkg = await readRootPackageJson();
+		const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
 
-        expect(pkg.name).toBe('@vessel-dsp/workspace');
-        expect(pkg.private).toBe(true);
-        expect(pkg.packageManager).toBe('bun@1.2.2');
-        expect(pkg.publishConfig).toBeUndefined();
-        expect(pkg.exports).toBeUndefined();
-        expect(pkg.files).toBeUndefined();
-        expect(pkg.workspaces).toEqual(['packages/*']);
-        expect(scripts.build).toContain('packages/core');
-        expect(scripts.build).toContain('packages/stompbox');
-        expect(scripts.build).toContain('packages/control-ui');
-        for (const packageDir of removedWorkspacePackageDirs) {
-            expect(scripts.build).not.toContain(packageDir);
-        }
-        expect(scripts['build:pages']).toBe('astro build');
-        expect(scripts['docs:dev']).toBe('astro dev');
-        expect(scripts['docs:preview']).toBe('astro preview');
-        expect(scripts['build:playground']).toBeUndefined();
-        expect(scripts.dev).toBeUndefined();
-        expect(scripts.preview).toBeUndefined();
-        expect(scripts['pack:dry-run']).toContain('packages/core');
-        expect(scripts['pack:dry-run']).toContain('packages/stompbox');
-        expect(scripts['pack:dry-run']).toContain('packages/control-ui');
-        for (const packageDir of removedWorkspacePackageDirs) {
-            expect(scripts['pack:dry-run']).not.toContain(packageDir);
-        }
-    });
+		expect(pkg.name).toBe("@vessel-dsp/workspace");
+		expect(pkg.private).toBe(true);
+		expect(pkg.packageManager).toBe("bun@1.2.2");
+		expect(pkg.publishConfig).toBeUndefined();
+		expect(pkg.exports).toBeUndefined();
+		expect(pkg.files).toBeUndefined();
+		expect(pkg.workspaces).toEqual(["packages/*"]);
+		expect(scripts.build).toContain("packages/core");
+		expect(scripts.build).toContain("packages/stompbox");
+		expect(scripts.build).toContain("packages/control-ui");
+		for (const packageDir of removedWorkspacePackageDirs) {
+			expect(scripts.build).not.toContain(packageDir);
+		}
+		expect(scripts["build:pages"]).toBe("astro build");
+		expect(scripts["docs:dev"]).toBe("astro dev");
+		expect(scripts["docs:preview"]).toBe("astro preview");
+		expect(scripts["build:playground"]).toBeUndefined();
+		expect(scripts.dev).toBeUndefined();
+		expect(scripts.preview).toBeUndefined();
+		expect(scripts["pack:dry-run"]).toContain("packages/core");
+		expect(scripts["pack:dry-run"]).toContain("packages/stompbox");
+		expect(scripts["pack:dry-run"]).toContain("packages/control-ui");
+		for (const packageDir of removedWorkspacePackageDirs) {
+			expect(scripts["pack:dry-run"]).not.toContain(packageDir);
+		}
+	});
 
-    test('core package publishes the headless Circuit JSON conversion API', async () => {
-        const pkg = await readPackageJson('core');
-        const deps = runtimeDependencies(pkg);
+	test("core package publishes the headless Circuit JSON conversion API", async () => {
+		const pkg = await readPackageJson("core");
+		const deps = runtimeDependencies(pkg);
 
-        expect(pkg.name).toBe('@vessel-dsp/core');
-        expect(pkg.version).toBe(VERSION);
-        expect(pkg.private).not.toBe(true);
-        expect(pkg.type).toBe('module');
-        expect(pkg.sideEffects).toBe(false);
-        expect(pkg.main).toBe('./dist/index.js');
-        expect(pkg.module).toBe('./dist/index.js');
-        expect(pkg.types).toBe('./dist/index.d.ts');
-        expectExport(pkg.exports, '.', {
-            importPath: './dist/index.js',
-            typesPath: './dist/index.d.ts',
-        });
-        expect(deps['circuit-json']).toBeDefined();
-        expect(deps.zod).toBeDefined();
-        expectNoReactRuntimeDependency(pkg);
-        expect(typeof convertCircuitDocumentFileWithReport).toBe('function');
-        expect(typeof movePanelElement).toBe('function');
-    });
+		expect(pkg.name).toBe("@vessel-dsp/core");
+		expect(pkg.version).toBe(VERSION);
+		expect(pkg.private).not.toBe(true);
+		expect(pkg.type).toBe("module");
+		expect(pkg.sideEffects).toBe(false);
+		expect(pkg.main).toBe("./dist/index.js");
+		expect(pkg.module).toBe("./dist/index.js");
+		expect(pkg.types).toBe("./dist/index.d.ts");
+		expectExport(pkg.exports, ".", {
+			importPath: "./dist/index.js",
+			typesPath: "./dist/index.d.ts",
+		});
+		expect(deps["circuit-json"]).toBeDefined();
+		expect(deps.zod).toBeDefined();
+		expectNoReactRuntimeDependency(pkg);
+		expect(typeof convertCircuitDocumentFileWithReport).toBe("function");
+		expect(typeof movePanelElement).toBe("function");
+	});
 
-    test('stompbox package publishes headless drill layout and preview manifest APIs', async () => {
-        const pkg = await readPackageJson('stompbox');
-        const deps = runtimeDependencies(pkg);
+	test("stompbox package publishes headless drill layout and preview manifest APIs", async () => {
+		const pkg = await readPackageJson("stompbox");
+		const deps = runtimeDependencies(pkg);
 
-        expect(pkg.name).toBe('@vessel-dsp/stompbox');
-        expect(pkg.version).toBe(VERSION);
-        expect(pkg.private).not.toBe(true);
-        expect(pkg.type).toBe('module');
-        expect(pkg.sideEffects).toBe(false);
-        expect(pkg.main).toBe('./dist/index.js');
-        expect(pkg.module).toBe('./dist/index.js');
-        expect(pkg.types).toBe('./dist/index.d.ts');
-        expectExport(pkg.exports, '.', {
-            importPath: './dist/index.js',
-            typesPath: './dist/index.d.ts',
-        });
-        expect(deps['@vessel-dsp/core']).toBe(VERSION);
-        expectNoReactRuntimeDependency(pkg);
-        expect(typeof createStompboxDrillLayoutFromVdsp).toBe('function');
-        expect(typeof createStompboxPreviewFromVdsp).toBe('function');
-        expect(typeof createStompboxDrillTemplateFromVdsp).toBe('function');
-        expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe('function');
-        expect(typeof createStompboxPreviewGlbFromVdsp).toBe('function');
-        expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
-        expect(typeof createStompboxAppearancePatch).toBe('function');
-        expect(typeof resolveStompboxAppearance).toBe('function');
-        expect(typeof createStompboxControlSurface).toBe('function');
-        expect(typeof createDefaultStompboxPedalStateFromVdsp).toBe('function');
-        expect(typeof createStompboxPedalStateStore).toBe('function');
-        expect(typeof createStompboxKnobTurnCommand).toBe('function');
-        expect(typeof createStompboxFootswitchPressCommand).toBe('function');
-        expect(typeof applyStompboxPreviewInteraction).toBe('function');
-        expect(typeof createStompboxPreviewStatePatch).toBe('function');
-        expect(typeof validateStompboxGlbAssetFile).toBe('function');
-        expect(typeof validateStompboxHardwareProfileAssets).toBe('function');
-    });
+		expect(pkg.name).toBe("@vessel-dsp/stompbox");
+		expect(pkg.version).toBe(VERSION);
+		expect(pkg.private).not.toBe(true);
+		expect(pkg.type).toBe("module");
+		expect(pkg.sideEffects).toBe(false);
+		expect(pkg.main).toBe("./dist/index.js");
+		expect(pkg.module).toBe("./dist/index.js");
+		expect(pkg.types).toBe("./dist/index.d.ts");
+		expectExport(pkg.exports, ".", {
+			importPath: "./dist/index.js",
+			typesPath: "./dist/index.d.ts",
+		});
+		expectExport(pkg.exports, "./node", {
+			importPath: "./dist/node.js",
+			typesPath: "./dist/node.d.ts",
+		});
+		expect(deps["@vessel-dsp/core"]).toBe(VERSION);
+		expectNoReactRuntimeDependency(pkg);
+		expect(typeof createStompboxDrillLayoutFromVdsp).toBe("function");
+		expect(typeof createStompboxPreviewFromVdsp).toBe("function");
+		expect(typeof createStompboxDrillTemplateFromVdsp).toBe("function");
+		expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe("function");
+		expect(typeof createStompboxPreviewGlbFromVdsp).toBe("function");
+		expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe("function");
+		expect(typeof createStompboxAppearancePatch).toBe("function");
+		expect(typeof resolveStompboxAppearance).toBe("function");
+		expect(typeof createStompboxControlSurface).toBe("function");
+		expect(typeof createDefaultStompboxPedalStateFromVdsp).toBe("function");
+		expect(typeof createStompboxPedalStateStore).toBe("function");
+		expect(typeof createStompboxKnobTurnCommand).toBe("function");
+		expect(typeof createStompboxFootswitchPressCommand).toBe("function");
+		expect(typeof applyStompboxPreviewInteraction).toBe("function");
+		expect(typeof createStompboxPreviewStatePatch).toBe("function");
+		expect(typeof validateStompboxGlbAssetFile).toBe("function");
+		expect(typeof validateStompboxHardwareProfileAssets).toBe("function");
+	});
 
-    test('control-ui package publishes optional React panel controls', async () => {
-        const pkg = await readPackageJson('control-ui');
-        const deps = runtimeDependencies(pkg);
-        const peerDeps = isRecord(pkg.peerDependencies) ? pkg.peerDependencies : {};
-        const devDeps = devDependencies(pkg);
+	test("control-ui package publishes optional React panel controls", async () => {
+		const pkg = await readPackageJson("control-ui");
+		const deps = runtimeDependencies(pkg);
+		const peerDeps = isRecord(pkg.peerDependencies) ? pkg.peerDependencies : {};
+		const devDeps = devDependencies(pkg);
 
-        expect(pkg.name).toBe('@vessel-dsp/control-ui');
-        expect(pkg.version).toBe(VERSION);
-        expect(pkg.private).not.toBe(true);
-        expect(pkg.type).toBe('module');
-        expect(pkg.main).toBe('./dist/index.js');
-        expect(pkg.module).toBe('./dist/index.js');
-        expect(pkg.types).toBe('./dist/index.d.ts');
-        expect(pkg.sideEffects).toEqual(['./dist/styles.css', './src/styles.css']);
-        expectExport(pkg.exports, '.', {
-            importPath: './dist/index.js',
-            typesPath: './dist/index.d.ts',
-        });
-        expect(isRecord(pkg.exports)).toBe(true);
-        if (isRecord(pkg.exports)) {
-            expect(pkg.exports['./styles.css']).toEqual({ default: './dist/styles.css' });
-        }
-        expect(deps['@vessel-dsp/core']).toBe(VERSION);
-        expect(deps.react).toBeUndefined();
-        expect(deps['react-dom']).toBeUndefined();
-        expect(peerDeps.react).toBe('>=18.2 <20');
-        expect(peerDeps['react-dom']).toBe('>=18.2 <20');
-        expect(devDeps.react).toBeDefined();
-        expect(devDeps['react-dom']).toBeDefined();
-        expect(devDeps['react-test-renderer']).toBeDefined();
-    });
+		expect(pkg.name).toBe("@vessel-dsp/control-ui");
+		expect(pkg.version).toBe(VERSION);
+		expect(pkg.private).not.toBe(true);
+		expect(pkg.type).toBe("module");
+		expect(pkg.main).toBe("./dist/index.js");
+		expect(pkg.module).toBe("./dist/index.js");
+		expect(pkg.types).toBe("./dist/index.d.ts");
+		expect(pkg.sideEffects).toEqual(["./dist/styles.css", "./src/styles.css"]);
+		expectExport(pkg.exports, ".", {
+			importPath: "./dist/index.js",
+			typesPath: "./dist/index.d.ts",
+		});
+		expect(isRecord(pkg.exports)).toBe(true);
+		if (isRecord(pkg.exports)) {
+			expect(pkg.exports["./styles.css"]).toEqual({
+				default: "./dist/styles.css",
+			});
+		}
+		expect(deps["@vessel-dsp/core"]).toBe(VERSION);
+		expect(deps.react).toBeUndefined();
+		expect(deps["react-dom"]).toBeUndefined();
+		expect(peerDeps.react).toBe(">=18.2 <20");
+		expect(peerDeps["react-dom"]).toBe(">=18.2 <20");
+		expect(devDeps.react).toBeDefined();
+		expect(devDeps["react-dom"]).toBeDefined();
+		expect(devDeps["react-test-renderer"]).toBeDefined();
+	});
 
-    test('stompbox package keeps named demo presets out of the library source', async () => {
-        const source = await readStompboxSourceIndex();
+	test("stompbox package keeps named demo presets out of the library source", async () => {
+		const source = await readStompboxSourceIndex();
 
-        expect(source).not.toContain('DEMO_STOMPBOX');
-        expect(source).not.toContain('DEFAULT_DEMO');
-        expect(source).not.toContain('mxr-style');
-        expect(source).not.toContain('boss-style');
-        expect(source).not.toMatch(/\bMXR\b/i);
-        expect(source).not.toMatch(/\bBoss\b/i);
-    });
+		expect(source).not.toContain("DEMO_STOMPBOX");
+		expect(source).not.toContain("DEFAULT_DEMO");
+		expect(source).not.toContain("mxr-style");
+		expect(source).not.toContain("boss-style");
+		expect(source).not.toMatch(/\bMXR\b/i);
+		expect(source).not.toMatch(/\bBoss\b/i);
+	});
 
-    test('removed React and simulation packages are not workspace deliverables', async () => {
-        expect(await Bun.file(new URL(`../packages/${'react' + '-component'}/package.json`, import.meta.url)).exists()).toBe(false);
-        expect(await Bun.file(new URL(`../packages/${'sim' + 'ulation'}/package.json`, import.meta.url)).exists()).toBe(false);
-    });
+	test("stompbox root entry stays browser-safe by keeping filesystem access in the node export", async () => {
+		const source = await readStompboxSourceIndex();
 
-    test('removed scoped package names are absent from repository files', async () => {
-        const matches: string[] = [];
-        const glob = new Bun.Glob('**/*');
-        const repositoryRoot = fileURLToPath(new URL('../', import.meta.url));
+		expect(source).not.toContain("node:fs");
+		expect(source).not.toContain("readFileSync");
+	});
 
-        for await (const path of glob.scan({ cwd: repositoryRoot })) {
-            if (!shouldScanRepositoryPath(path)) {
-                continue;
-            }
+	test("removed React and simulation packages are not workspace deliverables", async () => {
+		expect(
+			await Bun.file(
+				new URL(
+					`../packages/${"react" + "-component"}/package.json`,
+					import.meta.url,
+				),
+			).exists(),
+		).toBe(false);
+		expect(
+			await Bun.file(
+				new URL(
+					`../packages/${"sim" + "ulation"}/package.json`,
+					import.meta.url,
+				),
+			).exists(),
+		).toBe(false);
+	});
 
-            const text = await readTextIfScannable(path);
-            if (text === undefined) {
-                continue;
-            }
+	test("removed scoped package names are absent from repository files", async () => {
+		const matches: string[] = [];
+		const glob = new Bun.Glob("**/*");
+		const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 
-            for (const packageName of removedScopedPackageNames) {
-                if (text.includes(packageName)) {
-                    matches.push(`${path}: ${packageName}`);
-                }
-            }
-            for (const packageDir of removedWorkspacePackageDirs) {
-                if (text.includes(packageDir)) {
-                    matches.push(`${path}: ${packageDir}`);
-                }
-            }
-        }
+		for await (const path of glob.scan({ cwd: repositoryRoot })) {
+			if (!shouldScanRepositoryPath(path)) {
+				continue;
+			}
 
-        expect(matches).toEqual([]);
-    });
+			const text = await readTextIfScannable(path);
+			if (text === undefined) {
+				continue;
+			}
 
-    test('headless package tsconfigs stay DOM-free and control-ui is the DOM/JSX package', async () => {
-        const tsconfig = await readPackageTsconfig('core');
-        const compilerOptions = isRecord(tsconfig.compilerOptions) ? tsconfig.compilerOptions : {};
-        const stompboxTsconfig = await readPackageTsconfig('stompbox');
-        const stompboxCompilerOptions = isRecord(stompboxTsconfig.compilerOptions)
-            ? stompboxTsconfig.compilerOptions
-            : {};
-        const controlUiTsconfig = await readPackageTsconfig('control-ui');
-        const controlUiCompilerOptions = isRecord(controlUiTsconfig.compilerOptions)
-            ? controlUiTsconfig.compilerOptions
-            : {};
-        const controlUiBuildTsconfig = await readPackageBuildTsconfig('control-ui');
-        const controlUiBuildCompilerOptions = isRecord(controlUiBuildTsconfig.compilerOptions)
-            ? controlUiBuildTsconfig.compilerOptions
-            : {};
-        expect(compilerOptions.lib).toEqual(['ES2022']);
-        expect(compilerOptions.jsx).toBeUndefined();
-        expect(stompboxCompilerOptions.lib).toEqual(['ES2022']);
-        expect(stompboxCompilerOptions.jsx).toBeUndefined();
-        expect(controlUiCompilerOptions.lib).toEqual(['ES2022', 'DOM', 'DOM.Iterable']);
-        expect(controlUiCompilerOptions.jsx).toBe('react-jsx');
-        expect(controlUiCompilerOptions.baseUrl).toBe('../..');
-        expect(controlUiCompilerOptions.paths).toEqual({
-            '@vessel-dsp/core': ['packages/core/src/index.ts'],
-            '@vessel-dsp/core/*': ['packages/core/src/*'],
-        });
-        expect(controlUiBuildTsconfig.extends).toBe('../../tsconfig.base.json');
-        expect(controlUiBuildCompilerOptions.lib).toEqual(['ES2022', 'DOM', 'DOM.Iterable']);
-        expect(controlUiBuildCompilerOptions.jsx).toBe('react-jsx');
-        expect(controlUiBuildCompilerOptions.paths).toBeUndefined();
-        expect(controlUiBuildTsconfig.include).toEqual(['src/**/*']);
-    });
+			for (const packageName of removedScopedPackageNames) {
+				if (text.includes(packageName)) {
+					matches.push(`${path}: ${packageName}`);
+				}
+			}
+			for (const packageDir of removedWorkspacePackageDirs) {
+				if (text.includes(packageDir)) {
+					matches.push(`${path}: ${packageDir}`);
+				}
+			}
+		}
 
-    test('Circuit JSON schema tooling is a core runtime dependency, not root-only test plumbing', async () => {
-        const root = await readRootPackageJson();
-        const rootDevDeps = devDependencies(root);
-        const core = await readPackageJson('core');
-        const deps = runtimeDependencies(core);
+		expect(matches).toEqual([]);
+	});
 
-        expect(rootDevDeps['circuit-json']).toBeUndefined();
-        expect(deps['circuit-json']).toBeDefined();
-        expect(deps.zod).toBeDefined();
-        expect(deps['@tscircuit/runframe']).toBeUndefined();
-    });
+	test("headless package tsconfigs stay DOM-free and control-ui is the DOM/JSX package", async () => {
+		const tsconfig = await readPackageTsconfig("core");
+		const compilerOptions = isRecord(tsconfig.compilerOptions)
+			? tsconfig.compilerOptions
+			: {};
+		const stompboxTsconfig = await readPackageTsconfig("stompbox");
+		const stompboxCompilerOptions = isRecord(stompboxTsconfig.compilerOptions)
+			? stompboxTsconfig.compilerOptions
+			: {};
+		const controlUiTsconfig = await readPackageTsconfig("control-ui");
+		const controlUiCompilerOptions = isRecord(controlUiTsconfig.compilerOptions)
+			? controlUiTsconfig.compilerOptions
+			: {};
+		const controlUiBuildTsconfig = await readPackageBuildTsconfig("control-ui");
+		const controlUiBuildCompilerOptions = isRecord(
+			controlUiBuildTsconfig.compilerOptions,
+		)
+			? controlUiBuildTsconfig.compilerOptions
+			: {};
+		expect(compilerOptions.lib).toEqual(["ES2022"]);
+		expect(compilerOptions.jsx).toBeUndefined();
+		expect(stompboxCompilerOptions.lib).toEqual(["ES2022"]);
+		expect(stompboxCompilerOptions.jsx).toBeUndefined();
+		expect(controlUiCompilerOptions.lib).toEqual([
+			"ES2022",
+			"DOM",
+			"DOM.Iterable",
+		]);
+		expect(controlUiCompilerOptions.jsx).toBe("react-jsx");
+		expect(controlUiCompilerOptions.baseUrl).toBe("../..");
+		expect(controlUiCompilerOptions.paths).toEqual({
+			"@vessel-dsp/core": ["packages/core/src/index.ts"],
+			"@vessel-dsp/core/*": ["packages/core/src/*"],
+		});
+		expect(controlUiBuildTsconfig.extends).toBe("../../tsconfig.base.json");
+		expect(controlUiBuildCompilerOptions.lib).toEqual([
+			"ES2022",
+			"DOM",
+			"DOM.Iterable",
+		]);
+		expect(controlUiBuildCompilerOptions.jsx).toBe("react-jsx");
+		expect(controlUiBuildCompilerOptions.paths).toBeUndefined();
+		expect(controlUiBuildTsconfig.include).toEqual(["src/**/*"]);
+	});
 
-    test('root manifest has no playground UI dependencies', async () => {
-        const root = await readRootPackageJson();
-        const rootDevDeps = devDependencies(root);
+	test("Circuit JSON schema tooling is a core runtime dependency, not root-only test plumbing", async () => {
+		const root = await readRootPackageJson();
+		const rootDevDeps = devDependencies(root);
+		const core = await readPackageJson("core");
+		const deps = runtimeDependencies(core);
 
-        expect(rootDevDeps.react).toBeUndefined();
-        expect(rootDevDeps['react-dom']).toBeUndefined();
-        expect(rootDevDeps.vite).toBeUndefined();
-        expect(rootDevDeps['@vitejs/plugin-react']).toBeUndefined();
-        expect(rootDevDeps['@tscircuit/runframe']).toBeUndefined();
-        expect(rootDevDeps['@tscircuit/schematic-viewer']).toBeUndefined();
-        expect(rootDevDeps['@tailwindcss/vite']).toBeUndefined();
-        expect(rootDevDeps.tailwindcss).toBeUndefined();
-        expect(rootDevDeps['lucide-react']).toBeUndefined();
-        expect(rootDevDeps['radix-ui']).toBeUndefined();
-    });
+		expect(rootDevDeps["circuit-json"]).toBeUndefined();
+		expect(deps["circuit-json"]).toBeDefined();
+		expect(deps.zod).toBeDefined();
+		expect(deps["@tscircuit/runframe"]).toBeUndefined();
+	});
 
-    test('declares the MIT license and includes docs in publishable packages', async () => {
-        for (const packageDir of ['core', 'stompbox', 'control-ui']) {
-            const pkg = await readPackageJson(packageDir);
-            expect(pkg.license).toBe('MIT');
-            expect(Array.isArray(pkg.files)).toBe(true);
-            expect(pkg.files).toContain('LICENSE.md');
-            expect(pkg.files).toContain('README.md');
-        }
-    });
+	test("root manifest has no playground UI dependencies", async () => {
+		const root = await readRootPackageJson();
+		const rootDevDeps = devDependencies(root);
 
-    test('stompbox publishes demo CAD assets for example preview assembly', async () => {
-        const pkg = await readPackageJson('stompbox');
-        const files = Array.isArray(pkg.files) ? pkg.files : [];
+		expect(rootDevDeps.react).toBeUndefined();
+		expect(rootDevDeps["react-dom"]).toBeUndefined();
+		expect(rootDevDeps.vite).toBeUndefined();
+		expect(rootDevDeps["@vitejs/plugin-react"]).toBeUndefined();
+		expect(rootDevDeps["@tscircuit/runframe"]).toBeUndefined();
+		expect(rootDevDeps["@tscircuit/schematic-viewer"]).toBeUndefined();
+		expect(rootDevDeps["@tailwindcss/vite"]).toBeUndefined();
+		expect(rootDevDeps.tailwindcss).toBeUndefined();
+		expect(rootDevDeps["lucide-react"]).toBeUndefined();
+		expect(rootDevDeps["radix-ui"]).toBeUndefined();
+	});
 
-        expect(files).toContain('assets');
-        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/box-1590b/.tayda-a6619.step.glb', import.meta.url)).exists()).toBe(true);
-        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/box-1590b/tayda-a6619.step', import.meta.url)).exists()).toBe(true);
-        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/dc-socket-dc099/.dc099.step.glb', import.meta.url)).exists()).toBe(true);
-        expect(await Bun.file(new URL('../packages/stompbox/assets/cad/parts/dc-socket-dc099/dc099.step', import.meta.url)).exists()).toBe(true);
-    });
+	test("declares the MIT license and includes docs in publishable packages", async () => {
+		for (const packageDir of ["core", "stompbox", "control-ui"]) {
+			const pkg = await readPackageJson(packageDir);
+			expect(pkg.license).toBe("MIT");
+			expect(Array.isArray(pkg.files)).toBe(true);
+			expect(pkg.files).toContain("LICENSE.md");
+			expect(pkg.files).toContain("README.md");
+		}
+	});
 
-    test('publishable packages publish built dist artifacts without source fallback', async () => {
-        for (const packageDir of ['core', 'stompbox', 'control-ui']) {
-            const pkg = await readPackageJson(packageDir);
-            const files = Array.isArray(pkg.files) ? pkg.files : [];
-            const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
-            const entryTargets = [
-                pkg.main,
-                pkg.module,
-                pkg.types,
-                ...collectExportTargets(pkg.exports),
-            ].filter((target): target is string => typeof target === 'string');
+	test("stompbox publishes demo CAD assets for example preview assembly", async () => {
+		const pkg = await readPackageJson("stompbox");
+		const files = Array.isArray(pkg.files) ? pkg.files : [];
 
-            expect(files).toContain('dist');
-            expect(files).not.toContain('src');
-            expect(scripts.prepack).toContain('bun run build');
+		expect(files).toContain("assets");
+		expect(
+			await Bun.file(
+				new URL(
+					"../packages/stompbox/assets/cad/parts/box-1590b/.tayda-a6619.step.glb",
+					import.meta.url,
+				),
+			).exists(),
+		).toBe(true);
+		expect(
+			await Bun.file(
+				new URL(
+					"../packages/stompbox/assets/cad/parts/box-1590b/tayda-a6619.step",
+					import.meta.url,
+				),
+			).exists(),
+		).toBe(true);
+		expect(
+			await Bun.file(
+				new URL(
+					"../packages/stompbox/assets/cad/parts/dc-socket-dc099/.dc099.step.glb",
+					import.meta.url,
+				),
+			).exists(),
+		).toBe(true);
+		expect(
+			await Bun.file(
+				new URL(
+					"../packages/stompbox/assets/cad/parts/dc-socket-dc099/dc099.step",
+					import.meta.url,
+				),
+			).exists(),
+		).toBe(true);
+	});
 
-            for (const target of entryTargets) {
-                if (target === './package.json') {
-                    continue;
-                }
-                expect(target).toStartWith('./dist/');
-            }
-        }
-    });
+	test("publishable packages publish built dist artifacts without source fallback", async () => {
+		for (const packageDir of ["core", "stompbox", "control-ui"]) {
+			const pkg = await readPackageJson(packageDir);
+			const files = Array.isArray(pkg.files) ? pkg.files : [];
+			const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
+			const entryTargets = [
+				pkg.main,
+				pkg.module,
+				pkg.types,
+				...collectExportTargets(pkg.exports),
+			].filter((target): target is string => typeof target === "string");
 
-    test('publishes package homepage and GitHub repository metadata for npm package pages', async () => {
-        const packages = [
-            await readPackageJson('core'),
-            await readPackageJson('stompbox'),
-            await readPackageJson('control-ui'),
-        ];
+			expect(files).toContain("dist");
+			expect(files).not.toContain("src");
+			expect(scripts.prepack).toContain("bun run build");
 
-        for (const pkg of packages) {
-            expect(pkg.homepage).toBe('https://vessel-dsp.github.io/core/');
+			for (const target of entryTargets) {
+				if (target === "./package.json") {
+					continue;
+				}
+				expect(target).toStartWith("./dist/");
+			}
+		}
+	});
 
-            expect(isRecord(pkg.repository)).toBe(true);
-            if (isRecord(pkg.repository)) {
-                expect(pkg.repository.type).toBe('git');
-                expect(pkg.repository.url).toBe('git+https://github.com/vessel-dsp/core.git');
-            }
+	test("publishes package homepage and GitHub repository metadata for npm package pages", async () => {
+		const packages = [
+			await readPackageJson("core"),
+			await readPackageJson("stompbox"),
+			await readPackageJson("control-ui"),
+		];
 
-            expect(isRecord(pkg.bugs)).toBe(true);
-            if (isRecord(pkg.bugs)) {
-                expect(pkg.bugs.url).toBe('https://github.com/vessel-dsp/core/issues');
-            }
-        }
-    });
+		for (const pkg of packages) {
+			expect(pkg.homepage).toBe("https://vessel-dsp.github.io/core/");
+
+			expect(isRecord(pkg.repository)).toBe(true);
+			if (isRecord(pkg.repository)) {
+				expect(pkg.repository.type).toBe("git");
+				expect(pkg.repository.url).toBe(
+					"git+https://github.com/vessel-dsp/core.git",
+				);
+			}
+
+			expect(isRecord(pkg.bugs)).toBe(true);
+			if (isRecord(pkg.bugs)) {
+				expect(pkg.bugs.url).toBe("https://github.com/vessel-dsp/core/issues");
+			}
+		}
+	});
 });
 
-describe('published import surface', () => {
-    test('core exposes Circuit JSON conversion helpers', () => {
-        expect(typeof serializeCircuitJsonDocument).toBe('function');
-        expect(typeof parseCircuitJsonDocument).toBe('function');
-        expect(typeof validateCircuitJsonDocument).toBe('function');
-    });
+describe("published import surface", () => {
+	test("core exposes Circuit JSON conversion helpers", () => {
+		expect(typeof serializeCircuitJsonDocument).toBe("function");
+		expect(typeof parseCircuitJsonDocument).toBe("function");
+		expect(typeof validateCircuitJsonDocument).toBe("function");
+	});
 
-    test('stompbox exposes drill layout, drill template, and preview helpers', () => {
-        expect(typeof createStompboxDrillLayoutFromVdsp).toBe('function');
-        expect(typeof createStompboxDrillTemplateFromVdsp).toBe('function');
-        expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe('function');
-        expect(typeof createStompboxPreviewFromVdsp).toBe('function');
-        expect(typeof createStompboxPreviewGlbFromVdsp).toBe('function');
-        expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe('function');
-        expect(typeof createStompboxAppearancePatch).toBe('function');
-        expect(typeof resolveStompboxAppearance).toBe('function');
-        expect(typeof validateStompboxGlbAssetFile).toBe('function');
-        expect(typeof validateStompboxHardwareProfileAssets).toBe('function');
-    });
+	test("stompbox exposes drill layout, drill template, and preview helpers", () => {
+		expect(typeof createStompboxDrillLayoutFromVdsp).toBe("function");
+		expect(typeof createStompboxDrillTemplateFromVdsp).toBe("function");
+		expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe("function");
+		expect(typeof createStompboxPreviewFromVdsp).toBe("function");
+		expect(typeof createStompboxPreviewGlbFromVdsp).toBe("function");
+		expect(typeof createStompboxPreviewSvgViewsFromVdsp).toBe("function");
+		expect(typeof createStompboxAppearancePatch).toBe("function");
+		expect(typeof resolveStompboxAppearance).toBe("function");
+		expect(typeof validateStompboxGlbAssetFile).toBe("function");
+		expect(typeof validateStompboxHardwareProfileAssets).toBe("function");
+	});
 });
 
-describe('npm publish workflow', () => {
-    test('publishes all packages on tags and supports individual workflow dispatch packages', async () => {
-        const workflow = await readPublishWorkflow();
+describe("npm publish workflow", () => {
+	test("publishes all packages on tags and supports individual workflow dispatch packages", async () => {
+		const workflow = await readPublishWorkflow();
 
-        expect(workflow).toContain('name: Publish to npm');
-        expect(workflow).toContain('workflow_dispatch:');
-        expect(workflow).toContain('description: Package to publish');
-        expect(workflow).toContain('type: choice');
-        expect(workflow).toContain('default: all');
-        expect(workflow).toContain('- all');
-        expect(workflow).toContain('- core');
-        expect(workflow).toContain('- control-ui');
-        expect(workflow).toContain('- stompbox');
-        expect(workflow).toContain('push:');
-        expect(workflow).toContain('tags:');
-        expect(workflow).toContain("- 'v*'");
-        expect(workflow).not.toContain('release:');
-        expect(workflow).toContain('id-token: write');
-        expect(workflow).toContain('oven-sh/setup-bun@v2');
-        expect(workflow).toContain('actions/setup-node@v4');
-        expect(workflow).toContain('registry-url: https://registry.npmjs.org');
-        expect(workflow).toContain("scope: '@vessel-dsp'");
-        expect(workflow).toContain('bun install --frozen-lockfile');
-        expect(workflow).toContain("github.event_name == 'push' || inputs.package == 'all'");
-        expect(workflow).toContain("inputs.package == 'core'");
-        expect(workflow).toContain("inputs.package == 'control-ui'");
-        expect(workflow).toContain("inputs.package == 'stompbox'");
-        expect(workflow).toContain('name: Verify all packages');
-        expect(workflow).toContain('run: bun run pack:dry-run');
-        expect(workflow).toContain('name: Verify core package');
-        expect(workflow).toContain('run: bun run --cwd packages/core pack:dry-run');
-        expect(workflow).toContain('name: Verify control-ui package');
-        expect(workflow).toContain('run: bun run --cwd packages/control-ui pack:dry-run');
-        expect(workflow).toContain('name: Verify stompbox package');
-        expect(workflow).toContain('run: bun run --cwd packages/stompbox pack:dry-run');
-        expect(workflow).toContain('npm publish --workspace @vessel-dsp/core --access public --provenance');
-        expect(workflow).toContain('npm publish --workspace @vessel-dsp/control-ui --access public --provenance');
-        expect(workflow).toContain('npm publish --workspace @vessel-dsp/stompbox --access public --provenance');
-        expect(workflow.indexOf('@vessel-dsp/core')).toBeLessThan(workflow.indexOf('@vessel-dsp/control-ui'));
-        expect(workflow.indexOf('@vessel-dsp/control-ui')).toBeLessThan(workflow.indexOf('@vessel-dsp/stompbox'));
-        for (const packageName of removedScopedPackageNames) {
-            expect(workflow).not.toContain(packageName);
-        }
-    });
+		expect(workflow).toContain("name: Publish to npm");
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).toContain("description: Package to publish");
+		expect(workflow).toContain("type: choice");
+		expect(workflow).toContain("default: all");
+		expect(workflow).toContain("- all");
+		expect(workflow).toContain("- core");
+		expect(workflow).toContain("- control-ui");
+		expect(workflow).toContain("- stompbox");
+		expect(workflow).toContain("push:");
+		expect(workflow).toContain("tags:");
+		expect(workflow).toContain("- 'v*'");
+		expect(workflow).not.toContain("release:");
+		expect(workflow).toContain("id-token: write");
+		expect(workflow).toContain("oven-sh/setup-bun@v2");
+		expect(workflow).toContain("actions/setup-node@v4");
+		expect(workflow).toContain("registry-url: https://registry.npmjs.org");
+		expect(workflow).toContain("scope: '@vessel-dsp'");
+		expect(workflow).toContain("bun install --frozen-lockfile");
+		expect(workflow).toContain(
+			"github.event_name == 'push' || inputs.package == 'all'",
+		);
+		expect(workflow).toContain("inputs.package == 'core'");
+		expect(workflow).toContain("inputs.package == 'control-ui'");
+		expect(workflow).toContain("inputs.package == 'stompbox'");
+		expect(workflow).toContain("name: Verify all packages");
+		expect(workflow).toContain("run: bun run pack:dry-run");
+		expect(workflow).toContain("name: Verify core package");
+		expect(workflow).toContain("run: bun run --cwd packages/core pack:dry-run");
+		expect(workflow).toContain("name: Verify control-ui package");
+		expect(workflow).toContain(
+			"run: bun run --cwd packages/control-ui pack:dry-run",
+		);
+		expect(workflow).toContain("name: Verify stompbox package");
+		expect(workflow).toContain(
+			"run: bun run --cwd packages/stompbox pack:dry-run",
+		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/core --access public --provenance",
+		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/control-ui --access public --provenance",
+		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/stompbox --access public --provenance",
+		);
+		expect(workflow.indexOf("@vessel-dsp/core")).toBeLessThan(
+			workflow.indexOf("@vessel-dsp/control-ui"),
+		);
+		expect(workflow.indexOf("@vessel-dsp/control-ui")).toBeLessThan(
+			workflow.indexOf("@vessel-dsp/stompbox"),
+		);
+		for (const packageName of removedScopedPackageNames) {
+			expect(workflow).not.toContain(packageName);
+		}
+	});
 });
 
-describe('GitHub Pages workflow', () => {
-    test('deploys the Starlight documentation site instead of a playground app', async () => {
-        const workflow = await readDeployWorkflow();
+describe("GitHub Pages workflow", () => {
+	test("deploys the Starlight documentation site instead of a playground app", async () => {
+		const workflow = await readDeployWorkflow();
 
-        expect(workflow).toContain('name: Deploy documentation to GitHub Pages');
-        expect(workflow).toContain('bun run build:pages');
-        expect(workflow).toContain('path: gh-pages');
-        expect(workflow.indexOf('bun run build')).toBeLessThan(workflow.indexOf('bun test'));
-        expect(workflow).not.toContain('build:playground');
-        expect(workflow).not.toContain('vite');
-        expect(workflow).not.toContain('playground');
-    });
+		expect(workflow).toContain("name: Deploy documentation to GitHub Pages");
+		expect(workflow).toContain("bun run build:pages");
+		expect(workflow).toContain("path: gh-pages");
+		expect(workflow.indexOf("bun run build")).toBeLessThan(
+			workflow.indexOf("bun test"),
+		);
+		expect(workflow).not.toContain("build:playground");
+		expect(workflow).not.toContain("vite");
+		expect(workflow).not.toContain("playground");
+	});
 });
 
-describe('README package metadata', () => {
-    test('shows npm badge for the canonical package', async () => {
-        const readme = await readReadme();
+describe("README package metadata", () => {
+	test("shows npm badge for the canonical package", async () => {
+		const readme = await readReadme();
 
-        expect(readme).toContain('[![core npm version](https://img.shields.io/npm/v/%40vessel-dsp%2Fcore.svg)]');
-        expect(readme).toContain('(https://www.npmjs.com/package/@vessel-dsp/core)');
-        expect(readme).toContain('@vessel-dsp/control-ui');
-        expect(readme).toContain('Optional React controls');
-        for (const packageName of removedScopedPackageNames) {
-            expect(readme).not.toContain(packageName);
-        }
-    });
+		expect(readme).toContain(
+			"[![core npm version](https://img.shields.io/npm/v/%40vessel-dsp%2Fcore.svg)]",
+		);
+		expect(readme).toContain(
+			"(https://www.npmjs.com/package/@vessel-dsp/core)",
+		);
+		expect(readme).toContain("@vessel-dsp/control-ui");
+		expect(readme).toContain("Optional React controls");
+		for (const packageName of removedScopedPackageNames) {
+			expect(readme).not.toContain(packageName);
+		}
+	});
 });
 
-describe('release metadata', () => {
-    test('pins the current package release and changelog entry', async () => {
-        const core = await readPackageJson('core');
-        const stompbox = await readPackageJson('stompbox');
-        const controlUi = await readPackageJson('control-ui');
-        const changelog = await readChangelog();
-        const distIndex = await readCoreDistIndexJs();
-        const distTypes = await readCoreDistIndexDts();
-        const stompboxDistIndex = await readStompboxDistIndexJs();
-        const stompboxDistTypes = await readStompboxDistIndexDts();
-        const controlUiDistIndex = await readControlUiDistIndexJs();
-        const controlUiDistTypes = await readControlUiDistIndexDts();
+describe("release metadata", () => {
+	test("pins the current package release and changelog entry", async () => {
+		const core = await readPackageJson("core");
+		const stompbox = await readPackageJson("stompbox");
+		const controlUi = await readPackageJson("control-ui");
+		const changelog = await readChangelog();
+		const distIndex = await readCoreDistIndexJs();
+		const distTypes = await readCoreDistIndexDts();
+		const stompboxDistIndex = await readStompboxDistIndexJs();
+		const stompboxDistTypes = await readStompboxDistIndexDts();
+		const stompboxDistNode = await readStompboxDistNodeJs();
+		const stompboxDistNodeTypes = await readStompboxDistNodeDts();
+		const controlUiDistIndex = await readControlUiDistIndexJs();
+		const controlUiDistTypes = await readControlUiDistIndexDts();
 
-        expect(core.version).toBe('0.6.4');
-        expect(stompbox.version).toBe('0.6.4');
-        expect(controlUi.version).toBe('0.6.4');
-        expect(VERSION).toBe('0.6.4');
-        expect(distIndex).toContain("export const VERSION = '0.6.4';");
-        expect(distTypes).toContain('export declare const VERSION = "0.6.4";');
-        expect(stompboxDistIndex).toContain('createStompboxDrillLayoutFromVdsp');
-        expect(stompboxDistIndex).toContain('createStompboxDrillTemplateSvgFromVdsp');
-        expect(stompboxDistIndex).toContain('createStompboxPreviewGlbFromVdsp');
-        expect(stompboxDistIndex).toContain('createStompboxPreviewSvgViewsFromVdsp');
-        expect(stompboxDistIndex).toContain('createStompboxAppearancePatch');
-        expect(stompboxDistIndex).toContain('resolveStompboxAppearance');
-        expect(stompboxDistIndex).toContain('createStompboxControlSurface');
-        expect(stompboxDistIndex).toContain('createStompboxPedalStateStore');
-        expect(stompboxDistIndex).toContain('createStompboxPreviewStatePatch');
-        expect(stompboxDistIndex).toContain('validateStompboxGlbAssetFile');
-        expect(stompboxDistIndex).toContain('validateStompboxHardwareProfileAssets');
-        expect(stompboxDistTypes).toContain('createStompboxDrillLayoutFromVdsp');
-        expect(stompboxDistTypes).toContain('createStompboxDrillTemplateSvgFromVdsp');
-        expect(stompboxDistTypes).toContain('createStompboxPreviewGlbFromVdsp');
-        expect(stompboxDistTypes).toContain('createStompboxPreviewSvgViewsFromVdsp');
-        expect(stompboxDistTypes).toContain('createStompboxAppearancePatch');
-        expect(stompboxDistTypes).toContain('resolveStompboxAppearance');
-        expect(stompboxDistTypes).toContain('createStompboxControlSurface');
-        expect(stompboxDistTypes).toContain('createStompboxPedalStateStore');
-        expect(stompboxDistTypes).toContain('createStompboxPreviewStatePatch');
-        expect(stompboxDistTypes).toContain('validateStompboxGlbAssetFile');
-        expect(stompboxDistTypes).toContain('validateStompboxHardwareProfileAssets');
-        expect(controlUiDistIndex).toContain('ControlSurface');
-        expect(controlUiDistIndex).toContain('ControlUiThemeProvider');
-        expect(controlUiDistIndex).toContain('createControlUiState');
-        expect(controlUiDistTypes).toContain('ControlSurface');
-        expect(controlUiDistTypes).toContain('ControlUiThemeProvider');
-        expect(controlUiDistTypes).toContain('createControlUiState');
-        expect(changelog).toStartWith('# Changelog\n\n## 0.6.4\n\n');
-        expect(changelog).toContain('@vessel-dsp/control-ui');
-    });
+		expect(core.version).toBe("0.6.4");
+		expect(stompbox.version).toBe("0.6.4");
+		expect(controlUi.version).toBe("0.6.4");
+		expect(VERSION).toBe("0.6.4");
+		expect(distIndex).toContain("export const VERSION = '0.6.4';");
+		expect(distTypes).toContain('export declare const VERSION = "0.6.4";');
+		expect(stompboxDistIndex).toContain("createStompboxDrillLayoutFromVdsp");
+		expect(stompboxDistIndex).toContain(
+			"createStompboxDrillTemplateSvgFromVdsp",
+		);
+		expect(stompboxDistIndex).toContain("createStompboxPreviewGlbFromVdsp");
+		expect(stompboxDistIndex).toContain(
+			"createStompboxPreviewSvgViewsFromVdsp",
+		);
+		expect(stompboxDistIndex).toContain("createStompboxAppearancePatch");
+		expect(stompboxDistIndex).toContain("resolveStompboxAppearance");
+		expect(stompboxDistIndex).toContain("createStompboxControlSurface");
+		expect(stompboxDistIndex).toContain("createStompboxPedalStateStore");
+		expect(stompboxDistIndex).toContain("createStompboxPreviewStatePatch");
+		expect(stompboxDistIndex).toContain(
+			"validateStompboxHardwareProfileAssets",
+		);
+		expect(stompboxDistIndex).not.toContain("node:fs");
+		expect(stompboxDistIndex).not.toContain("readFileSync");
+		expect(stompboxDistNode).toContain("node:fs");
+		expect(stompboxDistNode).toContain("validateStompboxGlbAssetFile");
+		expect(stompboxDistTypes).toContain("createStompboxDrillLayoutFromVdsp");
+		expect(stompboxDistTypes).toContain(
+			"createStompboxDrillTemplateSvgFromVdsp",
+		);
+		expect(stompboxDistTypes).toContain("createStompboxPreviewGlbFromVdsp");
+		expect(stompboxDistTypes).toContain(
+			"createStompboxPreviewSvgViewsFromVdsp",
+		);
+		expect(stompboxDistTypes).toContain("createStompboxAppearancePatch");
+		expect(stompboxDistTypes).toContain("resolveStompboxAppearance");
+		expect(stompboxDistTypes).toContain("createStompboxControlSurface");
+		expect(stompboxDistTypes).toContain("createStompboxPedalStateStore");
+		expect(stompboxDistTypes).toContain("createStompboxPreviewStatePatch");
+		expect(stompboxDistTypes).toContain(
+			"validateStompboxHardwareProfileAssets",
+		);
+		expect(stompboxDistTypes).not.toContain("validateStompboxGlbAssetFile");
+		expect(stompboxDistNodeTypes).toContain("validateStompboxGlbAssetFile");
+		expect(controlUiDistIndex).toContain("ControlSurface");
+		expect(controlUiDistIndex).toContain("ControlUiThemeProvider");
+		expect(controlUiDistIndex).toContain("createControlUiState");
+		expect(controlUiDistTypes).toContain("ControlSurface");
+		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
+		expect(controlUiDistTypes).toContain("createControlUiState");
+		expect(changelog).toStartWith("# Changelog\n\n## 0.6.4\n\n");
+		expect(changelog).toContain("@vessel-dsp/control-ui");
+	});
 });
 
-describe('dist import rewriting', () => {
-    test('adds .js extensions to relative ESM specifiers that point at emitted files', () => {
-        const rewritten = rewriteRelativeEsmSpecifiers(
-            [
-                "export * from '../../index';",
-                "import { parseCircuitDocument } from './formats/document';",
-                "import './side-effect';",
-                "import external from 'circuit-json';",
-                "import already from './ready.js';",
-            ].join('\n'),
-            new URL('file:///Users/example/project/packages/core/dist/formats/circuit-json/index.js'),
-            new Set([
-                '/Users/example/project/packages/core/dist/index.js',
-                '/Users/example/project/packages/core/dist/formats/circuit-json/formats/document.js',
-                '/Users/example/project/packages/core/dist/formats/circuit-json/side-effect.js',
-            ]),
-        );
+describe("dist import rewriting", () => {
+	test("adds .js extensions to relative ESM specifiers that point at emitted files", () => {
+		const rewritten = rewriteRelativeEsmSpecifiers(
+			[
+				"export * from '../../index';",
+				"import { parseCircuitDocument } from './formats/document';",
+				"import './side-effect';",
+				"import external from 'circuit-json';",
+				"import already from './ready.js';",
+			].join("\n"),
+			new URL(
+				"file:///Users/example/project/packages/core/dist/formats/circuit-json/index.js",
+			),
+			new Set([
+				"/Users/example/project/packages/core/dist/index.js",
+				"/Users/example/project/packages/core/dist/formats/circuit-json/formats/document.js",
+				"/Users/example/project/packages/core/dist/formats/circuit-json/side-effect.js",
+			]),
+		);
 
-        expect(rewritten).toContain("export * from '../../index.js';");
-        expect(rewritten).toContain("from './formats/document.js';");
-        expect(rewritten).toContain("import './side-effect.js';");
-        expect(rewritten).toContain("from 'circuit-json';");
-        expect(rewritten).toContain("from './ready.js';");
-    });
+		expect(rewritten).toContain("export * from '../../index.js';");
+		expect(rewritten).toContain("from './formats/document.js';");
+		expect(rewritten).toContain("import './side-effect.js';");
+		expect(rewritten).toContain("from 'circuit-json';");
+		expect(rewritten).toContain("from './ready.js';");
+	});
 });

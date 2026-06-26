@@ -15,8 +15,12 @@ The published packages are:
 | `@vessel-dsp/control-ui` | Render core `Panel` controls in React with default CSS, class hooks for Tailwind-style customization, and a theme provider. |
 
 Core and stompbox are headless. They do not ship a browser editor, realtime
-simulator, or custom schematic rendering surface. Use downstream tscircuit
-applications to render or edit emitted Circuit JSON.
+simulator, or custom schematic rendering surface. Core still treats `.vdsp` as
+the portable source-visible CircuitDocument for those hosts: downstream apps can
+render a source-like schematic, simulate a lowered runtime graph, and explain
+which source sections became explicit primitives, MNA islands, reusable kernels,
+macro DSP, or view-only evidence. Use downstream tscircuit applications to
+render or edit emitted Circuit JSON.
 
 ## Core data flow
 
@@ -27,7 +31,7 @@ applications to render or edit emitted Circuit JSON.
   -> Circuit JSON / .vdsp / .asc / .schx / legacy netlist output
 ```
 
-`CircuitDocument` is the normalized in-memory model used for conversion. Source fidelity comes first: unsupported, synthesized, or lossy data should be reported through diagnostics instead of silently converted into schematic semantics.
+`CircuitDocument` is the normalized in-memory model used for conversion. Source fidelity comes first: unsupported, synthesized, runtime-lowered, or lossy data should be reported through diagnostics or host metadata instead of silently converted into schematic semantics.
 
 ## Stompbox data flow
 

@@ -1,359 +1,380 @@
 :where(.vdsp-control-ui-theme, .vdsp-control-ui-surface) {
-    --vdsp-control-ui-accent-color: #f97316;
-    --vdsp-control-ui-background-color: #f8fafc;
-    --vdsp-control-ui-border-color: #94a3b8;
-    --vdsp-control-ui-control-color: #111827;
-    --vdsp-control-ui-text-color: #111827;
-    --vdsp-control-ui-muted-text-color: #64748b;
-    --vdsp-control-ui-focus-ring-color: #f59e0b;
-    color: var(--vdsp-control-ui-text-color);
+	--vdsp-control-ui-accent-color: #f97316;
+	--vdsp-control-ui-background-color: #f8fafc;
+	--vdsp-control-ui-border-color: #94a3b8;
+	--vdsp-control-ui-control-color: #111827;
+	--vdsp-control-ui-text-color: #111827;
+	--vdsp-control-ui-muted-text-color: #64748b;
+	--vdsp-control-ui-focus-ring-color: #f59e0b;
+	color: var(--vdsp-control-ui-text-color);
 }
 
 .vdsp-control-ui-theme {
-    display: contents;
+	display: contents;
 }
 
 .vdsp-control-ui-surface {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-    gap: 12px;
-    align-items: start;
-    max-width: 100%;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+	gap: 12px;
+	align-items: start;
+	max-width: 100%;
 }
 
 .vdsp-control-ui-surface__item {
-    min-width: 0;
+	min-width: 0;
 }
 
 .vdsp-control-ui-frame {
-    display: grid;
-    justify-items: center;
-    align-content: start;
-    gap: 6px;
-    min-width: 0;
-    color: var(--vdsp-control-ui-text-color);
+	display: grid;
+	justify-items: center;
+	align-content: start;
+	gap: 6px;
+	min-width: 0;
+	color: var(--vdsp-control-ui-text-color);
 }
 
 .vdsp-control-ui-label,
 .vdsp-control-ui-readout {
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    text-align: center;
-    line-height: 1.2;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	text-align: center;
+	line-height: 1.2;
 }
 
 .vdsp-control-ui-label {
-    color: color-mix(in srgb, var(--vdsp-control-ui-text-color) 72%, white);
-    font-size: 0.78rem;
-    font-weight: 650;
+	color: color-mix(in srgb, var(--vdsp-control-ui-text-color) 72%, white);
+	font-size: 0.78rem;
+	font-weight: 650;
 }
 
 .vdsp-control-ui-readout {
-    color: var(--vdsp-control-ui-muted-text-color);
-    font-size: 0.72rem;
+	color: var(--vdsp-control-ui-muted-text-color);
+	font-size: 0.72rem;
 }
 
 .vdsp-control-ui-control {
-    box-sizing: border-box;
-    font: inherit;
-    color: var(--vdsp-control-ui-text-color);
+	box-sizing: border-box;
+	font: inherit;
+	color: var(--vdsp-control-ui-text-color);
 }
 
 .vdsp-control-ui-control:focus-visible {
-    outline: 2px solid var(--vdsp-control-ui-focus-ring-color);
-    outline-offset: 3px;
+	outline: 2px solid var(--vdsp-control-ui-focus-ring-color);
+	outline-offset: 3px;
 }
 
 .vdsp-control-ui-frame.is-disabled {
-    opacity: 0.55;
+	opacity: 0.55;
 }
 
 .vdsp-control-ui-knob {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 64px;
-    height: 64px;
-    aspect-ratio: 1;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    padding: 0;
-    cursor: ew-resize;
-    touch-action: none;
-    user-select: none;
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 64px;
+	height: 64px;
+	aspect-ratio: 1;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	padding: 0;
+	cursor: ew-resize;
+	touch-action: none;
+	user-select: none;
 }
 
 .vdsp-control-ui-knob:active {
-    cursor: ew-resize;
+	cursor: ew-resize;
 }
 
 .vdsp-control-ui-knob.is-dragging {
-    cursor: ew-resize;
+	cursor: ew-resize;
 }
 
 .vdsp-control-ui-is-knob-dragging,
 .vdsp-control-ui-is-knob-dragging * {
-    cursor: ew-resize !important;
+	cursor: ew-resize !important;
 }
 
 .vdsp-control-ui-knob:disabled {
-    cursor: not-allowed;
+	cursor: not-allowed;
 }
 
 .vdsp-control-ui-knob__progress,
 .vdsp-control-ui-knob__progress-fill {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    pointer-events: none;
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	pointer-events: none;
+	-webkit-mask: radial-gradient(
+		farthest-side,
+		transparent calc(100% - 2px),
+		#000 calc(100% - 2px)
+	);
+	mask: radial-gradient(
+		farthest-side,
+		transparent calc(100% - 2px),
+		#000 calc(100% - 2px)
+	);
 }
 
 .vdsp-control-ui-knob__progress {
-    background: conic-gradient(
-        from -150deg,
-        var(--vdsp-control-ui-border-color) 0 var(--vdsp-control-ui-knob-sweep, 300deg),
-        transparent var(--vdsp-control-ui-knob-sweep, 300deg) 360deg
-    );
+	background: conic-gradient(
+		from -150deg,
+		var(--vdsp-control-ui-border-color) 0
+			var(--vdsp-control-ui-knob-sweep, 300deg),
+		transparent var(--vdsp-control-ui-knob-sweep, 300deg) 360deg
+	);
 }
 
 .vdsp-control-ui-knob__progress-fill {
-    background: conic-gradient(
-        from -150deg,
-        var(--vdsp-control-ui-accent-color) 0 var(--vdsp-control-ui-knob-progress, 0deg),
-        transparent var(--vdsp-control-ui-knob-progress, 0deg) 360deg
-    );
+	background: conic-gradient(
+		from -150deg,
+		var(--vdsp-control-ui-accent-color) 0
+			var(--vdsp-control-ui-knob-progress, 0deg),
+		transparent var(--vdsp-control-ui-knob-progress, 0deg) 360deg
+	);
 }
 
 .vdsp-control-ui-knob__body {
-    position: absolute;
-    inset: 7px;
-    border: 1px solid color-mix(in srgb, var(--vdsp-control-ui-control-color) 72%, white);
-    border-radius: 50%;
-    background: var(--vdsp-control-ui-control-color);
-    box-shadow: inset 0 1px 2px rgb(255 255 255 / 0.18), 0 2px 5px rgb(0 0 0 / 0.2);
-    pointer-events: none;
+	position: absolute;
+	inset: 7px;
+	border: 1px solid
+		color-mix(in srgb, var(--vdsp-control-ui-control-color) 72%, white);
+	border-radius: 50%;
+	background: var(--vdsp-control-ui-control-color);
+	box-shadow:
+		inset 0 1px 2px rgb(255 255 255 / 0.18),
+		0 2px 5px rgb(0 0 0 / 0.2);
+	pointer-events: none;
 }
 
 .vdsp-control-ui-knob__indicator-line {
-    position: absolute;
-    left: 50%;
-    top: 6px;
-    width: 2px;
-    height: 18px;
-    border-radius: 999px;
-    background: var(--vdsp-control-ui-background-color);
-    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
-    transform: translateX(-50%) rotate(var(--vdsp-control-ui-knob-rotation, 0deg));
-    transform-origin: 50% 19px;
+	position: absolute;
+	left: 50%;
+	top: 6px;
+	width: 2px;
+	height: 18px;
+	border-radius: 999px;
+	background: var(--vdsp-control-ui-background-color);
+	box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
+	transform: translateX(-50%) rotate(var(--vdsp-control-ui-knob-rotation, 0deg));
+	transform-origin: 50% 19px;
 }
 
 .vdsp-control-ui-footswitch {
-    width: 58px;
-    height: 58px;
-    aspect-ratio: 1;
-    border: 1px solid var(--vdsp-control-ui-border-color);
-    border-radius: 50%;
-    background: var(--vdsp-control-ui-control-color);
-    box-shadow: none;
-    cursor: pointer;
+	width: 58px;
+	height: 58px;
+	aspect-ratio: 1;
+	border: 1px solid var(--vdsp-control-ui-border-color);
+	border-radius: 50%;
+	background: var(--vdsp-control-ui-control-color);
+	box-shadow: none;
+	cursor: pointer;
 }
 
 .vdsp-control-ui-footswitch.is-pressing,
 .vdsp-control-ui-footswitch:active {
-    border-width: 3px;
+	border-width: 3px;
 }
 
 .vdsp-control-ui-footswitch__cap {
-    display: none;
-    width: 28px;
-    height: 28px;
-    margin: auto;
-    border-radius: 50%;
-    background: #f8fafc;
+	display: none;
+	width: 28px;
+	height: 28px;
+	margin: auto;
+	border-radius: 50%;
+	background: #f8fafc;
 }
 
 .vdsp-control-ui-toggle {
-    display: inline-flex;
-    align-items: center;
-    width: 52px;
-    height: 30px;
-    border: 1px solid var(--vdsp-control-ui-border-color);
-    border-radius: 999px;
-    background: var(--vdsp-control-ui-control-color);
-    box-shadow: none;
-    padding: 3px;
-    cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	width: 52px;
+	height: 30px;
+	border: 1px solid var(--vdsp-control-ui-border-color);
+	border-radius: 999px;
+	background: var(--vdsp-control-ui-control-color);
+	box-shadow: none;
+	padding: 3px;
+	cursor: pointer;
 }
 
 .vdsp-control-ui-toggle.is-checked {
-    background: var(--vdsp-control-ui-accent-color);
+	background: var(--vdsp-control-ui-accent-color);
 }
 
 .vdsp-control-ui-toggle__track {
-    display: block;
-    width: 100%;
+	display: block;
+	width: 100%;
 }
 
 .vdsp-control-ui-toggle__thumb {
-    display: block;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--vdsp-control-ui-background-color);
-    box-shadow: none;
-    transition: transform 120ms ease;
+	display: block;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: var(--vdsp-control-ui-background-color);
+	box-shadow: none;
+	transition: transform 120ms ease;
 }
 
 .vdsp-control-ui-toggle.is-checked .vdsp-control-ui-toggle__thumb {
-    transform: translateX(20px);
+	transform: translateX(20px);
 }
 
 .vdsp-control-ui-slider-shell {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 100%;
-    min-height: 32px;
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 100%;
+	min-height: 32px;
 }
 
 .vdsp-control-ui-slider-shell.is-vertical {
-    min-height: 112px;
+	min-height: 112px;
 }
 
 .vdsp-control-ui-slider {
-    --vdsp-control-ui-slider-position: 50%;
-    width: min(132px, 100%);
-    accent-color: var(--vdsp-control-ui-accent-color);
-    background: transparent;
-    -webkit-appearance: none;
-    appearance: none;
+	--vdsp-control-ui-slider-position: 50%;
+	width: min(132px, 100%);
+	accent-color: var(--vdsp-control-ui-accent-color);
+	background: transparent;
+	-webkit-appearance: none;
+	appearance: none;
 }
 
 .vdsp-control-ui-slider[data-orientation="vertical"] {
-    width: 112px;
-    transform: rotate(-90deg);
+	width: 112px;
+	transform: rotate(-90deg);
 }
 
 .vdsp-control-ui-slider::-webkit-slider-runnable-track {
-    height: 4px;
-    border: 0;
-    border-radius: 999px;
-    background: linear-gradient(
-        90deg,
-        var(--vdsp-control-ui-accent-color) 0 var(--vdsp-control-ui-slider-position),
-        color-mix(in srgb, var(--vdsp-control-ui-control-color) 52%, white)
-            var(--vdsp-control-ui-slider-position) 100%
-    );
-    box-shadow: none;
-    -webkit-appearance: none;
+	height: 4px;
+	border: 0;
+	border-radius: 999px;
+	background: linear-gradient(
+		90deg,
+		var(--vdsp-control-ui-accent-color) 0 var(--vdsp-control-ui-slider-position),
+		color-mix(in srgb, var(--vdsp-control-ui-control-color) 52%, white)
+			var(--vdsp-control-ui-slider-position) 100%
+	);
+	box-shadow: none;
+	-webkit-appearance: none;
 }
 
 .vdsp-control-ui-slider::-webkit-slider-thumb {
-    width: 14px;
-    height: 14px;
-    margin-top: -5px;
-    border: 0;
-    border-radius: 50%;
-    background: var(--vdsp-control-ui-accent-color);
-    box-shadow: none;
-    -webkit-appearance: none;
+	width: 14px;
+	height: 14px;
+	margin-top: -5px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--vdsp-control-ui-accent-color);
+	box-shadow: none;
+	-webkit-appearance: none;
 }
 
 .vdsp-control-ui-slider::-moz-range-track {
-    height: 4px;
-    border: 0;
-    border-radius: 999px;
-    background: linear-gradient(
-        90deg,
-        var(--vdsp-control-ui-accent-color) 0 var(--vdsp-control-ui-slider-position),
-        color-mix(in srgb, var(--vdsp-control-ui-control-color) 52%, white)
-            var(--vdsp-control-ui-slider-position) 100%
-    );
-    box-shadow: none;
+	height: 4px;
+	border: 0;
+	border-radius: 999px;
+	background: linear-gradient(
+		90deg,
+		var(--vdsp-control-ui-accent-color) 0 var(--vdsp-control-ui-slider-position),
+		color-mix(in srgb, var(--vdsp-control-ui-control-color) 52%, white)
+			var(--vdsp-control-ui-slider-position) 100%
+	);
+	box-shadow: none;
 }
 
 .vdsp-control-ui-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border: 0;
-    border-radius: 50%;
-    background: var(--vdsp-control-ui-accent-color);
-    box-shadow: none;
+	width: 14px;
+	height: 14px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--vdsp-control-ui-accent-color);
+	box-shadow: none;
 }
 
 .vdsp-control-ui-select {
-    width: min(100%, 144px);
-    min-height: 34px;
-    border: 1px solid var(--vdsp-control-ui-border-color);
-    border-radius: 0;
-    background-color: var(--vdsp-control-ui-control-color);
-    background-image:
-        linear-gradient(45deg, transparent 50%, currentColor 50%),
-        linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
-    background-repeat: no-repeat;
-    background-size: 5px 5px, 5px 5px;
-    box-shadow: none;
-    color: var(--vdsp-control-ui-background-color);
-    padding: 4px 28px 4px 8px;
-    appearance: none;
-    cursor: pointer;
+	width: min(100%, 144px);
+	min-height: 34px;
+	border: 1px solid var(--vdsp-control-ui-border-color);
+	border-radius: 0;
+	background-color: var(--vdsp-control-ui-control-color);
+	background-image:
+		linear-gradient(45deg, transparent 50%, currentColor 50%),
+		linear-gradient(135deg, currentColor 50%, transparent 50%);
+	background-position:
+		calc(100% - 17px) 50%,
+		calc(100% - 12px) 50%;
+	background-repeat: no-repeat;
+	background-size:
+		5px 5px,
+		5px 5px;
+	box-shadow: none;
+	color: var(--vdsp-control-ui-background-color);
+	padding: 4px 28px 4px 8px;
+	appearance: none;
+	cursor: pointer;
 }
 
 .vdsp-control-ui-select option {
-    background-color: var(--vdsp-control-ui-control-color);
-    color: var(--vdsp-control-ui-background-color);
+	background-color: var(--vdsp-control-ui-control-color);
+	color: var(--vdsp-control-ui-background-color);
 }
 
 .vdsp-control-ui-led {
-    width: 22px;
-    height: 22px;
-    aspect-ratio: 1;
-    border: 1px solid color-mix(in srgb, var(--vdsp-control-ui-border-color) 70%, black);
-    border-radius: 50%;
-    background: #7f1d1d;
-    box-shadow: inset 0 1px 4px rgb(0 0 0 / 0.45);
+	width: 22px;
+	height: 22px;
+	aspect-ratio: 1;
+	border: 1px solid
+		color-mix(in srgb, var(--vdsp-control-ui-border-color) 70%, black);
+	border-radius: 50%;
+	background: #7f1d1d;
+	box-shadow: inset 0 1px 4px rgb(0 0 0 / 0.45);
 }
 
 .vdsp-control-ui-led.is-on {
-    background: color-mix(
-        in srgb,
-        var(--vdsp-control-ui-accent-color) calc(var(--vdsp-control-ui-led-intensity, 1) * 100%),
-        #7f1d1d
-    );
-    box-shadow: 0 0 14px color-mix(in srgb, var(--vdsp-control-ui-accent-color) 70%, transparent);
+	background: color-mix(
+		in srgb,
+		var(--vdsp-control-ui-accent-color)
+			calc(var(--vdsp-control-ui-led-intensity, 1) * 100%),
+		#7f1d1d
+	);
+	box-shadow: 0 0 14px
+		color-mix(in srgb, var(--vdsp-control-ui-accent-color) 70%, transparent);
 }
 
 .vdsp-control-ui-control:disabled,
 .vdsp-control-ui-surface.is-disabled .vdsp-control-ui-control {
-    cursor: not-allowed;
+	cursor: not-allowed;
 }
 
 .vdsp-control-ui-jack {
-    width: 26px;
-    height: 26px;
-    aspect-ratio: 1;
-    border: 2px solid color-mix(in srgb, var(--vdsp-control-ui-border-color) 80%, black);
-    border-radius: 50%;
-    background:
-        radial-gradient(
-            circle at center,
-            #111827 0 32%,
-            color-mix(in srgb, var(--vdsp-control-ui-control-color) 60%, #4b5563) 33% 100%
-        );
-    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5);
+	width: 26px;
+	height: 26px;
+	aspect-ratio: 1;
+	border: 2px solid
+		color-mix(in srgb, var(--vdsp-control-ui-border-color) 80%, black);
+	border-radius: 50%;
+	background: radial-gradient(
+		circle at center,
+		#111827 0 32%,
+		color-mix(in srgb, var(--vdsp-control-ui-control-color) 60%, #4b5563) 33%
+			100%
+	);
+	box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.5);
 }
 
 .vdsp-control-ui-concentric {
-    display: grid;
-    place-items: center;
-    gap: 4px;
+	display: grid;
+	place-items: center;
+	gap: 4px;
 }
 
 .vdsp-control-ui-concentric__stacked .vdsp-control-ui-knob {
-    width: 44px;
-    height: 44px;
+	width: 44px;
+	height: 44px;
 }

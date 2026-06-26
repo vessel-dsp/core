@@ -22,7 +22,10 @@ export function ControlUiRenderedExampleClient() {
 		message: Parameters<typeof controls.dispatchMessage>[0],
 	): void {
 		const nextState = controls.dispatchMessage(message);
-		const demoState = controlUiRenderedExampleStateForMessage(nextState, message);
+		const demoState = controlUiRenderedExampleStateForMessage(
+			nextState,
+			message,
+		);
 		if (demoState !== nextState) {
 			controls.setState(demoState);
 		}

@@ -55,11 +55,11 @@ const crtBloomThreshold = props.crtBloomThreshold ?? 0.5;
 const glitch = props.glitch ?? false;
 const glitchInterval = props.glitchInterval ?? 8;
 const liveStateDemo = props.liveStateDemo ?? false;
-const label = props.label ?? (
-	view === "top"
+const label =
+	props.label ??
+	(view === "top"
 		? "Orthographic top stompbox preview"
-		: "Interactive 3D stompbox preview"
-);
+		: "Interactive 3D stompbox preview");
 const height = props.height ?? "360px";
 ---
 

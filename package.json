@@ -1,40 +1,40 @@
 {
-    "name": "@vessel-dsp/workspace",
-    "version": "0.6.0",
-    "private": true,
-    "description": "Workspace for VesselDSP core and stompbox conversion tooling.",
-    "license": "MIT",
-    "type": "module",
-    "workspaces": [
-        "packages/*"
-    ],
-    "scripts": {
-        "build": "bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run --cwd packages/control-ui build && bun run check:dist",
-        "build:pages": "astro build",
-        "check:dist": "node scripts/check-dist-entrypoints.mjs",
-        "clean": "rm -rf packages/*/dist gh-pages",
-        "clean:dist": "rm -rf packages/*/dist",
-        "docs:dev": "astro dev",
-        "docs:preview": "astro preview",
-        "generate:stompbox-doc-assets": "bun run scripts/generate-stompbox-doc-assets.ts",
-        "generate:symbols": "bun run scripts/generate-symbol-content.ts",
-        "lint": "biome lint --diagnostic-level=error .",
-        "prepack": "bun run clean:dist && bun run typecheck && bun test && bun run build",
-        "pack:dry-run": "bun run --cwd packages/core pack:dry-run && bun run --cwd packages/stompbox pack:dry-run && bun run --cwd packages/control-ui pack:dry-run",
-        "test": "bun test",
-        "typecheck": "tsc --noEmit && bun run --cwd packages/control-ui typecheck"
-    },
-    "devDependencies": {
-        "@astrojs/starlight": "^0.40.0",
-        "@biomejs/biome": "^2.4.16",
-        "@types/bun": "latest",
-        "astro": "^6.4.8",
-        "esbuild": "0.27.0",
-        "starlight-typedoc": "^0.23.0",
-        "three": "^0.184.0",
-        "typedoc": "^0.28.19",
-        "typedoc-plugin-markdown": "^4.12.0",
-        "typescript": "^5.6.0"
-    },
-    "packageManager": "bun@1.2.2"
+	"name": "@vessel-dsp/workspace",
+	"version": "0.6.0",
+	"private": true,
+	"description": "Workspace for VesselDSP core and stompbox conversion tooling.",
+	"license": "MIT",
+	"type": "module",
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"build": "bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run --cwd packages/control-ui build && bun run check:dist",
+		"build:pages": "astro build",
+		"check:dist": "node scripts/check-dist-entrypoints.mjs",
+		"clean": "rm -rf packages/*/dist gh-pages",
+		"clean:dist": "rm -rf packages/*/dist",
+		"docs:dev": "astro dev",
+		"docs:preview": "astro preview",
+		"generate:stompbox-doc-assets": "bun run scripts/generate-stompbox-doc-assets.ts",
+		"generate:symbols": "bun run scripts/generate-symbol-content.ts",
+		"lint": "biome lint --diagnostic-level=error .",
+		"prepack": "bun run clean:dist && bun run typecheck && bun test && bun run build",
+		"pack:dry-run": "bun run --cwd packages/core pack:dry-run && bun run --cwd packages/stompbox pack:dry-run && bun run --cwd packages/control-ui pack:dry-run",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit && bun run --cwd packages/control-ui typecheck"
+	},
+	"devDependencies": {
+		"@astrojs/starlight": "^0.40.0",
+		"@biomejs/biome": "^2.4.16",
+		"@types/bun": "latest",
+		"astro": "^6.4.8",
+		"esbuild": "0.27.0",
+		"starlight-typedoc": "^0.23.0",
+		"three": "^0.184.0",
+		"typedoc": "^0.28.19",
+		"typedoc-plugin-markdown": "^4.12.0",
+		"typescript": "^5.6.0"
+	},
+	"packageManager": "bun@1.2.2"
 }

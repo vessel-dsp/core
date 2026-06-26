@@ -1,287 +1,287 @@
 {
-  "schema": "stompbox-drill-layout/v1",
-  "units": "mm",
-  "enclosure": {
-    "variantId": "box-1590b",
-    "label": "Tayda A-6619 1590B enclosure generated STEP CAD",
-    "dimensionsMm": {
-      "widthMm": 60.5,
-      "lengthMm": 111.5,
-      "depthMm": 31
-    },
-    "topFace": {
-      "usableRectMm": {
-        "x": -29.25,
-        "y": -54.75,
-        "width": 58.5,
-        "height": 109.5
-      }
-    },
-    "assets": {
-      "glbRelativePath": "box-1590b/.tayda-a6619.step.glb",
-      "stepRelativePath": "box-1590b/tayda-a6619.step"
-    }
-  },
-  "holes": [
-    {
-      "id": "knob-GAIN",
-      "face": "top",
-      "centerMm": {
-        "x": -14.625,
-        "y": 32.85
-      },
-      "drillDiameterMm": 7.14375,
-      "drillHoleProfileId": "sixteen-mm-pot-9-32",
-      "partId": "knob-mxr-style-fluted-small",
-      "partLabel": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
-      "partFamily": "knob",
-      "partGeometry": {
-        "kind": "knob",
-        "diameterMm": 20.2,
-        "depthMm": 15,
-        "shaftDiameterMm": 6.4
-      },
-      "controlId": "GAIN",
-      "componentId": "GAIN",
-      "label": "Gain",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
-        "stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
-      }
-    },
-    {
-      "id": "knob-LEVEL",
-      "face": "top",
-      "centerMm": {
-        "x": 14.625,
-        "y": 32.85
-      },
-      "drillDiameterMm": 7.14375,
-      "drillHoleProfileId": "sixteen-mm-pot-9-32",
-      "partId": "knob-mxr-style-fluted-small",
-      "partLabel": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
-      "partFamily": "knob",
-      "partGeometry": {
-        "kind": "knob",
-        "diameterMm": 20.2,
-        "depthMm": 15,
-        "shaftDiameterMm": 6.4
-      },
-      "controlId": "LEVEL",
-      "componentId": "LEVEL",
-      "label": "Level",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
-        "stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
-      }
-    },
-    {
-      "id": "led-LED1",
-      "face": "top",
-      "centerMm": {
-        "x": 0,
-        "y": -5.475
-      },
-      "drillDiameterMm": 7.9375,
-      "drillHoleProfileId": "metal-5mm-led-bezel-5-16",
-      "partId": "led-bezel-lh5",
-      "partLabel": "Pedal Parts and Kits BZL-5MM-P 5 mm metal LED bezel generated CAD",
-      "partFamily": "led",
-      "partGeometry": {
-        "kind": "led-bezel",
-        "outerDiameterMm": 9.2,
-        "innerDiameterMm": 5,
-        "depthMm": 5.35
-      },
-      "controlId": "LED1",
-      "componentId": "LED1",
-      "label": "Status",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
-        "stepRelativePath": "led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step"
-      },
-      "stateTargets": {
-        "led": {
-          "lens": {
-            "selector": {
-              "nodeName": "o1.2",
-              "meshNameIncludes": "5mm_led_lens"
-            }
-          }
-        }
-      }
-    },
-    {
-      "id": "switch-SW1",
-      "face": "top",
-      "centerMm": {
-        "x": 0,
-        "y": -21.9
-      },
-      "drillDiameterMm": 12.7,
-      "drillHoleProfileId": "dc-jack-3pdt-1-2",
-      "partId": "switch-3pdt-pic-pbs24302",
-      "partLabel": "PIC PBS24302 3PDT latching stomp footswitch generated CAD",
-      "partFamily": "footswitch",
-      "partGeometry": {
-        "kind": "footswitch",
-        "buttonDiameterMm": 12,
-        "nutOuterDiameterMm": 18,
-        "ringHeightMm": 1.8,
-        "buttonHeightMm": 5.5,
-        "pressedTravelMm": 1.2
-      },
-      "controlId": "SW1",
-      "componentId": "SW1",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
-        "stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
-      },
-      "stateTargets": {
-        "footswitch": {
-          "actuator": {
-            "selector": {
-              "nodeName": "o1.3",
-              "meshNameIncludes": "plunger"
-            }
-          },
-          "travelAxis": "z",
-          "travelMm": 1.2
-        }
-      }
-    },
-    {
-      "id": "jack-IN",
-      "face": "right",
-      "centerMm": {
-        "x": 30.25,
-        "y": 0
-      },
-      "drillDiameterMm": 9.525,
-      "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
-      "partId": "jack-ts-pj629han",
-      "partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm mono phone jack generated exterior ring CAD",
-      "partFamily": "audio-jack",
-      "partGeometry": {
-        "kind": "ring",
-        "outerDiameterMm": 11,
-        "innerDiameterMm": 6.43,
-        "depthMm": 1.4
-      },
-      "controlId": "IN",
-      "componentId": "IN",
-      "label": "Input",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
-        "stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
-      }
-    },
-    {
-      "id": "jack-OUT",
-      "face": "left",
-      "centerMm": {
-        "x": -30.25,
-        "y": 0
-      },
-      "drillDiameterMm": 9.525,
-      "drillHoleProfileId": "audio-jack-24mm-pot-3-8",
-      "partId": "jack-ts-pj629han",
-      "partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm mono phone jack generated exterior ring CAD",
-      "partFamily": "audio-jack",
-      "partGeometry": {
-        "kind": "ring",
-        "outerDiameterMm": 11,
-        "innerDiameterMm": 6.43,
-        "depthMm": 1.4
-      },
-      "controlId": "OUT",
-      "componentId": "OUT",
-      "label": "Output",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
-        "stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
-      }
-    },
-    {
-      "id": "power-9v",
-      "face": "right",
-      "centerMm": {
-        "x": 30.25,
-        "y": -12.55
-      },
-      "drillDiameterMm": 12.7,
-      "drillHoleProfileId": "dc-jack-3pdt-1-2",
-      "partId": "dc-socket-dc099",
-      "partLabel": "DC-099 2.1 x 5.5 mm panel-mount DC power jack generated exterior ring CAD",
-      "partFamily": "dc-jack",
-      "partGeometry": {
-        "kind": "ring",
-        "outerDiameterMm": 14.1,
-        "innerDiameterMm": 8,
-        "depthMm": 1.4
-      },
-      "label": "9V DC",
-      "provenance": "auto-generated",
-      "assets": {
-        "glbRelativePath": "dc-socket-dc099/.dc099.step.glb",
-        "stepRelativePath": "dc-socket-dc099/dc099.step"
-      }
-    }
-  ],
-  "diagnostics": [
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"knob-GAIN\"",
-      "controlId": "GAIN",
-      "placementId": "knob-GAIN",
-      "face": "top"
-    },
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"knob-LEVEL\"",
-      "controlId": "LEVEL",
-      "placementId": "knob-LEVEL",
-      "face": "top"
-    },
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"led-LED1\"",
-      "controlId": "LED1",
-      "placementId": "led-LED1",
-      "face": "top"
-    },
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"switch-SW1\"",
-      "controlId": "SW1",
-      "placementId": "switch-SW1",
-      "face": "top"
-    },
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"jack-IN\"",
-      "controlId": "IN",
-      "placementId": "jack-IN",
-      "face": "right"
-    },
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"jack-OUT\"",
-      "controlId": "OUT",
-      "placementId": "jack-OUT",
-      "face": "left"
-    },
-    {
-      "code": "placement-auto-generated",
-      "message": "Auto-generated stompbox placement for \"power-9v\"",
-      "placementId": "power-9v",
-      "face": "right"
-    }
-  ]
+	"schema": "stompbox-drill-layout/v1",
+	"units": "mm",
+	"enclosure": {
+		"variantId": "box-1590b",
+		"label": "Tayda A-6619 1590B enclosure generated STEP CAD",
+		"dimensionsMm": {
+			"widthMm": 60.5,
+			"lengthMm": 111.5,
+			"depthMm": 31
+		},
+		"topFace": {
+			"usableRectMm": {
+				"x": -29.25,
+				"y": -54.75,
+				"width": 58.5,
+				"height": 109.5
+			}
+		},
+		"assets": {
+			"glbRelativePath": "box-1590b/.tayda-a6619.step.glb",
+			"stepRelativePath": "box-1590b/tayda-a6619.step"
+		}
+	},
+	"holes": [
+		{
+			"id": "knob-GAIN",
+			"face": "top",
+			"centerMm": {
+				"x": -14.625,
+				"y": 32.85
+			},
+			"drillDiameterMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"partId": "knob-mxr-style-fluted-small",
+			"partLabel": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
+			"partFamily": "knob",
+			"partGeometry": {
+				"kind": "knob",
+				"diameterMm": 20.2,
+				"depthMm": 15,
+				"shaftDiameterMm": 6.4
+			},
+			"controlId": "GAIN",
+			"componentId": "GAIN",
+			"label": "Gain",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
+			}
+		},
+		{
+			"id": "knob-LEVEL",
+			"face": "top",
+			"centerMm": {
+				"x": 14.625,
+				"y": 32.85
+			},
+			"drillDiameterMm": 7.14375,
+			"drillHoleProfileId": "sixteen-mm-pot-9-32",
+			"partId": "knob-mxr-style-fluted-small",
+			"partLabel": "Daier MF-B01 20.2 mm MXR-style fluted knob generated CAD",
+			"partFamily": "knob",
+			"partGeometry": {
+				"kind": "knob",
+				"diameterMm": 20.2,
+				"depthMm": 15,
+				"shaftDiameterMm": 6.4
+			},
+			"controlId": "LEVEL",
+			"componentId": "LEVEL",
+			"label": "Level",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "knob-mxr-style-fluted/.daier-mf-b01.step.glb",
+				"stepRelativePath": "knob-mxr-style-fluted/daier-mf-b01.step"
+			}
+		},
+		{
+			"id": "led-LED1",
+			"face": "top",
+			"centerMm": {
+				"x": 0,
+				"y": -5.475
+			},
+			"drillDiameterMm": 7.9375,
+			"drillHoleProfileId": "metal-5mm-led-bezel-5-16",
+			"partId": "led-bezel-lh5",
+			"partLabel": "Pedal Parts and Kits BZL-5MM-P 5 mm metal LED bezel generated CAD",
+			"partFamily": "led",
+			"partGeometry": {
+				"kind": "led-bezel",
+				"outerDiameterMm": 9.2,
+				"innerDiameterMm": 5,
+				"depthMm": 5.35
+			},
+			"controlId": "LED1",
+			"componentId": "LED1",
+			"label": "Status",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb",
+				"stepRelativePath": "led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step"
+			},
+			"stateTargets": {
+				"led": {
+					"lens": {
+						"selector": {
+							"nodeName": "o1.2",
+							"meshNameIncludes": "5mm_led_lens"
+						}
+					}
+				}
+			}
+		},
+		{
+			"id": "switch-SW1",
+			"face": "top",
+			"centerMm": {
+				"x": 0,
+				"y": -21.9
+			},
+			"drillDiameterMm": 12.7,
+			"drillHoleProfileId": "dc-jack-3pdt-1-2",
+			"partId": "switch-3pdt-pic-pbs24302",
+			"partLabel": "PIC PBS24302 3PDT latching stomp footswitch generated CAD",
+			"partFamily": "footswitch",
+			"partGeometry": {
+				"kind": "footswitch",
+				"buttonDiameterMm": 12,
+				"nutOuterDiameterMm": 18,
+				"ringHeightMm": 1.8,
+				"buttonHeightMm": 5.5,
+				"pressedTravelMm": 1.2
+			},
+			"controlId": "SW1",
+			"componentId": "SW1",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb",
+				"stepRelativePath": "switch-3pdt-pic-pbs24302/pic-pbs24302.step"
+			},
+			"stateTargets": {
+				"footswitch": {
+					"actuator": {
+						"selector": {
+							"nodeName": "o1.3",
+							"meshNameIncludes": "plunger"
+						}
+					},
+					"travelAxis": "z",
+					"travelMm": 1.2
+				}
+			}
+		},
+		{
+			"id": "jack-IN",
+			"face": "right",
+			"centerMm": {
+				"x": 30.25,
+				"y": 0
+			},
+			"drillDiameterMm": 9.525,
+			"drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+			"partId": "jack-ts-pj629han",
+			"partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm mono phone jack generated exterior ring CAD",
+			"partFamily": "audio-jack",
+			"partGeometry": {
+				"kind": "ring",
+				"outerDiameterMm": 11,
+				"innerDiameterMm": 6.43,
+				"depthMm": 1.4
+			},
+			"controlId": "IN",
+			"componentId": "IN",
+			"label": "Input",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
+				"stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+			}
+		},
+		{
+			"id": "jack-OUT",
+			"face": "left",
+			"centerMm": {
+				"x": -30.25,
+				"y": 0
+			},
+			"drillDiameterMm": 9.525,
+			"drillHoleProfileId": "audio-jack-24mm-pot-3-8",
+			"partId": "jack-ts-pj629han",
+			"partLabel": "Tayda A-6040 / PJ-629HAN-05 6.35 mm mono phone jack generated exterior ring CAD",
+			"partFamily": "audio-jack",
+			"partGeometry": {
+				"kind": "ring",
+				"outerDiameterMm": 11,
+				"innerDiameterMm": 6.43,
+				"depthMm": 1.4
+			},
+			"controlId": "OUT",
+			"componentId": "OUT",
+			"label": "Output",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "jack-ts-pj629han/.pj-629han-05.step.glb",
+				"stepRelativePath": "jack-ts-pj629han/pj-629han-05.step"
+			}
+		},
+		{
+			"id": "power-9v",
+			"face": "right",
+			"centerMm": {
+				"x": 30.25,
+				"y": -12.55
+			},
+			"drillDiameterMm": 12.7,
+			"drillHoleProfileId": "dc-jack-3pdt-1-2",
+			"partId": "dc-socket-dc099",
+			"partLabel": "DC-099 2.1 x 5.5 mm panel-mount DC power jack generated exterior ring CAD",
+			"partFamily": "dc-jack",
+			"partGeometry": {
+				"kind": "ring",
+				"outerDiameterMm": 14.1,
+				"innerDiameterMm": 8,
+				"depthMm": 1.4
+			},
+			"label": "9V DC",
+			"provenance": "auto-generated",
+			"assets": {
+				"glbRelativePath": "dc-socket-dc099/.dc099.step.glb",
+				"stepRelativePath": "dc-socket-dc099/dc099.step"
+			}
+		}
+	],
+	"diagnostics": [
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"knob-GAIN\"",
+			"controlId": "GAIN",
+			"placementId": "knob-GAIN",
+			"face": "top"
+		},
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"knob-LEVEL\"",
+			"controlId": "LEVEL",
+			"placementId": "knob-LEVEL",
+			"face": "top"
+		},
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"led-LED1\"",
+			"controlId": "LED1",
+			"placementId": "led-LED1",
+			"face": "top"
+		},
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"switch-SW1\"",
+			"controlId": "SW1",
+			"placementId": "switch-SW1",
+			"face": "top"
+		},
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"jack-IN\"",
+			"controlId": "IN",
+			"placementId": "jack-IN",
+			"face": "right"
+		},
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"jack-OUT\"",
+			"controlId": "OUT",
+			"placementId": "jack-OUT",
+			"face": "left"
+		},
+		{
+			"code": "placement-auto-generated",
+			"message": "Auto-generated stompbox placement for \"power-9v\"",
+			"placementId": "power-9v",
+			"face": "right"
+		}
+	]
 }

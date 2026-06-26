@@ -6,7 +6,12 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!!**/dist", "!!**/gh-pages", "!!**/output"]
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/gh-pages",
+			"!**/output"
+		]
 	},
 	"formatter": {
 		"enabled": true,

@@ -18,7 +18,6 @@ import {
 	createStompboxPedalStateStore,
 	createStompboxPreview as createStompboxPreviewBase,
 	createStompboxPreviewFromVdsp as createStompboxPreviewFromVdspBase,
-	createStompboxPreviewGlbFromVdsp as createStompboxPreviewGlbFromVdspBase,
 	createStompboxPreviewStatePatch,
 	createStompboxPreviewSvgViewsFromVdsp as createStompboxPreviewSvgViewsFromVdspBase,
 	getAvailableStompboxStyleProfiles,
@@ -32,9 +31,12 @@ import {
 	type StompboxPartProfileCatalog,
 	type StompboxPedalStateCommand,
 	type StompboxStyleProfile,
+} from "@vessel-dsp/stompbox";
+import {
+	createStompboxPreviewGlbFromVdsp as createStompboxPreviewGlbFromVdspBase,
 	validateStompboxGlbAssetFile,
 	validateStompboxHardwareProfileAssets,
-} from "@vessel-dsp/stompbox";
+} from "@vessel-dsp/stompbox/node";
 
 type GltfJson = Readonly<{
 	asset?: Readonly<{
@@ -987,6 +989,51 @@ panel:
           grid:
             row: 1
             column: 3
+`;
+
+const vdspWithLogicalControlId = `schema: circuit-interchange/v3
+metadata:
+  name: Logical Control Pedal
+source:
+  format: interchange
+  filename: logical-control.vdsp
+components:
+  - id: VR1
+    kind: potentiometer
+    name: Gain Pot
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.5
+    sourceTypeName: "Circuit.Potentiometer, Circuit"
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+panel:
+  faces:
+    - id: top
+      label: Top
+      layout:
+        kind: stompbox-grid
+        rows: 1
+        columns: 1
+        indexing: one-based
+      elements:
+        - id: gain-knob
+          bind:
+            componentId: VR1
+            controlId: Gain
+          kind: knob
+          label: Gain
+          grid:
+            row: 1
+            column: 1
 `;
 
 const vdspWithDiagnosticPlacements = `schema: circuit-interchange/v3
@@ -2726,6 +2773,24 @@ describe("stompbox drill layout", () => {
 		).toBe(true);
 	});
 
+	test("marks declared placements with unknown part profiles as defaulted instead of source-backed", () => {
+		const layout = createStompboxDrillLayoutFromVdsp(
+			vdspWithDiagnosticPlacements,
+		);
+		const hole = layout.holes.find((candidate) => candidate.id === "unknown-part-knob");
+
+		expect(hole).toBeDefined();
+		expect(hole?.partId).toBe(DEMO_STOMPBOX_HARDWARE_PROFILE.defaultPartIds.knob);
+		expect(hole?.provenance).toBe("auto-generated");
+		expect(hole?.partProvenance).toBe("defaulted");
+		expect(layout.diagnostics).toContainEqual({
+			code: "unknown-part-profile",
+			message: 'Unknown stompbox part profile "missing-knob-profile"',
+			controlId: "A",
+			placementId: "unknown-part-knob",
+		});
+	});
+
 	test("reports configurable part-clearance violations without treating them as collisions", () => {
 		const layout = createStompboxDrillLayoutFromVdsp(
 			vdspWithTightKnobClearance,
@@ -2779,17 +2844,25 @@ describe("stompbox concentric mounts", () => {
 			vdspWithConcentricMount(["lower", "middle", "upper"]),
 			{ filename: "concentric.vdsp" },
 		);
-		const preview = createStompboxPreview(document, { includePowerJack: false });
+		const preview = createStompboxPreview(document, {
+			includePowerJack: false,
+		});
 		const dials = preview.parts.filter((part) => part.family === "knob");
 
-		expect(dials.map((part) => part.controlId)).toEqual(["POT1", "POT2", "POT3"]);
+		expect(dials.map((part) => part.controlId)).toEqual([
+			"POT1",
+			"POT2",
+			"POT3",
+		]);
 		const zById = (controlId: string): number =>
-			dials.find((part) => part.controlId === controlId)?.transform.translationMm
-				.z ?? 0;
+			dials.find((part) => part.controlId === controlId)?.transform
+				.translationMm.z ?? 0;
 		expect(zById("POT2")).toBeGreaterThan(zById("POT1"));
 		expect(zById("POT3")).toBeGreaterThan(zById("POT2"));
 		const diameterById = (controlId: string): number => {
-			const geometry = dials.find((part) => part.controlId === controlId)?.geometry;
+			const geometry = dials.find(
+				(part) => part.controlId === controlId,
+			)?.geometry;
 			return geometry?.kind === "knob" ? geometry.diameterMm : 0;
 		};
 		expect(diameterById("POT1")).toBeGreaterThan(diameterById("POT2"));
@@ -3218,6 +3291,42 @@ describe("stompbox runtime preview state", () => {
 			{ id: "TONE", name: "Tone", defaultPosition: 0.15 },
 			{ id: "LEVEL", name: "Level", defaultPosition: 0.5 },
 		]);
+	});
+
+	test("uses logical panel control IDs for public runtime descriptors", () => {
+		const document = parseCircuitDocumentFile(vdspWithLogicalControlId, {
+			filename: "logical-control.vdsp",
+		});
+		const surface = createStompboxControlSurface(document, {
+			pedalId: "logical-control",
+			compiledControls: [
+				{
+					id: "runtime-vr1",
+					sourceComponentId: "VR1",
+					name: "Gain",
+					kind: "potentiometer",
+					value: 0.25,
+					min: 0,
+					max: 1,
+					step: 0.01,
+					targets: [{ resistorIndex: 0, role: "variable" }],
+				},
+			],
+		});
+
+		expect(surface.controls).toHaveLength(1);
+		expect(surface.controls[0]).toMatchObject({
+			id: "Gain",
+			runtimeControlId: "runtime-vr1",
+			sourceComponentId: "VR1",
+			source: "compiled",
+			label: "Gain",
+		});
+		expect(surface.routes).toHaveProperty("Gain");
+		expect(surface.panel.knobs[0]).toMatchObject({
+			id: "Gain",
+			name: "Gain",
+		});
 	});
 
 	test("turns knobs, presses synthesized footswitches, and emits preview patches without rendering", () => {

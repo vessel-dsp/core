@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import {
 	type CircuitDocument,
 	type ControlState,
@@ -20,6 +19,7 @@ import {
 
 export type StompboxUnits = "mm";
 export type StompboxPlacementProvenance = "vdsp-declared" | "auto-generated";
+export type StompboxPartProvenance = "vdsp-declared" | "defaulted";
 export type StompboxFaceId =
 	| "top"
 	| "bottom"
@@ -217,6 +217,12 @@ export const STOMPBOX_DRILL_HOLE_PROFILE_CATALOG: Readonly<
 export type StompboxAssetResolveOptions = Readonly<{
 	basePath?: string;
 	baseUrl?: string;
+}>;
+
+export type StompboxAssetFileReader = (path: string) => Uint8Array;
+
+export type StompboxAssetFileOptions = Readonly<{
+	readAssetFile?: StompboxAssetFileReader;
 }>;
 
 export type StompboxGlbStateTargetSelector = Readonly<{
@@ -454,6 +460,7 @@ export type StompboxDrillHole = Readonly<{
 	partLabel: string;
 	partFamily: StompboxPartProfile["family"];
 	partGeometry: StompboxPartGeometry;
+	partProvenance?: StompboxPartProvenance;
 	assetScale?: number;
 	controlId?: string;
 	componentId?: string;
@@ -570,6 +577,7 @@ export type StompboxPreviewPart = Readonly<{
 	partId: string;
 	family: StompboxPartProfile["family"];
 	geometry: StompboxPartGeometry;
+	partProvenance?: StompboxPartProvenance;
 	assetScale?: number;
 	controlId?: string;
 	face: StompboxFaceId;
@@ -896,6 +904,7 @@ export type StompboxAppearanceOptions = Readonly<{
 
 export type StompboxPreviewOptions = StompboxLayoutOptions &
 	StompboxAssetResolveOptions &
+	StompboxAssetFileOptions &
 	StompboxDecalOptions &
 	StompboxAppearanceOptions &
 	Readonly<{
@@ -956,6 +965,7 @@ type PlacementCandidate = Readonly<{
 	face: StompboxFaceId;
 	centerMm: StompboxPoint2;
 	partId: string;
+	partProvenance?: StompboxPartProvenance;
 	componentId?: string;
 	controlId?: string;
 	label?: string;
@@ -1126,41 +1136,12 @@ export function validateStompboxGlbAsset(
 	};
 }
 
-export function validateStompboxGlbAssetFile(
-	path: string,
-	partProfile: StompboxPartProfile,
-): StompboxGlbAssetValidation {
-	try {
-		return validateStompboxGlbAsset(
-			new Uint8Array(readFileSync(path)),
-			partProfile,
-			{
-				assetPath: path,
-			},
-		);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		const diagnostic: StompboxDiagnostic = {
-			code: "invalid-glb-asset",
-			message: `Invalid GLB asset for stompbox part "${partProfile.id}": ${message}`,
-			partId: partProfile.id,
-			assetPath: path,
-		};
-		return {
-			schema: "stompbox-glb-asset-validation/v1",
-			partProfileId: partProfile.id,
-			assetPath: path,
-			valid: false,
-			targets: {},
-			diagnostics: [diagnostic],
-		};
-	}
-}
-
 export function validateStompboxHardwareProfileAssets(
 	hardwareProfile: StompboxHardwareProfile,
-	options: StompboxHardwareProfileAssetValidationOptions = {},
+	options: StompboxHardwareProfileAssetValidationOptions &
+		StompboxAssetFileOptions = {},
 ): StompboxHardwareProfileAssetValidation {
+	const readAssetFile = requireStompboxAssetFileReader(options);
 	const partIds =
 		options.partIds ?? defaultLiveStatePartProfileIds(hardwareProfile);
 	const assets: Record<string, StompboxGlbAssetValidation> = {};
@@ -1180,7 +1161,11 @@ export function validateStompboxHardwareProfileAssets(
 			partProfile.assets,
 			options,
 		).glb;
-		const validation = validateStompboxGlbAssetFile(assetPath, partProfile);
+		const validation = validateStompboxGlbAssetFromPath(
+			assetPath,
+			partProfile,
+			readAssetFile,
+		);
 		assets[partId] = validation;
 		diagnostics.push(...validation.diagnostics);
 	}
@@ -1190,6 +1175,34 @@ export function validateStompboxHardwareProfileAssets(
 		assets,
 		diagnostics,
 	};
+}
+
+export function validateStompboxGlbAssetFromPath(
+	path: string,
+	partProfile: StompboxPartProfile,
+	readAssetFile: StompboxAssetFileReader,
+): StompboxGlbAssetValidation {
+	try {
+		return validateStompboxGlbAsset(readAssetFile(path), partProfile, {
+			assetPath: path,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const diagnostic: StompboxDiagnostic = {
+			code: "invalid-glb-asset",
+			message: `Invalid GLB asset for stompbox part "${partProfile.id}": ${message}`,
+			partId: partProfile.id,
+			assetPath: path,
+		};
+		return {
+			schema: "stompbox-glb-asset-validation/v1",
+			partProfileId: partProfile.id,
+			assetPath: path,
+			valid: false,
+			targets: {},
+			diagnostics: [diagnostic],
+		};
+	}
 }
 
 export function createStompboxSourcePanelControls(
@@ -1208,6 +1221,7 @@ export function createStompboxSourcePanelControls(
 			) {
 				continue;
 			}
+			const sourceControlId = controlIdForPanelElement(element);
 			const sourceComponentId = element.bind.componentId;
 			const component =
 				sourceComponentId === undefined
@@ -1216,6 +1230,7 @@ export function createStompboxSourcePanelControls(
 			const label =
 				nonEmptyText(element.label) ??
 				nonEmptyText(component?.name) ??
+				nonEmptyText(sourceControlId) ??
 				nonEmptyText(sourceComponentId) ??
 				nonEmptyText(element.id) ??
 				"Control";
@@ -1228,7 +1243,7 @@ export function createStompboxSourcePanelControls(
 			);
 			controls.push({
 				id:
-					sourceComponentId ??
+					sourceControlId ??
 					element.id ??
 					`${face.id}-${element.grid.row}-${element.grid.column}`,
 				label,
@@ -2092,6 +2107,9 @@ export function createStompboxPreviewGlb(
 			? undefined
 			: validateStompboxHardwareProfileAssets(hardwareProfile, {
 					basePath: options.basePath,
+					...(options.readAssetFile === undefined
+						? {}
+						: { readAssetFile: options.readAssetFile }),
 					partIds: liveStatePartProfileIdsForPreview(preview),
 				});
 	const diagnostics = [
@@ -2309,9 +2327,8 @@ function runtimeControlDescriptor(
 			? (sourceControl?.value ?? min)
 			: effectiveCompiledControlValue(compiledControl);
 	const id =
-		sourceControl?.sourceComponentId ??
-		compiledControl?.sourceComponentId ??
 		sourceControl?.id ??
+		compiledControl?.sourceComponentId ??
 		publicRuntimeControlId(
 			compiledControl?.id ?? compiledControl?.name ?? "control",
 		);
@@ -2946,6 +2963,17 @@ function requireStompboxHardwareProfile(
 	return options.hardwareProfile;
 }
 
+function requireStompboxAssetFileReader(
+	options: StompboxAssetFileOptions,
+): StompboxAssetFileReader {
+	if (options.readAssetFile === undefined) {
+		throw new Error(
+			"stompbox GLB asset file access requires options.readAssetFile or the @vessel-dsp/stompbox/node export",
+		);
+	}
+	return options.readAssetFile;
+}
+
 function resolveStompboxPlacementStyle(
 	profile: StompboxStyleProfile | undefined,
 	hardwareProfile: StompboxHardwareProfile,
@@ -3066,7 +3094,7 @@ function declaredPhysicalPlacements(
 			const requestedPartId =
 				element.physical.partProfileId ??
 				defaultPartIdForPanelKind(element.kind, metadata, defaultPartIds);
-			const partId = knownPartIdOrDefault(
+			const partResolution = knownPartIdOrDefault(
 				requestedPartId,
 				element.kind,
 				metadata,
@@ -3076,7 +3104,7 @@ function declaredPhysicalPlacements(
 				controlId,
 				element.id,
 			);
-			if (partId === undefined) {
+			if (partResolution === undefined) {
 				diagnostics.push({
 					code: "unsupported-control",
 					message: `Unsupported declared panel element kind "${element.kind}"`,
@@ -3092,7 +3120,10 @@ function declaredPhysicalPlacements(
 				kind: element.kind,
 				face: face.id,
 				centerMm: pointFromCorePoint(element.physical.centerMm),
-				partId,
+				partId: partResolution.partId,
+				...(partResolution.partProvenance === undefined
+					? {}
+					: { partProvenance: partResolution.partProvenance }),
 				componentId: element.bind.componentId,
 				controlId,
 				...(label === undefined ? {} : { label }),
@@ -3108,7 +3139,10 @@ function declaredPhysicalPlacements(
 				...(element.physical.surface === undefined
 					? {}
 					: { surface: element.physical.surface }),
-				provenance: "vdsp-declared",
+				provenance:
+					partResolution.partProvenance === "defaulted"
+						? "auto-generated"
+						: "vdsp-declared",
 			});
 		}
 	}
@@ -3134,7 +3168,7 @@ function gridPhysicalPlacements(
 			const requestedPartId =
 				element.physical?.partProfileId ??
 				defaultPartIdForPanelKind(element.kind, metadata, defaultPartIds);
-			const partId = knownPartIdOrDefault(
+			const partResolution = knownPartIdOrDefault(
 				requestedPartId,
 				element.kind,
 				metadata,
@@ -3144,7 +3178,7 @@ function gridPhysicalPlacements(
 				controlId,
 				element.id,
 			);
-			if (partId === undefined) {
+			if (partResolution === undefined) {
 				diagnostics.push({
 					code: "unsupported-control",
 					message: `Unsupported panel grid element kind "${element.kind}"`,
@@ -3162,7 +3196,10 @@ function gridPhysicalPlacements(
 						kind: element.kind,
 						face: face.id,
 						centerMm: panelGridCenterMm(face, element, enclosure),
-						partId,
+						partId: partResolution.partId,
+						...(partResolution.partProvenance === undefined
+							? {}
+							: { partProvenance: partResolution.partProvenance }),
 						componentId: element.bind.componentId,
 						controlId,
 						...(label === undefined ? {} : { label }),
@@ -3501,7 +3538,9 @@ function collapseConcentricMounts(
 				diagnostics.push({
 					code: "unknown-part-surface",
 					message: `Mount "${mountId}" references surface "${member.surface}" not declared by part "${part.id}"`,
-					...(member.controlId === undefined ? {} : { controlId: member.controlId }),
+					...(member.controlId === undefined
+						? {}
+						: { controlId: member.controlId }),
 					placementId: member.id,
 					face: member.face,
 				});
@@ -3511,7 +3550,9 @@ function collapseConcentricMounts(
 			memberBySurface.set(member.surface, member);
 		}
 
-		const missing = surfaces.filter((surface) => !memberBySurface.has(surface.id));
+		const missing = surfaces.filter(
+			(surface) => !memberBySurface.has(surface.id),
+		);
 		if (missing.length > 0) {
 			diagnostics.push({
 				code: "concentric-mount-incomplete",
@@ -3521,7 +3562,10 @@ function collapseConcentricMounts(
 			});
 		}
 
-		const ordered: Array<{ surface: StompboxPartSurface; member: PlacementCandidate }> = [];
+		const ordered: Array<{
+			surface: StompboxPartSurface;
+			member: PlacementCandidate;
+		}> = [];
 		for (const surface of surfaces) {
 			const member = memberBySurface.get(surface.id);
 			if (member !== undefined) {
@@ -3532,14 +3576,20 @@ function collapseConcentricMounts(
 		if (base === undefined) {
 			continue;
 		}
-		const upperDials: StompboxConcentricDial[] = ordered.slice(1).map(({ surface, member }) => ({
-			surface: surface.id,
-			partGeometry: surface.geometry,
-			stackOffsetMm: surface.stackOffsetMm,
-			...(member.controlId === undefined ? {} : { controlId: member.controlId }),
-			...(member.componentId === undefined ? {} : { componentId: member.componentId }),
-			...(member.label === undefined ? {} : { label: member.label }),
-		}));
+		const upperDials: StompboxConcentricDial[] = ordered
+			.slice(1)
+			.map(({ surface, member }) => ({
+				surface: surface.id,
+				partGeometry: surface.geometry,
+				stackOffsetMm: surface.stackOffsetMm,
+				...(member.controlId === undefined
+					? {}
+					: { controlId: member.controlId }),
+				...(member.componentId === undefined
+					? {}
+					: { componentId: member.componentId }),
+				...(member.label === undefined ? {} : { label: member.label }),
+			}));
 		result.push({ ...base.member, concentricDials: upperDials });
 	}
 
@@ -3577,6 +3627,9 @@ function drillHoleForCandidate(
 			partLabel: part.label,
 			partFamily: part.family,
 			partGeometry: part.geometry,
+			...(candidate.partProvenance === undefined
+				? {}
+				: { partProvenance: candidate.partProvenance }),
 			...(part.assetScale === undefined ? {} : { assetScale: part.assetScale }),
 			...(candidate.controlId === undefined
 				? {}
@@ -3591,7 +3644,8 @@ function drillHoleForCandidate(
 			...(part.stateTargets === undefined
 				? {}
 				: { stateTargets: part.stateTargets }),
-			...(candidate.concentricDials === undefined || candidate.concentricDials.length === 0
+			...(candidate.concentricDials === undefined ||
+			candidate.concentricDials.length === 0
 				? {}
 				: { concentricDials: candidate.concentricDials }),
 		},
@@ -3761,14 +3815,21 @@ function concentricDialHole(
 		partLabel: hole.partLabel,
 		partFamily: hole.partFamily,
 		partGeometry: dial.partGeometry,
+		...(hole.partProvenance === undefined
+			? {}
+			: { partProvenance: hole.partProvenance }),
 		...(hole.assetScale === undefined ? {} : { assetScale: hole.assetScale }),
 		...(dial.controlId === undefined ? {} : { controlId: dial.controlId }),
-		...(dial.componentId === undefined ? {} : { componentId: dial.componentId }),
+		...(dial.componentId === undefined
+			? {}
+			: { componentId: dial.componentId }),
 		...(dial.label === undefined ? {} : { label: dial.label }),
 		provenance: hole.provenance,
 		...(hole.locked === undefined ? {} : { locked: hole.locked }),
 		assets: hole.assets,
-		...(hole.stateTargets === undefined ? {} : { stateTargets: hole.stateTargets }),
+		...(hole.stateTargets === undefined
+			? {}
+			: { stateTargets: hole.stateTargets }),
 	};
 }
 
@@ -3807,6 +3868,9 @@ function previewPartForHole(
 		partId: hole.partId,
 		family: hole.partFamily,
 		geometry: hole.partGeometry,
+		...(hole.partProvenance === undefined
+			? {}
+			: { partProvenance: hole.partProvenance }),
 		...(hole.assetScale === undefined ? {} : { assetScale: hole.assetScale }),
 		...(hole.controlId === undefined ? {} : { controlId: hole.controlId }),
 		face: hole.face,
@@ -4493,6 +4557,7 @@ type GltfAssemblySource = Readonly<{
 	displayGlb: string;
 	displayStep: string;
 	localGlbPath: string;
+	readAssetFile: StompboxAssetFileReader;
 	material?: StompboxPreviewMaterial;
 	materialTargets?: readonly GltfMaterialTarget[];
 	stateTargets?: StompboxResolvedPartStateTargets;
@@ -5428,6 +5493,7 @@ function gltfAssemblySources(
 		);
 	}
 	const basePath = options.basePath;
+	const readAssetFile = requireStompboxAssetFileReader(options);
 	return [
 		{
 			id: preview.enclosure.variantId,
@@ -5438,6 +5504,7 @@ function gltfAssemblySources(
 				preview.drillLayout.enclosure.assets,
 				{ basePath },
 			).glb,
+			readAssetFile,
 			...(preview.enclosure.material === undefined
 				? {}
 				: { material: preview.enclosure.material }),
@@ -5465,6 +5532,7 @@ function gltfAssemblySources(
 				part,
 				preview.drillLayout,
 				basePath,
+				readAssetFile,
 				assetValidation?.assets[part.partId],
 			),
 		),
@@ -5475,6 +5543,7 @@ function partAssemblySource(
 	part: StompboxPreviewPart,
 	layout: StompboxDrillLayout,
 	basePath: string,
+	readAssetFile: StompboxAssetFileReader,
 	validation: StompboxGlbAssetValidation | undefined,
 ): GltfAssemblySource {
 	const sourceAssets = sourceAssetRefsForPreviewPart(layout, part);
@@ -5495,6 +5564,7 @@ function partAssemblySource(
 		displayGlb: part.assets.glb,
 		displayStep: part.assets.step,
 		localGlbPath: resolveStompboxAssetPaths(sourceAssets, { basePath }).glb,
+		readAssetFile,
 		...(sourceMaterial === undefined ? {} : { material: sourceMaterial }),
 		...(materialTargets.length === 0 ? {} : { materialTargets }),
 		...(stateTargets === undefined ? {} : { stateTargets }),
@@ -5505,6 +5575,9 @@ function partAssemblySource(
 			partId: part.partId,
 			face: part.face,
 			provenance: part.provenance,
+			...(part.partProvenance === undefined
+				? {}
+				: { partProvenance: part.partProvenance }),
 			glb: part.assets.glb,
 			step: part.assets.step,
 			...(part.assetScale === undefined ? {} : { assetScale: part.assetScale }),
@@ -6077,7 +6150,7 @@ function appendSourceGlb(
 	state: GltfMergeState,
 	source: GltfAssemblySource,
 ): readonly number[] {
-	const parsed = parseGlbFile(source.localGlbPath);
+	const parsed = parseGlbFile(source.localGlbPath, source.readAssetFile);
 	const bufferOffset = appendBinaryChunk(
 		state,
 		parsed.binary.slice(0, parsed.bufferByteLength),
@@ -6332,8 +6405,11 @@ function sourceSceneRootNodeIndexes(json: JsonObject): readonly number[] {
 	return nodes.flatMap((node) => (typeof node === "number" ? [node] : []));
 }
 
-function parseGlbFile(path: string): ParsedGlb {
-	const bytes = new Uint8Array(readFileSync(path));
+function parseGlbFile(
+	path: string,
+	readAssetFile: StompboxAssetFileReader,
+): ParsedGlb {
+	const bytes = readAssetFile(path);
 	return parseGlbBytes(bytes, path);
 }
 
@@ -7456,6 +7532,11 @@ function defaultPartIdForPanelKind(
 	}
 }
 
+type StompboxPartResolution = Readonly<{
+	partId: string;
+	partProvenance?: StompboxPartProvenance;
+}>;
+
 function knownPartIdOrDefault(
 	requestedPartId: string | undefined,
 	kind: PanelControlKind,
@@ -7465,12 +7546,12 @@ function knownPartIdOrDefault(
 	diagnostics: StompboxDiagnostic[],
 	controlId: string,
 	placementId: string | undefined,
-): string | undefined {
+): StompboxPartResolution | undefined {
 	if (
 		requestedPartId !== undefined &&
 		hardwareProfile.partProfiles[requestedPartId] !== undefined
 	) {
-		return requestedPartId;
+		return { partId: requestedPartId, partProvenance: "vdsp-declared" };
 	}
 	if (requestedPartId !== undefined) {
 		diagnostics.push({
@@ -7480,7 +7561,15 @@ function knownPartIdOrDefault(
 			...(placementId === undefined ? {} : { placementId }),
 		});
 	}
-	return defaultPartIdForPanelKind(kind, metadata, defaultPartIds);
+	const defaultPartId = defaultPartIdForPanelKind(kind, metadata, defaultPartIds);
+	return defaultPartId === undefined
+		? undefined
+		: {
+				partId: defaultPartId,
+				...(requestedPartId === undefined
+					? {}
+					: { partProvenance: "defaulted" as const }),
+			};
 }
 
 function placementIdForKind(kind: PanelControlKind, controlId: string): string {

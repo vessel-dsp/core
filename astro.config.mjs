@@ -11,7 +11,8 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: "VesselDSP Docs",
-			description: "Headless circuit conversion and stompbox layout documentation.",
+			description:
+				"Headless circuit conversion and stompbox layout documentation.",
 			editLink: {
 				baseUrl: "https://github.com/vessel-dsp/core/edit/main/",
 			},
@@ -61,7 +62,9 @@ export default defineConfig({
 				},
 				{
 					label: "Examples",
-					items: [{ label: "Pro Co Rat Schematic", link: "/examples/pro-co-rat/" }],
+					items: [
+						{ label: "Pro Co Rat Schematic", link: "/examples/pro-co-rat/" },
+					],
 				},
 				{
 					label: "Guides",

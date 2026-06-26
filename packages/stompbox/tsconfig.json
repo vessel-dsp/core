@@ -1,26 +1,15 @@
 {
-    "extends": "../../tsconfig.base.json",
-    "compilerOptions": {
-        "lib": [
-            "ES2022"
-        ],
-        "baseUrl": "../..",
-        "paths": {
-            "@vessel-dsp/core": [
-                "packages/core/src/index.ts"
-            ],
-            "@vessel-dsp/core/*": [
-                "packages/core/src/*"
-            ],
-            "@vessel-dsp/stompbox": [
-                "packages/stompbox/src/index.ts"
-            ],
-            "@vessel-dsp/stompbox/*": [
-                "packages/stompbox/src/*"
-            ]
-        }
-    },
-    "include": [
-        "src/**/*"
-    ]
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"baseUrl": "../..",
+		"paths": {
+			"@vessel-dsp/core": ["packages/core/src/index.ts"],
+			"@vessel-dsp/core/*": ["packages/core/src/*"],
+			"@vessel-dsp/stompbox": ["packages/stompbox/src/index.ts"],
+			"@vessel-dsp/stompbox/node": ["packages/stompbox/src/node.ts"],
+			"@vessel-dsp/stompbox/*": ["packages/stompbox/src/*"]
+		}
+	},
+	"include": ["src/**/*"]
 }

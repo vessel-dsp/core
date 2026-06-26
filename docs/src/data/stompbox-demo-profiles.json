@@ -19,14 +19,7 @@
 		{
 			"id": "mxr-style",
 			"label": "MXR style",
-			"supportedKnobCounts": [
-				1,
-				2,
-				3,
-				4,
-				5,
-				6
-			],
+			"supportedKnobCounts": [1, 2, 3, 4, 5, 6],
 			"defaultPartIds": {
 				"largeKnob": "knob-mxr-style-fluted-large",
 				"knob": "knob-mxr-style-fluted-medium",
@@ -42,11 +35,7 @@
 		{
 			"id": "boss-style",
 			"label": "Boss style",
-			"supportedKnobCounts": [
-				2,
-				3,
-				4
-			],
+			"supportedKnobCounts": [2, 3, 4],
 			"defaultPartIds": {
 				"largeKnob": "knob-davies-1105",
 				"knob": "knob-davies-1100",
@@ -180,12 +169,22 @@
 			"surfaces": [
 				{
 					"id": "lower",
-					"geometry": { "kind": "knob", "diameterMm": 24, "depthMm": 12, "shaftDiameterMm": 6.4 },
+					"geometry": {
+						"kind": "knob",
+						"diameterMm": 24,
+						"depthMm": 12,
+						"shaftDiameterMm": 6.4
+					},
 					"stackOffsetMm": 0
 				},
 				{
 					"id": "upper",
-					"geometry": { "kind": "knob", "diameterMm": 14, "depthMm": 10, "shaftDiameterMm": 6.4 },
+					"geometry": {
+						"kind": "knob",
+						"diameterMm": 14,
+						"depthMm": 10,
+						"shaftDiameterMm": 6.4
+					},
 					"stackOffsetMm": 12
 				}
 			],
@@ -211,17 +210,32 @@
 			"surfaces": [
 				{
 					"id": "lower",
-					"geometry": { "kind": "knob", "diameterMm": 24, "depthMm": 12, "shaftDiameterMm": 6.4 },
+					"geometry": {
+						"kind": "knob",
+						"diameterMm": 24,
+						"depthMm": 12,
+						"shaftDiameterMm": 6.4
+					},
 					"stackOffsetMm": 0
 				},
 				{
 					"id": "middle",
-					"geometry": { "kind": "knob", "diameterMm": 18, "depthMm": 10, "shaftDiameterMm": 6.4 },
+					"geometry": {
+						"kind": "knob",
+						"diameterMm": 18,
+						"depthMm": 10,
+						"shaftDiameterMm": 6.4
+					},
 					"stackOffsetMm": 12
 				},
 				{
 					"id": "upper",
-					"geometry": { "kind": "knob", "diameterMm": 12, "depthMm": 9, "shaftDiameterMm": 6.4 },
+					"geometry": {
+						"kind": "knob",
+						"diameterMm": 12,
+						"depthMm": 9,
+						"shaftDiameterMm": 6.4
+					},
 					"stackOffsetMm": 22
 				}
 			],
