@@ -1036,6 +1036,63 @@ panel:
             column: 1
 `;
 
+const vdspWithPartialPanelControls = `schema: circuit-interchange/v3
+metadata:
+  name: Partial Panel Controls Pedal
+source:
+  format: interchange
+  filename: partial-panel-controls.vdsp
+components:
+  - id: VR1
+    kind: potentiometer
+    name: Gain
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.35
+    sourceTypeName: "Circuit.Potentiometer, Circuit"
+  - id: VR2
+    kind: potentiometer
+    name: Tone
+    origin:
+      x: 20
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      Wipe: 0.65
+    sourceTypeName: "Circuit.Potentiometer, Circuit"
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+panel:
+  faces:
+    - id: top
+      label: Top
+      layout:
+        kind: stompbox-grid
+        rows: 1
+        columns: 2
+        indexing: one-based
+      elements:
+        - id: gain-knob
+          bind:
+            componentId: VR1
+            controlId: Gain
+          kind: knob
+          label: Drive
+          grid:
+            row: 1
+            column: 1
+`;
+
 const vdspWithDiagnosticPlacements = `schema: circuit-interchange/v3
 metadata:
   name: Diagnostic Layout Pedal
@@ -3327,6 +3384,41 @@ describe("stompbox runtime preview state", () => {
 			id: "Gain",
 			name: "Gain",
 		});
+	});
+
+	test("merges partial authored panel controls with omitted source-derived controls", () => {
+		const document = parseCircuitDocumentFile(vdspWithPartialPanelControls, {
+			filename: "partial-panel-controls.vdsp",
+		});
+		const surface = createStompboxControlSurface(document, {
+			pedalId: "partial-panel",
+		});
+
+		expect(
+			surface.controls.map((control) => ({
+				id: control.id,
+				sourceComponentId: control.sourceComponentId,
+				source: control.source,
+				label: control.label,
+				defaultValue: control.value,
+			})),
+		).toEqual([
+			{
+				id: "Gain",
+				sourceComponentId: "VR1",
+				source: "source-panel",
+				label: "Drive",
+				defaultValue: 0.35,
+			},
+			{
+				id: "VR2",
+				sourceComponentId: "VR2",
+				source: "source-panel",
+				label: "Tone",
+				defaultValue: 0.65,
+			},
+		]);
+		expect(surface.panel.knobs.map((knob) => knob.id)).toEqual(["Gain", "VR2"]);
 	});
 
 	test("turns knobs, presses synthesized footswitches, and emits preview patches without rendering", () => {

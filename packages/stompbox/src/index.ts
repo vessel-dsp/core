@@ -1271,10 +1271,10 @@ export function createStompboxControlSurface(
 	const diagnostics: StompboxDiagnostic[] = [];
 	const basePanel = extractPanel(document);
 	const panelControls = createStompboxSourcePanelControls(document);
-	const sourceControls =
-		panelControls.length === 0
-			? sourceControlsFromExtractedPanel(basePanel)
-			: panelControls;
+	const sourceControls = mergeSourcePanelControls(
+		panelControls,
+		sourceControlsFromExtractedPanel(basePanel),
+	);
 	const unmatchedCompiled = [...(options.compiledControls ?? [])];
 	const descriptors: StompboxRuntimeControlDescriptor[] = [];
 
@@ -2266,6 +2266,30 @@ function sourceControlsFromExtractedPanel(
 					? {}
 					: { description: switchControl.description }),
 			}),
+		),
+	];
+}
+
+function mergeSourcePanelControls(
+	panelControls: readonly StompboxSourcePanelControl[],
+	extractedControls: readonly StompboxSourcePanelControl[],
+): readonly StompboxSourcePanelControl[] {
+	if (panelControls.length === 0) {
+		return extractedControls;
+	}
+	const seenIds = new Set(panelControls.map((control) => control.id));
+	const seenComponents = new Set(
+		panelControls.flatMap((control) =>
+			control.sourceComponentId === undefined ? [] : [control.sourceComponentId],
+		),
+	);
+	return [
+		...panelControls,
+		...extractedControls.filter(
+			(control) =>
+				!seenIds.has(control.id) &&
+				(control.sourceComponentId === undefined ||
+					!seenComponents.has(control.sourceComponentId)),
 		),
 	];
 }
