@@ -145,12 +145,65 @@ export function createCabinetPreviewObject3D(
 		layout.grille.centerMm.z,
 	);
 	root.add(grille);
+	addCabinetGrilleNet(root, layout);
 	if (options.effects !== undefined) {
 		applyToonMaterials(root, options.effects);
 		addToonOutlines(root, options.effects);
 		applyMaterialGrain(root, options.effects);
 	}
 	return root;
+}
+
+function addCabinetGrilleNet(
+	root: THREE.Group,
+	layout: CabinetPreviewLayout,
+): void {
+	const width = layout.grille.sizeMm.widthMm;
+	const height = layout.grille.sizeMm.heightMm;
+	const group = new THREE.Group();
+	group.name = "cabinet-grille-net";
+	group.position.set(
+		layout.grille.centerMm.x,
+		layout.grille.centerMm.y,
+		layout.grille.centerMm.z + 2.6,
+	);
+	group.userData = {
+		kind: "cabinet-grille-diagonal-net",
+		spacingMm: CABINET_GRILLE_NET_SPACING_MM,
+	};
+	const lineMaterial = new THREE.MeshStandardMaterial({
+		color: CABINET_GRILLE_NET_COLOR,
+		roughness: 0.92,
+		metalness: 0,
+	});
+	let index = 0;
+	for (const direction of [-1, 1] as const) {
+		for (const segment of clippedDiagonalSegments(
+			width,
+			height,
+			CABINET_GRILLE_NET_SPACING_MM,
+			direction,
+		)) {
+			const line = new THREE.Mesh(
+				new THREE.BoxGeometry(
+					segment.lengthMm,
+					CABINET_GRILLE_NET_STROKE_MM,
+					CABINET_GRILLE_NET_DEPTH_MM,
+				),
+				lineMaterial,
+			);
+			line.name = `cabinet-grille-net-${direction > 0 ? "positive" : "negative"}-${index}`;
+			line.position.set(segment.center.x, segment.center.y, 0);
+			line.rotation.z = segment.rotationRad;
+			line.userData = {
+				kind: "cabinet-grille-net-line",
+				direction: direction > 0 ? "positive" : "negative",
+			};
+			group.add(line);
+			index += 1;
+		}
+	}
+	root.add(group);
 }
 
 function addCabinetTrim(root: THREE.Group, layout: CabinetPreviewLayout): void {
@@ -260,6 +313,7 @@ function addCabinetLabels(
 		layout.appearance.brandLabelFontSizeMm,
 		layout.appearance.labelFontFamily,
 		2,
+		{ outlineColor: "#000000" },
 	);
 	brand.position.set(
 		0,
@@ -282,6 +336,7 @@ function addCabinetLabels(
 		layout.appearance.modelLabelFontSizeMm,
 		layout.appearance.labelFontFamily,
 		2,
+		{ outlineColor: "#000000" },
 	);
 	model.position.set(
 		rightAlignedGroupX(model, grilleRightX - 8),
@@ -322,6 +377,10 @@ const ROUNDED_BOX_MAX_RADIUS_MM = 20;
 const ROUNDED_BOX_RADIUS_RATIO = 0.22;
 const ROUNDED_BOX_MIN_RADIUS_MM = 1.2;
 const ROUNDED_BOX_RADIUS_EPSILON_MM = 0.001;
+const CABINET_GRILLE_NET_SPACING_MM = 36;
+const CABINET_GRILLE_NET_STROKE_MM = 1.6;
+const CABINET_GRILLE_NET_DEPTH_MM = 1.2;
+const CABINET_GRILLE_NET_COLOR = "#cccccc";
 
 function roundedBoxGeometry(
 	widthMm: number,
@@ -358,6 +417,91 @@ function roundedBoxRadius(
 	return roundMm(Math.min(maxValidRadius, preferredRadius));
 }
 
+type DiagonalSegment = Readonly<{
+	center: { x: number; y: number };
+	lengthMm: number;
+	rotationRad: number;
+}>;
+
+function clippedDiagonalSegments(
+	widthMm: number,
+	heightMm: number,
+	spacingMm: number,
+	direction: -1 | 1,
+): DiagonalSegment[] {
+	const halfWidth = widthMm / 2;
+	const halfHeight = heightMm / 2;
+	const rotationRad = Math.atan2(direction * heightMm, widthMm);
+	const unitX = Math.cos(rotationRad);
+	const unitY = Math.sin(rotationRad);
+	const normalX = -unitY;
+	const normalY = unitX;
+	const cornerOffsets = [
+		normalX * -halfWidth + normalY * -halfHeight,
+		normalX * -halfWidth + normalY * halfHeight,
+		normalX * halfWidth + normalY * -halfHeight,
+		normalX * halfWidth + normalY * halfHeight,
+	];
+	const minOffset = Math.min(...cornerOffsets);
+	const maxOffset = Math.max(...cornerOffsets);
+	const firstOffset = Math.ceil(minOffset / spacingMm) * spacingMm;
+	const segments: DiagonalSegment[] = [];
+	for (
+		let offset = firstOffset;
+		offset <= maxOffset + 0.001;
+		offset += spacingMm
+	) {
+		const point = { x: normalX * offset, y: normalY * offset };
+		const extents = clippedLineExtents(
+			point,
+			{ x: unitX, y: unitY },
+			{ halfWidth, halfHeight },
+		);
+		if (extents === null || extents.maxT - extents.minT < spacingMm * 0.35) {
+			continue;
+		}
+		const centerT = (extents.minT + extents.maxT) / 2;
+		segments.push({
+			center: {
+				x: roundMm(point.x + unitX * centerT),
+				y: roundMm(point.y + unitY * centerT),
+			},
+			lengthMm: roundMm(extents.maxT - extents.minT),
+			rotationRad,
+		});
+	}
+	return segments;
+}
+
+function clippedLineExtents(
+	point: { x: number; y: number },
+	direction: { x: number; y: number },
+	bounds: { halfWidth: number; halfHeight: number },
+): { minT: number; maxT: number } | null {
+	const values: number[] = [];
+	for (const x of [-bounds.halfWidth, bounds.halfWidth]) {
+		const t = (x - point.x) / direction.x;
+		const y = point.y + direction.y * t;
+		if (y >= -bounds.halfHeight - 0.001 && y <= bounds.halfHeight + 0.001) {
+			values.push(t);
+		}
+	}
+	for (const y of [-bounds.halfHeight, bounds.halfHeight]) {
+		const t = (y - point.y) / direction.y;
+		const x = point.x + direction.x * t;
+		if (x >= -bounds.halfWidth - 0.001 && x <= bounds.halfWidth + 0.001) {
+			values.push(t);
+		}
+	}
+	if (values.length < 2) {
+		return null;
+	}
+	return {
+		minT: Math.min(...values),
+		maxT: Math.max(...values),
+	};
+}
+
 function vectorTextLabel(
 	name: string,
 	text: string,
@@ -365,7 +509,15 @@ function vectorTextLabel(
 	heightMm: number,
 	fontFamily: string,
 	depthMm: number,
+	options: Readonly<{
+		outlineColor?: string;
+		outlineWidthMm?: number;
+		outlineDepthOffsetMm?: number;
+	}> = {},
 ): THREE.Group {
+	const outlineWidthMm = options.outlineWidthMm ?? Math.max(0.8, heightMm * 0.08);
+	const outlineDepthOffsetMm =
+		options.outlineDepthOffsetMm ?? Math.max(0.4, depthMm * 0.35);
 	const group = new THREE.Group();
 	group.name = name;
 	group.userData = {
@@ -373,6 +525,12 @@ function vectorTextLabel(
 		text,
 		fontFamily,
 		fontSizeMm: heightMm,
+		...(options.outlineColor === undefined
+			? {}
+			: {
+					outlineColor: options.outlineColor,
+					outlineWidthMm,
+				}),
 	};
 	const cell = heightMm / 5;
 	const gap = cell * 0.45;
@@ -396,12 +554,29 @@ function vectorTextLabel(
 					depthMm,
 					color,
 				);
+				stroke.userData = { kind: "vector-text-fill" };
 				stroke.position.set(
 					cursor + column * cell,
 					((glyph.length - 1) / 2 - row) * cell,
 					0,
 				);
 				group.add(stroke);
+				if (options.outlineColor !== undefined) {
+					const outline = boxMesh(
+						`${name}-outline-${group.children.length}`,
+						cell * 0.78 + outlineWidthMm,
+						cell * 0.78 + outlineWidthMm,
+						Math.max(0.4, depthMm * 0.45),
+						options.outlineColor,
+					);
+					outline.userData = { kind: "vector-text-outline" };
+					outline.position.set(
+						cursor + column * cell,
+						((glyph.length - 1) / 2 - row) * cell,
+						-outlineDepthOffsetMm,
+					);
+					group.add(outline);
+				}
 			}
 		}
 		const glyphWidth = glyph[0]?.length ?? 0;

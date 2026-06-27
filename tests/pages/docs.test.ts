@@ -334,6 +334,16 @@ describe("GitHub Pages documentation site", () => {
 		]) {
 			expect(existsSync(join(ROOT_DIR, path))).toBe(true);
 		}
+		const ampVendor = readRepoFile("docs/public/vendor/vessel-dsp/amp/index.js");
+		expect(ampVendor).toContain("amp-grille-net");
+		expect(ampVendor).toContain('AMP_GRILLE_NET_COLOR = "#cccccc"');
+		expect(ampVendor).not.toContain('from "@vessel-dsp/core"');
+		const cabinetVendor = readRepoFile(
+			"docs/public/vendor/vessel-dsp/cabinet/index.js",
+		);
+		expect(cabinetVendor).toContain("cabinet-grille-net");
+		expect(cabinetVendor).toContain('CABINET_GRILLE_NET_COLOR = "#cccccc"');
+		expect(cabinetVendor).not.toContain('from "@vessel-dsp/core"');
 
 		const controlsPage = readRepoFile(
 			"docs/src/content/docs/guides/controls.mdx",

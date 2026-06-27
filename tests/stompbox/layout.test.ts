@@ -9,13 +9,13 @@ import {
 	createStompboxControlSurface,
 	createStompboxDrillLayout as createStompboxDrillLayoutBase,
 	createStompboxDrillLayoutFromVdsp as createStompboxDrillLayoutFromVdspBase,
-	createStompboxHardwareProfileFromDocument,
-	createStompboxHardwareProfileFromVdsp,
 	createStompboxDrillTemplate,
 	createStompboxDrillTemplateFromVdsp as createStompboxDrillTemplateFromVdspBase,
 	createStompboxDrillTemplateSvg,
 	createStompboxDrillTemplateSvgFromVdsp as createStompboxDrillTemplateSvgFromVdspBase,
 	createStompboxFootswitchPressCommand,
+	createStompboxHardwareProfileFromDocument,
+	createStompboxHardwareProfileFromVdsp,
 	createStompboxKnobTurnCommand,
 	createStompboxPedalStateStore,
 	createStompboxPreview as createStompboxPreviewBase,
@@ -1931,9 +1931,9 @@ components:`,
 				}),
 			]),
 		);
-		expect(layout.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain(
-			"unknown-part-profile",
-		);
+		expect(
+			layout.diagnostics.map((diagnostic) => diagnostic.code),
+		).not.toContain("unknown-part-profile");
 	});
 
 	test("auto-generates deterministic physical placement when .vdsp has no panel physical coordinates", () => {
@@ -2948,10 +2948,14 @@ components:`,
 		const layout = createStompboxDrillLayoutFromVdsp(
 			vdspWithDiagnosticPlacements,
 		);
-		const hole = layout.holes.find((candidate) => candidate.id === "unknown-part-knob");
+		const hole = layout.holes.find(
+			(candidate) => candidate.id === "unknown-part-knob",
+		);
 
 		expect(hole).toBeDefined();
-		expect(hole?.partId).toBe(DEMO_STOMPBOX_HARDWARE_PROFILE.defaultPartIds.knob);
+		expect(hole?.partId).toBe(
+			DEMO_STOMPBOX_HARDWARE_PROFILE.defaultPartIds.knob,
+		);
 		expect(hole?.provenance).toBe("auto-generated");
 		expect(hole?.partProvenance).toBe("defaulted");
 		expect(layout.diagnostics).toContainEqual({

@@ -50,6 +50,42 @@ function firstChildMeshColorHex(
 	return (material as THREE.MeshStandardMaterial | undefined)?.color?.getHexString();
 }
 
+function childMeshColorHexes(object: THREE.Object3D, name: string): string[] {
+	const child = object.getObjectByName(name);
+	if (child === undefined) {
+		throw new Error(`Missing object ${name}`);
+	}
+	return child.children.flatMap((mesh) => {
+		const material = Array.isArray(
+			(mesh as THREE.Object3D & {
+				material?: THREE.Material | THREE.Material[];
+			}).material,
+		)
+			? (mesh as THREE.Object3D & { material?: THREE.Material[] }).material?.[0]
+			: (mesh as THREE.Object3D & { material?: THREE.Material }).material;
+		const color = (material as THREE.MeshStandardMaterial | undefined)?.color;
+		return color === undefined ? [] : [color.getHexString()];
+	});
+}
+
+function childZRange(
+	object: THREE.Object3D,
+	name: string,
+	predicate: (child: THREE.Object3D) => boolean,
+): { min: number; max: number } {
+	const group = object.getObjectByName(name);
+	if (group === undefined) {
+		throw new Error(`Missing object ${name}`);
+	}
+	const values = group.children
+		.filter(predicate)
+		.map((child) => child.position.z);
+	if (values.length === 0) {
+		throw new Error(`Missing matching child for ${name}`);
+	}
+	return { min: Math.min(...values), max: Math.max(...values) };
+}
+
 function boxDimensions(
 	object: THREE.Object3D,
 	name: string,
@@ -90,6 +126,32 @@ function objectPosition(
 	return { x: child.position.x, y: child.position.y, z: child.position.z };
 }
 
+function lineYRange(
+	object: THREE.Object3D,
+	name: string,
+): { min: number; max: number } {
+	const position = objectPosition(object, name);
+	const dimensions = boxDimensions(object, name);
+	const line = object.getObjectByName(name);
+	if (line === undefined) {
+		throw new Error(`Missing object ${name}`);
+	}
+	const yHalfSpan = Math.abs(Math.sin(line.rotation.z)) * dimensions.width * 0.5;
+	const strokeHalfSpan = dimensions.height * 0.5;
+	return {
+		min: position.y - yHalfSpan - strokeHalfSpan,
+		max: position.y + yHalfSpan + strokeHalfSpan,
+	};
+}
+
+function overlapsYBand(
+	range: { min: number; max: number },
+	centerY: number,
+	halfHeight: number,
+): boolean {
+	return range.max >= centerY - halfHeight && range.min <= centerY + halfHeight;
+}
+
 function toonOutlineChild(object: THREE.Object3D, name: string): THREE.Object3D {
 	const child = object.getObjectByName(name);
 	const outline = child?.children.find(
@@ -99,6 +161,14 @@ function toonOutlineChild(object: THREE.Object3D, name: string): THREE.Object3D 
 		throw new Error(`Missing toon outline child for ${name}`);
 	}
 	return outline;
+}
+
+function grilleNetLines(object: THREE.Object3D): THREE.Object3D[] {
+	const net = object.getObjectByName("cabinet-grille-net");
+	if (net === undefined) {
+		throw new Error("Missing cabinet grille net");
+	}
+	return net.children;
 }
 
 describe("cabinet visualization", () => {
@@ -164,15 +234,98 @@ describe("cabinet visualization", () => {
 		expect(firstChildMeshColorHex(object, "cabinet-model-label")).toBe(
 			"e5e7eb",
 		);
+		expect(childMeshColorHexes(object, "cabinet-brand-label")).toContain(
+			"000000",
+		);
+		expect(childMeshColorHexes(object, "cabinet-model-label")).toContain(
+			"000000",
+		);
 		const brandLabel = object.getObjectByName("cabinet-brand-label");
 		expect(brandLabel?.userData.text).toBe("Vessel");
 		expect(brandLabel?.userData.fontFamily).toBe("Vessel Block");
 		expect(brandLabel?.userData.fontSizeMm).toBe(16);
+		expect(brandLabel?.userData.outlineColor).toBe("#000000");
+		expect(brandLabel?.userData.outlineWidthMm).toBeGreaterThan(0);
 		expect(brandLabel?.type).toBe("Group");
 		expect(brandLabel?.children.length).toBeGreaterThan(1);
 		expect(
 			object.getObjectByName("cabinet-model-label")?.userData.fontSizeMm,
 		).toBe(12);
+		const fillZ = childZRange(
+			object,
+			"cabinet-brand-label",
+			(child) => child.userData.kind === "vector-text-fill",
+		);
+		const outlineZ = childZRange(
+			object,
+			"cabinet-brand-label",
+			(child) => child.userData.kind === "vector-text-outline",
+		);
+		expect(outlineZ.max).toBeLessThan(fillZ.min);
+	});
+
+	test("adds a clipped diagonal grille net over the cabinet cloth", () => {
+		const object = createCabinetPreviewObject3D(cabinetProfile);
+		const layout = createCabinetPreviewLayout(cabinetProfile);
+		const net = object.getObjectByName("cabinet-grille-net");
+		const lines = grilleNetLines(object);
+		const positiveLine = lines.find(
+			(line) => line.userData.direction === "positive",
+		);
+		const negativeLine = lines.find(
+			(line) => line.userData.direction === "negative",
+		);
+
+		expect(net?.type).toBe("Group");
+		expect(net?.userData.kind).toBe("cabinet-grille-diagonal-net");
+		expect(net?.position.z).toBeGreaterThan(layout.grille.centerMm.z);
+		expect(lines.length).toBeGreaterThan(10);
+		expect(positiveLine).toBeDefined();
+		expect(negativeLine).toBeDefined();
+		expect(positiveLine?.rotation.z).toBeGreaterThan(0);
+		expect(negativeLine?.rotation.z).toBeLessThan(0);
+		expect(meshColorHex(object, positiveLine?.name ?? "")).toBe("cccccc");
+		const grillePosition = objectPosition(object, "cabinet-grille");
+		const brandPosition = objectPosition(object, "cabinet-brand-label");
+		const modelPosition = objectPosition(object, "cabinet-model-label");
+		expect(brandPosition.z).toBeGreaterThan(net?.position.z ?? 0);
+		expect(modelPosition.z).toBeGreaterThan(net?.position.z ?? 0);
+		let brandBandLineCount = 0;
+		let modelBandLineCount = 0;
+		for (const line of lines) {
+			const position = objectPosition(object, line.name);
+			const dimensions = boxDimensions(object, line.name);
+			expect(position.x).toBeGreaterThanOrEqual(
+				-layout.grille.sizeMm.widthMm / 2,
+			);
+			expect(position.x).toBeLessThanOrEqual(layout.grille.sizeMm.widthMm / 2);
+			expect(position.y).toBeGreaterThanOrEqual(
+				-layout.grille.sizeMm.heightMm / 2,
+			);
+			expect(position.y).toBeLessThanOrEqual(layout.grille.sizeMm.heightMm / 2);
+			expect(dimensions.depth).toBeLessThan(3);
+			const yRange = lineYRange(object, line.name);
+			if (
+				overlapsYBand(
+					yRange,
+					brandPosition.y - grillePosition.y,
+					cabinetProfile.appearance.brandLabelFontSizeMm,
+				)
+			) {
+				brandBandLineCount += 1;
+			}
+			if (
+				overlapsYBand(
+					yRange,
+					modelPosition.y - grillePosition.y,
+					cabinetProfile.appearance.modelLabelFontSizeMm,
+				)
+			) {
+				modelBandLineCount += 1;
+			}
+		}
+		expect(brandBandLineCount).toBeGreaterThan(0);
+		expect(modelBandLineCount).toBeGreaterThan(0);
 	});
 
 	test("allows cabinet model labels to be omitted", () => {

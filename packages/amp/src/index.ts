@@ -370,6 +370,14 @@ export function createAmpPreviewObject3D(
 		layout.body.dimensionsMm.depthMm / 2 + 3,
 	);
 	root.add(grille);
+	addAmpGrilleNet(root, {
+		centerX: grille.position.x,
+		centerY: grille.position.y,
+		centerZ: grille.position.z,
+		widthMm: layout.body.dimensionsMm.widthMm * 0.82,
+		heightMm: grilleHeight,
+		panelFace: layout.controlPanel.face,
+	});
 	addAmpTrim(root, layout);
 	addAmpHandle(root, layout);
 	addAmpCornerCaps(root, layout);
@@ -443,6 +451,60 @@ export function createAmpPreviewObject3D(
 		applyMaterialGrain(root, options.effects);
 	}
 	return root;
+}
+
+function addAmpGrilleNet(
+	root: THREE.Group,
+	grille: Readonly<{
+		centerX: number;
+		centerY: number;
+		centerZ: number;
+		widthMm: number;
+		heightMm: number;
+		panelFace: "front" | "top";
+	}>,
+): void {
+	const group = new THREE.Group();
+	group.name = "amp-grille-net";
+	group.position.set(grille.centerX, grille.centerY, grille.centerZ + 3.1);
+	group.userData = {
+		kind: "amp-grille-diagonal-net",
+		spacingMm: AMP_GRILLE_NET_SPACING_MM,
+	};
+	const lineMaterial = new THREE.MeshStandardMaterial({
+		color: AMP_GRILLE_NET_COLOR,
+		roughness: 0.92,
+		metalness: 0,
+	});
+	let index = 0;
+	for (const direction of [-1, 1] as const) {
+		for (const segment of clippedDiagonalSegments(
+			grille.widthMm,
+			grille.heightMm,
+			AMP_GRILLE_NET_SPACING_MM,
+			direction,
+		)) {
+			const line = new THREE.Mesh(
+				new THREE.BoxGeometry(
+					segment.lengthMm,
+					AMP_GRILLE_NET_STROKE_MM,
+					AMP_GRILLE_NET_DEPTH_MM,
+				),
+				lineMaterial,
+			);
+			line.name = `amp-grille-net-${direction > 0 ? "positive" : "negative"}-${index}`;
+			line.position.set(segment.center.x, segment.center.y, 0);
+			line.rotation.z = segment.rotationRad;
+			line.userData = {
+				kind: "amp-grille-net-line",
+				direction: direction > 0 ? "positive" : "negative",
+				panelFace: grille.panelFace,
+			};
+			group.add(line);
+			index += 1;
+		}
+	}
+	root.add(group);
 }
 
 function addAmpTrim(root: THREE.Group, layout: AmpPreviewLayout): void {
@@ -604,6 +666,7 @@ function addAmpLabels(root: THREE.Group, layout: AmpPreviewLayout): void {
 		layout.appearance.brandLabelFontSizeMm,
 		layout.appearance.labelFontFamily,
 		2,
+		{ outlineColor: "#000000" },
 	);
 	brand.position.set(0, grilleCenterY, z);
 	brand.userData = {
@@ -618,6 +681,7 @@ function addAmpLabels(root: THREE.Group, layout: AmpPreviewLayout): void {
 		layout.appearance.modelLabelFontSizeMm,
 		layout.appearance.labelFontFamily,
 		2,
+		{ outlineColor: "#000000" },
 	);
 	model.position.set(
 		rightAlignedGroupX(model, grilleRightX - 8),
@@ -672,6 +736,10 @@ const ROUNDED_BOX_MAX_RADIUS_MM = 20;
 const ROUNDED_BOX_RADIUS_RATIO = 0.22;
 const ROUNDED_BOX_MIN_RADIUS_MM = 1.2;
 const ROUNDED_BOX_RADIUS_EPSILON_MM = 0.001;
+const AMP_GRILLE_NET_SPACING_MM = 18;
+const AMP_GRILLE_NET_STROKE_MM = 1.6;
+const AMP_GRILLE_NET_DEPTH_MM = 1.2;
+const AMP_GRILLE_NET_COLOR = "#cccccc";
 
 function roundedBoxGeometry(
 	widthMm: number,
@@ -708,6 +776,133 @@ function roundedBoxRadius(
 	return roundMm(Math.min(maxValidRadius, preferredRadius));
 }
 
+type DiagonalSegment = Readonly<{
+	center: { x: number; y: number };
+	lengthMm: number;
+	rotationRad: number;
+}>;
+
+type HorizontalClearBand = Readonly<{
+	centerY: number;
+	halfHeightMm: number;
+}>;
+
+function clippedDiagonalSegments(
+	widthMm: number,
+	heightMm: number,
+	spacingMm: number,
+	direction: -1 | 1,
+	clearBands: readonly HorizontalClearBand[] = [],
+): DiagonalSegment[] {
+	const halfWidth = widthMm / 2;
+	const halfHeight = heightMm / 2;
+	const rotationRad = Math.atan2(direction * heightMm, widthMm);
+	const unitX = Math.cos(rotationRad);
+	const unitY = Math.sin(rotationRad);
+	const normalX = -unitY;
+	const normalY = unitX;
+	const cornerOffsets = [
+		normalX * -halfWidth + normalY * -halfHeight,
+		normalX * -halfWidth + normalY * halfHeight,
+		normalX * halfWidth + normalY * -halfHeight,
+		normalX * halfWidth + normalY * halfHeight,
+	];
+	const minOffset = Math.min(...cornerOffsets);
+	const maxOffset = Math.max(...cornerOffsets);
+	const firstOffset = Math.ceil(minOffset / spacingMm) * spacingMm;
+	const segments: DiagonalSegment[] = [];
+	for (
+		let offset = firstOffset;
+		offset <= maxOffset + 0.001;
+		offset += spacingMm
+	) {
+		const point = { x: normalX * offset, y: normalY * offset };
+		const extents = clippedLineExtents(
+			point,
+			{ x: unitX, y: unitY },
+			{ halfWidth, halfHeight },
+		);
+		if (extents === null || extents.maxT - extents.minT < spacingMm * 0.35) {
+			continue;
+		}
+		for (const interval of subtractClearBands(extents, point.y, unitY, clearBands)) {
+			if (interval.maxT - interval.minT < spacingMm * 0.35) {
+				continue;
+			}
+			const centerT = (interval.minT + interval.maxT) / 2;
+			segments.push({
+				center: {
+					x: roundMm(point.x + unitX * centerT),
+					y: roundMm(point.y + unitY * centerT),
+				},
+				lengthMm: roundMm(interval.maxT - interval.minT),
+				rotationRad,
+			});
+		}
+	}
+	return segments;
+}
+
+function subtractClearBands(
+	extents: { minT: number; maxT: number },
+	pointY: number,
+	directionY: number,
+	clearBands: readonly HorizontalClearBand[],
+): { minT: number; maxT: number }[] {
+	let intervals = [extents];
+	for (const band of clearBands) {
+		const minY = band.centerY - band.halfHeightMm;
+		const maxY = band.centerY + band.halfHeightMm;
+		const a = (minY - pointY) / directionY;
+		const b = (maxY - pointY) / directionY;
+		const clearMinT = Math.min(a, b);
+		const clearMaxT = Math.max(a, b);
+		intervals = intervals.flatMap((interval) => {
+			if (clearMaxT <= interval.minT || clearMinT >= interval.maxT) {
+				return [interval];
+			}
+			const next: { minT: number; maxT: number }[] = [];
+			if (clearMinT > interval.minT) {
+				next.push({ minT: interval.minT, maxT: clearMinT });
+			}
+			if (clearMaxT < interval.maxT) {
+				next.push({ minT: clearMaxT, maxT: interval.maxT });
+			}
+			return next;
+		});
+	}
+	return intervals;
+}
+
+function clippedLineExtents(
+	point: { x: number; y: number },
+	direction: { x: number; y: number },
+	bounds: { halfWidth: number; halfHeight: number },
+): { minT: number; maxT: number } | null {
+	const values: number[] = [];
+	for (const x of [-bounds.halfWidth, bounds.halfWidth]) {
+		const t = (x - point.x) / direction.x;
+		const y = point.y + direction.y * t;
+		if (y >= -bounds.halfHeight - 0.001 && y <= bounds.halfHeight + 0.001) {
+			values.push(t);
+		}
+	}
+	for (const y of [-bounds.halfHeight, bounds.halfHeight]) {
+		const t = (y - point.y) / direction.y;
+		const x = point.x + direction.x * t;
+		if (x >= -bounds.halfWidth - 0.001 && x <= bounds.halfWidth + 0.001) {
+			values.push(t);
+		}
+	}
+	if (values.length < 2) {
+		return null;
+	}
+	return {
+		minT: Math.min(...values),
+		maxT: Math.max(...values),
+	};
+}
+
 function vectorTextLabel(
 	name: string,
 	text: string,
@@ -715,7 +910,15 @@ function vectorTextLabel(
 	heightMm: number,
 	fontFamily: string,
 	depthMm: number,
+	options: Readonly<{
+		outlineColor?: string;
+		outlineWidthMm?: number;
+		outlineDepthOffsetMm?: number;
+	}> = {},
 ): THREE.Group {
+	const outlineWidthMm = options.outlineWidthMm ?? Math.max(0.8, heightMm * 0.08);
+	const outlineDepthOffsetMm =
+		options.outlineDepthOffsetMm ?? Math.max(0.4, depthMm * 0.35);
 	const group = new THREE.Group();
 	group.name = name;
 	group.userData = {
@@ -723,6 +926,12 @@ function vectorTextLabel(
 		text,
 		fontFamily,
 		fontSizeMm: heightMm,
+		...(options.outlineColor === undefined
+			? {}
+			: {
+					outlineColor: options.outlineColor,
+					outlineWidthMm,
+				}),
 	};
 	const cell = heightMm / 5;
 	const gap = cell * 0.45;
@@ -746,12 +955,29 @@ function vectorTextLabel(
 					depthMm,
 					color,
 				);
+				stroke.userData = { kind: "vector-text-fill" };
 				stroke.position.set(
 					cursor + column * cell,
 					((glyph.length - 1) / 2 - row) * cell,
 					0,
 				);
 				group.add(stroke);
+				if (options.outlineColor !== undefined) {
+					const outline = boxMesh(
+						`${name}-outline-${group.children.length}`,
+						cell * 0.78 + outlineWidthMm,
+						cell * 0.78 + outlineWidthMm,
+						Math.max(0.4, depthMm * 0.45),
+						options.outlineColor,
+					);
+					outline.userData = { kind: "vector-text-outline" };
+					outline.position.set(
+						cursor + column * cell,
+						((glyph.length - 1) / 2 - row) * cell,
+						-outlineDepthOffsetMm,
+					);
+					group.add(outline);
+				}
 			}
 		}
 		const glyphWidth = glyph[0]?.length ?? 0;
