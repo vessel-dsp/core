@@ -302,6 +302,74 @@ rawAttributes: {}`;
 		expect(parsed.panel).toEqual(doc.panel);
 	});
 
+	test("preserves firmware-bound microcomputer runtime metadata as portable component properties", () => {
+		const yaml = `schema: circuit-interchange/v2
+metadata:
+  name: Boss RV-3 microcomputer boundary
+  description: Firmware-bound digital reverb source shell.
+  partNumber: ""
+source:
+  format: interchange
+  filename: boss-rv-3.vdsp
+components:
+  - id: U1
+    kind: ic
+    name: U1
+    sourceTypeName: Circuit.DigitalSignalProcessor
+    origin:
+      x: 0
+      y: 140
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: input
+        node: 4
+        position:
+          x: 0
+          y: 120
+      - name: output
+        node: 5
+        position:
+          x: 0
+          y: 160
+    properties:
+      Chip: M37470E4
+      ChipClass: microcomputer
+      FirmwareId: boss-rv-3-m37470e4-1615sp-mode-map-v1
+      FirmwareRequired: true
+      RuntimeMatchKey: "chip=M37470E4; firmware=boss-rv-3-m37470e4-1615sp-mode-map-v1"
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}`;
+
+		const parsed = parseInterchangeYaml(yaml);
+		const firmwareComponent = parsed.components.find(
+			(component) => component.id === "U1",
+		);
+		expect(firmwareComponent?.properties).toMatchObject({
+			Chip: "M37470E4",
+			ChipClass: "microcomputer",
+			FirmwareId: "boss-rv-3-m37470e4-1615sp-mode-map-v1",
+			FirmwareRequired: true,
+			RuntimeMatchKey:
+				"chip=M37470E4; firmware=boss-rv-3-m37470e4-1615sp-mode-map-v1",
+		});
+
+		const serialized = serializeInterchangeYaml(parsed);
+		expect(serialized).toContain("ChipClass: microcomputer");
+		expect(serialized).toContain(
+			"FirmwareId: boss-rv-3-m37470e4-1615sp-mode-map-v1",
+		);
+		expect(serialized).toContain("FirmwareRequired: true");
+		expect(serialized).toContain(
+			'RuntimeMatchKey: "chip=M37470E4; firmware=boss-rv-3-m37470e4-1615sp-mode-map-v1"',
+		);
+		expect(parseInterchangeYaml(serialized).components[0]?.properties).toEqual(
+			firmwareComponent?.properties,
+		);
+	});
+
 	test("round-trips named panel faces with bound element placement metadata", () => {
 		const doc: CircuitDocument = {
 			...EMPTY_DOCUMENT,

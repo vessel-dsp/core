@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.10
+
+- Preserve firmware-bound microcomputer runtime metadata such as `ChipClass`,
+  `FirmwareId`, `FirmwareRequired`, and `RuntimeMatchKey` through `.vdsp`
+  parse/serialize round trips so hosts can distinguish chip-only identities
+  from chip-plus-firmware descriptors.
+- Warn when firmware-required IC metadata is incomplete, including missing
+  `FirmwareId`, missing `RuntimeMatchKey`, incomplete runtime match tokens, or
+  missing chip identity.
+
 ## 0.6.9
 
 - Bump all publishable packages and internal workspace dependency pins for the

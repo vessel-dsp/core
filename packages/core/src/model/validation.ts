@@ -37,6 +37,10 @@ export type ValidationCode =
 	| "invalid-jack-audio-role"
 	| "descriptor-control-empty"
 	| "descriptor-mode-label-mismatch"
+	| "firmware-id-missing"
+	| "runtime-match-key-missing"
+	| "runtime-match-key-incomplete"
+	| "firmware-chip-missing"
 	| "duplicate-device-interface-control-id"
 	| "invalid-device-interface-token"
 	| "control-group-context-unresolved"
@@ -644,6 +648,10 @@ function validateSemanticMetadata(
 		issues.push(...validateRuntimeDescriptorMetadata(component));
 	}
 
+	if (component.kind === "ic") {
+		issues.push(...validateFirmwareMetadata(component));
+	}
+
 	return issues;
 }
 
@@ -739,6 +747,61 @@ function validateRuntimeDescriptorMetadata(
 	return issues;
 }
 
+function validateFirmwareMetadata(component: Component): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	const firmwareRequired = propertyBoolean(component, "FirmwareRequired");
+	const firmwareId = propertyString(component, "FirmwareId")?.trim() ?? "";
+	const runtimeMatchKey =
+		propertyString(component, "RuntimeMatchKey")?.trim() ?? "";
+	const chip = propertyString(component, "Chip")?.trim() ?? "";
+
+	if (firmwareRequired && firmwareId.length === 0) {
+		issues.push({
+			code: "firmware-id-missing",
+			severity: "warning",
+			message: `${component.id}: FirmwareRequired is true but FirmwareId is missing or empty`,
+			componentId: component.id,
+			property: "FirmwareId",
+		});
+	}
+
+	if (firmwareRequired && runtimeMatchKey.length === 0) {
+		issues.push({
+			code: "runtime-match-key-missing",
+			severity: "warning",
+			message: `${component.id}: FirmwareRequired is true but RuntimeMatchKey is missing or empty`,
+			componentId: component.id,
+			property: "RuntimeMatchKey",
+		});
+	}
+
+	if (
+		runtimeMatchKey.length > 0 &&
+		(!hasRuntimeMatchToken(runtimeMatchKey, "chip") ||
+			!hasRuntimeMatchToken(runtimeMatchKey, "firmware"))
+	) {
+		issues.push({
+			code: "runtime-match-key-incomplete",
+			severity: "warning",
+			message: `${component.id}: RuntimeMatchKey should include both "chip=" and "firmware=" tokens`,
+			componentId: component.id,
+			property: "RuntimeMatchKey",
+		});
+	}
+
+	if (firmwareId.length > 0 && chip.length === 0) {
+		issues.push({
+			code: "firmware-chip-missing",
+			severity: "warning",
+			message: `${component.id}: FirmwareId is present but Chip is missing or empty`,
+			componentId: component.id,
+			property: "Chip",
+		});
+	}
+
+	return issues;
+}
+
 function shortSourceType(sourceTypeName: string | null): string | null {
 	if (sourceTypeName === null) {
 		return null;
@@ -767,6 +830,14 @@ function findProperty(
 
 function propertyString(component: Component, name: string): string | null {
 	return propertyStringValue(component.properties[name]);
+}
+
+function propertyBoolean(component: Component, name: string): boolean {
+	const value = component.properties[name];
+	if (value === true) {
+		return true;
+	}
+	return typeof value === "string" && normalizeToken(value) === "true";
 }
 
 function propertyStringAny(
@@ -875,6 +946,11 @@ function parsePositiveInteger(value: string | null): number | undefined {
 	}
 	const count = Number(trimmed);
 	return Number.isInteger(count) && count > 0 ? count : undefined;
+}
+
+function hasRuntimeMatchToken(value: string, token: "chip" | "firmware"): boolean {
+	const pattern = new RegExp(`(?:^|[;\\s])${token}\\s*=`, "i");
+	return pattern.test(value);
 }
 
 function normalizeToken(value: string): string {

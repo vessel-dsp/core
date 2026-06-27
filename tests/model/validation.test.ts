@@ -356,6 +356,124 @@ describe("validateDocument", () => {
 		expect(issue?.property).toBe("ModeLabels");
 	});
 
+	test("firmware-required ICs warn when firmware identity metadata is incomplete", () => {
+		const doc = withParts([
+			makeComponent(
+				"U1",
+				"ic",
+				{
+					Chip: "M37470M2-326SP",
+					ChipClass: "microcomputer",
+					FirmwareRequired: true,
+				},
+				"Circuit.Microcontroller",
+			),
+		]);
+
+		const issues = validateDocument(doc);
+
+		expect(issues).toContainEqual({
+			code: "firmware-id-missing",
+			severity: "warning",
+			message:
+				"U1: FirmwareRequired is true but FirmwareId is missing or empty",
+			componentId: "U1",
+			property: "FirmwareId",
+		});
+		expect(issues).toContainEqual({
+			code: "runtime-match-key-missing",
+			severity: "warning",
+			message:
+				"U1: FirmwareRequired is true but RuntimeMatchKey is missing or empty",
+			componentId: "U1",
+			property: "RuntimeMatchKey",
+		});
+	});
+
+	test("firmware runtime match keys warn when they do not bind chip and firmware", () => {
+		const doc = withParts([
+			makeComponent(
+				"U1",
+				"ic",
+				{
+					Chip: "M37470M2-326SP",
+					FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
+					FirmwareRequired: true,
+					RuntimeMatchKey: "chip=M37470M2-326SP",
+				},
+				"Circuit.Microcontroller",
+			),
+		]);
+
+		const issue = validateDocument(doc).find(
+			(candidate) => candidate.code === "runtime-match-key-incomplete",
+		);
+
+		expect(issue).toEqual({
+			code: "runtime-match-key-incomplete",
+			severity: "warning",
+			message:
+				'U1: RuntimeMatchKey should include both "chip=" and "firmware=" tokens',
+			componentId: "U1",
+			property: "RuntimeMatchKey",
+		});
+	});
+
+	test("firmware identity metadata warns when chip identity is missing", () => {
+		const doc = withParts([
+			makeComponent(
+				"U1",
+				"ic",
+				{
+					FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
+					FirmwareRequired: true,
+					RuntimeMatchKey:
+						"chip=M37470M2-326SP; firmware=boss-hr-2-m37470m2-326sp-control-firmware-v1",
+				},
+				"Circuit.Microcontroller",
+			),
+		]);
+
+		const issue = validateDocument(doc).find(
+			(candidate) => candidate.code === "firmware-chip-missing",
+		);
+
+		expect(issue).toEqual({
+			code: "firmware-chip-missing",
+			severity: "warning",
+			message: "U1: FirmwareId is present but Chip is missing or empty",
+			componentId: "U1",
+			property: "Chip",
+		});
+	});
+
+	test("complete firmware-bound microcomputer metadata does not emit firmware warnings", () => {
+		const doc = withParts([
+			makeComponent(
+				"U1",
+				"ic",
+				{
+					Chip: "M37470M2-326SP",
+					ChipClass: "microcomputer",
+					FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
+					FirmwareRequired: true,
+					RuntimeMatchKey:
+						"chip=M37470M2-326SP; firmware=boss-hr-2-m37470m2-326sp-control-firmware-v1",
+				},
+				"Circuit.Microcontroller",
+			),
+		]);
+
+		const issues = validateDocument(doc);
+
+		expect(
+			issues.filter((issue) => issue.code.startsWith("firmware-")),
+		).toEqual([]);
+		expect(
+			issues.filter((issue) => issue.code.startsWith("runtime-match-key")),
+		).toEqual([]);
+	});
+
 	test("opamp with inline small-signal parameters does not require a model name", () => {
 		// LiveSPICE's Circuit.OpAmp carries the model inline as Rin/Rout/Aol/GBP.
 		const doc = withParts([
