@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/amp",
-	"version": "0.6.5",
+	"version": "0.6.6",
 	"description": "Generated Three.js and GLB previews for amplifier profile visualization.",
 	"keywords": [
 		"amp",
