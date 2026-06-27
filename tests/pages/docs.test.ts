@@ -471,6 +471,8 @@ describe("GitHub Pages documentation site", () => {
 				grainIntensity?: number;
 				linework?: boolean;
 				lineworkColor?: string;
+				crt?: boolean;
+				glitch?: boolean;
 			}[];
 		}>("docs/src/data/stompbox-demo-profiles.json");
 		expect(demoProfiles.defaultStyleProfileId).toBe("mxr-style");
