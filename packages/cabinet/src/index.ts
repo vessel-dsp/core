@@ -6,31 +6,21 @@ import {
 	applyToonMaterials,
 	type VesselPreviewEffectPreset,
 } from "@vessel-dsp/visual-effects";
+import { validateCabinetProfile } from "@vessel-dsp/core";
+import type {
+	CabinetAppearanceProfile,
+	CabinetDimensions,
+	CabinetProfile,
+	CabinetProfileValidation,
+} from "@vessel-dsp/core";
 
-export type CabinetProfile = Readonly<{
-	schema: "vessel-cabinet-profile/v1";
-	brandName: string;
-	modelName?: string;
-	enclosureColor: string;
-	appearance?: CabinetAppearanceProfile;
-	dimensionsMm: CabinetDimensions;
-}>;
-
-export type CabinetAppearanceProfile = Readonly<{
-	grilleColor?: string;
-	brandLabelColor?: string;
-	modelLabelColor?: string;
-	labelFontFamily?: string;
-	brandLabelFontSizeMm?: number;
-	modelLabelFontSizeMm?: number;
-	cornerProtectorColor?: string;
-}>;
-
-export type CabinetDimensions = Readonly<{
-	widthMm: number;
-	heightMm: number;
-	depthMm: number;
-}>;
+export type {
+	CabinetAppearanceProfile,
+	CabinetDimensions,
+	CabinetProfile,
+	CabinetProfileValidation,
+} from "@vessel-dsp/core";
+export { validateCabinetProfile } from "@vessel-dsp/core";
 
 export type CabinetPreviewLayout = Readonly<{
 	schema: "vessel-cabinet-preview-layout/v1";
@@ -55,11 +45,6 @@ export type CabinetPreviewAppearance = Readonly<{
 	cornerProtectorColor: string;
 }>;
 
-export type CabinetProfileValidation = Readonly<{
-	valid: boolean;
-	diagnostics: readonly string[];
-}>;
-
 export type CabinetPreviewObjectOptions = Readonly<{
 	effects?: VesselPreviewEffectPreset;
 }>;
@@ -72,27 +57,6 @@ export type CabinetPreviewGlb = Readonly<{
 		layout: CabinetPreviewLayout;
 	};
 }>;
-
-export function validateCabinetProfile(
-	profile: CabinetProfile,
-): CabinetProfileValidation {
-	const diagnostics: string[] = [];
-	if (profile.schema !== "vessel-cabinet-profile/v1") {
-		diagnostics.push("schema must be vessel-cabinet-profile/v1");
-	}
-	if (profile.brandName.trim().length === 0) {
-		diagnostics.push("brandName is required");
-	}
-	if (profile.modelName !== undefined && profile.modelName.trim().length === 0) {
-		diagnostics.push("modelName must not be empty when provided");
-	}
-	for (const [key, value] of Object.entries(profile.dimensionsMm)) {
-		if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-			diagnostics.push(`dimensionsMm.${key} must be a positive number`);
-		}
-	}
-	return { valid: diagnostics.length === 0, diagnostics };
-}
 
 export function createCabinetPreviewLayout(
 	profile: CabinetProfile,

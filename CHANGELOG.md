@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.5
+
+- Add core-owned amp and cabinet preview profile schemas, readonly public
+  types, and migration-friendly validators that can check artifact JSON without
+  importing Three.js preview packages.
+- Reuse the core amp/cabinet profile validators from `@vessel-dsp/amp` and
+  `@vessel-dsp/cabinet` so preview packages and artifact tooling share one
+  published contract.
+
 ## Unreleased
 
 - Document `.vdsp` as the portable source-visible CircuitDocument for

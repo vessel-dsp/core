@@ -4,6 +4,8 @@
 		"lib": ["ES2022"],
 		"baseUrl": "../..",
 		"paths": {
+			"@vessel-dsp/core": ["packages/core/src/index.ts"],
+			"@vessel-dsp/core/*": ["packages/core/src/*"],
 			"@vessel-dsp/visual-effects": [
 				"packages/visual-effects/src/index.ts"
 			],

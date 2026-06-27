@@ -6,61 +6,27 @@ import {
 	applyToonMaterials,
 	type VesselPreviewEffectPreset,
 } from "@vessel-dsp/visual-effects";
+import { validateAmpProfile } from "@vessel-dsp/core";
+import type {
+	AmpAppearanceProfile,
+	AmpControlKind,
+	AmpControlPanelProfile,
+	AmpControlProfile,
+	AmpDimensions,
+	AmpProfile,
+	AmpProfileValidation,
+} from "@vessel-dsp/core";
 
-export type AmpControlKind = "knob" | "switch" | "led";
-
-export type AmpProfile = Readonly<{
-	schema: "vessel-amp-profile/v1";
-	brandName: string;
-	modelName: string;
-	enclosureColor: string;
-	appearance?: AmpAppearanceProfile;
-	dimensionsMm: AmpDimensions;
-	controlPanel: AmpControlPanelProfile;
-}>;
-
-export type AmpAppearanceProfile = Readonly<{
-	frontPanelColor?: string;
-	frontPanelBorderColor?: string;
-	controlPanelColor?: string;
-	brandLabelColor?: string;
-	modelLabelColor?: string;
-	labelFontFamily?: string;
-	brandLabelFontSizeMm?: number;
-	modelLabelFontSizeMm?: number;
-	knobColor?: string;
-	knobLabelColor?: string;
-	knobLabelFontSizeMm?: number;
-	statusColor?: string;
-	cornerProtectorColor?: string;
-	handleGripColor?: string;
-}>;
-
-export type AmpDimensions = Readonly<{
-	widthMm: number;
-	heightMm: number;
-	depthMm: number;
-}>;
-
-export type AmpControlPanelProfile = Readonly<{
-	face?: "front" | "top";
-	backgroundColor?: string;
-	controls: readonly AmpControlProfile[];
-}>;
-
-export type AmpControlProfile = Readonly<{
-	id: string;
-	kind: AmpControlKind;
-	label: string;
-	color?: string;
-	labelColor?: string;
-	statusColor?: string;
-	value?: number;
-	position?: Readonly<{
-		xRatio: number;
-		yRatio: number;
-	}>;
-}>;
+export type {
+	AmpAppearanceProfile,
+	AmpControlKind,
+	AmpControlPanelProfile,
+	AmpControlProfile,
+	AmpDimensions,
+	AmpProfile,
+	AmpProfileValidation,
+} from "@vessel-dsp/core";
+export { validateAmpProfile } from "@vessel-dsp/core";
 
 export type AmpPreviewControlLayout = Readonly<{
 	id: string;
@@ -107,11 +73,6 @@ export type AmpPreviewLayout = Readonly<{
 	controls: readonly AmpPreviewControlLayout[];
 }>;
 
-export type AmpProfileValidation = Readonly<{
-	valid: boolean;
-	diagnostics: readonly string[];
-}>;
-
 export type AmpPreviewObjectOptions = Readonly<{
 	effects?: VesselPreviewEffectPreset;
 }>;
@@ -124,33 +85,6 @@ export type AmpPreviewGlb = Readonly<{
 		layout: AmpPreviewLayout;
 	};
 }>;
-
-export function validateAmpProfile(profile: AmpProfile): AmpProfileValidation {
-	const diagnostics: string[] = [];
-	if (profile.schema !== "vessel-amp-profile/v1") {
-		diagnostics.push("schema must be vessel-amp-profile/v1");
-	}
-	if (profile.brandName.trim().length === 0) {
-		diagnostics.push("brandName is required");
-	}
-	if (profile.modelName.trim().length === 0) {
-		diagnostics.push("modelName is required");
-	}
-	for (const [key, value] of Object.entries(profile.dimensionsMm)) {
-		if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-			diagnostics.push(`dimensionsMm.${key} must be a positive number`);
-		}
-	}
-	for (const control of profile.controlPanel.controls) {
-		if (control.id.trim().length === 0) {
-			diagnostics.push("control id is required");
-		}
-		if (control.label.trim().length === 0) {
-			diagnostics.push(`control "${control.id}" label is required`);
-		}
-	}
-	return { valid: diagnostics.length === 0, diagnostics };
-}
 
 export function createAmpPreviewLayout(profile: AmpProfile): AmpPreviewLayout {
 	const validation = validateAmpProfile(profile);

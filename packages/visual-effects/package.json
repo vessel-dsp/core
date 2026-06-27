@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/visual-effects",
-	"version": "0.6.4",
+	"version": "0.6.5",
 	"description": "Reusable Three.js preview effects for VesselDSP generated 3D models.",
 	"keywords": [
 		"threejs",

@@ -1,4 +1,4 @@
-export const VERSION = "0.6.4";
+export const VERSION = "0.6.5";
 
 export type {
 	CreateComponentArgs,
@@ -208,6 +208,32 @@ export {
 	validateComponent,
 	validateDocument,
 } from "./model/validation";
+export type {
+	AmpAppearanceProfile,
+	AmpControlKind,
+	AmpControlPanelProfile,
+	AmpControlProfile,
+	AmpDimensions,
+	AmpProfile,
+	AmpProfileValidation,
+	CabinetAppearanceProfile,
+	CabinetDimensions,
+	CabinetProfile,
+	CabinetProfileValidation,
+	ProfileValidationResult,
+} from "./profiles";
+export {
+	ampAppearanceProfileSchema,
+	ampControlKindSchema,
+	ampControlPanelProfileSchema,
+	ampControlProfileSchema,
+	ampProfileSchema,
+	cabinetAppearanceProfileSchema,
+	cabinetProfileSchema,
+	profileDimensionsSchema,
+	validateAmpProfile,
+	validateCabinetProfile,
+} from "./profiles";
 export type {
 	ControlState,
 	ControlValue,
