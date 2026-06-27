@@ -1,0 +1,271 @@
+---
+title: Generated 3D Previews
+description: Generate approximate amp and cabinet preview models from compact profiles, with shared Three.js visual effects.
+---
+
+import Generated3dPreview from "../../../components/Generated3dPreview.astro";
+
+`@vessel-dsp/amp` and `@vessel-dsp/cabinet` turn compact product profiles into
+deterministic preview layouts, Three.js object graphs, and generated GLB preview
+payloads. They are for realtime product visualization, not source-exact CAD.
+
+`@vessel-dsp/visual-effects` owns the reusable Three.js effect contract shared
+by generated preview viewers: toon styling, material grain metadata, and
+glitch/grain pass descriptors.
+
+## Package boundary
+
+- `@vessel-dsp/core` remains source-format conversion and does not import Three.js.
+- `@vessel-dsp/stompbox` remains headless pedal layout generation and does not import amp/cabinet packages.
+- `@vessel-dsp/control-ui` remains optional React controls for core `Panel` data.
+- `@vessel-dsp/visual-effects`, `@vessel-dsp/amp`, and `@vessel-dsp/cabinet` are Three.js preview packages for browser or rendering hosts.
+
+## Install
+
+```sh
+npm install @vessel-dsp/amp @vessel-dsp/cabinet @vessel-dsp/visual-effects three
+```
+
+## Live examples
+
+These examples render directly from compact amp and cabinet profiles in the
+browser. They use the same package object builders shown below.
+
+<Generated3dPreview
+	kind="amp"
+	label="Generated Vessel Lead 800 amplifier head preview"
+	height="420px"
+	backgroundColor="#111827"
+	gridColor="#cbd5e1"
+	gridOpacity={0.1}
+	profile={{
+		schema: "vessel-amp-profile/v1",
+		brandName: "Vessel",
+		modelName: "Lead 800",
+		enclosureColor: "#111111",
+		appearance: {
+			frontPanelColor: "#09090b",
+			frontPanelBorderColor: "#f8fafc",
+			controlPanelColor: "#c9a24a",
+			brandLabelColor: "#fef3c7",
+			modelLabelColor: "#e5e7eb",
+			labelFontFamily: "vessel-vector",
+			brandLabelFontSizeMm: 22,
+			modelLabelFontSizeMm: 12,
+			knobColor: "#d4a73c",
+			knobLabelColor: "#111827",
+			knobLabelFontSizeMm: 7,
+			statusColor: "#22c55e",
+			cornerProtectorColor: "#050505",
+			handleGripColor: "#050505",
+		},
+		dimensionsMm: { widthMm: 740, heightMm: 260, depthMm: 230 },
+		controlPanel: {
+			face: "front",
+			controls: [
+				{ id: "gain", kind: "knob", label: "Gain", value: 0.72 },
+				{ id: "tone", kind: "knob", label: "Tone", value: 0.44 },
+				{ id: "master", kind: "knob", label: "Master", value: 0.58 },
+				{ id: "standby", kind: "switch", label: "Standby" },
+				{ id: "power", kind: "led", label: "Power", statusColor: "#16a34a" },
+			],
+		},
+	}}
+	effects={{
+		schema: "vessel-preview-effects/v1",
+		toon: true,
+		toonEdgeColor: "#020617",
+		grain: true,
+		grainScale: 1.2,
+		grainIntensity: 0.05,
+		glitch: true,
+		glitchIntervalSeconds: 8,
+		crt: true,
+	}}
+/>
+
+<Generated3dPreview
+	kind="cabinet"
+	label="Generated Vessel 4x12 speaker cabinet preview"
+	height="420px"
+	backgroundColor="#111827"
+	gridColor="#cbd5e1"
+	gridOpacity={0.1}
+	profile={{
+		schema: "vessel-cabinet-profile/v1",
+		brandName: "Vessel",
+		modelName: "4x12",
+		enclosureColor: "#111111",
+		appearance: {
+			grilleColor: "#09090b",
+			brandLabelColor: "#fef3c7",
+			modelLabelColor: "#e5e7eb",
+			labelFontFamily: "vessel-vector",
+			brandLabelFontSizeMm: 22,
+			modelLabelFontSizeMm: 12,
+			cornerProtectorColor: "#050505",
+		},
+		dimensionsMm: { widthMm: 760, heightMm: 760, depthMm: 360 },
+	}}
+	effects={{
+		schema: "vessel-preview-effects/v1",
+		toon: true,
+		toonEdgeColor: "#020617",
+		grain: true,
+		grainScale: 1.2,
+		grainIntensity: 0.04,
+		glitch: true,
+		glitchIntervalSeconds: 8,
+		crt: true,
+	}}
+/>
+
+## Amp profile
+
+An amp profile includes brand/model text, dimensions, enclosure color, optional
+part appearance colors, and a control panel. Controls can be placed explicitly
+with `xRatio`/`yRatio`, or left to deterministic spacing.
+
+```ts
+import {
+	createAmpPreviewGlb,
+	createAmpPreviewLayout,
+	createAmpPreviewObject3D,
+	type AmpProfile,
+} from "@vessel-dsp/amp";
+
+const profile = {
+	schema: "vessel-amp-profile/v1",
+	brandName: "Vessel",
+	modelName: "Lead 800",
+	enclosureColor: "#111111",
+	appearance: {
+		frontPanelColor: "#09090b",
+		frontPanelBorderColor: "#f8fafc",
+		controlPanelColor: "#c9a24a",
+		brandLabelColor: "#fef3c7",
+		modelLabelColor: "#e5e7eb",
+		labelFontFamily: "vessel-vector",
+		brandLabelFontSizeMm: 22,
+		modelLabelFontSizeMm: 12,
+		knobColor: "#d4a73c",
+		knobLabelColor: "#111827",
+		knobLabelFontSizeMm: 7,
+		statusColor: "#22c55e",
+		cornerProtectorColor: "#050505",
+		handleGripColor: "#050505",
+	},
+	dimensionsMm: { widthMm: 740, heightMm: 260, depthMm: 230 },
+	controlPanel: {
+		face: "front",
+		controls: [
+			{ id: "gain", kind: "knob", label: "Gain", value: 0.7 },
+			{ id: "tone", kind: "knob", label: "Tone", value: 0.45 },
+			{ id: "standby", kind: "switch", label: "Standby" },
+			{ id: "power", kind: "led", label: "Power", statusColor: "#16a34a" },
+		],
+	},
+} satisfies AmpProfile;
+
+const layout = createAmpPreviewLayout(profile);
+const object = createAmpPreviewObject3D(profile, {
+	effects: { schema: "vessel-preview-effects/v1", toon: true, grain: true },
+});
+const glb = createAmpPreviewGlb(profile);
+```
+
+The generated object graph includes stable object names such as `amp-body`,
+`amp-control-panel`, `amp-brand-label`, and `amp-control-gain`, so host viewers
+can attach selection, labels, or state indicators without snapshotting the
+binary GLB. Individual controls can override `color`, `labelColor`, and
+`statusColor`; otherwise the profile-level `appearance` colors are used.
+
+## Cabinet profile
+
+A cabinet profile includes brand text, optional model text, dimensions,
+enclosure color, optional part appearance colors, and speaker count. Speaker
+circles are arranged deterministically on the grille.
+
+```ts
+import {
+	createCabinetPreviewGlb,
+	createCabinetPreviewLayout,
+	createCabinetPreviewObject3D,
+	type CabinetProfile,
+} from "@vessel-dsp/cabinet";
+
+const profile = {
+	schema: "vessel-cabinet-profile/v1",
+	brandName: "Vessel",
+	modelName: "4x12",
+	enclosureColor: "#111111",
+	appearance: {
+		grilleColor: "#09090b",
+		brandLabelColor: "#fef3c7",
+		modelLabelColor: "#e5e7eb",
+		labelFontFamily: "vessel-vector",
+		brandLabelFontSizeMm: 22,
+		modelLabelFontSizeMm: 12,
+		cornerProtectorColor: "#050505",
+	},
+	dimensionsMm: { widthMm: 760, heightMm: 760, depthMm: 360 },
+} satisfies CabinetProfile;
+
+const layout = createCabinetPreviewLayout(profile);
+const object = createCabinetPreviewObject3D(profile, {
+	effects: { schema: "vessel-preview-effects/v1", toon: true },
+});
+const glb = createCabinetPreviewGlb(profile);
+```
+
+The generated object graph includes stable object names such as `cabinet-body`,
+`cabinet-grille`, and `cabinet-brand-label`. `cabinet-model-label` is emitted
+only when `modelName` is provided.
+
+## Shared effects
+
+Use `@vessel-dsp/visual-effects` directly when a host viewer needs the same
+effect normalization or object styling outside the amp/cabinet helpers.
+
+```ts
+import {
+	addToonOutlines,
+	applyMaterialGrain,
+	applyToonMaterials,
+	createGlitchPass,
+	resolvePreviewEffectPreset,
+} from "@vessel-dsp/visual-effects";
+
+const preset = resolvePreviewEffectPreset({
+	schema: "vessel-preview-effects/v1",
+	toon: true,
+	toonEdgeColor: "#111827",
+	grain: true,
+	grainScale: 1.25,
+	grainIntensity: 0.08,
+	glitch: true,
+	reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+});
+
+applyToonMaterials(object, preset);
+addToonOutlines(object, preset);
+applyMaterialGrain(object, preset);
+
+const glitch = createGlitchPass(preset);
+```
+
+`resolvePreviewEffectPreset()` clamps numeric options and disables glitch when
+`reducedMotion` is true. Viewer code can use the returned preset to keep
+runtime behavior consistent across stompbox, amp, and cabinet previews.
+
+## Limits
+
+The V1 generated previews are intentionally simple:
+
+- body geometry is box-based;
+- knobs, switches, LEDs, and grilles are primitive meshes;
+- brand/model strings are retained in profile/layout metadata for host viewers;
+- GLB payloads are generated previews, not measured CAD or manufacturer assets.
+
+Use explicit CAD assets or a downstream modeler when measured dimensions,
+materials, and production detail matter.

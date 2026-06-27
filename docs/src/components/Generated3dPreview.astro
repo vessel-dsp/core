@@ -1,0 +1,242 @@
+---
+type GeneratedPreviewKind = "amp" | "cabinet";
+
+type Props = {
+	kind: GeneratedPreviewKind;
+	profile: Record<string, unknown>;
+	label?: string;
+	height?: string;
+	effects?: Record<string, unknown>;
+	backgroundColor?: string;
+	gridColor?: string;
+	gridOpacity?: number;
+};
+
+const props = Astro.props;
+const kind = props.kind;
+const profile = props.profile;
+const effects =
+	props.effects ?? ({
+		schema: "vessel-preview-effects/v1",
+		toon: true,
+		grain: true,
+		glitch: true,
+		glitchIntervalSeconds: 8,
+		crt: true,
+	} satisfies Record<string, unknown>);
+const label =
+	props.label ??
+	(kind === "amp"
+		? "Generated amplifier 3D preview"
+		: "Generated speaker cabinet 3D preview");
+const height = props.height ?? "360px";
+const backgroundColor = props.backgroundColor ?? "#0f172a";
+const gridColor = props.gridColor ?? "#94a3b8";
+const gridOpacity = props.gridOpacity ?? 0.14;
+const effectEnabled = (name: string) => effects[name] === true;
+---
+
+<figure
+	class="generated-3d-preview"
+	data-vessel-generated-preview
+	data-kind={kind}
+	data-profile={JSON.stringify(profile)}
+	data-effects={JSON.stringify(effects)}
+	data-background-color={backgroundColor}
+	data-grid-color={gridColor}
+	data-grid-opacity={String(gridOpacity)}
+	style={`--generated-preview-height: ${height}; --generated-preview-background-color: ${backgroundColor}; --generated-preview-grid-color: ${gridColor}; --generated-preview-grid-opacity: ${gridOpacity};`}
+>
+	<canvas aria-label={label}></canvas>
+	<figcaption>
+		<strong>{String(profile.brandName ?? "Generated")}</strong>{" "}
+		{String(profile.modelName ?? "preview")}
+	</figcaption>
+	<div class="generated-3d-preview__status" data-vessel-generated-preview-status>
+		Loading 3D preview
+	</div>
+	<div class="generated-3d-preview__effects" data-vessel-effect-controls>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="toon"
+				checked={effectEnabled("toon")}
+			/>
+			<span>Toon edge</span>
+		</label>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="grain"
+				checked={effectEnabled("grain")}
+			/>
+			<span>Grain</span>
+		</label>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="glitch"
+				checked={effectEnabled("glitch")}
+			/>
+			<span>Glitch</span>
+		</label>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="crt"
+				checked={effectEnabled("crt")}
+			/>
+			<span>CRT</span>
+		</label>
+	</div>
+</figure>
+
+<script type="importmap">
+	{
+		"imports": {
+			"three": "/core/vendor/three/build/three.module.js",
+			"three/addons/": "/core/vendor/three/addons/",
+			"@vessel-dsp/visual-effects": "/core/vendor/vessel-dsp/visual-effects/index.js",
+			"@vessel-dsp/amp": "/core/vendor/vessel-dsp/amp/index.js",
+			"@vessel-dsp/cabinet": "/core/vendor/vessel-dsp/cabinet/index.js"
+		}
+	}
+</script>
+<script type="module" src="/core/generated-3d-preview-viewer.js"></script>
+
+<style>
+	.generated-3d-preview {
+		position: relative;
+		width: 100%;
+		height: var(--generated-preview-height);
+		min-height: 280px;
+		margin: 1rem 0;
+		overflow: hidden;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 8px;
+		background: var(--generated-preview-background-color);
+	}
+
+	.generated-3d-preview::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		background-image:
+			linear-gradient(to right, var(--generated-preview-grid-color) 1px, transparent 1px),
+			linear-gradient(to bottom, var(--generated-preview-grid-color) 1px, transparent 1px);
+		background-size: 24px 24px;
+		opacity: var(--generated-preview-grid-opacity);
+		pointer-events: none;
+	}
+
+	.generated-3d-preview canvas {
+		position: relative;
+		z-index: 1;
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.generated-3d-preview figcaption {
+		position: absolute;
+		z-index: 2;
+		left: 0.75rem;
+		top: 0.75rem;
+		max-width: min(70%, 28rem);
+		padding: 0.35rem 0.55rem;
+		border: 1px solid rgb(148 163 184 / 0.35);
+		border-radius: 6px;
+		background: rgb(15 23 42 / 0.78);
+		color: #f8fafc;
+		font-size: 0.85rem;
+		line-height: 1.2;
+		backdrop-filter: blur(6px);
+	}
+
+	.generated-3d-preview__status {
+		position: absolute;
+		z-index: 3;
+		inset: auto 1rem 1rem auto;
+		max-width: min(20rem, calc(100% - 2rem));
+		padding: 0.45rem 0.65rem;
+		border: 1px solid rgb(148 163 184 / 0.35);
+		border-radius: 6px;
+		background: rgb(15 23 42 / 0.78);
+		color: #f8fafc;
+		font-size: 0.85rem;
+	}
+
+	.generated-3d-preview[data-viewer-loaded="true"] .generated-3d-preview__status {
+		display: none;
+	}
+
+	.generated-3d-preview__effects {
+		position: absolute;
+		z-index: 3;
+		left: 0.75rem;
+		right: 0.75rem;
+		bottom: 0.75rem;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		align-content: flex-start;
+		gap: 0.45rem;
+		max-width: calc(100% - 1.5rem);
+		pointer-events: auto;
+	}
+
+	.generated-3d-preview__effects label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		box-sizing: border-box;
+		height: 2rem;
+		padding: 0 0.55rem;
+		border: 1px solid rgb(148 163 184 / 0.35);
+		border-radius: 6px;
+		background: rgb(15 23 42 / 0.78);
+		color: #f8fafc;
+		font-size: 0.78rem;
+		font-weight: 650;
+		line-height: 1;
+		margin: 0;
+		white-space: nowrap;
+		backdrop-filter: blur(6px);
+	}
+
+	.generated-3d-preview__effects input {
+		appearance: none;
+		display: grid;
+		flex: 0 0 auto;
+		place-content: center;
+		width: 1rem;
+		height: 1rem;
+		margin: 0;
+		border: 1px solid #22c55e;
+		border-radius: 3px;
+		background: transparent;
+	}
+
+	.generated-3d-preview__effects input::before {
+		content: "";
+		width: 0.55rem;
+		height: 0.35rem;
+		border: solid #052e16;
+		border-width: 0 0 2px 2px;
+		opacity: 0;
+		transform: translateY(-0.05rem) rotate(-45deg);
+	}
+
+	.generated-3d-preview__effects input:checked {
+		background: #22c55e;
+	}
+
+	.generated-3d-preview__effects input:checked::before {
+		opacity: 1;
+	}
+
+	.generated-3d-preview__effects span {
+		line-height: 1;
+	}
+</style>

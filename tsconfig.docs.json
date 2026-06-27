@@ -11,12 +11,23 @@
 			"@vessel-dsp/stompbox/node": ["packages/stompbox/src/node.ts"],
 			"@vessel-dsp/stompbox/*": ["packages/stompbox/src/*"],
 			"@vessel-dsp/control-ui": ["packages/control-ui/src/index.ts"],
-			"@vessel-dsp/control-ui/*": ["packages/control-ui/src/*"]
+			"@vessel-dsp/control-ui/*": ["packages/control-ui/src/*"],
+			"@vessel-dsp/visual-effects": [
+				"packages/visual-effects/src/index.ts"
+			],
+			"@vessel-dsp/visual-effects/*": ["packages/visual-effects/src/*"],
+			"@vessel-dsp/amp": ["packages/amp/src/index.ts"],
+			"@vessel-dsp/amp/*": ["packages/amp/src/*"],
+			"@vessel-dsp/cabinet": ["packages/cabinet/src/index.ts"],
+			"@vessel-dsp/cabinet/*": ["packages/cabinet/src/*"]
 		}
 	},
 	"include": [
 		"packages/core/src/index.ts",
 		"packages/stompbox/src/index.ts",
-		"packages/control-ui/src/index.ts"
+		"packages/control-ui/src/index.ts",
+		"packages/visual-effects/src/index.ts",
+		"packages/amp/src/index.ts",
+		"packages/cabinet/src/index.ts"
 	]
 }

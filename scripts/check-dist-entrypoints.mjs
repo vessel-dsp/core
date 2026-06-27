@@ -8,6 +8,9 @@ async function importDist(path) {
 const core = await importDist("packages/core/dist/index.js");
 const stompbox = await importDist("packages/stompbox/dist/index.js");
 const controlUi = await importDist("packages/control-ui/dist/index.js");
+const visualEffects = await importDist("packages/visual-effects/dist/index.js");
+const amp = await importDist("packages/amp/dist/index.js");
+const cabinet = await importDist("packages/cabinet/dist/index.js");
 
 if (typeof core.parseCircuitDocument !== "function") {
 	throw new Error(
@@ -108,6 +111,24 @@ if (typeof controlUi.ControlUiThemeProvider !== "function") {
 if (typeof controlUi.createControlUiState !== "function") {
 	throw new Error(
 		"packages/control-ui/dist/index.js does not export createControlUiState",
+	);
+}
+
+if (typeof visualEffects.resolvePreviewEffectPreset !== "function") {
+	throw new Error(
+		"packages/visual-effects/dist/index.js does not export resolvePreviewEffectPreset",
+	);
+}
+
+if (typeof amp.createAmpPreviewLayout !== "function") {
+	throw new Error(
+		"packages/amp/dist/index.js does not export createAmpPreviewLayout",
+	);
+}
+
+if (typeof cabinet.createCabinetPreviewLayout !== "function") {
+	throw new Error(
+		"packages/cabinet/dist/index.js does not export createCabinetPreviewLayout",
 	);
 }
 

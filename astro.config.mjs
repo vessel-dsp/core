@@ -30,6 +30,9 @@ export default defineConfig({
 						"packages/core/src/index.ts",
 						"packages/stompbox/src/index.ts",
 						"packages/control-ui/src/index.ts",
+						"packages/visual-effects/src/index.ts",
+						"packages/amp/src/index.ts",
+						"packages/cabinet/src/index.ts",
 					],
 					tsconfig: "tsconfig.docs.json",
 					output: "reference/api",
@@ -70,6 +73,10 @@ export default defineConfig({
 					label: "Guides",
 					items: [
 						{ label: "Stompbox Layouts", link: "/guides/stompbox/" },
+						{
+							label: "Generated 3D Previews",
+							link: "/guides/generated-3d-previews/",
+						},
 						{ label: "Controls", link: "/guides/controls/" },
 						{ label: "Control UI", link: "/guides/control-ui/" },
 					],

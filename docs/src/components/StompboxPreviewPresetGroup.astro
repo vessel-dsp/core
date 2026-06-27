@@ -22,6 +22,9 @@ type StompboxPreviewPreset = {
 	crtVignette?: number;
 	crtRgbShift?: number;
 	crtFlicker?: number;
+	crtBrightness?: number;
+	crtContrast?: number;
+	crtSaturation?: number;
 	crtBloomIntensity?: number;
 	crtBloomThreshold?: number;
 	glitch?: boolean;
@@ -81,6 +84,15 @@ const normalizedPresets = props.presets.map((preset, index) => ({
 		? {}
 		: { crtRgbShift: preset.crtRgbShift }),
 	...(preset.crtFlicker === undefined ? {} : { crtFlicker: preset.crtFlicker }),
+	...(preset.crtBrightness === undefined
+		? {}
+		: { crtBrightness: preset.crtBrightness }),
+	...(preset.crtContrast === undefined
+		? {}
+		: { crtContrast: preset.crtContrast }),
+	...(preset.crtSaturation === undefined
+		? {}
+		: { crtSaturation: preset.crtSaturation }),
 	...(preset.crtBloomIntensity === undefined
 		? {}
 		: { crtBloomIntensity: preset.crtBloomIntensity }),
@@ -100,6 +112,8 @@ const normalizedPresets = props.presets.map((preset, index) => ({
 }));
 const presetsJson = JSON.stringify(normalizedPresets);
 const label = props.label ?? "Preview preset";
+const initialEffects = normalizedPresets[0] ?? {};
+const effectEnabled = (name: string) => initialEffects[name] === true;
 ---
 
 <section
@@ -117,6 +131,40 @@ const label = props.label ?? "Preview preset";
 			</select>
 		</label>
 	</div>
+	<div class="stompbox-preview-preset-group__effects" data-stompbox-effect-controls>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="toon"
+				checked={effectEnabled("toon")}
+			/>
+			<span>Toon edge</span>
+		</label>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="grain"
+				checked={effectEnabled("grain")}
+			/>
+			<span>Grain</span>
+		</label>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="glitch"
+				checked={effectEnabled("glitch")}
+			/>
+			<span>Glitch</span>
+		</label>
+		<label>
+			<input
+				type="checkbox"
+				data-effect-toggle="crt"
+				checked={effectEnabled("crt")}
+			/>
+			<span>CRT</span>
+		</label>
+	</div>
 	<div
 		class="stompbox-preview-preset-group__live-state"
 		data-stompbox-live-state-controls
@@ -132,7 +180,69 @@ const label = props.label ?? "Preview preset";
 
 	.stompbox-preview-preset-group__toolbar {
 		display: flex;
-		margin: 0.25rem 0 1rem;
+		margin: 0.25rem 0 0.45rem;
+	}
+
+	.stompbox-preview-preset-group__effects {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		align-content: flex-start;
+		gap: 0.45rem;
+		margin: 0 0 1rem;
+	}
+
+	.stompbox-preview-preset-group__effects label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		box-sizing: border-box;
+		height: 2rem;
+		padding: 0 0.55rem;
+		border: 1px solid #cbd5e1;
+		border-radius: 6px;
+		background: #ffffff;
+		color: #0f172a;
+		font-size: 0.8125rem;
+		font-weight: 650;
+		line-height: 1;
+		margin: 0;
+		white-space: nowrap;
+	}
+
+	.stompbox-preview-preset-group__effects input {
+		appearance: none;
+		display: grid;
+		flex: 0 0 auto;
+		place-content: center;
+		width: 1rem;
+		height: 1rem;
+		margin: 0;
+		border: 1px solid #22c55e;
+		border-radius: 3px;
+		background: transparent;
+	}
+
+	.stompbox-preview-preset-group__effects input::before {
+		content: "";
+		width: 0.55rem;
+		height: 0.35rem;
+		border: solid #052e16;
+		border-width: 0 0 2px 2px;
+		opacity: 0;
+		transform: translateY(-0.05rem) rotate(-45deg);
+	}
+
+	.stompbox-preview-preset-group__effects input:checked {
+		background: #22c55e;
+	}
+
+	.stompbox-preview-preset-group__effects input:checked::before {
+		opacity: 1;
+	}
+
+	.stompbox-preview-preset-group__effects span {
+		line-height: 1;
 	}
 
 	.stompbox-preview-preset-group__live-state {

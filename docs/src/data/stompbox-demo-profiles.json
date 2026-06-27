@@ -488,6 +488,8 @@
 			"drillLayoutSrc": "/core/examples/stompbox-mxr-style-drill-layout.json",
 			"toon": true,
 			"grain": true,
+			"crt": true,
+			"glitch": true,
 			"linework": true,
 			"lineworkColor": "#ffffff"
 		},
@@ -499,6 +501,8 @@
 			"drillLayoutSrc": "/core/examples/stompbox-boss-style-drill-layout.json",
 			"toon": true,
 			"grain": true,
+			"crt": true,
+			"glitch": true,
 			"linework": true,
 			"lineworkColor": "#eb7223"
 		}

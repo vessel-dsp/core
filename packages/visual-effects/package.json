@@ -1,0 +1,55 @@
+{
+	"name": "@vessel-dsp/visual-effects",
+	"version": "0.6.4",
+	"description": "Reusable Three.js preview effects for VesselDSP generated 3D models.",
+	"keywords": [
+		"threejs",
+		"glb",
+		"toon",
+		"grain",
+		"glitch",
+		"visualization"
+	],
+	"homepage": "https://vessel-dsp.github.io/core/",
+	"bugs": {
+		"url": "https://github.com/vessel-dsp/core/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/vessel-dsp/core.git"
+	},
+	"license": "MIT",
+	"sideEffects": false,
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"bun": "./dist/index.js",
+			"import": "./dist/index.js"
+		},
+		"./package.json": {
+			"default": "./package.json"
+		}
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE.md"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"clean": "rm -rf dist",
+		"prepack": "bun run build",
+		"pack:dry-run": "npm pack --dry-run",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"dependencies": {
+		"three": "^0.184.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

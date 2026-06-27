@@ -61,7 +61,12 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('"packages/core/src/index.ts"');
 		expect(astroConfig).toContain('"packages/stompbox/src/index.ts"');
 		expect(astroConfig).toContain('"packages/control-ui/src/index.ts"');
+		expect(astroConfig).toContain('"packages/visual-effects/src/index.ts"');
+		expect(astroConfig).toContain('"packages/amp/src/index.ts"');
+		expect(astroConfig).toContain('"packages/cabinet/src/index.ts"');
 		expect(astroConfig).toContain('tsconfig: "tsconfig.docs.json"');
+		expect(astroConfig).toContain('label: "Generated 3D Previews"');
+		expect(astroConfig).toContain('link: "/guides/generated-3d-previews/"');
 		expect(astroConfig).toContain('label: "Controls"');
 		expect(astroConfig).toContain('link: "/guides/controls/"');
 		expect(astroConfig).toContain('label: "Control UI"');
@@ -87,9 +92,13 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("@vessel-dsp/core");
 		expect(landingPage).toContain("@vessel-dsp/stompbox");
 		expect(landingPage).toContain("@vessel-dsp/control-ui");
+		expect(landingPage).toContain("@vessel-dsp/visual-effects");
+		expect(landingPage).toContain("@vessel-dsp/amp");
+		expect(landingPage).toContain("@vessel-dsp/cabinet");
 		expect(landingPage).toContain("CircuitDocument");
 		expect(landingPage).toContain("class hooks");
 		expect(landingPage).toContain("theme provider");
+		expect(landingPage).toContain("/core/guides/generated-3d-previews/");
 		expect(landingPage).toContain("/core/guides/controls/");
 		expect(landingPage).toContain("/core/reference/api/readme/");
 		expect(landingPage).not.toMatch(/playground|workbench|custom editor/i);
@@ -177,6 +186,154 @@ describe("GitHub Pages documentation site", () => {
 		expect(stompboxPage).toContain("screen-space grain");
 		expect(stompboxPage).toContain("@vessel-dsp/control-ui");
 		expect(stompboxPage).toContain("PanelMessage");
+
+		const generated3dPage = readRepoFile(
+			"docs/src/content/docs/guides/generated-3d-previews.mdx",
+		);
+		expect(generated3dPage).toContain("title: Generated 3D Previews");
+		expect(generated3dPage).toContain(
+			'import Generated3dPreview from "../../../components/Generated3dPreview.astro";',
+		);
+		expect(generated3dPage).toContain("<Generated3dPreview");
+		expect(generated3dPage).toContain('kind="amp"');
+		expect(generated3dPage).toContain('kind="cabinet"');
+		expect(generated3dPage).toContain("@vessel-dsp/amp");
+		expect(generated3dPage).toContain("@vessel-dsp/cabinet");
+		expect(generated3dPage).toContain("@vessel-dsp/visual-effects");
+		expect(generated3dPage).toContain("createAmpPreviewLayout");
+		expect(generated3dPage).toContain("createAmpPreviewObject3D");
+		expect(generated3dPage).toContain("createAmpPreviewGlb");
+		expect(generated3dPage).toContain("createCabinetPreviewLayout");
+		expect(generated3dPage).toContain("createCabinetPreviewObject3D");
+		expect(generated3dPage).toContain("createCabinetPreviewGlb");
+		expect(generated3dPage).toContain("resolvePreviewEffectPreset");
+		expect(generated3dPage).toContain("applyToonMaterials");
+		expect(generated3dPage).toContain("addToonOutlines");
+		expect(generated3dPage).toContain("applyMaterialGrain");
+		expect(generated3dPage).toContain("reducedMotion");
+		expect(generated3dPage).toContain("not measured CAD");
+		expect(generated3dPage).not.toMatch(/playground|workbench|custom editor/i);
+
+		const generatedPreviewComponent = readRepoFile(
+			"docs/src/components/Generated3dPreview.astro",
+		);
+		expect(generatedPreviewComponent).toContain("data-vessel-generated-preview");
+		expect(generatedPreviewComponent).toContain("data-profile");
+		expect(generatedPreviewComponent).toContain("data-effects");
+		expect(generatedPreviewComponent).toContain("data-background-color");
+		expect(generatedPreviewComponent).toContain("data-grid-color");
+		expect(generatedPreviewComponent).toContain("data-grid-opacity");
+		expect(generatedPreviewComponent).toContain("data-vessel-effect-controls");
+		expect(generatedPreviewComponent).toContain('data-effect-toggle="toon"');
+		expect(generatedPreviewComponent).toContain('data-effect-toggle="grain"');
+		expect(generatedPreviewComponent).toContain('data-effect-toggle="glitch"');
+		expect(generatedPreviewComponent).toContain('data-effect-toggle="crt"');
+		expect(generatedPreviewComponent).toContain("glitch: true");
+		expect(generatedPreviewComponent).toContain("crt: true");
+		expect(generatedPreviewComponent).not.toContain("grainIntensity: 0.05");
+		expect(generatedPreviewComponent).toContain(
+			'"@vessel-dsp/amp": "/core/vendor/vessel-dsp/amp/index.js"',
+		);
+		expect(generatedPreviewComponent).toContain(
+			'"@vessel-dsp/cabinet": "/core/vendor/vessel-dsp/cabinet/index.js"',
+		);
+		expect(generatedPreviewComponent).toContain(
+			'src="/core/generated-3d-preview-viewer.js"',
+		);
+
+		const generatedPreviewRuntime = readRepoFile(
+			"docs/public/generated-3d-preview-viewer.js",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			'import { createAmpPreviewObject3D } from "@vessel-dsp/amp";',
+		);
+		expect(generatedPreviewRuntime).toContain(
+			'import { createCabinetPreviewObject3D } from "@vessel-dsp/cabinet";',
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"VESSEL_PREVIEW_EFFECT_DEFAULTS",
+		);
+		expect(generatedPreviewRuntime).toContain("createPreviewEffectPipeline");
+		expect(generatedPreviewRuntime).toContain("data-vessel-generated-preview");
+		expect(generatedPreviewRuntime).toContain("OrbitControls");
+		expect(generatedPreviewRuntime).toContain("function parseJsonAttribute");
+		expect(generatedPreviewRuntime).toContain("function frameObject");
+		expect(generatedPreviewRuntime).toContain("initGeneratedEffectControls");
+		expect(generatedPreviewRuntime).toContain("applyGeneratedEffectControls");
+		expect(generatedPreviewRuntime).toContain("viewer.dataset.effects = JSON.stringify");
+		expect(generatedPreviewRuntime).toContain("[data-effect-toggle]");
+		expect(generatedPreviewRuntime).toContain("CRTShader");
+		expect(generatedPreviewRuntime).toContain("DigitalGlitch");
+		expect(generatedPreviewRuntime).toContain("renderWithScreenEffects");
+		expect(generatedPreviewRuntime).toContain(
+			"VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBloomIntensity",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"VESSEL_PREVIEW_EFFECT_DEFAULTS.crtContrast",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"uniforms.contrast.value = preset.crtContrast",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"uniforms.saturation.value = preset.crtSaturation",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"effects: pipeline.materialPreset",
+		);
+		expect(generatedPreviewRuntime).toContain("screenEffects.configure(pipeline)");
+		expect(generatedPreviewRuntime).toContain("previewCrtBackgroundForViewer");
+		expect(generatedPreviewRuntime).toContain(
+			"initialPipeline.crtFragmentShader(CRTShader.fragmentShader)",
+		);
+		expect(generatedPreviewRuntime).not.toContain(
+			"function crtFragmentShaderWithOutputEncoding",
+		);
+		expect(generatedPreviewRuntime).not.toContain("linearToOutputTexel");
+		expect(generatedPreviewRuntime).not.toContain("stompboxScreenGrainValue");
+		expect(generatedPreviewRuntime).not.toContain("generatedCrtGrainValue");
+		expect(generatedPreviewRuntime).not.toContain("const DEFAULT_GRAIN_SCALE");
+		expect(generatedPreviewRuntime).not.toContain(
+			"const DEFAULT_CRT_BLOOM_INTENSITY",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"const GLITCH_BURST_MIN_MS = 120;",
+		);
+		expect(generatedPreviewRuntime).toContain("function createGlitchPass");
+		expect(generatedPreviewRuntime).toContain("scheduleNext");
+		expect(generatedPreviewRuntime).toContain("hardEndMs");
+		expect(generatedPreviewRuntime).toContain(
+			"effects.crt.render(renderer, scene, camera, frameMs, effects.glitch);",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"render(activeRenderer, sceneToRender, sceneCamera, frameMs, glitchPass)",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"activeRenderer.render(sceneToRender, sceneCamera);",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"let sourceTexture = renderTarget.texture;",
+		);
+		expect(generatedPreviewRuntime).toContain(
+			"sourceTexture = glitchPass.apply(",
+		);
+		expect(generatedPreviewRuntime).not.toContain("renderTexture(");
+		expect(generatedPreviewRuntime).not.toContain("createSceneTexturePass");
+		expect(generatedPreviewRuntime).not.toContain("createTextureOutputPass");
+		expect(generatedPreviewRuntime).toContain(
+			"DigitalGlitch.fragmentShader.replace",
+		);
+		expect(generatedPreviewRuntime).toContain("THREE.HalfFloatType");
+		expect(generatedPreviewRuntime).toContain("THREE.RedFormat");
+		expect(generatedPreviewRuntime).toContain("THREE.FloatType");
+		expect(generatedPreviewRuntime).not.toContain("function glitchActive");
+
+		for (const path of [
+			"docs/public/vendor/vessel-dsp/amp/index.js",
+			"docs/public/vendor/vessel-dsp/cabinet/index.js",
+			"docs/public/vendor/vessel-dsp/visual-effects/index.js",
+		]) {
+			expect(existsSync(join(ROOT_DIR, path))).toBe(true);
+		}
 
 		const controlsPage = readRepoFile(
 			"docs/src/content/docs/guides/controls.mdx",
@@ -412,6 +569,14 @@ describe("GitHub Pages documentation site", () => {
 			true,
 			true,
 		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.crt)).toEqual([
+			true,
+			true,
+		]);
+		expect(demoProfiles.previewPresets?.map((preset) => preset.glitch)).toEqual([
+			true,
+			true,
+		]);
 		expect(
 			demoProfiles.previewPresets?.map((preset) => preset.linework),
 		).toEqual([true, true]);
@@ -435,6 +600,13 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewer).toContain("grainScale?: number;");
 		expect(viewer).toContain("grainIntensity?: number;");
 		expect(viewer).toContain("props.grainIntensity ?? 0.05");
+		expect(viewer).toContain("crtBrightness?: number;");
+		expect(viewer).toContain("crtContrast?: number;");
+		expect(viewer).toContain("crtSaturation?: number;");
+		expect(viewer).toContain("props.crtVignette ?? 0.75");
+		expect(viewer).toContain("props.crtContrast ?? 0.95");
+		expect(viewer).toContain("props.crtBloomIntensity ?? 0.5");
+		expect(viewer).toContain("props.crtBloomThreshold ?? 0.75");
 		expect(viewer).toContain("data-linework");
 		expect(viewer).toContain("data-linework-color");
 		expect(viewer).toContain("data-background-color");
@@ -445,11 +617,17 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewer).toContain("data-grain");
 		expect(viewer).toContain("data-grain-scale");
 		expect(viewer).toContain("data-grain-intensity");
+		expect(viewer).toContain("data-crt-brightness");
+		expect(viewer).toContain("data-crt-contrast");
+		expect(viewer).toContain("data-crt-saturation");
 		expect(viewer).toContain("--stompbox-viewer-background-color");
 		expect(viewer).toContain("--stompbox-viewer-grid-color");
 		expect(viewer).toContain("--stompbox-viewer-grid-opacity");
 		expect(viewer).toContain(
 			'"three": "/core/vendor/three/build/three.module.js"',
+		);
+		expect(viewer).toContain(
+			'"@vessel-dsp/visual-effects": "/core/vendor/vessel-dsp/visual-effects/index.js"',
 		);
 		expect(viewer).toContain('src="/core/stompbox-glb-viewer.js"');
 
@@ -462,6 +640,11 @@ describe("GitHub Pages documentation site", () => {
 		expect(presetGroup).toContain("data-stompbox-presets");
 		expect(presetGroup).toContain("data-stompbox-live-state-controls");
 		expect(presetGroup).toContain("stompbox-preview-preset-group__live-state");
+		expect(presetGroup).toContain("data-stompbox-effect-controls");
+		expect(presetGroup).toContain('data-effect-toggle="toon"');
+		expect(presetGroup).toContain('data-effect-toggle="grain"');
+		expect(presetGroup).toContain('data-effect-toggle="glitch"');
+		expect(presetGroup).toContain('data-effect-toggle="crt"');
 		expect(presetGroup).toContain("backgroundColor?: string;");
 		expect(presetGroup).toContain("gridColor?: string;");
 		expect(presetGroup).toContain("gridOpacity?: number;");
@@ -470,6 +653,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(presetGroup).toContain("grain?: boolean;");
 		expect(presetGroup).toContain("grainScale?: number;");
 		expect(presetGroup).toContain("grainIntensity?: number;");
+		expect(presetGroup).toContain("crtBrightness?: number;");
+		expect(presetGroup).toContain("crtContrast?: number;");
+		expect(presetGroup).toContain("crtSaturation?: number;");
 		expect(presetGroup).toContain("<slot />");
 
 		const viewerRuntime = readRepoFile("docs/public/stompbox-glb-viewer.js");
@@ -480,6 +666,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain(
 			'import { OrbitControls } from "three/addons/controls/OrbitControls.js";',
 		);
+		expect(viewerRuntime).toContain("resolvePreviewEffectPreset");
+		expect(viewerRuntime).toContain("createPreviewEffectPipeline");
+		expect(viewerRuntime).toContain("VESSEL_PREVIEW_EFFECT_DEFAULTS");
 		expect(viewerRuntime).toContain("THREE.OrthographicCamera");
 		expect(viewerRuntime).toContain("frameOrthographicTopModel");
 		expect(viewerRuntime).toContain("findEnclosureFrame");
@@ -501,11 +690,45 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("DEFAULT_BACKGROUND_COLOR");
 		expect(viewerRuntime).toContain("DEFAULT_GRID_COLOR");
 		expect(viewerRuntime).toContain("DEFAULT_GRID_OPACITY");
-		expect(viewerRuntime).toContain('DEFAULT_TOON_EDGE_COLOR = "#69145a"');
-		expect(viewerRuntime).toContain("DEFAULT_GRAIN_SCALE = 1.15");
-		expect(viewerRuntime).toContain("DEFAULT_GRAIN_INTENSITY = 0.1");
+		expect(viewerRuntime).toContain("DEFAULT_GRID_SIZE_PX = 24");
+		expect(viewerRuntime).toContain("GLITCH_STRIP_WIDTH = 0.012");
+		expect(viewerRuntime).toContain("VESSEL_PREVIEW_EFFECT_DEFAULTS");
+		expect(viewerRuntime).toContain(
+			"VESSEL_PREVIEW_EFFECT_DEFAULTS.toonEdgeColor",
+		);
+		expect(viewerRuntime).toContain("VESSEL_PREVIEW_EFFECT_DEFAULTS.grainScale");
+		expect(viewerRuntime).toContain(
+			"VESSEL_PREVIEW_EFFECT_DEFAULTS.grainIntensity",
+		);
+		expect(viewerRuntime).toContain(
+			"VESSEL_PREVIEW_EFFECT_DEFAULTS.crtContrast",
+		);
+		expect(viewerRuntime).toContain("uniforms.contrast.value = preset.crtContrast");
+		expect(viewerRuntime).toContain(
+			"uniforms.saturation.value = preset.crtSaturation",
+		);
+		expect(viewerRuntime).toContain("previewBackgroundColor");
+		expect(viewerRuntime).toContain("previewCrtBackgroundForPreset");
+		expect(viewerRuntime).toContain(
+			"initialPipeline.crtFragmentShader(CRTShader.fragmentShader)",
+		);
+		expect(viewerRuntime).toContain("crt.configure(effectPipeline)");
+		expect(viewerRuntime).toContain("visualPreset");
+		expect(viewerRuntime).not.toContain("stompboxCrtPreviewBackground");
+		expect(viewerRuntime).not.toContain("const curvedBoundsClamp");
+		expect(viewerRuntime).not.toContain(
+			"function crtFragmentShaderWithOutputEncoding",
+		);
+		expect(viewerRuntime).toContain(
+			"glitchIntervalSeconds: activePreset.glitchInterval",
+		);
+		expect(viewerRuntime).not.toContain("const DEFAULT_TOON_EDGE_COLOR");
+		expect(viewerRuntime).not.toContain("const DEFAULT_GRAIN_SCALE");
+		expect(viewerRuntime).not.toContain("const DEFAULT_GRAIN_INTENSITY");
 		expect(viewerRuntime).toContain("GRAIN_INTENSITY_SCALE = 0.35");
-		expect(viewerRuntime).toContain("applyScreenGrainMaterials(model, preset)");
+		expect(viewerRuntime).toContain(
+			"applyScreenGrainMaterials(model, visualPreset)",
+		);
 		expect(viewerRuntime).toContain("material.onBeforeCompile");
 		expect(viewerRuntime).toContain("material.userData.screenGrainApplied");
 		expect(viewerRuntime).toContain("gl_FragCoord.xy");
@@ -520,7 +743,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).not.toContain("new THREE.PlaneGeometry(2, 2)");
 		expect(viewerRuntime).toContain("THREE.MeshToonMaterial");
 		expect(viewerRuntime).toContain("createToonGradientMap");
-		expect(viewerRuntime).toContain("applyToonMaterials(model, preset)");
+		expect(viewerRuntime).toContain("applyToonMaterials(model, visualPreset)");
 		expect(viewerRuntime).toContain("material.userData.toonSourceMaterial");
 		expect(viewerRuntime).toContain("applyPresetBackground(viewer, preset)");
 		expect(viewerRuntime).toContain(
@@ -538,6 +761,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("alpha: true");
 		expect(viewerRuntime).toContain("addCadLinework");
 		expect(viewerRuntime).toContain("initPresetLinkedAssets");
+		expect(viewerRuntime).toContain("initEffectToggleControls");
+		expect(viewerRuntime).toContain("applyEffectToggleState");
+		expect(viewerRuntime).toContain("stompbox-effect-controls-change");
+		expect(viewerRuntime).toContain("[data-effect-toggle]");
 		expect(viewerRuntime).toContain("updatePresetLinkedAssets");
 		expect(viewerRuntime).toContain("parsePresetOptions");
 		expect(viewerRuntime).toContain("presetSelectForViewer");
@@ -569,11 +796,11 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain("parentWorldScaleForLocalAxis");
 		expect(viewerRuntime).toContain("footswitch.actuator.position");
 		expect(viewerRuntime).not.toContain("footswitch.node.position");
-		expect(viewerRuntime).toContain(
-			"return KNOB_LEFT_END_ROTATION_DEG + clamp01(position) * KNOB_ROTATION_SWEEP_DEG;",
+		expect(viewerRuntime).toMatch(
+			/return\s*\(?\s*KNOB_LEFT_END_ROTATION_DEG\s*\+\s*clamp01\(position\)\s*\*\s*KNOB_ROTATION_SWEEP_DEG\s*\)?;/,
 		);
-		expect(viewerRuntime).toContain(
-			"return clamp01((rotationDeg - KNOB_LEFT_END_ROTATION_DEG) / KNOB_ROTATION_SWEEP_DEG);",
+		expect(viewerRuntime).toMatch(
+			/return\s+clamp01\(\s*\(rotationDeg\s*-\s*KNOB_LEFT_END_ROTATION_DEG\)\s*\/\s*KNOB_ROTATION_SWEEP_DEG,\s*\);/,
 		);
 		expect(viewerRuntime).toContain("updateFootswitchButton");
 		expect(viewerRuntime).toContain("syncLedStateControls");
@@ -605,23 +832,25 @@ describe("GitHub Pages documentation site", () => {
 		expect(viewerRuntime).toContain(
 			'const grainEnabled = viewer.dataset.grain === "true";',
 		);
-		expect(viewerRuntime).toContain(
-			"normalizePositiveNumber(viewer.dataset.grainScale, DEFAULT_GRAIN_SCALE)",
+		expect(viewerRuntime).toMatch(
+			/normalizePositiveNumber\(\s*viewer\.dataset\.grainScale,\s*VESSEL_PREVIEW_EFFECT_DEFAULTS\.grainScale,\s*\)/,
 		);
-		expect(viewerRuntime).toContain(
-			"normalizeUnitInterval(viewer.dataset.grainIntensity, DEFAULT_GRAIN_INTENSITY)",
+		expect(viewerRuntime).toMatch(
+			/normalizeUnitInterval\(\s*viewer\.dataset\.grainIntensity,\s*VESSEL_PREVIEW_EFFECT_DEFAULTS\.grainIntensity,\s*\)/,
 		);
-		expect(viewerRuntime).toContain("if (preset.toon)");
-		expect(viewerRuntime).toContain("if (preset.linework && !preset.toon)");
+		expect(viewerRuntime).toContain("if (visualPreset.toon)");
+		expect(viewerRuntime).toContain(
+			"if (visualPreset.linework && !visualPreset.toon)",
+		);
 		expect(viewerRuntime).toContain("const TOON_OUTLINE_SCALE = 1.02;");
 		expect(viewerRuntime).toContain(
-			"addToonOutline(model, preset.toonEdgeColor);",
+			"addToonOutline(model, visualPreset.toonEdgeColor);",
 		);
 		expect(viewerRuntime).toContain("new THREE.Color(lineworkColor)");
 		expect(viewerRuntime).toContain("THREE.EdgesGeometry");
 		expect(viewerRuntime).toContain("THREE.LineSegments");
-		expect(viewerRuntime).toContain(
-			"function addToonOutline (root, outlineColor = DEFAULT_TOON_EDGE_COLOR)",
+		expect(viewerRuntime).toMatch(
+			/function\s+addToonOutline\s*\(\s*root,\s*outlineColor\s*=\s*VESSEL_PREVIEW_EFFECT_DEFAULTS\.toonEdgeColor\s*\)/,
 		);
 		expect(viewerRuntime).toContain("new THREE.MeshBasicMaterial");
 		expect(viewerRuntime).toContain("side: THREE.BackSide");
@@ -652,7 +881,23 @@ describe("GitHub Pages documentation site", () => {
 			existsSync(
 				join(
 					ROOT_DIR,
+					"docs/public/vendor/vessel-dsp/visual-effects/index.js",
+				),
+			),
+		).toBe(true);
+		expect(
+			existsSync(
+				join(
+					ROOT_DIR,
 					"docs/public/vendor/three/addons/controls/OrbitControls.js",
+				),
+			),
+		).toBe(true);
+		expect(
+			existsSync(
+				join(
+					ROOT_DIR,
+					"docs/public/vendor/three/addons/geometries/RoundedBoxGeometry.js",
 				),
 			),
 		).toBe(true);

@@ -1,0 +1,567 @@
+import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import {
+	addToonOutlines,
+	applyMaterialGrain,
+	applyToonMaterials,
+	type VesselPreviewEffectPreset,
+} from "@vessel-dsp/visual-effects";
+
+export type CabinetProfile = Readonly<{
+	schema: "vessel-cabinet-profile/v1";
+	brandName: string;
+	modelName?: string;
+	enclosureColor: string;
+	appearance?: CabinetAppearanceProfile;
+	dimensionsMm: CabinetDimensions;
+}>;
+
+export type CabinetAppearanceProfile = Readonly<{
+	grilleColor?: string;
+	brandLabelColor?: string;
+	modelLabelColor?: string;
+	labelFontFamily?: string;
+	brandLabelFontSizeMm?: number;
+	modelLabelFontSizeMm?: number;
+	cornerProtectorColor?: string;
+}>;
+
+export type CabinetDimensions = Readonly<{
+	widthMm: number;
+	heightMm: number;
+	depthMm: number;
+}>;
+
+export type CabinetPreviewLayout = Readonly<{
+	schema: "vessel-cabinet-preview-layout/v1";
+	brandName: string;
+	modelName?: string;
+	enclosureColor: string;
+	appearance: CabinetPreviewAppearance;
+	body: { dimensionsMm: CabinetDimensions };
+	grille: {
+		centerMm: { x: number; y: number; z: number };
+		sizeMm: { widthMm: number; heightMm: number };
+	};
+}>;
+
+export type CabinetPreviewAppearance = Readonly<{
+	grilleColor: string;
+	brandLabelColor: string;
+	modelLabelColor: string;
+	labelFontFamily: string;
+	brandLabelFontSizeMm: number;
+	modelLabelFontSizeMm: number;
+	cornerProtectorColor: string;
+}>;
+
+export type CabinetProfileValidation = Readonly<{
+	valid: boolean;
+	diagnostics: readonly string[];
+}>;
+
+export type CabinetPreviewObjectOptions = Readonly<{
+	effects?: VesselPreviewEffectPreset;
+}>;
+
+export type CabinetPreviewGlb = Readonly<{
+	schema: "vessel-cabinet-preview-glb/v1";
+	mimeType: "model/gltf-binary";
+	bytes: Uint8Array;
+	preview: {
+		layout: CabinetPreviewLayout;
+	};
+}>;
+
+export function validateCabinetProfile(
+	profile: CabinetProfile,
+): CabinetProfileValidation {
+	const diagnostics: string[] = [];
+	if (profile.schema !== "vessel-cabinet-profile/v1") {
+		diagnostics.push("schema must be vessel-cabinet-profile/v1");
+	}
+	if (profile.brandName.trim().length === 0) {
+		diagnostics.push("brandName is required");
+	}
+	if (profile.modelName !== undefined && profile.modelName.trim().length === 0) {
+		diagnostics.push("modelName must not be empty when provided");
+	}
+	for (const [key, value] of Object.entries(profile.dimensionsMm)) {
+		if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+			diagnostics.push(`dimensionsMm.${key} must be a positive number`);
+		}
+	}
+	return { valid: diagnostics.length === 0, diagnostics };
+}
+
+export function createCabinetPreviewLayout(
+	profile: CabinetProfile,
+): CabinetPreviewLayout {
+	const validation = validateCabinetProfile(profile);
+	if (!validation.valid) {
+		throw new Error(validation.diagnostics.join("; "));
+	}
+	const width = profile.dimensionsMm.widthMm;
+	const height = profile.dimensionsMm.heightMm;
+	const appearance = resolveCabinetAppearance(profile);
+	const grille = {
+		centerMm: { x: 0, y: 0, z: roundMm(profile.dimensionsMm.depthMm / 2 + 2) },
+		sizeMm: {
+			widthMm: roundMm(width * 0.82),
+			heightMm: roundMm(height * 0.72),
+		},
+	};
+	const layout = {
+		schema: "vessel-cabinet-preview-layout/v1",
+		brandName: profile.brandName,
+		enclosureColor: profile.enclosureColor,
+		appearance,
+		body: { dimensionsMm: profile.dimensionsMm },
+		grille,
+	} satisfies Omit<CabinetPreviewLayout, "modelName">;
+	if (profile.modelName === undefined) {
+		return layout;
+	}
+	return {
+		...layout,
+		modelName: profile.modelName,
+	};
+}
+
+function resolveCabinetAppearance(
+	profile: CabinetProfile,
+): CabinetPreviewAppearance {
+	const appearance = profile.appearance;
+	return {
+		grilleColor: appearance?.grilleColor ?? "#1f2937",
+		brandLabelColor: appearance?.brandLabelColor ?? "#f8fafc",
+		modelLabelColor: appearance?.modelLabelColor ?? "#e5e7eb",
+		labelFontFamily: appearance?.labelFontFamily ?? "vessel-vector",
+		brandLabelFontSizeMm: positiveOrDefault(
+			appearance?.brandLabelFontSizeMm,
+			22,
+		),
+		modelLabelFontSizeMm: positiveOrDefault(
+			appearance?.modelLabelFontSizeMm,
+			10,
+		),
+		cornerProtectorColor: appearance?.cornerProtectorColor ?? "#020617",
+	};
+}
+
+export function createCabinetPreviewObject3D(
+	profile: CabinetProfile,
+	options: CabinetPreviewObjectOptions = {},
+): THREE.Group {
+	const layout = createCabinetPreviewLayout(profile);
+	const root = new THREE.Group();
+	root.name = "cabinet-preview";
+	root.userData = { schema: "vessel-cabinet-preview/v1", profile, layout };
+	const body = boxMesh(
+		"cabinet-body",
+		layout.body.dimensionsMm.widthMm,
+		layout.body.dimensionsMm.heightMm,
+		layout.body.dimensionsMm.depthMm,
+		layout.enclosureColor,
+	);
+	root.add(body);
+	addCabinetTrim(root, layout);
+	addCabinetCornerCaps(root, layout);
+	addCabinetLabels(root, layout);
+	const grille = boxMesh(
+		"cabinet-grille",
+		layout.grille.sizeMm.widthMm,
+		layout.grille.sizeMm.heightMm,
+		4,
+		layout.appearance.grilleColor,
+	);
+	grille.position.set(
+		layout.grille.centerMm.x,
+		layout.grille.centerMm.y,
+		layout.grille.centerMm.z,
+	);
+	root.add(grille);
+	if (options.effects !== undefined) {
+		applyToonMaterials(root, options.effects);
+		addToonOutlines(root, options.effects);
+		applyMaterialGrain(root, options.effects);
+	}
+	return root;
+}
+
+function addCabinetTrim(root: THREE.Group, layout: CabinetPreviewLayout): void {
+	const width = layout.body.dimensionsMm.widthMm;
+	const height = layout.body.dimensionsMm.heightMm;
+	const depth = layout.body.dimensionsMm.depthMm;
+	const trimZ = depth / 2 + 6;
+	const trimColor = "#e5e7eb";
+	const top = boxMesh("cabinet-trim-top", width * 0.84, 5, 3, trimColor);
+	top.position.set(0, height * 0.36, trimZ);
+	const bottom = boxMesh("cabinet-trim-bottom", width * 0.84, 5, 3, trimColor);
+	bottom.position.set(0, -height * 0.36, trimZ);
+	const left = boxMesh("cabinet-trim-left", 5, height * 0.72, 3, trimColor);
+	left.position.set(-width * 0.42, 0, trimZ);
+	const right = boxMesh("cabinet-trim-right", 5, height * 0.72, 3, trimColor);
+	right.position.set(width * 0.42, 0, trimZ);
+	root.add(top, bottom, left, right);
+}
+
+function addCabinetCornerCaps(
+	root: THREE.Group,
+	layout: CabinetPreviewLayout,
+): void {
+	const width = layout.body.dimensionsMm.widthMm;
+	const height = layout.body.dimensionsMm.heightMm;
+	const depth = layout.body.dimensionsMm.depthMm;
+	const capSize = Math.min(width, height) * 0.075;
+	const positions = [
+		[
+			"cabinet-corner-top-left",
+			-width / 2 + capSize / 2,
+			height / 2 - capSize / 2,
+			depth / 2 - capSize / 2,
+		],
+		[
+			"cabinet-corner-top-right",
+			width / 2 - capSize / 2,
+			height / 2 - capSize / 2,
+			depth / 2 - capSize / 2,
+		],
+		[
+			"cabinet-corner-bottom-left",
+			-width / 2 + capSize / 2,
+			-height / 2 + capSize / 2,
+			depth / 2 - capSize / 2,
+		],
+		[
+			"cabinet-corner-bottom-right",
+			width / 2 - capSize / 2,
+			-height / 2 + capSize / 2,
+			depth / 2 - capSize / 2,
+		],
+		[
+			"cabinet-corner-back-top-left",
+			-width / 2 + capSize / 2,
+			height / 2 - capSize / 2,
+			-depth / 2 + capSize / 2,
+		],
+		[
+			"cabinet-corner-back-top-right",
+			width / 2 - capSize / 2,
+			height / 2 - capSize / 2,
+			-depth / 2 + capSize / 2,
+		],
+		[
+			"cabinet-corner-back-bottom-left",
+			-width / 2 + capSize / 2,
+			-height / 2 + capSize / 2,
+			-depth / 2 + capSize / 2,
+		],
+		[
+			"cabinet-corner-back-bottom-right",
+			width / 2 - capSize / 2,
+			-height / 2 + capSize / 2,
+			-depth / 2 + capSize / 2,
+		],
+	] as const;
+	for (const [name, x, y, z] of positions) {
+		const cap = boxMesh(
+			name,
+			capSize,
+			capSize,
+			capSize,
+			layout.appearance.cornerProtectorColor,
+		);
+		cap.position.set(x, y, z);
+		root.add(cap);
+	}
+}
+
+function addCabinetLabels(
+	root: THREE.Group,
+	layout: CabinetPreviewLayout,
+): void {
+	const depth = layout.body.dimensionsMm.depthMm;
+	const z = depth / 2 + 8;
+	const grilleTopY =
+		layout.grille.centerMm.y + layout.grille.sizeMm.heightMm / 2;
+	const grilleBottomY =
+		layout.grille.centerMm.y - layout.grille.sizeMm.heightMm / 2;
+	const grilleRightX =
+		layout.grille.centerMm.x + layout.grille.sizeMm.widthMm / 2;
+	const brand = vectorTextLabel(
+		"cabinet-brand-label",
+		layout.brandName,
+		layout.appearance.brandLabelColor,
+		layout.appearance.brandLabelFontSizeMm,
+		layout.appearance.labelFontFamily,
+		2,
+	);
+	brand.position.set(
+		0,
+		grilleTopY - layout.appearance.brandLabelFontSizeMm * 1.75,
+		z,
+	);
+	brand.userData = {
+		...brand.userData,
+		kind: "cabinet-brand-label",
+		text: layout.brandName,
+	};
+	root.add(brand);
+	if (layout.modelName === undefined) {
+		return;
+	}
+	const model = vectorTextLabel(
+		"cabinet-model-label",
+		layout.modelName,
+		layout.appearance.modelLabelColor,
+		layout.appearance.modelLabelFontSizeMm,
+		layout.appearance.labelFontFamily,
+		2,
+	);
+	model.position.set(
+		rightAlignedGroupX(model, grilleRightX - 8),
+		grilleBottomY + layout.appearance.modelLabelFontSizeMm,
+		z,
+	);
+	model.userData = {
+		...model.userData,
+		kind: "cabinet-model-label",
+		text: layout.modelName,
+	};
+	root.add(model);
+}
+
+function boxMesh(
+	name: string,
+	widthMm: number,
+	heightMm: number,
+	depthMm: number,
+	color: string,
+): THREE.Mesh {
+	const cornerRadiusMm = roundedBoxRadius(widthMm, heightMm, depthMm);
+	const mesh = new THREE.Mesh(
+		roundedBoxGeometry(widthMm, heightMm, depthMm, cornerRadiusMm),
+		new THREE.MeshStandardMaterial({ color }),
+	);
+	mesh.name = name;
+	mesh.userData = {
+		...mesh.userData,
+		cornerRadiusMm,
+		cornerSegments: ROUNDED_BOX_SEGMENTS,
+	};
+	return mesh;
+}
+
+const ROUNDED_BOX_SEGMENTS = 8;
+const ROUNDED_BOX_MAX_RADIUS_MM = 20;
+const ROUNDED_BOX_RADIUS_RATIO = 0.22;
+const ROUNDED_BOX_MIN_RADIUS_MM = 1.2;
+const ROUNDED_BOX_RADIUS_EPSILON_MM = 0.001;
+
+function roundedBoxGeometry(
+	widthMm: number,
+	heightMm: number,
+	depthMm: number,
+	radiusMm = roundedBoxRadius(widthMm, heightMm, depthMm),
+): RoundedBoxGeometry {
+	return new RoundedBoxGeometry(
+		widthMm,
+		heightMm,
+		depthMm,
+		ROUNDED_BOX_SEGMENTS,
+		radiusMm,
+	);
+}
+
+function roundedBoxRadius(
+	widthMm: number,
+	heightMm: number,
+	depthMm: number,
+): number {
+	const smallestDimension = Math.min(widthMm, heightMm, depthMm);
+	const maxValidRadius = Math.max(
+		0,
+		smallestDimension / 2 - ROUNDED_BOX_RADIUS_EPSILON_MM,
+	);
+	const preferredRadius = Math.max(
+		ROUNDED_BOX_MIN_RADIUS_MM,
+		Math.min(
+			ROUNDED_BOX_MAX_RADIUS_MM,
+			smallestDimension * ROUNDED_BOX_RADIUS_RATIO,
+		),
+	);
+	return roundMm(Math.min(maxValidRadius, preferredRadius));
+}
+
+function vectorTextLabel(
+	name: string,
+	text: string,
+	color: string,
+	heightMm: number,
+	fontFamily: string,
+	depthMm: number,
+): THREE.Group {
+	const group = new THREE.Group();
+	group.name = name;
+	group.userData = {
+		kind: "vector-text-label",
+		text,
+		fontFamily,
+		fontSizeMm: heightMm,
+	};
+	const cell = heightMm / 5;
+	const gap = cell * 0.45;
+	let cursor = 0;
+	for (const character of text.toUpperCase()) {
+		const glyph = GLYPHS[character] ?? GLYPHS["?"];
+		if (glyph === undefined) {
+			cursor += cell * 2;
+			continue;
+		}
+		for (let row = 0; row < glyph.length; row += 1) {
+			const line = glyph[row] ?? "";
+			for (let column = 0; column < line.length; column += 1) {
+				if (line[column] !== "1") {
+					continue;
+				}
+				const stroke = boxMesh(
+					`${name}-stroke-${group.children.length}`,
+					cell * 0.78,
+					cell * 0.78,
+					depthMm,
+					color,
+				);
+				stroke.position.set(
+					cursor + column * cell,
+					((glyph.length - 1) / 2 - row) * cell,
+					0,
+				);
+				group.add(stroke);
+			}
+		}
+		const glyphWidth = glyph[0]?.length ?? 0;
+		cursor += glyphWidth === 0 ? cell * 2 : glyphWidth * cell + gap;
+	}
+	const centerOffset = cursor > 0 ? (cursor - gap) / 2 : 0;
+	for (const child of group.children) {
+		child.position.x -= centerOffset;
+	}
+	return group;
+}
+
+function rightAlignedGroupX(group: THREE.Group, rightEdgeX: number): number {
+	let maxX = Number.NEGATIVE_INFINITY;
+	for (const child of group.children) {
+		const mesh = child as THREE.Object3D & { geometry?: THREE.BufferGeometry };
+		if (mesh.geometry === undefined) {
+			continue;
+		}
+		mesh.geometry.computeBoundingBox();
+		const boundingBox = mesh.geometry.boundingBox;
+		if (boundingBox === null) {
+			continue;
+		}
+		maxX = Math.max(maxX, child.position.x + boundingBox.max.x);
+	}
+	return Number.isFinite(maxX) ? rightEdgeX - maxX : rightEdgeX;
+}
+
+const GLYPHS: Record<string, readonly string[]> = {
+	" ": ["", "", "", "", ""],
+	"-": ["000", "000", "111", "000", "000"],
+	"?": ["111", "001", "011", "000", "010"],
+	"0": ["111", "101", "101", "101", "111"],
+	"1": ["010", "110", "010", "010", "111"],
+	"2": ["111", "001", "111", "100", "111"],
+	"3": ["111", "001", "111", "001", "111"],
+	"4": ["101", "101", "111", "001", "001"],
+	"5": ["111", "100", "111", "001", "111"],
+	"6": ["111", "100", "111", "101", "111"],
+	"7": ["111", "001", "010", "010", "010"],
+	"8": ["111", "101", "111", "101", "111"],
+	"9": ["111", "101", "111", "001", "111"],
+	A: ["111", "101", "111", "101", "101"],
+	B: ["110", "101", "110", "101", "110"],
+	C: ["111", "100", "100", "100", "111"],
+	D: ["110", "101", "101", "101", "110"],
+	E: ["111", "100", "110", "100", "111"],
+	F: ["111", "100", "110", "100", "100"],
+	G: ["111", "100", "101", "101", "111"],
+	H: ["101", "101", "111", "101", "101"],
+	I: ["111", "010", "010", "010", "111"],
+	J: ["001", "001", "001", "101", "111"],
+	K: ["101", "101", "110", "101", "101"],
+	L: ["100", "100", "100", "100", "111"],
+	M: ["101", "111", "111", "101", "101"],
+	N: ["101", "111", "111", "111", "101"],
+	O: ["111", "101", "101", "101", "111"],
+	P: ["111", "101", "111", "100", "100"],
+	Q: ["111", "101", "101", "111", "001"],
+	R: ["111", "101", "111", "110", "101"],
+	S: ["111", "100", "111", "001", "111"],
+	T: ["111", "010", "010", "010", "010"],
+	U: ["101", "101", "101", "101", "111"],
+	V: ["101", "101", "101", "101", "010"],
+	W: ["101", "101", "111", "111", "101"],
+	X: ["101", "101", "010", "101", "101"],
+	Y: ["101", "101", "010", "010", "010"],
+	Z: ["111", "001", "010", "100", "111"],
+};
+
+export function createCabinetPreviewGlb(
+	profile: CabinetProfile,
+): CabinetPreviewGlb {
+	const layout = createCabinetPreviewLayout(profile);
+	return {
+		schema: "vessel-cabinet-preview-glb/v1",
+		mimeType: "model/gltf-binary",
+		bytes: encodeMetadataGlb("vessel-cabinet-preview-glb/v1", {
+			profile,
+			layout,
+			generated: true,
+		}),
+		preview: { layout },
+	};
+}
+
+function encodeMetadataGlb(schema: string, metadata: unknown): Uint8Array {
+	const jsonBytes = new TextEncoder().encode(
+		JSON.stringify({
+			asset: {
+				version: "2.0",
+				generator: "@vessel-dsp/cabinet",
+				extras: metadata,
+			},
+			scene: 0,
+			scenes: [{ nodes: [0] }],
+			nodes: [{ name: schema, extras: metadata }],
+		}),
+	);
+	const paddedJsonLength = align4(jsonBytes.byteLength);
+	const totalLength = 12 + 8 + paddedJsonLength;
+	const bytes = new Uint8Array(totalLength);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(0, 0x46546c67, true);
+	view.setUint32(4, 2, true);
+	view.setUint32(8, totalLength, true);
+	view.setUint32(12, paddedJsonLength, true);
+	view.setUint32(16, 0x4e4f534a, true);
+	bytes.set(jsonBytes, 20);
+	bytes.fill(0x20, 20 + jsonBytes.byteLength, 20 + paddedJsonLength);
+	return bytes;
+}
+
+function align4(value: number): number {
+	return Math.ceil(value / 4) * 4;
+}
+
+function positiveOrDefault(value: number | undefined, fallback: number): number {
+	return typeof value === "number" && Number.isFinite(value) && value > 0
+		? value
+		: fallback;
+}
+
+function roundMm(value: number): number {
+	return Math.round(value * 1000) / 1000;
+}

@@ -28,6 +28,9 @@ import {
 	validateStompboxGlbAssetFile,
 	validateStompboxHardwareProfileAssets,
 } from "@vessel-dsp/stompbox/node";
+import { createAmpPreviewLayout } from "@vessel-dsp/amp";
+import { createCabinetPreviewLayout } from "@vessel-dsp/cabinet";
+import { resolvePreviewEffectPreset } from "@vessel-dsp/visual-effects";
 import { fileURLToPath } from "node:url";
 import { rewriteRelativeEsmSpecifiers } from "../scripts/fix-dist-imports";
 
@@ -153,6 +156,9 @@ function shouldScanRepositoryPath(path: string): boolean {
 		path.startsWith("packages/core/dist/") ||
 		path.startsWith("packages/stompbox/dist/") ||
 		path.startsWith("packages/control-ui/dist/") ||
+		path.startsWith("packages/visual-effects/dist/") ||
+		path.startsWith("packages/amp/dist/") ||
+		path.startsWith("packages/cabinet/dist/") ||
 		path.startsWith("gh-pages/") ||
 		path === "bun.lock"
 	);
@@ -232,6 +238,9 @@ describe("workspace package contract", () => {
 		expect(scripts.build).toContain("packages/core");
 		expect(scripts.build).toContain("packages/stompbox");
 		expect(scripts.build).toContain("packages/control-ui");
+		expect(scripts.build).toContain("packages/visual-effects");
+		expect(scripts.build).toContain("packages/amp");
+		expect(scripts.build).toContain("packages/cabinet");
 		for (const packageDir of removedWorkspacePackageDirs) {
 			expect(scripts.build).not.toContain(packageDir);
 		}
@@ -244,6 +253,9 @@ describe("workspace package contract", () => {
 		expect(scripts["pack:dry-run"]).toContain("packages/core");
 		expect(scripts["pack:dry-run"]).toContain("packages/stompbox");
 		expect(scripts["pack:dry-run"]).toContain("packages/control-ui");
+		expect(scripts["pack:dry-run"]).toContain("packages/visual-effects");
+		expect(scripts["pack:dry-run"]).toContain("packages/amp");
+		expect(scripts["pack:dry-run"]).toContain("packages/cabinet");
 		for (const packageDir of removedWorkspacePackageDirs) {
 			expect(scripts["pack:dry-run"]).not.toContain(packageDir);
 		}
@@ -345,6 +357,55 @@ describe("workspace package contract", () => {
 		expect(devDeps.react).toBeDefined();
 		expect(devDeps["react-dom"]).toBeDefined();
 		expect(devDeps["react-test-renderer"]).toBeDefined();
+	});
+
+	test("visual-effects package publishes reusable Three.js preview effects", async () => {
+		const pkg = await readPackageJson("visual-effects");
+		const deps = runtimeDependencies(pkg);
+
+		expect(pkg.name).toBe("@vessel-dsp/visual-effects");
+		expect(pkg.private).not.toBe(true);
+		expect(pkg.type).toBe("module");
+		expect(pkg.sideEffects).toBe(false);
+		expect(pkg.main).toBe("./dist/index.js");
+		expect(pkg.module).toBe("./dist/index.js");
+		expect(pkg.types).toBe("./dist/index.d.ts");
+		expectExport(pkg.exports, ".", {
+			importPath: "./dist/index.js",
+			typesPath: "./dist/index.d.ts",
+		});
+		expect(deps.three).toBeDefined();
+		expectNoReactRuntimeDependency(pkg);
+		expect(typeof resolvePreviewEffectPreset).toBe("function");
+	});
+
+	test("amp and cabinet packages publish generated 3D visualization APIs", async () => {
+		const amp = await readPackageJson("amp");
+		const cabinet = await readPackageJson("cabinet");
+		const ampDeps = runtimeDependencies(amp);
+		const cabinetDeps = runtimeDependencies(cabinet);
+
+		expect(amp.name).toBe("@vessel-dsp/amp");
+		expect(cabinet.name).toBe("@vessel-dsp/cabinet");
+		for (const pkg of [amp, cabinet]) {
+			expect(pkg.private).not.toBe(true);
+			expect(pkg.type).toBe("module");
+			expect(pkg.sideEffects).toBe(false);
+			expect(pkg.main).toBe("./dist/index.js");
+			expect(pkg.module).toBe("./dist/index.js");
+			expect(pkg.types).toBe("./dist/index.d.ts");
+			expectExport(pkg.exports, ".", {
+				importPath: "./dist/index.js",
+				typesPath: "./dist/index.d.ts",
+			});
+			expectNoReactRuntimeDependency(pkg);
+		}
+		expect(ampDeps.three).toBeDefined();
+		expect(ampDeps["@vessel-dsp/visual-effects"]).toBeDefined();
+		expect(cabinetDeps.three).toBeDefined();
+		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBeDefined();
+		expect(typeof createAmpPreviewLayout).toBe("function");
+		expect(typeof createCabinetPreviewLayout).toBe("function");
 	});
 
 	test("stompbox package keeps named demo presets out of the library source", async () => {
@@ -488,7 +549,14 @@ describe("workspace package contract", () => {
 	});
 
 	test("declares the MIT license and includes docs in publishable packages", async () => {
-		for (const packageDir of ["core", "stompbox", "control-ui"]) {
+		for (const packageDir of [
+			"core",
+			"stompbox",
+			"control-ui",
+			"visual-effects",
+			"amp",
+			"cabinet",
+		]) {
 			const pkg = await readPackageJson(packageDir);
 			expect(pkg.license).toBe("MIT");
 			expect(Array.isArray(pkg.files)).toBe(true);
@@ -537,7 +605,14 @@ describe("workspace package contract", () => {
 	});
 
 	test("publishable packages publish built dist artifacts without source fallback", async () => {
-		for (const packageDir of ["core", "stompbox", "control-ui"]) {
+		for (const packageDir of [
+			"core",
+			"stompbox",
+			"control-ui",
+			"visual-effects",
+			"amp",
+			"cabinet",
+		]) {
 			const pkg = await readPackageJson(packageDir);
 			const files = Array.isArray(pkg.files) ? pkg.files : [];
 			const scripts = isRecord(pkg.scripts) ? pkg.scripts : {};
@@ -566,6 +641,9 @@ describe("workspace package contract", () => {
 			await readPackageJson("core"),
 			await readPackageJson("stompbox"),
 			await readPackageJson("control-ui"),
+			await readPackageJson("visual-effects"),
+			await readPackageJson("amp"),
+			await readPackageJson("cabinet"),
 		];
 
 		for (const pkg of packages) {
@@ -621,6 +699,9 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("- core");
 		expect(workflow).toContain("- control-ui");
 		expect(workflow).toContain("- stompbox");
+		expect(workflow).toContain("- visual-effects");
+		expect(workflow).toContain("- amp");
+		expect(workflow).toContain("- cabinet");
 		expect(workflow).toContain("push:");
 		expect(workflow).toContain("tags:");
 		expect(workflow).toContain("- 'v*'");
@@ -637,6 +718,9 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("inputs.package == 'core'");
 		expect(workflow).toContain("inputs.package == 'control-ui'");
 		expect(workflow).toContain("inputs.package == 'stompbox'");
+		expect(workflow).toContain("inputs.package == 'visual-effects'");
+		expect(workflow).toContain("inputs.package == 'amp'");
+		expect(workflow).toContain("inputs.package == 'cabinet'");
 		expect(workflow).toContain("name: Verify all packages");
 		expect(workflow).toContain("run: bun run pack:dry-run");
 		expect(workflow).toContain("name: Verify core package");
@@ -649,6 +733,16 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain(
 			"run: bun run --cwd packages/stompbox pack:dry-run",
 		);
+		expect(workflow).toContain("name: Verify visual-effects package");
+		expect(workflow).toContain(
+			"run: bun run --cwd packages/visual-effects pack:dry-run",
+		);
+		expect(workflow).toContain("name: Verify amp package");
+		expect(workflow).toContain("run: bun run --cwd packages/amp pack:dry-run");
+		expect(workflow).toContain("name: Verify cabinet package");
+		expect(workflow).toContain(
+			"run: bun run --cwd packages/cabinet pack:dry-run",
+		);
 		expect(workflow).toContain(
 			"npm publish --workspace @vessel-dsp/core --access public --provenance",
 		);
@@ -657,6 +751,15 @@ describe("npm publish workflow", () => {
 		);
 		expect(workflow).toContain(
 			"npm publish --workspace @vessel-dsp/stompbox --access public --provenance",
+		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/visual-effects --access public --provenance",
+		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/amp --access public --provenance",
+		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/cabinet --access public --provenance",
 		);
 		expect(workflow.indexOf("@vessel-dsp/core")).toBeLessThan(
 			workflow.indexOf("@vessel-dsp/control-ui"),
@@ -697,6 +800,9 @@ describe("README package metadata", () => {
 			"(https://www.npmjs.com/package/@vessel-dsp/core)",
 		);
 		expect(readme).toContain("@vessel-dsp/control-ui");
+		expect(readme).toContain("@vessel-dsp/visual-effects");
+		expect(readme).toContain("@vessel-dsp/amp");
+		expect(readme).toContain("@vessel-dsp/cabinet");
 		expect(readme).toContain("Optional React controls");
 		for (const packageName of removedScopedPackageNames) {
 			expect(readme).not.toContain(packageName);

@@ -8,6 +8,8 @@
 - Add physical mount metadata for concentric panel controls, including `mountId`/`surface` parsing, model types, validation, and `.vdsp` round-trip coverage.
 - Add stompbox concentric control support that collapses stacked dial surfaces into one drill hole while preserving per-surface preview and layout metadata.
 - Add Control UI rendering for concentric knobs and panel jacks, plus docs for control semantics, physical controls, and CAD-style preview linework.
+- Add `@vessel-dsp/visual-effects` for reusable Three.js toon, grain, and glitch preview effects.
+- Add `@vessel-dsp/amp` and `@vessel-dsp/cabinet` for generated profile-based Three.js object graphs and GLB preview metadata.
 
 ## 0.6.4
 

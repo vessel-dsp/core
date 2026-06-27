@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import {
+	createPreviewEffectPipeline,
+	resolvePreviewEffectPreset,
+	VESSEL_PREVIEW_EFFECT_DEFAULTS,
+} from "@vessel-dsp/visual-effects";
 import { CRTShader } from "./vendor/crt-shader.js";
 import { DigitalGlitch } from "./vendor/glitch-shader.js";
 
@@ -18,23 +23,14 @@ const LED_OFF_COLOR = "#064e3b";
 const DEFAULT_BACKGROUND_COLOR = "#091833";
 const DEFAULT_GRID_COLOR = "#cccccc";
 const DEFAULT_GRID_OPACITY = 0.3;
-const DEFAULT_TOON_EDGE_COLOR = "#69145a";
-const DEFAULT_GRAIN_SCALE = 1.15;
-const DEFAULT_GRAIN_INTENSITY = 0.1;
+const DEFAULT_GRID_SIZE_PX = 24;
+const DEFAULT_GRID_LINE_WIDTH_PX = 1;
 const GRAIN_INTENSITY_SCALE = 0.35;
-const DEFAULT_CRT_CURVATURE = 0.15;
-const DEFAULT_CRT_SCANLINE_INTENSITY = 0.2;
-const DEFAULT_CRT_SCANLINE_COUNT = 500;
-const DEFAULT_CRT_VIGNETTE = 0.3;
-const DEFAULT_CRT_RGB_SHIFT = 1.0;
-const DEFAULT_CRT_FLICKER = 0.05;
-const DEFAULT_CRT_BLOOM_INTENSITY = 0.6;
-const DEFAULT_CRT_BLOOM_THRESHOLD = 0.2;
 const CRT_RENDER_TARGET_SAMPLES = 4;
-const DEFAULT_GLITCH_INTERVAL_SECONDS = 8;
 const GLITCH_BURST_MIN_MS = 120;
 const GLITCH_BURST_MAX_MS = 340;
 const GLITCH_DISPLACEMENT_TEXTURE_SIZE = 64;
+const GLITCH_STRIP_WIDTH = 0.012;
 const TOON_OUTLINE_SCALE = 1.02;
 const liveStateStores = new WeakMap();
 const parentWorldScaleScratch = new THREE.Vector3();
@@ -56,6 +52,7 @@ for (const group of document.querySelectorAll(
 	}
 	group.dataset.presetLinkedAssetsReady = "true";
 	initPresetLinkedAssets(group);
+	initEffectToggleControls(group);
 }
 
 function initStompboxViewer(viewer) {
@@ -107,16 +104,17 @@ function initStompboxViewer(viewer) {
 	let loadToken = 0;
 
 	const loader = new GLTFLoader();
+	const selectedPreset = () =>
+		presets.find((preset) => preset.id === select?.value) ?? presets[0];
 	if (select instanceof HTMLSelectElement) {
 		select.addEventListener("change", () => {
-			const nextPreset =
-				presets.find((preset) => preset.id === select.value) ?? presets[0];
-			loadPreset(nextPreset);
+			loadPreset(selectedPreset());
 		});
 	}
-	loadPreset(
-		presets.find((preset) => preset.id === select?.value) ?? presets[0],
-	);
+	viewer.addEventListener("stompbox-effect-controls-change", () => {
+		loadPreset(selectedPreset());
+	});
+	loadPreset(selectedPreset());
 
 	function resize() {
 		const width = Math.max(1, viewer.clientWidth);
@@ -159,37 +157,53 @@ function initStompboxViewer(viewer) {
 		if (preset === undefined) {
 			return;
 		}
+		const activePreset = applyEffectToggleState(viewer, preset);
+		const effectPipeline = createPreviewEffectPipeline(
+			{
+				...activePreset,
+				glitchIntervalSeconds: activePreset.glitchInterval,
+				reducedMotion: reducedMotionQuery.matches,
+			},
+			{
+				crtBackground: previewCrtBackgroundForPreset(activePreset),
+			},
+		);
+		const visualPreset = {
+			...activePreset,
+			...effectPipeline.materialPreset,
+			glitchInterval: effectPipeline.screenPreset.glitchIntervalSeconds,
+		};
 		const token = loadToken + 1;
 		loadToken = token;
-		viewMode = preset.view === "top" ? "top" : "orbit";
+		viewMode = visualPreset.view === "top" ? "top" : "orbit";
 		camera = viewMode === "top" ? topCamera : orbitCamera;
 		orthographicTopSize = undefined;
 		modelRoot.clear();
-		viewer.dataset.glbSrc = preset.src;
+		viewer.dataset.glbSrc = visualPreset.src;
 		viewer.dataset.viewMode = viewMode;
-		viewer.dataset.interactive = preset.interactive ? "true" : "false";
-		viewer.dataset.linework = preset.linework ? "true" : "false";
-		viewer.dataset.lineworkColor = preset.lineworkColor;
-		viewer.dataset.toon = preset.toon ? "true" : "false";
-		viewer.dataset.toonEdgeColor = preset.toonEdgeColor;
-		viewer.dataset.grain = preset.grain ? "true" : "false";
-		viewer.dataset.grainScale = String(preset.grainScale);
-		viewer.dataset.grainIntensity = String(preset.grainIntensity);
-		viewer.dataset.crt = preset.crt ? "true" : "false";
-		viewer.dataset.glitch = preset.glitch ? "true" : "false";
-		crt.configure(preset, reducedMotionQuery.matches);
-		glitch.configure(preset, reducedMotionQuery.matches);
-		applyPresetBackground(viewer, preset);
+		viewer.dataset.interactive = visualPreset.interactive ? "true" : "false";
+		viewer.dataset.linework = visualPreset.linework ? "true" : "false";
+		viewer.dataset.lineworkColor = visualPreset.lineworkColor;
+		viewer.dataset.toon = visualPreset.toon ? "true" : "false";
+		viewer.dataset.toonEdgeColor = visualPreset.toonEdgeColor;
+		viewer.dataset.grain = visualPreset.grain ? "true" : "false";
+		viewer.dataset.grainScale = String(visualPreset.grainScale);
+		viewer.dataset.grainIntensity = String(visualPreset.grainIntensity);
+		viewer.dataset.crt = visualPreset.crt ? "true" : "false";
+		viewer.dataset.glitch = visualPreset.glitch ? "true" : "false";
+		crt.configure(effectPipeline);
+		glitch.configure(effectPipeline.screenPreset, reducedMotionQuery.matches);
+		applyPresetBackground(viewer, visualPreset);
 		viewer.dataset.viewerLoaded = "false";
 		unregisterLiveStateViewer(viewer);
-		configureControls(preset);
+		configureControls(visualPreset);
 		if (status !== null) {
 			status.hidden = false;
-			status.textContent = `Loading ${preset.label}`;
+			status.textContent = `Loading ${visualPreset.label}`;
 		}
 		resize();
 		loader.load(
-			preset.src,
+			visualPreset.src,
 			(gltf) => {
 				if (token !== loadToken) {
 					return;
@@ -215,20 +229,20 @@ function initStompboxViewer(viewer) {
 						}
 					}
 				});
-				if (preset.toon) {
-					applyToonMaterials(model, preset);
+				if (visualPreset.toon) {
+					applyToonMaterials(model, visualPreset);
 				}
 				// In toon mode the outline pass owns the edges, so the CAD
 				// linework pass (and its lineworkColor) only applies when toon
 				// is off; otherwise it would just redraw the same edges.
-				if (preset.linework && !preset.toon) {
-					addCadLinework(model, preset.lineworkColor);
+				if (visualPreset.linework && !visualPreset.toon) {
+					addCadLinework(model, visualPreset.lineworkColor);
 				}
-				if (preset.toon) {
-					addToonOutline(model, preset.toonEdgeColor);
+				if (visualPreset.toon) {
+					addToonOutline(model, visualPreset.toonEdgeColor);
 				}
-				if (!preset.crt) {
-					applyScreenGrainMaterials(model, preset);
+				if (!visualPreset.crt) {
+					applyScreenGrainMaterials(model, visualPreset);
 				}
 				modelRoot.add(model);
 				const aspect =
@@ -312,12 +326,7 @@ function liveStateEnabledForViewer(viewer) {
 		return true;
 	}
 	const group = viewer.closest("[data-stompbox-preview-preset-group]");
-	return (
-		group !== null &&
-		group.querySelector(
-			'[data-stompbox-glb-viewer][data-live-state-demo="true"]',
-		) !== null
-	);
+	return group !== null && group.querySelector('[data-stompbox-glb-viewer][data-live-state-demo="true"]') !== null;
 }
 
 function liveStateStoreForViewer(viewer) {
@@ -1041,6 +1050,64 @@ function initPresetLinkedAssets(group) {
 	update();
 }
 
+function initEffectToggleControls(group) {
+	const controls = group.querySelector("[data-stompbox-effect-controls]");
+	if (!(controls instanceof HTMLElement)) {
+		return;
+	}
+	controls.addEventListener("change", (event) => {
+		if (!(event.target instanceof HTMLInputElement)) {
+			return;
+		}
+		if (event.target.dataset.effectToggle === undefined) {
+			return;
+		}
+		for (const viewer of group.querySelectorAll("[data-stompbox-glb-viewer]")) {
+			viewer.dispatchEvent(new CustomEvent("stompbox-effect-controls-change"));
+		}
+	});
+}
+
+function applyEffectToggleState(viewer, preset) {
+	const group = viewer.closest("[data-stompbox-preview-preset-group]");
+	const controls = group?.querySelector("[data-stompbox-effect-controls]");
+	if (!(controls instanceof HTMLElement)) {
+		return preset;
+	}
+	const nextPreset = { ...preset };
+	for (const input of controls.querySelectorAll("[data-effect-toggle]")) {
+		if (!(input instanceof HTMLInputElement)) {
+			continue;
+		}
+		const key = input.dataset.effectToggle;
+		if (
+			key !== "toon" &&
+			key !== "grain" &&
+			key !== "glitch" &&
+			key !== "crt"
+		) {
+			continue;
+		}
+		nextPreset[key] = input.checked;
+	}
+	return nextPreset;
+}
+
+function previewCrtBackgroundForPreset(preset) {
+	return {
+		enabled: true,
+		backgroundColor:
+			typeof preset.backgroundColor === "string"
+				? preset.backgroundColor
+				: DEFAULT_BACKGROUND_COLOR,
+		gridColor:
+			typeof preset.gridColor === "string" ? preset.gridColor : DEFAULT_GRID_COLOR,
+		gridOpacity: normalizeGridOpacity(preset.gridOpacity, DEFAULT_GRID_OPACITY),
+		gridSizePx: DEFAULT_GRID_SIZE_PX,
+		gridLineWidthPx: DEFAULT_GRID_LINE_WIDTH_PX,
+	};
+}
+
 function updatePresetLinkedAssets(group, preset) {
 	if (preset === undefined) {
 		return;
@@ -1076,7 +1143,7 @@ function parseGroupPresetOptions(group) {
 	if (presetsJson === undefined) {
 		return [];
 	}
-	const fallback = {
+	const defaultPreset = {
 		id: "default",
 		label: "Stompbox preset",
 		src: "",
@@ -1088,21 +1155,24 @@ function parseGroupPresetOptions(group) {
 		gridColor: DEFAULT_GRID_COLOR,
 		gridOpacity: DEFAULT_GRID_OPACITY,
 		toon: false,
-		toonEdgeColor: DEFAULT_TOON_EDGE_COLOR,
+		toonEdgeColor: VESSEL_PREVIEW_EFFECT_DEFAULTS.toonEdgeColor,
 		grain: false,
-		grainScale: DEFAULT_GRAIN_SCALE,
-		grainIntensity: DEFAULT_GRAIN_INTENSITY,
+		grainScale: VESSEL_PREVIEW_EFFECT_DEFAULTS.grainScale,
+		grainIntensity: VESSEL_PREVIEW_EFFECT_DEFAULTS.grainIntensity,
 		crt: false,
-		crtCurvature: DEFAULT_CRT_CURVATURE,
-		crtScanlineIntensity: DEFAULT_CRT_SCANLINE_INTENSITY,
-		crtScanlineCount: DEFAULT_CRT_SCANLINE_COUNT,
-		crtVignette: DEFAULT_CRT_VIGNETTE,
-		crtRgbShift: DEFAULT_CRT_RGB_SHIFT,
-		crtFlicker: DEFAULT_CRT_FLICKER,
-		crtBloomIntensity: DEFAULT_CRT_BLOOM_INTENSITY,
-		crtBloomThreshold: DEFAULT_CRT_BLOOM_THRESHOLD,
+		crtCurvature: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtCurvature,
+		crtScanlineIntensity: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtScanlineIntensity,
+		crtScanlineCount: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtScanlineCount,
+		crtVignette: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtVignette,
+		crtRgbShift: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtRgbShift,
+		crtFlicker: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtFlicker,
+		crtBrightness: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBrightness,
+		crtContrast: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtContrast,
+		crtSaturation: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtSaturation,
+		crtBloomIntensity: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBloomIntensity,
+		crtBloomThreshold: VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBloomThreshold,
 		glitch: false,
-		glitchInterval: DEFAULT_GLITCH_INTERVAL_SECONDS,
+		glitchInterval: VESSEL_PREVIEW_EFFECT_DEFAULTS.glitchIntervalSeconds,
 	};
 	try {
 		const parsed = JSON.parse(presetsJson);
@@ -1110,7 +1180,7 @@ function parseGroupPresetOptions(group) {
 			return [];
 		}
 		return parsed.flatMap((preset, index) =>
-			normalizePresetOption(preset, index, fallback),
+			normalizePresetOption(preset, index, defaultPreset),
 		);
 	} catch (error) {
 		console.error("Failed to parse stompbox preview presets", error);
@@ -1132,57 +1202,79 @@ function parsePresetOptions(viewer, src) {
 		DEFAULT_GRID_OPACITY,
 	);
 	const toonEnabled = viewer.dataset.toon === "true";
-	const toonEdgeColor = viewer.dataset.toonEdgeColor ?? DEFAULT_TOON_EDGE_COLOR;
+	const toonEdgeColor = viewer.dataset.toonEdgeColor ?? VESSEL_PREVIEW_EFFECT_DEFAULTS.toonEdgeColor;
 	const grainEnabled = viewer.dataset.grain === "true";
 	const grainScale = normalizePositiveNumber(
 		viewer.dataset.grainScale,
-		DEFAULT_GRAIN_SCALE,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.grainScale,
 	);
 	const grainIntensity = normalizeUnitInterval(
 		viewer.dataset.grainIntensity,
-		DEFAULT_GRAIN_INTENSITY,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.grainIntensity,
 	);
 	const crtEnabled = viewer.dataset.crt === "true";
 	const crtCurvature = normalizeUnitInterval(
 		viewer.dataset.crtCurvature,
-		DEFAULT_CRT_CURVATURE,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtCurvature,
 	);
 	const crtScanlineIntensity = normalizeUnitInterval(
 		viewer.dataset.crtScanlineIntensity,
-		DEFAULT_CRT_SCANLINE_INTENSITY,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtScanlineIntensity,
 	);
 	const crtScanlineCount = normalizePositiveNumber(
 		viewer.dataset.crtScanlineCount,
-		DEFAULT_CRT_SCANLINE_COUNT,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtScanlineCount,
 	);
 	const crtVignette = normalizeUnitInterval(
 		viewer.dataset.crtVignette,
-		DEFAULT_CRT_VIGNETTE,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtVignette,
 	);
 	const crtRgbShift = normalizeUnitInterval(
 		viewer.dataset.crtRgbShift,
-		DEFAULT_CRT_RGB_SHIFT,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtRgbShift,
 	);
 	const crtFlicker = normalizeUnitInterval(
 		viewer.dataset.crtFlicker,
-		DEFAULT_CRT_FLICKER,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtFlicker,
+	);
+	const crtBrightness = normalizeNonNegativeNumber(
+		viewer.dataset.crtBrightness,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBrightness,
+	);
+	const crtContrast = normalizeNonNegativeNumber(
+		viewer.dataset.crtContrast,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtContrast,
+	);
+	const crtSaturation = normalizeNonNegativeNumber(
+		viewer.dataset.crtSaturation,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtSaturation,
 	);
 	const crtBloomIntensity = normalizeNonNegativeNumber(
 		viewer.dataset.crtBloomIntensity,
-		DEFAULT_CRT_BLOOM_INTENSITY,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBloomIntensity,
 	);
 	const crtBloomThreshold = normalizeUnitInterval(
 		viewer.dataset.crtBloomThreshold,
-		DEFAULT_CRT_BLOOM_THRESHOLD,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.crtBloomThreshold,
 	);
 	const glitchEnabled = viewer.dataset.glitch === "true";
 	const glitchInterval = normalizePositiveNumber(
 		viewer.dataset.glitchInterval,
-		DEFAULT_GLITCH_INTERVAL_SECONDS,
+		VESSEL_PREVIEW_EFFECT_DEFAULTS.glitchIntervalSeconds,
 	);
+	const effectPreset = resolvePreviewEffectPreset({
+		schema: "vessel-preview-effects/v1",
+		toon: toonEnabled,
+		toonEdgeColor,
+		grain: grainEnabled,
+		grainScale,
+		grainIntensity,
+		glitch: glitchEnabled,
+		glitchIntervalSeconds: glitchInterval,
+	});
 	const presetsJson =
 		viewer.dataset.stompboxPresets ?? group?.dataset.stompboxPresets;
-	const fallback = {
+	const defaultPreset = {
 		id: "default",
 		label:
 			viewer.querySelector("canvas")?.getAttribute("aria-label") ??
@@ -1195,11 +1287,11 @@ function parsePresetOptions(viewer, src) {
 		backgroundColor,
 		gridColor,
 		gridOpacity,
-		toon: toonEnabled,
-		toonEdgeColor,
-		grain: grainEnabled,
-		grainScale,
-		grainIntensity,
+		toon: effectPreset.toon,
+		toonEdgeColor: effectPreset.toonEdgeColor,
+		grain: effectPreset.grain,
+		grainScale: effectPreset.grainScale,
+		grainIntensity: effectPreset.grainIntensity,
 		crt: crtEnabled,
 		crtBloomIntensity,
 		crtBloomThreshold,
@@ -1209,64 +1301,81 @@ function parsePresetOptions(viewer, src) {
 		crtVignette,
 		crtRgbShift,
 		crtFlicker,
-		glitch: glitchEnabled,
-		glitchInterval,
+		crtBrightness,
+		crtContrast,
+		crtSaturation,
+		glitch: effectPreset.glitch,
+		glitchInterval: effectPreset.glitchIntervalSeconds,
 	};
 	if (presetsJson === undefined) {
-		return [fallback];
+		return [defaultPreset];
 	}
 	try {
 		const parsed = JSON.parse(presetsJson);
 		if (!Array.isArray(parsed)) {
-			return [fallback];
+			return [defaultPreset];
 		}
 		const presets = parsed.flatMap((preset, index) =>
-			normalizePresetOption(preset, index, fallback),
+			normalizePresetOption(preset, index, defaultPreset),
 		);
-		return presets.length === 0 ? [fallback] : presets;
+		return presets.length === 0 ? [defaultPreset] : presets;
 	} catch (error) {
 		console.error("Failed to parse stompbox preview presets", error);
-		return [fallback];
+		return [defaultPreset];
 	}
 }
 
-function normalizePresetOption(preset, index, fallback) {
+function normalizePresetOption(preset, index, defaultPreset) {
 	if (preset === null || typeof preset !== "object") {
 		return [];
 	}
 	const src =
 		typeof preset.src === "string" && preset.src.length > 0
 			? preset.src
-			: fallback.src;
+			: defaultPreset.src;
 	const view =
 		preset.view === "top" || preset.view === "orbit"
 			? preset.view
-			: fallback.view;
+			: defaultPreset.view;
 	const lineworkColor =
 		typeof preset.lineworkColor === "string"
 			? preset.lineworkColor
-			: fallback.lineworkColor;
+			: defaultPreset.lineworkColor;
 	const backgroundColor =
 		typeof preset.backgroundColor === "string" &&
 		preset.backgroundColor.length > 0
 			? preset.backgroundColor
-			: fallback.backgroundColor;
+			: defaultPreset.backgroundColor;
 	const gridColor =
 		typeof preset.gridColor === "string" && preset.gridColor.length > 0
 			? preset.gridColor
-			: fallback.gridColor;
+			: defaultPreset.gridColor;
 	const toonEdgeColor =
 		typeof preset.toonEdgeColor === "string" && preset.toonEdgeColor.length > 0
 			? preset.toonEdgeColor
-			: fallback.toonEdgeColor;
+			: defaultPreset.toonEdgeColor;
 	const grainScale = normalizePositiveNumber(
 		preset.grainScale,
-		fallback.grainScale,
+		defaultPreset.grainScale,
 	);
 	const grainIntensity = normalizeUnitInterval(
 		preset.grainIntensity,
-		fallback.grainIntensity,
+		defaultPreset.grainIntensity,
 	);
+	const effectPreset = resolvePreviewEffectPreset({
+		schema: "vessel-preview-effects/v1",
+		toon: typeof preset.toon === "boolean" ? preset.toon : defaultPreset.toon,
+		toonEdgeColor,
+		grain: typeof preset.grain === "boolean" ? preset.grain : defaultPreset.grain,
+		grainScale,
+		grainIntensity,
+		glitch:
+			typeof preset.glitch === "boolean" ? preset.glitch : defaultPreset.glitch,
+		glitchIntervalSeconds: normalizePositiveNumber(
+			preset.glitchInterval,
+			defaultPreset.glitchInterval,
+		),
+	});
 	return [
 		{
 			id:
@@ -1286,55 +1395,63 @@ function normalizePresetOption(preset, index, fallback) {
 			linework:
 				typeof preset.linework === "boolean"
 					? preset.linework
-					: fallback.linework,
+					: defaultPreset.linework,
 			lineworkColor,
 			backgroundColor,
 			gridColor,
 			gridOpacity: normalizeGridOpacity(
 				preset.gridOpacity,
-				fallback.gridOpacity,
+				defaultPreset.gridOpacity,
 			),
-			toon: typeof preset.toon === "boolean" ? preset.toon : fallback.toon,
-			toonEdgeColor,
-			grain: typeof preset.grain === "boolean" ? preset.grain : fallback.grain,
-			grainScale,
-			grainIntensity,
-			crt: typeof preset.crt === "boolean" ? preset.crt : fallback.crt,
+			toon: effectPreset.toon,
+			toonEdgeColor: effectPreset.toonEdgeColor,
+			grain: effectPreset.grain,
+			grainScale: effectPreset.grainScale,
+			grainIntensity: effectPreset.grainIntensity,
+			crt: typeof preset.crt === "boolean" ? preset.crt : defaultPreset.crt,
 			crtCurvature: normalizeUnitInterval(
 				preset.crtCurvature,
-				fallback.crtCurvature,
+				defaultPreset.crtCurvature,
 			),
 			crtScanlineIntensity: normalizeUnitInterval(
 				preset.crtScanlineIntensity,
-				fallback.crtScanlineIntensity,
+				defaultPreset.crtScanlineIntensity,
 			),
 			crtScanlineCount: normalizePositiveNumber(
 				preset.crtScanlineCount,
-				fallback.crtScanlineCount,
+				defaultPreset.crtScanlineCount,
 			),
 			crtVignette: normalizeUnitInterval(
 				preset.crtVignette,
-				fallback.crtVignette,
+				defaultPreset.crtVignette,
 			),
 			crtRgbShift: normalizeUnitInterval(
 				preset.crtRgbShift,
-				fallback.crtRgbShift,
+				defaultPreset.crtRgbShift,
 			),
-			crtFlicker: normalizeUnitInterval(preset.crtFlicker, fallback.crtFlicker),
+			crtFlicker: normalizeUnitInterval(preset.crtFlicker, defaultPreset.crtFlicker),
+			crtBrightness: normalizeNonNegativeNumber(
+				preset.crtBrightness,
+				defaultPreset.crtBrightness,
+			),
+			crtContrast: normalizeNonNegativeNumber(
+				preset.crtContrast,
+				defaultPreset.crtContrast,
+			),
+			crtSaturation: normalizeNonNegativeNumber(
+				preset.crtSaturation,
+				defaultPreset.crtSaturation,
+			),
 			crtBloomIntensity: normalizeNonNegativeNumber(
 				preset.crtBloomIntensity,
-				fallback.crtBloomIntensity,
+				defaultPreset.crtBloomIntensity,
 			),
 			crtBloomThreshold: normalizeUnitInterval(
 				preset.crtBloomThreshold,
-				fallback.crtBloomThreshold,
+				defaultPreset.crtBloomThreshold,
 			),
-			glitch:
-				typeof preset.glitch === "boolean" ? preset.glitch : fallback.glitch,
-			glitchInterval: normalizePositiveNumber(
-				preset.glitchInterval,
-				fallback.glitchInterval,
-			),
+			glitch: effectPreset.glitch,
+			glitchInterval: effectPreset.glitchIntervalSeconds,
 			drillTemplateSrc:
 				typeof preset.drillTemplateSrc === "string"
 					? preset.drillTemplateSrc
@@ -1364,45 +1481,39 @@ function applyPresetBackground(viewer, preset) {
 	viewer.dataset.backgroundColor = backgroundColor;
 	viewer.dataset.gridColor = gridColor;
 	viewer.dataset.gridOpacity = String(gridOpacity);
-	viewer.style.setProperty(
-		"--stompbox-viewer-background-color",
-		backgroundColor,
-	);
+	viewer.style.setProperty("--stompbox-viewer-background-color", backgroundColor);
 	viewer.style.setProperty("--stompbox-viewer-grid-color", gridColor);
-	viewer.style.setProperty(
-		"--stompbox-viewer-grid-opacity",
-		String(gridOpacity),
-	);
+	viewer.style.setProperty("--stompbox-viewer-grid-opacity", String(gridOpacity));
 }
 
-function normalizeGridOpacity(value, fallback) {
+function normalizeGridOpacity(value, defaultPreset) {
 	const opacity = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(opacity)) {
-		return fallback;
+		return defaultPreset;
 	}
 	return Math.max(0, Math.min(1, opacity));
 }
 
-function normalizePositiveNumber(value, fallback) {
+function normalizePositiveNumber(value, defaultPreset) {
 	const number = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(number) || number <= 0) {
-		return fallback;
+		return defaultPreset;
 	}
 	return number;
 }
 
-function normalizeUnitInterval(value, fallback) {
+function normalizeUnitInterval(value, defaultPreset) {
 	const number = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(number)) {
-		return fallback;
+		return defaultPreset;
 	}
 	return Math.max(0, Math.min(1, number));
 }
 
-function normalizeNonNegativeNumber(value, fallback) {
+function normalizeNonNegativeNumber(value, defaultPreset) {
 	const number = typeof value === "number" ? value : Number(value);
 	if (!Number.isFinite(number) || number < 0) {
-		return fallback;
+		return defaultPreset;
 	}
 	return number;
 }
@@ -1499,15 +1610,24 @@ function createCrtPostProcessing(renderer) {
 	// Grain is applied in this pass (screen-space, on the final pixel) rather
 	// than per-material: the CRT resample/bloom would otherwise blur fine
 	// material-scoped grain away.
-	uniforms.grainScale = { value: DEFAULT_GRAIN_SCALE };
+	uniforms.grainScale = { value: VESSEL_PREVIEW_EFFECT_DEFAULTS.grainScale };
 	uniforms.grainIntensity = { value: 0 };
 	uniforms.grainIntensityScale = { value: GRAIN_INTENSITY_SCALE };
+	uniforms.previewBackgroundColor = {
+		value: new THREE.Color(DEFAULT_BACKGROUND_COLOR),
+	};
+	uniforms.previewGridColor = { value: new THREE.Color(DEFAULT_GRID_COLOR) };
+	uniforms.previewGridOpacity = { value: DEFAULT_GRID_OPACITY };
+	uniforms.previewGridSpacing = { value: DEFAULT_GRID_SIZE_PX };
+	uniforms.previewGridLineWidth = { value: DEFAULT_GRID_LINE_WIDTH_PX };
+	const initialPipeline = createPreviewEffectPipeline(
+		VESSEL_PREVIEW_EFFECT_DEFAULTS,
+		{ crtBackground: { enabled: true } },
+	);
 	const material = new THREE.ShaderMaterial({
 		uniforms,
 		vertexShader: CRTShader.vertexShader,
-		fragmentShader: crtFragmentShaderWithOutputEncoding(
-			CRTShader.fragmentShader,
-		),
+		fragmentShader: initialPipeline.crtFragmentShader(CRTShader.fragmentShader),
 		transparent: true,
 		depthTest: false,
 		depthWrite: false,
@@ -1531,6 +1651,8 @@ function createCrtPostProcessing(renderer) {
 
 	const drawingBufferSize = new THREE.Vector2();
 	let flickerEnabled = false;
+	let activeGridSizePx = DEFAULT_GRID_SIZE_PX;
+	let activeGridLineWidthPx = DEFAULT_GRID_LINE_WIDTH_PX;
 
 	return {
 		enabled: false,
@@ -1540,8 +1662,13 @@ function createCrtPostProcessing(renderer) {
 				Math.max(1, drawingBufferSize.x),
 				Math.max(1, drawingBufferSize.y),
 			);
+			const pixelRatio = activeRenderer.getPixelRatio();
+			uniforms.previewGridSpacing.value = activeGridSizePx * pixelRatio;
+			uniforms.previewGridLineWidth.value =
+				activeGridLineWidthPx * pixelRatio;
 		},
-		configure(preset, reducedMotion) {
+		configure(pipeline) {
+			const preset = pipeline.screenPreset;
 			this.enabled = preset.crt === true;
 			if (!this.enabled) {
 				return;
@@ -1551,12 +1678,23 @@ function createCrtPostProcessing(renderer) {
 			uniforms.scanlineCount.value = preset.crtScanlineCount;
 			uniforms.vignetteStrength.value = preset.crtVignette;
 			uniforms.rgbShift.value = preset.crtRgbShift;
+			uniforms.brightness.value = preset.crtBrightness;
+			uniforms.contrast.value = preset.crtContrast;
+			uniforms.saturation.value = preset.crtSaturation;
 			uniforms.bloomIntensity.value = preset.crtBloomIntensity;
 			uniforms.bloomThreshold.value = preset.crtBloomThreshold;
 			uniforms.grainScale.value = preset.grainScale;
 			uniforms.grainIntensity.value =
 				preset.grain === true ? preset.grainIntensity : 0;
-			flickerEnabled = reducedMotion !== true && preset.crtFlicker > 0.001;
+			uniforms.previewBackgroundColor.value.set(
+				pipeline.crtBackground.backgroundColor,
+			);
+			uniforms.previewGridColor.value.set(pipeline.crtBackground.gridColor);
+			uniforms.previewGridOpacity.value = pipeline.crtBackground.gridOpacity;
+			activeGridSizePx = pipeline.crtBackground.gridSizePx;
+			activeGridLineWidthPx = pipeline.crtBackground.gridLineWidthPx;
+			flickerEnabled =
+				preset.reducedMotion !== true && preset.crtFlicker > 0.001;
 			uniforms.flickerStrength.value = flickerEnabled ? preset.crtFlicker : 0;
 		},
 		render(activeRenderer, sceneToRender, sceneCamera, frameMs, glitchPass) {
@@ -1594,6 +1732,7 @@ function createGlitchPass() {
 	const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 	const uniforms = THREE.UniformsUtils.clone(DigitalGlitch.uniforms);
 	uniforms.tDisp.value = createGlitchDisplacementTexture();
+	uniforms.col_s.value = GLITCH_STRIP_WIDTH;
 	const material = new THREE.ShaderMaterial({
 		uniforms,
 		vertexShader: DigitalGlitch.vertexShader,
@@ -1624,8 +1763,8 @@ function createGlitchPass() {
 	postScene.add(new THREE.Mesh(geometry, material));
 
 	const drawingBufferSize = new THREE.Vector2();
-	let minGapMs = DEFAULT_GLITCH_INTERVAL_SECONDS * 600;
-	let maxGapMs = DEFAULT_GLITCH_INTERVAL_SECONDS * 1400;
+	let minGapMs = VESSEL_PREVIEW_EFFECT_DEFAULTS.glitchIntervalSeconds * 600;
+	let maxGapMs = VESSEL_PREVIEW_EFFECT_DEFAULTS.glitchIntervalSeconds * 1400;
 	let nextAtMs;
 	let burstEndMs = 0;
 	let hardEndMs = 0;
@@ -1646,9 +1785,11 @@ function createGlitchPass() {
 		configure(preset, reducedMotion) {
 			this.enabled = preset.glitch === true && reducedMotion !== true;
 			const intervalSeconds =
-				preset.glitchInterval > 0
-					? preset.glitchInterval
-					: DEFAULT_GLITCH_INTERVAL_SECONDS;
+				preset.glitchIntervalSeconds > 0
+					? preset.glitchIntervalSeconds
+					: preset.glitchInterval > 0
+						? preset.glitchInterval
+					: VESSEL_PREVIEW_EFFECT_DEFAULTS.glitchIntervalSeconds;
 			minGapMs = intervalSeconds * 600;
 			maxGapMs = intervalSeconds * 1400;
 			nextAtMs = undefined;
@@ -1721,34 +1862,6 @@ function crtRenderTargetSamples(renderer) {
 		return CRT_RENDER_TARGET_SAMPLES;
 	}
 	return Math.max(0, Math.min(CRT_RENDER_TARGET_SAMPLES, maxSamples));
-}
-
-function crtFragmentShaderWithOutputEncoding(fragmentShader) {
-	// The CRT pass runs as a raw ShaderMaterial straight to the default
-	// framebuffer, so Three does not apply its automatic sRGB output
-	// conversion. The scene is sampled from a linear render target, so encode
-	// the final color to sRGB here to match the non-CRT render path.
-	//
-	// Screen-space grain is applied here too, on the final composited pixel,
-	// because the CRT resample (curvature) and bloom blur would otherwise wash
-	// out fine per-material grain rendered into the offscreen target.
-	const grainPars = `varying vec2 vUv;
-
-		uniform float grainScale;
-		uniform float grainIntensity;
-		uniform float grainIntensityScale;
-
-		float stompboxCrtGrainRandom(vec2 value) {
-			return fract(sin(dot(value, vec2(12.9898, 78.233))) * 43758.5453123);
-		}`;
-	const outputEncoding = `float stompboxCrtGrainValue = stompboxCrtGrainRandom(floor(gl_FragCoord.xy / max(grainScale, 0.001)));
-			float stompboxCrtGrainDelta = (stompboxCrtGrainValue - 0.5) * grainIntensity * grainIntensityScale;
-			pixel.rgb = clamp(pixel.rgb + vec3(stompboxCrtGrainDelta), 0.0, 1.0);
-			pixel.rgb = mix(pixel.rgb * 12.92, 1.055 * pow(pixel.rgb, vec3(0.41666)) - 0.055, step(0.0031308, pixel.rgb));
-			gl_FragColor = pixel;`;
-	return fragmentShader
-		.replace("varying vec2 vUv;", grainPars)
-		.replace("gl_FragColor = pixel;", outputEncoding);
 }
 
 function applyToonMaterials(root, preset) {
@@ -1938,7 +2051,7 @@ function addCadLinework(root, lineworkColor = "#111827") {
 	}
 }
 
-function addToonOutline(root, outlineColor = DEFAULT_TOON_EDGE_COLOR) {
+function addToonOutline(root, outlineColor = VESSEL_PREVIEW_EFFECT_DEFAULTS.toonEdgeColor) {
 	const meshes = [];
 	const material = new THREE.MeshBasicMaterial({
 		color: new THREE.Color(outlineColor),

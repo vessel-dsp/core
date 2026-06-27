@@ -1,0 +1,16 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"baseUrl": "../..",
+		"paths": {
+			"@vessel-dsp/visual-effects": [
+				"packages/visual-effects/src/index.ts"
+			],
+			"@vessel-dsp/visual-effects/*": ["packages/visual-effects/src/*"],
+			"@vessel-dsp/amp": ["packages/amp/src/index.ts"],
+			"@vessel-dsp/amp/*": ["packages/amp/src/*"]
+		}
+	},
+	"include": ["src/**/*"]
+}

@@ -13,6 +13,9 @@ The published packages are:
 | `@vessel-dsp/core` | Parse, validate, inspect, and convert circuit documents through `CircuitDocument`, `.vdsp`, LTspice `.asc`, LiveSPICE `.schx`, legacy SPICE netlists, and tscircuit Circuit JSON. |
 | `@vessel-dsp/stompbox` | Turn parsed `.vdsp` or `CircuitDocument` panel data into drill layouts, print templates, preview SVG/GLB artifacts, live preview state patches, and GLB state-target validation. |
 | `@vessel-dsp/control-ui` | Render core `Panel` controls in React with default CSS, class hooks for Tailwind-style customization, and a theme provider. |
+| `@vessel-dsp/visual-effects` | Share Three.js toon, grain, and glitch effect preset helpers across generated preview viewers. |
+| `@vessel-dsp/amp` | Generate deterministic amplifier preview layouts, Three.js object graphs, and GLB preview payloads from compact amp profiles. |
+| `@vessel-dsp/cabinet` | Generate deterministic speaker cabinet preview layouts, Three.js object graphs, and GLB preview payloads from compact cabinet profiles. |
 
 Core and stompbox are headless. They do not ship a browser editor, realtime
 simulator, or custom schematic rendering surface. Core still treats `.vdsp` as
@@ -56,12 +59,28 @@ When `.vdsp` panel placement exists, stompbox preserves it. When common enclosur
 Control UI is intentionally optional. The consuming app still owns parsing,
 state transport, audio runtime integration, and any multi-pedal namespacing.
 
+## Generated 3D preview data flow
+
+```text
+amp / cabinet profile
+  -> profile validation
+  -> deterministic generated layout
+  -> Three.js Object3D / generated GLB preview payload
+  -> optional shared visual-effects preset
+```
+
+Amp and cabinet previews are approximate product visualization, not CAD-exact
+manufacturer models. Use them for realtime browser previews, catalog sketches,
+and generated docs assets where a simple rectangle box, controls, grille, and
+brand/model metadata are enough.
+
 ## Start reading
 
 - [Getting Started](/core/guides/getting-started/) covers installation and a first conversion.
 - [Supported Formats](/core/formats/) explains the conversion contract and lossy export policy.
 - [Pro Co Rat Schematic](/core/examples/pro-co-rat/) walks through a LiveSPICE pedal fixture.
 - [Stompbox Layouts](/core/guides/stompbox/) covers drill templates, previews, generated hardware defaults, and live preview state.
+- [Generated 3D Previews](/core/guides/generated-3d-previews/) covers amp/cabinet profile visualization and reusable Three.js effects.
 - [Controls](/core/guides/controls/) explains how core derives `Panel` controls from imported schematics and `.vdsp` metadata.
 - [Control UI](/core/guides/control-ui/) covers React controls, default CSS, class hooks, and theming.
 - [API Reference](/core/reference/api/readme/) is generated from the public TypeScript entrypoints.

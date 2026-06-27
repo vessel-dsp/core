@@ -21,12 +21,17 @@ use tscircuit tooling to render or edit emitted Circuit JSON.
 | `@vessel-dsp/core` | Public npm package | Parsing, validation, normalized `CircuitDocument` data, `.vdsp` / `.asc` / `.schx` serialization, and Circuit JSON import/export. |
 | `@vessel-dsp/stompbox` | Public npm package | Headless stompbox drill layouts, SVG/GLB previews, physical hardware defaults, live preview state patches, and GLB state-target validation. |
 | `@vessel-dsp/control-ui` | Public npm package | Optional React controls for core `Panel` data, with default CSS, class hooks, and a theme provider. |
+| `@vessel-dsp/visual-effects` | Public npm package | Reusable Three.js toon, grain, and glitch preview effects for generated 3D viewers. |
+| `@vessel-dsp/amp` | Public npm package | Generated Three.js object graphs and GLB previews for amplifier profile visualization. |
+| `@vessel-dsp/cabinet` | Public npm package | Generated Three.js object graphs and GLB previews for speaker cabinet profile visualization. |
 
 ## Install
 
 ```bash
 npm install @vessel-dsp/core
 npm install @vessel-dsp/control-ui react react-dom
+npm install @vessel-dsp/visual-effects three
+npm install @vessel-dsp/amp @vessel-dsp/cabinet three
 ```
 
 ## Convert Through Circuit JSON
