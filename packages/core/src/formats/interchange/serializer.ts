@@ -247,6 +247,9 @@ function deviceInterfaceControlBlock(
 	if (control.order !== undefined) {
 		out.order = control.order;
 	}
+	if (control.audioBinding !== undefined) {
+		out.audioBinding = deviceInterfaceAudioBindingBlock(control.audioBinding);
+	}
 	if (control.binding !== undefined) {
 		out.binding = deviceInterfaceBindingBlock(control.binding);
 	}
@@ -257,6 +260,15 @@ function deviceInterfaceControlBlock(
 		out.description = control.description;
 	}
 	return out;
+}
+
+function deviceInterfaceAudioBindingBlock(
+	binding: NonNullable<DeviceInterfaceControl["audioBinding"]>,
+): MutableYamlObject {
+	return {
+		kind: binding.kind,
+		controlName: binding.controlName,
+	};
 }
 
 function deviceInterfaceBindingBlock(

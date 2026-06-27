@@ -219,6 +219,11 @@ export type DeviceInterfaceBinding = Readonly<{
 	externalInterfaceId?: string;
 }>;
 
+export type DeviceInterfaceAudioBinding = Readonly<{
+	kind: "control";
+	controlName: string;
+}>;
+
 export type DeviceInterfaceControl = Readonly<{
 	id: string;
 	label: string;
@@ -226,6 +231,7 @@ export type DeviceInterfaceControl = Readonly<{
 	role: string;
 	groupId?: string;
 	order?: number;
+	audioBinding?: DeviceInterfaceAudioBinding;
 	binding?: DeviceInterfaceBinding;
 	appliesWhen?: ControlApplicabilityPredicate;
 	description?: string;

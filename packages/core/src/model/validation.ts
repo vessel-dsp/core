@@ -45,6 +45,7 @@ export type ValidationCode =
 	| "control-group-member-order-duplicate"
 	| "device-interface-group-unresolved"
 	| "device-interface-context-unresolved"
+	| "device-interface-audio-binding-invalid"
 	| "device-interface-binding-unresolved"
 	| "device-interface-duplicate-role"
 	| "panel-interface-control-unresolved"
@@ -903,6 +904,7 @@ function validateDeviceInterface(
 		}
 
 		issues.push(...validateApplicability(control, contextIds));
+		issues.push(...validateDeviceInterfaceAudioBinding(control));
 
 		if (control.binding !== undefined) {
 			issues.push(
@@ -1203,6 +1205,33 @@ function emptyApplicabilityIssue(
 		componentId: controlId,
 		property,
 	};
+}
+
+function validateDeviceInterfaceAudioBinding(
+	control: DeviceInterfaceControl,
+): readonly ValidationIssue[] {
+	if (control.audioBinding === undefined) {
+		return [];
+	}
+	if (control.audioBinding.kind !== "control") {
+		return [{
+			code: "device-interface-audio-binding-invalid",
+			severity: "error",
+			message: `Device interface control "${control.id}" has unsupported audio binding kind "${control.audioBinding.kind}"`,
+			componentId: control.id,
+			property: "audioBinding.kind",
+		}];
+	}
+	if (control.audioBinding.controlName.trim().length === 0) {
+		return [{
+			code: "device-interface-audio-binding-invalid",
+			severity: "error",
+			message: `Device interface control "${control.id}" has an empty audio binding controlName`,
+			componentId: control.id,
+			property: "audioBinding.controlName",
+		}];
+	}
+	return [];
 }
 
 function validateDeviceInterfaceBinding(

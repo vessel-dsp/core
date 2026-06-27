@@ -935,6 +935,10 @@ describe("validateDocument", () => {
 						kind: "knob",
 						role: "gain",
 						groupId: "missing-group",
+						audioBinding: {
+							kind: "control",
+							controlName: " ",
+						},
 						binding: {
 							componentId: "MISSING",
 							externalInterfaceId: "missing-external-interface",
@@ -995,6 +999,13 @@ describe("validateDocument", () => {
 			severity: "warning",
 			componentId: "gain",
 			property: "appliesWhen.allOf",
+		});
+		expect(
+			issues.find((i) => i.code === "device-interface-audio-binding-invalid"),
+		).toMatchObject({
+			severity: "error",
+			componentId: "gain",
+			property: "audioBinding.controlName",
 		});
 		expect(
 			issues.find(

@@ -34,6 +34,7 @@ import type {
 	ControlGroup,
 	ControlGroupMember,
 	DeviceInterface,
+	DeviceInterfaceAudioBinding,
 	DeviceInterfaceBinding,
 	DeviceInterfaceControlKind,
 	ControlInterface,
@@ -1099,6 +1100,10 @@ function parseDeviceInterface(
 			const control = expectObject(item, path);
 			const groupId = parseOptionalString(control.groupId, `${path}.groupId`);
 			const order = parseOptionalNumber(control.order, `${path}.order`);
+			const audioBinding = parseOptionalDeviceInterfaceAudioBinding(
+				control.audioBinding,
+				`${path}.audioBinding`,
+			);
 			const binding = parseOptionalDeviceInterfaceBinding(
 				control.binding,
 				`${path}.binding`,
@@ -1118,6 +1123,7 @@ function parseDeviceInterface(
 				role: expectString(control.role, `${path}.role`),
 				...(groupId === undefined ? {} : { groupId }),
 				...(order === undefined ? {} : { order }),
+				...(audioBinding === undefined ? {} : { audioBinding }),
 				...(binding === undefined ? {} : { binding }),
 				...(appliesWhen === undefined ? {} : { appliesWhen }),
 				...(description === undefined ? {} : { description }),
@@ -1145,6 +1151,24 @@ function parseDeviceInterfaceControlKind(
 				`${path}: expected knob, slider, switch, selector, footswitch, led, or jack`,
 			);
 	}
+}
+
+function parseOptionalDeviceInterfaceAudioBinding(
+	value: YamlValue | undefined,
+	path: string,
+): DeviceInterfaceAudioBinding | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	const binding = expectObject(value, path);
+	const kind = expectString(binding.kind, `${path}.kind`);
+	if (kind !== "control") {
+		throw new Error(`${path}.kind: unsupported audio binding kind "${kind}"`);
+	}
+	return {
+		kind,
+		controlName: expectString(binding.controlName, `${path}.controlName`),
+	};
 }
 
 function parseOptionalDeviceInterfaceBinding(

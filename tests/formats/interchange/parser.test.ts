@@ -226,6 +226,10 @@ rawAttributes: {}`;
 						label: "Gain",
 						kind: "knob",
 						role: "gain",
+						audioBinding: {
+							kind: "control",
+							controlName: "Input Gain",
+						},
 						binding: {
 							componentId: "CH1_GAIN",
 							controlId: "CH1_GAIN",
@@ -288,6 +292,8 @@ rawAttributes: {}`;
 		expect(yaml).toContain("controlId: ch1-gain");
 		expect(yaml).toContain("controlContexts:");
 		expect(yaml).toContain("deviceInterface:");
+		expect(yaml).toContain("audioBinding:");
+		expect(yaml).toContain('controlName: "Input Gain"');
 		expect(yaml).toContain("interfaceControlId: ch1-gain");
 		expect(parsed.controlGroups).toEqual(doc.controlGroups);
 		expect(parsed.controlContexts).toEqual(doc.controlContexts);

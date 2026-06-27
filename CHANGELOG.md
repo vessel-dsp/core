@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.7
+
+- Add `.vdsp` `deviceInterface.controls[].audioBinding` parsing, validation,
+  serialization, and public typing so physical control labels can bind to
+  differently named audio/runtime controls without host-side alias tables.
+
 ## 0.6.6
 
 - Bump version; add `crt` and `glitch` fields to previewPresets type in docs test.
@@ -15,9 +21,6 @@
 
 ## Unreleased
 
-- Add `.vdsp` `deviceInterface.controls[].audioBinding` parsing, validation,
-  serialization, and public typing so physical control labels can bind to
-  differently named audio/runtime controls without host-side alias tables.
 - Document `.vdsp` as the portable source-visible CircuitDocument for
   schematic inspection and host-owned simulation/runtime lowering, while
   keeping provenance-only evidence outside the portable file.
