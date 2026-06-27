@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.9
+
+- Bump all publishable packages and internal workspace dependency pins for the
+  `.vdsp` appearance schema release.
+- Keep release metadata, docs, and built package artifacts aligned with the
+  `0.6.9` package version.
+
 ## 0.6.8
 
 - Add `createStompboxHardwareProfileFromVdsp()` and

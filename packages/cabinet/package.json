@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/cabinet",
-	"version": "0.6.8",
+	"version": "0.6.9",
 	"description": "Generated Three.js and GLB previews for speaker cabinet profile visualization.",
 	"keywords": [
 		"speaker-cabinet",
@@ -46,8 +46,8 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/core": "0.6.8",
-		"@vessel-dsp/visual-effects": "0.6.8",
+		"@vessel-dsp/core": "0.6.9",
+		"@vessel-dsp/visual-effects": "0.6.9",
 		"three": "^0.184.0"
 	},
 	"publishConfig": {
