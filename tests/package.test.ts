@@ -403,9 +403,11 @@ describe("workspace package contract", () => {
 			expectNoReactRuntimeDependency(pkg);
 		}
 		expect(ampDeps.three).toBeDefined();
-		expect(ampDeps["@vessel-dsp/visual-effects"]).toBeDefined();
+		expect(ampDeps["@vessel-dsp/visual-effects"]).toBe(VERSION);
+		expect(ampDeps["@vessel-dsp/core"]).toBe(VERSION);
 		expect(cabinetDeps.three).toBeDefined();
-		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBeDefined();
+		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBe(VERSION);
+		expect(cabinetDeps["@vessel-dsp/core"]).toBe(VERSION);
 		expect(typeof createAmpProfileFromVdsp).toBe("function");
 		expect(typeof createAmpPreviewLayout).toBe("function");
 		expect(typeof createCabinetPreviewLayout).toBe("function");
@@ -818,6 +820,9 @@ describe("release metadata", () => {
 		const core = await readPackageJson("core");
 		const stompbox = await readPackageJson("stompbox");
 		const controlUi = await readPackageJson("control-ui");
+		const visualEffects = await readPackageJson("visual-effects");
+		const amp = await readPackageJson("amp");
+		const cabinet = await readPackageJson("cabinet");
 		const changelog = await readChangelog();
 		const distIndex = await readCoreDistIndexJs();
 		const distTypes = await readCoreDistIndexDts();
@@ -828,12 +833,15 @@ describe("release metadata", () => {
 		const controlUiDistIndex = await readControlUiDistIndexJs();
 		const controlUiDistTypes = await readControlUiDistIndexDts();
 
-		expect(core.version).toBe("0.6.7");
-		expect(stompbox.version).toBe("0.6.7");
-		expect(controlUi.version).toBe("0.6.7");
-		expect(VERSION).toBe("0.6.7");
-		expect(distIndex).toContain('export const VERSION = "0.6.7";');
-		expect(distTypes).toContain('export declare const VERSION = "0.6.7";');
+		expect(core.version).toBe("0.6.8");
+		expect(stompbox.version).toBe("0.6.8");
+		expect(controlUi.version).toBe("0.6.8");
+		expect(visualEffects.version).toBe("0.6.8");
+		expect(amp.version).toBe("0.6.8");
+		expect(cabinet.version).toBe("0.6.8");
+		expect(VERSION).toBe("0.6.8");
+		expect(distIndex).toContain('export const VERSION = "0.6.8";');
+		expect(distTypes).toContain('export declare const VERSION = "0.6.8";');
 		expect(distTypes).toContain("DeviceInterfaceAudioBinding");
 		expect(stompboxDistIndex).toContain("createStompboxDrillLayoutFromVdsp");
 		expect(stompboxDistIndex).toContain(
@@ -879,7 +887,7 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlSurface");
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
-		expect(changelog).toStartWith("# Changelog\n\n## 0.6.7\n\n");
+		expect(changelog).toStartWith("# Changelog\n\n## 0.6.8\n\n");
 		expect(changelog).toContain("@vessel-dsp/control-ui");
 	});
 });

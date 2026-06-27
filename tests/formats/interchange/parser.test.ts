@@ -450,16 +450,17 @@ rawAttributes: {}`;
 	});
 
 	test("validates mutually exclusive appearance kinds on direct documents", () => {
+		const appearance = {
+			kind: "amp",
+			stompbox: {
+				enclosure: {
+					color: "#f8fafc",
+				},
+			},
+		} as unknown as NonNullable<CircuitDocument["appearance"]>;
 		const issues = validateDocument({
 			...EMPTY_DOCUMENT,
-			appearance: {
-				kind: "amp",
-				stompbox: {
-					enclosure: {
-						color: "#f8fafc",
-					},
-				},
-			} as CircuitDocument["appearance"],
+			appearance,
 		});
 
 		expect(issues).toContainEqual(

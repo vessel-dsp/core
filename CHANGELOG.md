@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.8
+
+- Add `createStompboxHardwareProfileFromVdsp()` and
+  `createStompboxHardwareProfileFromDocument()` to derive generated-stub
+  stompbox hardware profiles from existing `.vdsp` mechanical metadata.
+- Add `.vdsp` v3 `appearance.kind` metadata so stompbox and amp visual design
+  can be self-contained while remaining mutually exclusive.
+- Add `createAmpProfileFromVdsp()` and `createAmpProfileFromDocument()` to
+  derive generated/defaulted amp preview profiles from `.vdsp` panel controls.
+- Document `.vdsp` as the portable source-visible CircuitDocument for
+  schematic inspection and host-owned simulation/runtime lowering, while
+  keeping provenance-only evidence outside the portable file.
+- Add physical mount metadata for concentric panel controls, including `mountId`/`surface` parsing, model types, validation, and `.vdsp` round-trip coverage.
+- Add stompbox concentric control support that collapses stacked dial surfaces into one drill hole while preserving per-surface preview and layout metadata.
+- Add Control UI rendering for concentric knobs and panel jacks, plus docs for control semantics, physical controls, and CAD-style preview linework.
+- Add `@vessel-dsp/visual-effects` for reusable Three.js toon, grain, and glitch preview effects.
+- Add `@vessel-dsp/amp` and `@vessel-dsp/cabinet` for generated profile-based Three.js object graphs and GLB preview metadata.
+
 ## 0.6.7
 
 - Add `.vdsp` `deviceInterface.controls[].audioBinding` parsing, validation,
@@ -18,24 +36,6 @@
 - Reuse the core amp/cabinet profile validators from `@vessel-dsp/amp` and
   `@vessel-dsp/cabinet` so preview packages and artifact tooling share one
   published contract.
-
-## Unreleased
-
-- Add `createStompboxHardwareProfileFromVdsp()` and
-  `createStompboxHardwareProfileFromDocument()` to derive generated-stub
-  stompbox hardware profiles from existing `.vdsp` mechanical metadata.
-- Add `.vdsp` v3 `appearance.kind` metadata so stompbox and amp visual design
-  can be self-contained while remaining mutually exclusive.
-- Add `createAmpProfileFromVdsp()` and `createAmpProfileFromDocument()` to
-  derive generated/defaulted amp preview profiles from `.vdsp` panel controls.
-- Document `.vdsp` as the portable source-visible CircuitDocument for
-  schematic inspection and host-owned simulation/runtime lowering, while
-  keeping provenance-only evidence outside the portable file.
-- Add physical mount metadata for concentric panel controls, including `mountId`/`surface` parsing, model types, validation, and `.vdsp` round-trip coverage.
-- Add stompbox concentric control support that collapses stacked dial surfaces into one drill hole while preserving per-surface preview and layout metadata.
-- Add Control UI rendering for concentric knobs and panel jacks, plus docs for control semantics, physical controls, and CAD-style preview linework.
-- Add `@vessel-dsp/visual-effects` for reusable Three.js toon, grain, and glitch preview effects.
-- Add `@vessel-dsp/amp` and `@vessel-dsp/cabinet` for generated profile-based Three.js object graphs and GLB preview metadata.
 
 ## 0.6.4
 

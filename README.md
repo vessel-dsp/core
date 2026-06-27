@@ -75,8 +75,11 @@ const lossyCircuitJson = convertCircuitDocumentFileWithReport(vdsp, {
 `.vdsp` v3 adds reviewed physical build metadata: build scope, mechanical
 enclosure data, BOM rows, embedded part profiles and board footprints,
 off-board wiring, panel drill placement, and board realizations for stripboard,
-perfboard, breadboard-pattern protoboard, and fabricated PCB. Conversion from
-v3 `.vdsp` to formats that cannot preserve those fields errors by default; use
+perfboard, breadboard-pattern protoboard, and fabricated PCB. It can also carry
+top-level `appearance.kind` metadata for self-contained stompbox or amp visual
+design; `stompbox` and `amp` appearance blocks are mutually exclusive and are
+reported by validation as `appearance-invalid` when mixed. Conversion from v3
+`.vdsp` to formats that cannot preserve those fields errors by default; use
 `convertCircuitDocumentFileWithReport()` with `lossPolicy:
 'drop-with-diagnostics'` only when that loss is intentional.
 

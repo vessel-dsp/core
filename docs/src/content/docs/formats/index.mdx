@@ -60,4 +60,28 @@ Unsupported PCB, fabrication, BOM, or simulation-only Circuit JSON elements must
 - panel drill placement
 - board realizations for stripboard, perfboard, breadboard-pattern protoboard, and fabricated PCB
 
+It can also preserve self-contained visual design metadata at top-level
+`appearance`. The `appearance.kind` field is required inside that block and is
+mutually exclusive:
+
+```yaml
+appearance:
+  kind: stompbox
+  enclosure:
+    color: "#f8fafc"
+    strokeColor: "#111827"
+```
+
+```yaml
+appearance:
+  kind: amp
+  enclosureColor: "#334155"
+  appearance:
+    controlPanelColor: "#f8fafc"
+```
+
+`validateDocument()` reports mixed or invalid appearance kinds with
+`appearance-invalid`, and `.vdsp` parsing rejects a block that combines
+stompbox-only and amp-only appearance data.
+
 Converting v3 documents to formats that cannot preserve these fields errors by default. Use `convertCircuitDocumentFileWithReport()` with `lossPolicy: "drop-with-diagnostics"` only when lossy export is intentional.
