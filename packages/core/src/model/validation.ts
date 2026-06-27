@@ -48,6 +48,7 @@ export type ValidationCode =
 	| "device-interface-audio-binding-invalid"
 	| "device-interface-binding-unresolved"
 	| "device-interface-duplicate-role"
+	| "appearance-invalid"
 	| "panel-interface-control-unresolved"
 	| "panel-binding-unresolved"
 	| "panel-control-unresolved"
@@ -517,6 +518,10 @@ export function validateDocument(
 		issues.push(issue);
 	}
 
+	for (const issue of validateAppearance(doc)) {
+		issues.push(issue);
+	}
+
 	for (const issue of validatePanel(
 		doc,
 		seen,
@@ -534,6 +539,48 @@ export function validateDocument(
 	}
 
 	return issues;
+}
+
+function validateAppearance(doc: CircuitDocument): readonly ValidationIssue[] {
+	const appearance = doc.appearance as
+		| (VdspBuildDataObject & { readonly kind?: unknown })
+		| undefined;
+	if (appearance === undefined) {
+		return [];
+	}
+	if (appearance.kind !== "stompbox" && appearance.kind !== "amp") {
+		return [
+			{
+				code: "appearance-invalid",
+				severity: "error",
+				message: "appearance.kind must be stompbox or amp",
+				property: "appearance.kind",
+			},
+		];
+	}
+	if (appearance.kind === "stompbox" && appearance.amp !== undefined) {
+		return [
+			{
+				code: "appearance-invalid",
+				severity: "error",
+				message:
+					"appearance.amp cannot be present when appearance.kind is stompbox",
+				property: "appearance.amp",
+			},
+		];
+	}
+	if (appearance.kind === "amp" && appearance.stompbox !== undefined) {
+		return [
+			{
+				code: "appearance-invalid",
+				severity: "error",
+				message:
+					"appearance.stompbox cannot be present when appearance.kind is amp",
+				property: "appearance.stompbox",
+			},
+		];
+	}
+	return [];
 }
 
 export function hasErrors(issues: readonly ValidationIssue[]): boolean {
@@ -1810,6 +1857,7 @@ function validateV3BuildMetadata(
 
 function hasV3BuildMetadata(doc: CircuitDocument): boolean {
 	return (
+		doc.appearance !== undefined ||
 		doc.mechanical !== undefined ||
 		doc.build !== undefined ||
 		doc.bom !== undefined ||

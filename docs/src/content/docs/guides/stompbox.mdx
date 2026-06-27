@@ -24,6 +24,26 @@ It stays headless. It must not import React, React DOM, Three.js, browser render
 
 Production part profiles, enclosure profiles, style profiles, and asset roots belong to the application that calls `@vessel-dsp/stompbox`. Pass the mechanical catalog through `hardwareProfile`, and pass any named visual/placement preset through `styleProfile`. The docs demo keeps its Boss/MXR presets in `stompbox-demo-profiles.json`; the package does not export demo hardware or style presets.
 
+When a `.vdsp` document already carries `mechanical.enclosure`, `partProfiles`, and panel `physical.partProfileId` data, derive a generated-stub profile directly from the document:
+
+```ts
+import {
+	createStompboxDrillLayoutFromVdsp,
+	createStompboxHardwareProfileFromVdsp,
+} from "@vessel-dsp/stompbox";
+
+const hardwareProfile = createStompboxHardwareProfileFromVdsp(vdspSource, {
+	id: "pedal-derived-hardware",
+	label: "Pedal derived hardware",
+});
+
+const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
+	hardwareProfile,
+});
+```
+
+The derived profile is suitable for drill layout, drill-template SVG, and generated-stub previews. Production GLB assembly still needs caller-provided asset paths or a full application hardware profile because portable `.vdsp` part profiles do not include GLB target metadata.
+
 ```ts
 import demoProfiles from "./stompbox-demo-profiles.json";
 import type { StompboxHardwareProfile } from "@vessel-dsp/stompbox";
@@ -532,6 +552,27 @@ Use `appearance` when a frontend needs to recolor the enclosure, LED, labels,
 or drill-template ink without changing physical placement. Knob bodies keep the
 material colors from their imported CAD/GLB assets. Keep
 `state` for live control values such as knob position or LED on/off state.
+
+`.vdsp` v3 can self-contain stompbox visual design at top-level `appearance`.
+The stompbox enclosure color lives at `appearance.enclosure.color` when
+`appearance.kind` is `stompbox`:
+
+```yaml
+appearance:
+  kind: stompbox
+  enclosure:
+    color: "#f8fafc"
+    strokeColor: "#111827"
+  defaults:
+    label:
+      color: "#2563eb"
+      fontFamily: Vessel Block
+```
+
+`appearance.kind` is mutually exclusive: use `stompbox` for pedal enclosure,
+template, part, and label styling, or `amp` for amp-specific appearance. The
+helper `appearance` option still overrides embedded `.vdsp` values when both
+are provided.
 
 ```ts
 import {

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type * as THREE from "three";
 import {
+	createAmpProfileFromVdsp,
 	createAmpPreviewGlb,
 	createAmpPreviewLayout,
 	createAmpPreviewObject3D,
@@ -50,6 +53,14 @@ const ampProfile = {
 		],
 	},
 };
+const REPOSITORY_ROOT = join(import.meta.dir, "..", "..");
+const vdspMechanicalBoardRealization = readFileSync(
+	join(
+		REPOSITORY_ROOT,
+		"tests/fixtures/interchange/vdsp-v3-mechanical-board-realization.vdsp",
+	),
+	"utf8",
+);
 
 function glbMagic(bytes: Uint8Array): string {
 	return new TextDecoder().decode(bytes.slice(0, 4));
@@ -200,6 +211,88 @@ function groupXBounds(
 }
 
 describe("amp visualization", () => {
+	test("derives a generated amp profile from .vdsp panel controls", () => {
+		const profile = createAmpProfileFromVdsp(vdspMechanicalBoardRealization, {
+			brandName: "Vessel",
+			modelName: "Sample Drive",
+			enclosureColor: "#111827",
+			dimensionsMm: { widthMm: 520, heightMm: 260, depthMm: 220 },
+			appearance: {
+				controlPanelColor: "#c9a24a",
+				knobColor: "#d4a73c",
+				statusColor: "#16a34a",
+			},
+		});
+
+		expect(validateAmpProfile(profile).valid).toBe(true);
+		expect(profile).toMatchObject({
+			schema: "vessel-amp-profile/v1",
+			brandName: "Vessel",
+			modelName: "Sample Drive",
+			enclosureColor: "#111827",
+			dimensionsMm: { widthMm: 520, heightMm: 260, depthMm: 220 },
+			controlPanel: { face: "front" },
+		});
+		expect(profile.controlPanel.controls.map((control) => control.id)).toEqual([
+			"DRIVE",
+			"LEVEL",
+			"TONE",
+			"LED_STATUS",
+		]);
+		expect(profile.controlPanel.controls).toContainEqual(
+			expect.objectContaining({
+				id: "DRIVE",
+				kind: "knob",
+				label: "DRIVE",
+			}),
+		);
+		expect(profile.controlPanel.controls).toContainEqual(
+			expect.objectContaining({
+				id: "LED_STATUS",
+				kind: "led",
+				label: "LED_STATUS",
+			}),
+		);
+
+		const layout = createAmpPreviewLayout(profile);
+		expect(layout.controls.map((control) => control.id)).toEqual([
+			"DRIVE",
+			"LEVEL",
+			"TONE",
+			"LED_STATUS",
+		]);
+		expect(layout.appearance.controlPanelColor).toBe("#c9a24a");
+	});
+
+	test("uses amp appearance embedded in .vdsp metadata", () => {
+		const vdspSource = vdspMechanicalBoardRealization.replace(
+			"components:",
+			`appearance:
+  kind: amp
+  enclosureColor: "#334155"
+  appearance:
+    controlPanelColor: "#f8fafc"
+    frontPanelColor: "#010203"
+    labelFontFamily: Vessel Block
+components:`,
+		);
+
+		const profile = createAmpProfileFromVdsp(vdspSource, {
+			brandName: "Vessel",
+			modelName: "Embedded Amp",
+			appearance: {
+				controlPanelColor: "#c9a24a",
+			},
+		});
+
+		expect(profile.enclosureColor).toBe("#334155");
+		expect(profile.appearance).toMatchObject({
+			controlPanelColor: "#c9a24a",
+			frontPanelColor: "#010203",
+			labelFontFamily: "Vessel Block",
+		});
+	});
+
 	test("validates and lays out amp profiles deterministically", () => {
 		expect(validateAmpProfile(ampProfile).valid).toBe(true);
 		const layout = createAmpPreviewLayout(ampProfile);

@@ -19,6 +19,13 @@ tools can display or save:
 Applications own production part profiles, enclosure profiles, and asset roots.
 Keep named style presets in your application or docs layer and pass them through
 `styleProfile` when you want preset-specific default parts or placement rules.
+When a `.vdsp` document already contains `mechanical.enclosure`,
+`partProfiles`, and panel `physical.partProfileId` data, use
+`createStompboxHardwareProfileFromVdsp()` to derive a generated-stub hardware
+profile for drill layout and SVG preview workflows. Production CAD-quality GLB
+assembly still needs an application-provided hardware profile or asset
+overrides because portable `.vdsp` part profiles do not carry full GLB target
+metadata.
 
 Drill-template holes are fabrication holes: their circle diameters come from
 each part profile's panel drill clearance, such as the PJ-629HAN 9.5 mm drill
@@ -90,6 +97,7 @@ document helpers when the caller has already parsed or edited a
 | Preview manifest | `createStompboxPreviewFromVdsp` | `createStompboxPreview` |
 | Orthographic 2D SVG views | `createStompboxPreviewSvgViewsFromVdsp` | `createStompboxPreviewSvgViews` |
 | Mesh-backed 3D GLB bytes | `createStompboxPreviewGlbFromVdsp` | `createStompboxPreviewGlb` |
+| Generated-stub hardware profile from `.vdsp` metadata | `createStompboxHardwareProfileFromVdsp` | `createStompboxHardwareProfileFromDocument` |
 | Frontend recolor patch | `createStompboxAppearancePatch` | `createStompboxAppearancePatch` |
 | Resolved appearance alias | `resolveStompboxAppearance` | `resolveStompboxAppearance` |
 | Source/compiled control surface | `parseCircuitDocumentFile` then `createStompboxControlSurface` | `createStompboxControlSurface` |
@@ -103,6 +111,32 @@ Generated docs examples are published at:
 - 3D preview GLB: `/core/examples/stompbox-mxr-style-preview.glb`
 - Drill-template preview SVG: `/core/examples/stompbox-mxr-style-drill-template-preview.svg`
 - Drill-layout JSON: `/core/examples/stompbox-mxr-style-drill-layout.json`
+
+## Deriving a hardware profile from `.vdsp`
+
+If the `.vdsp` source already declares mechanical metadata, stompbox can derive
+a minimal hardware profile from it:
+
+```ts
+import {
+  createStompboxDrillLayoutFromVdsp,
+  createStompboxHardwareProfileFromVdsp,
+} from "@vessel-dsp/stompbox";
+
+const hardwareProfile = createStompboxHardwareProfileFromVdsp(vdspSource, {
+  id: "pedal-derived-hardware",
+  label: "Pedal derived hardware",
+});
+
+const layout = createStompboxDrillLayoutFromVdsp(vdspSource, {
+  hardwareProfile,
+});
+```
+
+The derived profile maps `.vdsp` potentiometer/selector, LED, footswitch, audio
+jack, DC jack, and enclosure part profiles into generated-stub stompbox
+profiles. Pass `defaultPartIds`, `enclosureAssets`, or `partAssets` when the
+document needs specific fallback parts or served asset paths.
 
 ## Providing CAD assets for 3D preview
 
@@ -420,6 +454,25 @@ the generated artifacts without changing `.vdsp` placement data. `state` remains
 for live values such as knob position, LED on/off, and footswitch pressed state;
 `appearance` is for enclosure, LED, label, template, and non-knob material
 hints. Knob bodies keep the material colors from their imported CAD/GLB assets.
+
+Portable `.vdsp` v3 documents can also self-contain stompbox visual design at
+top-level `appearance`:
+
+```yaml
+appearance:
+  kind: stompbox
+  enclosure:
+    color: "#f8fafc"
+    strokeColor: "#111827"
+  defaults:
+    label:
+      color: "#2563eb"
+      fontFamily: Vessel Block
+```
+
+`appearance.kind` is mutually exclusive: use `stompbox` for pedal enclosure,
+template, part, and label styling, or `amp` for amp-specific appearance. Helper
+options still override embedded `.vdsp` appearance when both are provided.
 
 ```ts
 import {

@@ -13,6 +13,7 @@ import {
 	createDefaultStompboxPedalStateFromVdsp,
 	createStompboxControlSurface,
 	createStompboxDrillLayoutFromVdsp,
+	createStompboxHardwareProfileFromVdsp,
 	createStompboxDrillTemplateFromVdsp,
 	createStompboxDrillTemplateSvgFromVdsp,
 	createStompboxFootswitchPressCommand,
@@ -28,7 +29,7 @@ import {
 	validateStompboxGlbAssetFile,
 	validateStompboxHardwareProfileAssets,
 } from "@vessel-dsp/stompbox/node";
-import { createAmpPreviewLayout } from "@vessel-dsp/amp";
+import { createAmpProfileFromVdsp, createAmpPreviewLayout } from "@vessel-dsp/amp";
 import { createCabinetPreviewLayout } from "@vessel-dsp/cabinet";
 import { resolvePreviewEffectPreset } from "@vessel-dsp/visual-effects";
 import { fileURLToPath } from "node:url";
@@ -307,6 +308,7 @@ describe("workspace package contract", () => {
 		expect(deps["@vessel-dsp/core"]).toBe(VERSION);
 		expectNoReactRuntimeDependency(pkg);
 		expect(typeof createStompboxDrillLayoutFromVdsp).toBe("function");
+		expect(typeof createStompboxHardwareProfileFromVdsp).toBe("function");
 		expect(typeof createStompboxPreviewFromVdsp).toBe("function");
 		expect(typeof createStompboxDrillTemplateFromVdsp).toBe("function");
 		expect(typeof createStompboxDrillTemplateSvgFromVdsp).toBe("function");
@@ -404,6 +406,7 @@ describe("workspace package contract", () => {
 		expect(ampDeps["@vessel-dsp/visual-effects"]).toBeDefined();
 		expect(cabinetDeps.three).toBeDefined();
 		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBeDefined();
+		expect(typeof createAmpProfileFromVdsp).toBe("function");
 		expect(typeof createAmpPreviewLayout).toBe("function");
 		expect(typeof createCabinetPreviewLayout).toBe("function");
 	});

@@ -180,6 +180,44 @@ can attach selection, labels, or state indicators without snapshotting the
 binary GLB. Individual controls can override `color`, `labelColor`, and
 `statusColor`; otherwise the profile-level `appearance` colors are used.
 
+To preview existing `.vdsp` panel controls as a generated amp object, derive a
+profile and provide the amp-specific visual defaults:
+
+```ts
+import {
+	createAmpProfileFromVdsp,
+	createAmpPreviewObject3D,
+} from "@vessel-dsp/amp";
+
+const profile = createAmpProfileFromVdsp(vdspSource, {
+	brandName: "Vessel",
+	modelName: "Circuit Preview",
+	enclosureColor: "#111827",
+	dimensionsMm: { widthMm: 520, heightMm: 260, depthMm: 220 },
+	appearance: { controlPanelColor: "#c9a24a" },
+});
+
+const object = createAmpPreviewObject3D(profile);
+```
+
+This helper is intentionally best-effort: `.vdsp` contains circuit and panel
+control metadata, while amp-specific visual design such as grille styling,
+cabinet dimensions, and material colors can either be host-provided profile
+data or embedded in `.vdsp` v3 under top-level `appearance.kind: amp`:
+
+```yaml
+appearance:
+  kind: amp
+  enclosureColor: "#334155"
+  appearance:
+    controlPanelColor: "#f8fafc"
+    frontPanelColor: "#010203"
+    labelFontFamily: Vessel Block
+```
+
+Explicit `createAmpProfileFromVdsp()` options override embedded `.vdsp`
+appearance fields when both are provided.
+
 ## Cabinet profile
 
 A cabinet profile includes brand text, optional model text, dimensions,

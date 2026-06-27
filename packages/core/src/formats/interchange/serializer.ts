@@ -7,6 +7,7 @@ import { isParsedQuantity, isPropertyObject } from "../../model/properties";
 import type {
 	CircuitDocument,
 	CircuitDocumentDevice,
+	DocumentAppearance,
 	Component,
 	ControlApplicabilityPredicate,
 	ControlContext,
@@ -72,6 +73,9 @@ export function serializeInterchangeYaml(
 	if (doc.device !== undefined) {
 		root.device = deviceBlock(doc.device);
 	}
+	if (doc.appearance !== undefined) {
+		root.appearance = appearanceBlock(doc.appearance);
+	}
 	if (doc.controlGroups !== undefined) {
 		root.controlGroups = doc.controlGroups.map(controlGroupBlock);
 	}
@@ -128,6 +132,7 @@ export function serializeInterchangeYaml(
 function hasV3OnlyFields(doc: CircuitDocument): boolean {
 	return (
 		doc.mechanical !== undefined ||
+		doc.appearance !== undefined ||
 		doc.build !== undefined ||
 		doc.bom !== undefined ||
 		doc.partProfiles !== undefined ||
@@ -152,6 +157,10 @@ function hasV3PanelFields(panel: PanelPlacementMetadata | undefined): boolean {
 				),
 		) ?? false
 	);
+}
+
+function appearanceBlock(appearance: DocumentAppearance): MutableYamlObject {
+	return buildDataObjectBlock(appearance);
 }
 
 function deviceBlock(device: CircuitDocumentDevice): MutableYamlObject {

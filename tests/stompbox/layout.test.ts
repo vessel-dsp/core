@@ -9,6 +9,8 @@ import {
 	createStompboxControlSurface,
 	createStompboxDrillLayout as createStompboxDrillLayoutBase,
 	createStompboxDrillLayoutFromVdsp as createStompboxDrillLayoutFromVdspBase,
+	createStompboxHardwareProfileFromDocument,
+	createStompboxHardwareProfileFromVdsp,
 	createStompboxDrillTemplate,
 	createStompboxDrillTemplateFromVdsp as createStompboxDrillTemplateFromVdspBase,
 	createStompboxDrillTemplateSvg,
@@ -151,6 +153,13 @@ const MXR_LARGE_KNOB_ID = "knob-mxr-style-fluted-large";
 const BOSS_SMALL_KNOB_ID = "knob-davies-1900h";
 const BOSS_MEDIUM_KNOB_ID = "knob-davies-1100";
 const BOSS_LARGE_KNOB_ID = "knob-davies-1105";
+const vdspMechanicalBoardRealization = readFileSync(
+	join(
+		REPOSITORY_ROOT,
+		"tests/fixtures/interchange/vdsp-v3-mechanical-board-realization.vdsp",
+	),
+	"utf8",
+);
 
 function styleProfileById(id: string): StompboxStyleProfile {
 	const profile = STOMPBOX_STYLE_PROFILES.find(
@@ -1820,6 +1829,111 @@ describe("stompbox drill layout", () => {
 		expect(() =>
 			createStompboxDrillLayoutFromVdspBase(vdspWithControlsOnly),
 		).toThrow("stompbox hardware profile is required");
+	});
+
+	test("derives a generated-stub hardware profile from .vdsp mechanical metadata", () => {
+		const hardwareProfile = createStompboxHardwareProfileFromVdsp(
+			vdspMechanicalBoardRealization,
+			{ id: "fixture-derived", label: "Fixture derived" },
+		);
+
+		expect(hardwareProfile.id).toBe("fixture-derived");
+		expect(hardwareProfile.label).toBe("Fixture derived");
+		expect(hardwareProfile.defaultEnclosureId).toBe("enclosure-1590b");
+		expect(hardwareProfile.enclosureProfiles["enclosure-1590b"]).toMatchObject({
+			variantId: "enclosure-1590b",
+			label: "Hammond 1590B",
+			dimensionsMm: { widthMm: 60, lengthMm: 112, depthMm: 31 },
+			topFace: {
+				usableRectMm: { x: -24, y: -48, width: 48, height: 96 },
+			},
+		});
+		expect(hardwareProfile.partProfiles["pot-alpha-16"]).toMatchObject({
+			id: "pot-alpha-16",
+			family: "knob",
+			level: "exterior",
+			status: "generated-stub",
+			panelHoleDrillMm: 7,
+			geometry: { kind: "knob", diameterMm: 17, shaftDiameterMm: 6 },
+		});
+		expect(hardwareProfile.partProfiles["footswitch-3pdt"]).toMatchObject({
+			family: "footswitch",
+			panelHoleDrillMm: 12,
+		});
+		expect(hardwareProfile.defaultPartIds).toMatchObject({
+			knob: "pot-alpha-16",
+			led: "led-5mm-panel",
+			footswitch: "footswitch-3pdt",
+			audioJack: "jack-mono-ts-enclosed",
+			dcJack: "dc-jack-2.1mm-panel",
+		});
+	});
+
+	test("uses stompbox appearance embedded in .vdsp preview metadata", () => {
+		const vdspSource = vdspMechanicalBoardRealization.replace(
+			"components:",
+			`appearance:
+  kind: stompbox
+  enclosure:
+    color: "#f8fafc"
+    strokeColor: "#111827"
+  defaults:
+    label:
+      color: "#2563eb"
+      fontFamily: Vessel Block
+components:`,
+		);
+		const hardwareProfile = createStompboxHardwareProfileFromVdsp(vdspSource);
+		const preview = createStompboxPreviewFromVdspBase(vdspSource, {
+			hardwareProfile,
+			includePowerJack: false,
+		});
+		const patch = createStompboxAppearancePatch(preview);
+
+		expect(preview.enclosure.material).toMatchObject({
+			color: "#f8fafc",
+			strokeColor: "#111827",
+		});
+		expect(patch.enclosure).toMatchObject({
+			color: "#f8fafc",
+			strokeColor: "#111827",
+		});
+		expect(patch.decals["decal-label-panel-drive"]).toMatchObject({
+			color: "#2563eb",
+			fontFamily: "Vessel Block",
+		});
+	});
+
+	test("uses a .vdsp-derived hardware profile for declared stompbox drill layout", () => {
+		const document = parseCircuitDocumentFile(vdspMechanicalBoardRealization, {
+			filename: "fixture.vdsp",
+		});
+		const hardwareProfile = createStompboxHardwareProfileFromDocument(document);
+		const layout = createStompboxDrillLayoutBase(document, {
+			hardwareProfile,
+			includePowerJack: false,
+		});
+
+		expect(layout.enclosure.variantId).toBe("enclosure-1590b");
+		expect(layout.holes).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "panel-drive",
+					partId: "pot-alpha-16",
+					drillDiameterMm: 7,
+					provenance: "vdsp-declared",
+				}),
+				expect.objectContaining({
+					id: "panel-bypass",
+					partId: "footswitch-3pdt",
+					drillDiameterMm: 12,
+					provenance: "vdsp-declared",
+				}),
+			]),
+		);
+		expect(layout.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain(
+			"unknown-part-profile",
+		);
 	});
 
 	test("auto-generates deterministic physical placement when .vdsp has no panel physical coordinates", () => {

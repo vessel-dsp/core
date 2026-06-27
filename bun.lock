@@ -19,10 +19,10 @@
     },
     "packages/amp": {
       "name": "@vessel-dsp/amp",
-      "version": "0.6.6",
+      "version": "0.6.7",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.5",
-        "@vessel-dsp/visual-effects": "0.6.5",
+        "@vessel-dsp/core": "0.6.7",
+        "@vessel-dsp/visual-effects": "0.6.6",
         "three": "^0.184.0",
       },
     },
@@ -1035,10 +1035,6 @@
     "@gerrit0/mini-shiki/@shikijs/types": ["@shikijs/types@3.23.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-3JZ5HXOZfYjsYSk0yPwBrkupyYSLpAE26Qc0HLghhZNGTZg/SKxXIIgoxOpmmeQP0RRSDJTk1/vPfw9tbw+jSQ=="],
 
     "@mdx-js/mdx/estree-walker": ["estree-walker@3.0.3", "", { "dependencies": { "@types/estree": "^1.0.0" } }, "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g=="],
-
-    "@vessel-dsp/amp/@vessel-dsp/core": ["@vessel-dsp/core@0.6.5", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-SCtxSnpr+h5/xO0bUYE+7c615Ch76Squr3Ecyw+2WXDgKQZS1KY9R7/aE5ZP4lPTJvZn9FZI18BNC9/OfmNQ0w=="],
-
-    "@vessel-dsp/amp/@vessel-dsp/visual-effects": ["@vessel-dsp/visual-effects@0.6.5", "", { "dependencies": { "three": "^0.184.0" } }, "sha512-bkNiGhy2rmYwKrXMF353oHLgUmVhEk/nrQs81kbJBfob4Z76reng3UlSubN3NXT1aQeGkV1M4Mau/FbT3YwreQ=="],
 
     "@vessel-dsp/cabinet/@vessel-dsp/core": ["@vessel-dsp/core@0.6.5", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-SCtxSnpr+h5/xO0bUYE+7c615Ch76Squr3Ecyw+2WXDgKQZS1KY9R7/aE5ZP4lPTJvZn9FZI18BNC9/OfmNQ0w=="],
 

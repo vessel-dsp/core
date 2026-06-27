@@ -6,7 +6,11 @@ import {
 	applyToonMaterials,
 	type VesselPreviewEffectPreset,
 } from "@vessel-dsp/visual-effects";
-import { validateAmpProfile } from "@vessel-dsp/core";
+import {
+	extractPanel,
+	parseCircuitDocumentFile,
+	validateAmpProfile,
+} from "@vessel-dsp/core";
 import type {
 	AmpAppearanceProfile,
 	AmpControlKind,
@@ -15,6 +19,10 @@ import type {
 	AmpDimensions,
 	AmpProfile,
 	AmpProfileValidation,
+	CircuitDocument,
+	Knob,
+	LedIndicator,
+	SwitchControl,
 } from "@vessel-dsp/core";
 
 export type {
@@ -27,6 +35,19 @@ export type {
 	AmpProfileValidation,
 } from "@vessel-dsp/core";
 export { validateAmpProfile } from "@vessel-dsp/core";
+
+export type AmpProfileDeriveOptions = Readonly<{
+	filename?: string;
+	brandName?: string;
+	modelName?: string;
+	enclosureColor?: string;
+	dimensionsMm?: AmpDimensions;
+	appearance?: AmpAppearanceProfile;
+	controlPanel?: Readonly<{
+		face?: "front" | "top";
+		backgroundColor?: string;
+	}>;
+}>;
 
 export type AmpPreviewControlLayout = Readonly<{
 	id: string;
@@ -85,6 +106,145 @@ export type AmpPreviewGlb = Readonly<{
 		layout: AmpPreviewLayout;
 	};
 }>;
+
+export function createAmpProfileFromVdsp(
+	source: string,
+	options: AmpProfileDeriveOptions = {},
+): AmpProfile {
+	const document = parseCircuitDocumentFile(source, {
+		filename: options.filename ?? "amp.vdsp",
+	});
+	return createAmpProfileFromDocument(document, options);
+}
+
+export function createAmpProfileFromDocument(
+	document: CircuitDocument,
+	options: AmpProfileDeriveOptions = {},
+): AmpProfile {
+	const panel = extractPanel(document);
+	const embeddedAppearance = ampAppearanceFromDocument(document);
+	const appearance = mergeAmpAppearance(
+		embeddedAppearance?.appearance,
+		options.appearance,
+	);
+	const controls = [
+		...panel.knobs.map(ampControlFromKnob),
+		...panel.switches
+			.filter((control) => control.switchKind !== "3pdt")
+			.map(ampControlFromSwitch),
+		...panel.leds.map(ampControlFromLed),
+	];
+	return {
+		schema: "vessel-amp-profile/v1",
+		brandName:
+			options.brandName ??
+			stringFromRawAttributes(document.device, "family") ??
+			"Vessel",
+		modelName:
+			options.modelName ??
+			stringFromRawAttributes(document.device, "model") ??
+			document.metadata.name,
+		enclosureColor:
+			options.enclosureColor ?? embeddedAppearance?.enclosureColor ?? "#111827",
+		...(appearance === undefined ? {} : { appearance }),
+		dimensionsMm: options.dimensionsMm ?? {
+			widthMm: 520,
+			heightMm: 260,
+			depthMm: 220,
+		},
+		controlPanel: {
+			face: options.controlPanel?.face ?? "front",
+			...(options.controlPanel?.backgroundColor === undefined
+				? {}
+				: { backgroundColor: options.controlPanel.backgroundColor }),
+			controls,
+		},
+	};
+}
+
+function ampAppearanceFromDocument(
+	document: CircuitDocument,
+):
+	| Readonly<{
+			enclosureColor?: string;
+			appearance?: AmpAppearanceProfile;
+	  }>
+	| undefined {
+	const appearance = document.appearance;
+	if (appearance?.kind !== "amp") {
+		return undefined;
+	}
+	return {
+		...(typeof appearance.enclosureColor === "string"
+			? { enclosureColor: appearance.enclosureColor }
+			: {}),
+		...(isAmpAppearanceProfile(appearance.appearance)
+			? { appearance: appearance.appearance }
+			: {}),
+	};
+}
+
+function mergeAmpAppearance(
+	embedded: AmpAppearanceProfile | undefined,
+	explicit: AmpAppearanceProfile | undefined,
+): AmpAppearanceProfile | undefined {
+	if (embedded === undefined) {
+		return explicit;
+	}
+	if (explicit === undefined) {
+		return embedded;
+	}
+	return { ...embedded, ...explicit };
+}
+
+function isAmpAppearanceProfile(value: unknown): value is AmpAppearanceProfile {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function ampControlFromKnob(knob: Knob): AmpControlProfile {
+	return {
+		id: knob.id,
+		kind: "knob",
+		label: knob.name,
+		value: clamp01(knob.defaultPosition),
+	};
+}
+
+function ampControlFromSwitch(control: SwitchControl): AmpControlProfile {
+	return {
+		id: control.id,
+		kind: "switch",
+		label: control.name,
+		value: switchDefaultValue(control),
+	};
+}
+
+function ampControlFromLed(led: LedIndicator): AmpControlProfile {
+	return {
+		id: led.id,
+		kind: "led",
+		label: led.name,
+		...(led.color === undefined ? {} : { statusColor: led.color }),
+	};
+}
+
+function switchDefaultValue(control: SwitchControl): number {
+	if (control.positions <= 1) {
+		return 0;
+	}
+	return clamp01(control.defaultPosition / (control.positions - 1));
+}
+
+function stringFromRawAttributes(
+	value: unknown,
+	key: string,
+): string | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return undefined;
+	}
+	const child = (value as Readonly<Record<string, unknown>>)[key];
+	return typeof child === "string" && child.length > 0 ? child : undefined;
+}
 
 export function createAmpPreviewLayout(profile: AmpProfile): AmpPreviewLayout {
 	const validation = validateAmpProfile(profile);

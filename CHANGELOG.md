@@ -21,6 +21,13 @@
 
 ## Unreleased
 
+- Add `createStompboxHardwareProfileFromVdsp()` and
+  `createStompboxHardwareProfileFromDocument()` to derive generated-stub
+  stompbox hardware profiles from existing `.vdsp` mechanical metadata.
+- Add `.vdsp` v3 `appearance.kind` metadata so stompbox and amp visual design
+  can be self-contained while remaining mutually exclusive.
+- Add `createAmpProfileFromVdsp()` and `createAmpProfileFromDocument()` to
+  derive generated/defaulted amp preview profiles from `.vdsp` panel controls.
 - Document `.vdsp` as the portable source-visible CircuitDocument for
   schematic inspection and host-owned simulation/runtime lowering, while
   keeping provenance-only evidence outside the portable file.

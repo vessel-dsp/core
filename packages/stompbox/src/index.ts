@@ -2,6 +2,7 @@ import {
 	type CircuitDocument,
 	type ControlState,
 	type ControlValue,
+	type BuildPartProfile,
 	defaultControlState,
 	extractPanel,
 	type JackPort,
@@ -406,6 +407,16 @@ export type StompboxHardwareProfile = Readonly<{
 	enclosureProfiles: StompboxEnclosureProfileCatalog;
 	defaultEnclosureId: string;
 	defaultPartIds: StompboxDefaultPartProfileIds;
+}>;
+
+export type StompboxHardwareProfileDeriveOptions = Readonly<{
+	id?: string;
+	label?: string;
+	filename?: string;
+	defaultEnclosureId?: string;
+	defaultPartIds?: Partial<StompboxDefaultPartProfileIds>;
+	enclosureAssets?: StompboxAssetRefs;
+	partAssets?: Readonly<Record<string, Partial<StompboxAssetRefs>>>;
 }>;
 
 export type StompboxHardwareProfileOptions = Readonly<{
@@ -1665,6 +1676,45 @@ export function createStompboxPedalStateStore(
 	};
 }
 
+export function createStompboxHardwareProfileFromVdsp(
+	source: string,
+	options: StompboxHardwareProfileDeriveOptions = {},
+): StompboxHardwareProfile {
+	const document = parseCircuitDocumentFile(source, {
+		filename: options.filename ?? "stompbox.vdsp",
+	});
+	return createStompboxHardwareProfileFromDocument(document, options);
+}
+
+export function createStompboxHardwareProfileFromDocument(
+	document: CircuitDocument,
+	options: StompboxHardwareProfileDeriveOptions = {},
+): StompboxHardwareProfile {
+	const enclosure = derivedEnclosureProfile(document, options);
+	const partProfiles: Record<string, StompboxPartProfile> = Object.fromEntries(
+		(document.partProfiles?.profiles ?? []).flatMap((profile) => {
+			const stompboxProfile = derivedPartProfile(profile, options);
+			return stompboxProfile === undefined
+				? []
+				: [[stompboxProfile.id, stompboxProfile] as const];
+		}),
+	);
+	const discoveredDefaults = defaultPartIdsFromCatalog(partProfiles);
+	const defaultPartIds = {
+		...discoveredDefaults,
+		...(options.defaultPartIds ?? {}),
+	};
+	addMissingDefaultPartProfiles(partProfiles, defaultPartIds);
+	return {
+		id: options.id ?? `${document.device?.id ?? slug(document.metadata.name)}-hardware`,
+		label: options.label ?? `${document.metadata.name} hardware`,
+		partProfiles,
+		enclosureProfiles: { [enclosure.variantId]: enclosure },
+		defaultEnclosureId: enclosure.variantId,
+		defaultPartIds,
+	};
+}
+
 export function createStompboxDrillLayoutFromVdsp(
 	source: string,
 	options: StompboxFromVdspOptions = {},
@@ -1762,6 +1812,7 @@ export function createStompboxPreview(
 	const panel = extractPanel(document);
 	const controlMetadata = controlMetadataById(panel);
 	const resolveOptions = assetResolveOptions(options);
+	const appearance = mergedStompboxAppearance(document, options.appearance);
 	const runtimeState = options.pedalState?.controls ?? options.state;
 	const enabled = options.pedalState?.enabled;
 	const parts = drillLayout.holes.flatMap((hole) => {
@@ -1771,7 +1822,7 @@ export function createStompboxPreview(
 			controlMetadata.get(hole.controlId ?? ""),
 			runtimeState,
 			resolveOptions,
-			options.appearance,
+			appearance,
 			enabled,
 		);
 		const dials = hole.concentricDials ?? [];
@@ -1785,7 +1836,7 @@ export function createStompboxPreview(
 				controlMetadata.get(dial.controlId ?? ""),
 				runtimeState,
 				resolveOptions,
-				options.appearance,
+				appearance,
 				enabled,
 			);
 			return {
@@ -1803,9 +1854,9 @@ export function createStompboxPreview(
 	});
 	const decals = [
 		...normalizeDecals(options.decals, drillLayout.enclosure),
-		...controlLabelDecals(drillLayout, placementStyle, options.appearance),
+		...controlLabelDecals(drillLayout, placementStyle, appearance),
 	];
-	const enclosureMaterial = materialWithValues(options.appearance?.enclosure);
+	const enclosureMaterial = materialWithValues(appearance?.enclosure);
 
 	return {
 		schema: "stompbox-preview/v1",
@@ -1960,8 +2011,15 @@ export function createStompboxDrillTemplateFromVdsp(
 	source: string,
 	options: StompboxDrillTemplateFromVdspOptions,
 ): StompboxDrillTemplate {
-	const layout = createStompboxDrillLayoutFromVdsp(source, options);
-	return createStompboxDrillTemplate(layout, options);
+	const document = parseCircuitDocumentFile(source, {
+		filename: options.filename ?? "stompbox.vdsp",
+	});
+	const layout = createStompboxDrillLayout(document, options);
+	const appearance = mergedStompboxAppearance(document, options.appearance);
+	return createStompboxDrillTemplate(layout, {
+		...options,
+		...(appearance === undefined ? {} : { appearance }),
+	});
 }
 
 export function createStompboxDrillTemplate(
@@ -2044,8 +2102,7 @@ export function createStompboxDrillTemplateSvgFromVdsp(
 	source: string,
 	options: StompboxDrillTemplateFromVdspOptions,
 ): string {
-	const layout = createStompboxDrillLayoutFromVdsp(source, options);
-	return createStompboxDrillTemplateSvg(layout, options);
+	return drillTemplateSvg(createStompboxDrillTemplateFromVdsp(source, options));
 }
 
 export function createStompboxDrillTemplateSvg(
@@ -2996,6 +3053,325 @@ function requireStompboxAssetFileReader(
 		);
 	}
 	return options.readAssetFile;
+}
+
+type VdspObject = Readonly<Record<string, unknown>>;
+
+function derivedEnclosureProfile(
+	document: CircuitDocument,
+	options: StompboxHardwareProfileDeriveOptions,
+): StompboxEnclosureProfile {
+	const mechanicalEnclosure = objectProp(document.mechanical, "enclosure");
+	const partProfileEnclosure = derivedEnclosureObjectFromPartProfiles(document);
+	const enclosure = mechanicalEnclosure ?? partProfileEnclosure;
+	const id =
+		options.defaultEnclosureId ??
+		stringProp(enclosure, "profileId") ??
+		stringProp(partProfileEnclosure, "id") ??
+		"vdsp-derived-enclosure";
+	const outerSize =
+		objectProp(enclosure, "outerSizeMm") ??
+		objectProp(partProfileEnclosure, "outerSizeMm");
+	const widthMm = numberProp(outerSize, "width") ?? 60;
+	const lengthMm = numberProp(outerSize, "height") ?? 112;
+	const depthMm = numberProp(outerSize, "depth") ?? 31;
+	return {
+		variantId: id,
+		label:
+			stringProp(enclosure, "label") ??
+			stringProp(partProfileEnclosure, "label") ??
+			id,
+		dimensionsMm: { widthMm, lengthMm, depthMm },
+		topFace: {
+			usableRectMm: derivedTopFaceUsableRect(document, widthMm, lengthMm),
+		},
+		assets: assetRefsForId(`enclosures/${id}`, options.enclosureAssets),
+	};
+}
+
+function derivedPartProfile(
+	profile: BuildPartProfile,
+	options: StompboxHardwareProfileDeriveOptions,
+): StompboxPartProfile | undefined {
+	const family = stompboxFamilyForBuildPartKind(profile.kind);
+	if (family === undefined) {
+		return undefined;
+	}
+	const panel = objectProp(profile, "panel");
+	const clearance = objectProp(profile, "clearance");
+	const drillMm = numberProp(panel, "drillDiameterMm") ?? defaultDrillMm(family);
+	const keepoutMm =
+		numberProp(panel, "keepoutDiameterMm") ?? defaultKeepoutMm(family, drillMm);
+	const bodyDepthMm = numberProp(clearance, "bodyDepthMm");
+	const geometry = derivedPartGeometry(
+		family,
+		drillMm,
+		keepoutMm,
+		bodyDepthMm,
+		numberProp(panel, "shaftDiameterMm"),
+	);
+	return {
+		id: profile.id,
+		label: stringProp(profile, "label") ?? profile.id,
+		family,
+		level: "exterior",
+		status: "generated-stub",
+		panelHoleDrillMm: drillMm,
+		geometry,
+		assets: assetRefsForId(`parts/${profile.id}`, options.partAssets?.[profile.id]),
+	};
+}
+
+function derivedPartGeometry(
+	family: StompboxPartProfile["family"],
+	drillMm: number,
+	keepoutMm: number,
+	bodyDepthMm: number | undefined,
+	shaftDiameterMm: number | undefined,
+): StompboxPartGeometry {
+	switch (family) {
+		case "knob":
+			return {
+				kind: "knob",
+				diameterMm: keepoutMm,
+				depthMm: bodyDepthMm ?? 12,
+				shaftDiameterMm: shaftDiameterMm ?? Math.min(drillMm * 0.9, 6.35),
+			};
+		case "led":
+			return {
+				kind: "led",
+				lensDiameterMm: drillMm,
+				bodyHeightMm: bodyDepthMm ?? 7,
+				flangeDiameterMm: keepoutMm,
+			};
+		case "footswitch":
+			return {
+				kind: "footswitch",
+				buttonDiameterMm: Math.max(drillMm * 0.7, 8),
+				nutOuterDiameterMm: keepoutMm,
+				ringHeightMm: 3,
+				buttonHeightMm: 8,
+				pressedTravelMm: 2,
+			};
+		case "audio-jack":
+		case "dc-jack":
+			return {
+				kind: "ring",
+				outerDiameterMm: keepoutMm,
+				innerDiameterMm: drillMm,
+				depthMm: bodyDepthMm ?? 6,
+			};
+	}
+}
+
+function defaultPartIdsFromCatalog(
+	partProfiles: Readonly<Record<string, StompboxPartProfile>>,
+): StompboxDefaultPartProfileIds {
+	const knob = firstPartIdForFamily(partProfiles, "knob") ?? "vdsp-derived-knob";
+	return {
+		knob,
+		largeKnob: knob,
+		smallKnob: knob,
+		led: firstPartIdForFamily(partProfiles, "led") ?? "vdsp-derived-led",
+		footswitch:
+			firstPartIdForFamily(partProfiles, "footswitch") ??
+			"vdsp-derived-footswitch",
+		audioJack:
+			firstPartIdForFamily(partProfiles, "audio-jack") ??
+			"vdsp-derived-audio-jack",
+		dcJack:
+			firstPartIdForFamily(partProfiles, "dc-jack") ?? "vdsp-derived-dc-jack",
+	};
+}
+
+function addMissingDefaultPartProfiles(
+	partProfiles: Record<string, StompboxPartProfile>,
+	defaultPartIds: StompboxDefaultPartProfileIds,
+): void {
+	const defaults: ReadonlyArray<
+		readonly [keyof StompboxDefaultPartProfileIds, StompboxPartProfile["family"]]
+	> = [
+		["knob", "knob"],
+		["largeKnob", "knob"],
+		["smallKnob", "knob"],
+		["led", "led"],
+		["footswitch", "footswitch"],
+		["audioJack", "audio-jack"],
+		["dcJack", "dc-jack"],
+	];
+	for (const [key, family] of defaults) {
+		const id = defaultPartIds[key];
+		if (partProfiles[id] !== undefined) {
+			continue;
+		}
+		const drillMm = defaultDrillMm(family);
+		partProfiles[id] = {
+			id,
+			label: id,
+			family,
+			level: "exterior",
+			status: "generated-stub",
+			panelHoleDrillMm: drillMm,
+			geometry: derivedPartGeometry(
+				family,
+				drillMm,
+				defaultKeepoutMm(family, drillMm),
+				undefined,
+				undefined,
+			),
+			assets: assetRefsForId(`parts/${id}`),
+		};
+	}
+}
+
+function stompboxFamilyForBuildPartKind(
+	kind: string | undefined,
+): StompboxPartProfile["family"] | undefined {
+	switch (kind) {
+		case "potentiometer":
+		case "selector":
+			return "knob";
+		case "led":
+			return "led";
+		case "footswitch":
+			return "footswitch";
+		case "jack":
+			return "audio-jack";
+		case "power-jack":
+			return "dc-jack";
+		default:
+			return undefined;
+	}
+}
+
+function derivedEnclosureObjectFromPartProfiles(
+	document: CircuitDocument,
+): VdspObject | undefined {
+	for (const profile of document.partProfiles?.profiles ?? []) {
+		if (profile.kind === "enclosure") {
+			const enclosure = objectProp(profile, "enclosure");
+			return enclosure === undefined ? profile : { ...enclosure, id: profile.id };
+		}
+	}
+	return undefined;
+}
+
+function derivedTopFaceUsableRect(
+	document: CircuitDocument,
+	widthMm: number,
+	lengthMm: number,
+): StompboxEnclosureProfile["topFace"]["usableRectMm"] {
+	const topFace = document.panel?.faces.find((face) => face.id === "top");
+	const usableRect = topFace?.geometry?.usableRectMm;
+	if (usableRect !== undefined) {
+		const looksTopLeft =
+			usableRect.x >= 0 &&
+			usableRect.y >= 0 &&
+			usableRect.x + usableRect.width <= widthMm &&
+			usableRect.y + usableRect.height <= lengthMm;
+		return {
+			x: looksTopLeft ? usableRect.x - widthMm / 2 : usableRect.x,
+			y: looksTopLeft ? usableRect.y - lengthMm / 2 : usableRect.y,
+			width: usableRect.width,
+			height: usableRect.height,
+		};
+	}
+	return {
+		x: -widthMm / 2,
+		y: -lengthMm / 2,
+		width: widthMm,
+		height: lengthMm,
+	};
+}
+
+function firstPartIdForFamily(
+	partProfiles: Readonly<Record<string, StompboxPartProfile>>,
+	family: StompboxPartProfile["family"],
+): string | undefined {
+	return Object.values(partProfiles).find((profile) => profile.family === family)
+		?.id;
+}
+
+function defaultDrillMm(family: StompboxPartProfile["family"]): number {
+	switch (family) {
+		case "knob":
+			return 7;
+		case "led":
+			return 5;
+		case "footswitch":
+			return 12;
+		case "audio-jack":
+			return 9.5;
+		case "dc-jack":
+			return 8;
+	}
+}
+
+function defaultKeepoutMm(
+	family: StompboxPartProfile["family"],
+	drillMm: number,
+): number {
+	switch (family) {
+		case "knob":
+			return Math.max(17, drillMm * 2.4);
+		case "led":
+			return Math.max(8, drillMm * 1.6);
+		case "footswitch":
+			return Math.max(22, drillMm * 1.8);
+		case "audio-jack":
+		case "dc-jack":
+			return Math.max(drillMm * 1.5, drillMm + 4);
+	}
+}
+
+function assetRefsForId(
+	id: string,
+	overrides?: Partial<StompboxAssetRefs>,
+): StompboxAssetRefs {
+	return {
+		glbRelativePath: overrides?.glbRelativePath ?? `${id}.glb`,
+		stepRelativePath: overrides?.stepRelativePath ?? `${id}.step`,
+	};
+}
+
+function objectProp(
+	value: unknown,
+	key: string,
+): VdspObject | undefined {
+	if (!isObject(value)) {
+		return undefined;
+	}
+	const child = value[key];
+	return isObject(child) ? child : undefined;
+}
+
+function stringProp(value: unknown, key: string): string | undefined {
+	if (!isObject(value)) {
+		return undefined;
+	}
+	const child = value[key];
+	return typeof child === "string" && child.length > 0 ? child : undefined;
+}
+
+function numberProp(value: unknown, key: string): number | undefined {
+	if (!isObject(value)) {
+		return undefined;
+	}
+	const child = value[key];
+	return typeof child === "number" && Number.isFinite(child) ? child : undefined;
+}
+
+function isObject(value: unknown): value is VdspObject {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function slug(value: string): string {
+	return (
+		value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "") || "vdsp"
+	);
 }
 
 function resolveStompboxPlacementStyle(
@@ -4461,6 +4837,96 @@ function decalAppearanceFor(
 		appearance.defaults?.label,
 		appearance.labels?.[decal.id],
 		appearance.labels?.[`decal-${decal.id}`],
+	);
+}
+
+function mergedStompboxAppearance(
+	document: CircuitDocument,
+	explicit: StompboxAppearance | undefined,
+): StompboxAppearance | undefined {
+	const embedded = stompboxAppearanceFromDocument(document);
+	if (embedded === undefined) {
+		return explicit;
+	}
+	if (explicit === undefined) {
+		return embedded;
+	}
+	const enclosure = mergeMaterials(embedded.enclosure, explicit.enclosure);
+	const template = mergeAppearanceObjects(embedded.template, explicit.template);
+	const defaults = mergeAppearanceRecords(embedded.defaults, explicit.defaults);
+	const controls = mergeAppearanceRecords(embedded.controls, explicit.controls);
+	const parts = mergeAppearanceRecords(embedded.parts, explicit.parts);
+	const labels = mergeAppearanceRecords(embedded.labels, explicit.labels);
+	return {
+		...embedded,
+		...explicit,
+		...(enclosure === undefined ? {} : { enclosure }),
+		...(template === undefined ? {} : { template }),
+		...(defaults === undefined ? {} : { defaults }),
+		...(controls === undefined ? {} : { controls }),
+		...(parts === undefined ? {} : { parts }),
+		...(labels === undefined ? {} : { labels }),
+	};
+}
+
+function stompboxAppearanceFromDocument(
+	document: CircuitDocument,
+): StompboxAppearance | undefined {
+	const appearance = document.appearance;
+	if (appearance?.kind !== "stompbox") {
+		return undefined;
+	}
+	return {
+		...(appearance.enclosure === undefined
+			? {}
+			: { enclosure: appearance.enclosure }),
+		...(appearance.template === undefined ? {} : { template: appearance.template }),
+		...(appearance.defaults === undefined ? {} : { defaults: appearance.defaults }),
+		...(appearance.controls === undefined ? {} : { controls: appearance.controls }),
+		...(appearance.parts === undefined ? {} : { parts: appearance.parts }),
+		...(appearance.labels === undefined ? {} : { labels: appearance.labels }),
+	} as StompboxAppearance;
+}
+
+function mergeAppearanceRecords<T extends Readonly<Record<string, unknown>>>(
+	embedded: T | undefined,
+	explicit: T | undefined,
+): T | undefined {
+	if (embedded === undefined) {
+		return explicit;
+	}
+	if (explicit === undefined) {
+		return embedded;
+	}
+	const merged: Record<string, unknown> = { ...embedded };
+	for (const [key, value] of Object.entries(explicit)) {
+		const base = merged[key];
+		merged[key] =
+			isPlainObject(base) && isPlainObject(value)
+				? { ...base, ...value }
+				: value;
+	}
+	return merged as T;
+}
+
+function mergeAppearanceObjects<T extends Readonly<Record<string, unknown>>>(
+	embedded: T | undefined,
+	explicit: T | undefined,
+): T | undefined {
+	if (embedded === undefined) {
+		return explicit;
+	}
+	if (explicit === undefined) {
+		return embedded;
+	}
+	return { ...embedded, ...explicit } as T;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		!Array.isArray(value)
 	);
 }
 

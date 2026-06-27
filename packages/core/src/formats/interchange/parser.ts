@@ -3,6 +3,7 @@ import type {
 	CircuitDocument,
 	CircuitDocumentDevice,
 	CircuitDocumentDeviceKind,
+	DocumentAppearance,
 	BoardApplicability,
 	BoardEdgeTerminal,
 	BoardFamily,
@@ -96,6 +97,7 @@ const INTERCHANGE_SCHEMA_V2 = "circuit-interchange/v2";
 const INTERCHANGE_SCHEMA_V3 = "circuit-interchange/v3";
 const V3_ONLY_TOP_LEVEL_FIELDS = [
 	"mechanical",
+	"appearance",
 	"build",
 	"bom",
 	"partProfiles",
@@ -117,6 +119,7 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 	}
 
 	const panel = parsePanel(root.panel, isV3);
+	const appearance = isV3 ? parseAppearance(root.appearance) : undefined;
 	const controlInterfaces = parseControlInterfaces(root.controlInterfaces);
 	const device = parseDevice(root.device);
 	const controlOutputs = parseControlOutputs(root.controlOutputs);
@@ -137,6 +140,7 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 		metadata: parseMetadata(root.metadata),
 		source: parseSource(root.source),
 		...(device === undefined ? {} : { device }),
+		...(appearance === undefined ? {} : { appearance }),
 		...(controlGroups === undefined ? {} : { controlGroups }),
 		...(controlContexts === undefined ? {} : { controlContexts }),
 		...(mechanical === undefined ? {} : { mechanical }),
@@ -163,6 +167,35 @@ function rejectV3OnlyTopLevelFields(root: YamlObject): void {
 		if (root[field] !== undefined) {
 			throw new Error(`${field}: requires schema ${INTERCHANGE_SCHEMA_V3}`);
 		}
+	}
+}
+
+function parseAppearance(
+	value: YamlValue | undefined,
+): DocumentAppearance | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	const rawAppearance = expectObject(value, "appearance");
+	const appearance = parseBuildDataObject(rawAppearance, "appearance");
+	const kind = expectString(rawAppearance.kind, "appearance.kind");
+	switch (kind) {
+		case "stompbox":
+			if (appearance.amp !== undefined) {
+				throw new Error(
+					"appearance.amp: cannot be present when appearance.kind is stompbox",
+				);
+			}
+			return { ...appearance, kind };
+		case "amp":
+			if (appearance.stompbox !== undefined) {
+				throw new Error(
+					"appearance.stompbox: cannot be present when appearance.kind is amp",
+				);
+			}
+			return { ...appearance, kind };
+		default:
+			throw new Error("appearance.kind: expected stompbox or amp");
 	}
 }
 

@@ -94,6 +94,49 @@ export type DocumentMetadata = Readonly<{
  */
 export type DocumentSource = Readonly<Record<string, string>>;
 
+export type DocumentAppearanceMaterial = VdspBuildDataObject &
+	Readonly<{
+		color?: string;
+		strokeColor?: string;
+		offColor?: string;
+		pressedColor?: string;
+		emissive?: boolean;
+		intensity?: number;
+		metallicFactor?: number;
+		roughnessFactor?: number;
+		opacity?: number;
+	}>;
+
+export type DocumentAppearanceLabel = VdspBuildDataObject &
+	Readonly<{
+		text?: string;
+		color?: string;
+		fontFamily?: string;
+		fontSizeMm?: number;
+	}>;
+
+export type DocumentStompboxAppearance = VdspBuildDataObject &
+	Readonly<{
+		kind: "stompbox";
+		enclosure?: DocumentAppearanceMaterial;
+		template?: DocumentAppearanceMaterial;
+		defaults?: VdspBuildDataObject;
+		controls?: Readonly<Record<string, VdspBuildDataObject>>;
+		parts?: Readonly<Record<string, DocumentAppearanceMaterial>>;
+		labels?: Readonly<Record<string, DocumentAppearanceLabel>>;
+	}>;
+
+export type DocumentAmpAppearance = VdspBuildDataObject &
+	Readonly<{
+		kind: "amp";
+		enclosureColor?: string;
+		appearance?: VdspBuildDataObject;
+	}>;
+
+export type DocumentAppearance =
+	| DocumentStompboxAppearance
+	| DocumentAmpAppearance;
+
 export type ControlInterfaceRole =
 	| "external-control"
 	| "tempo-tap"
@@ -675,6 +718,7 @@ export type CircuitDocument = Readonly<{
 	metadata: DocumentMetadata;
 	source?: DocumentSource;
 	device?: CircuitDocumentDevice;
+	appearance?: DocumentAppearance;
 	controlGroups?: readonly ControlGroup[];
 	controlContexts?: readonly ControlContext[];
 	mechanical?: MechanicalBuildMetadata;

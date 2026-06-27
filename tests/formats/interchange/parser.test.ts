@@ -5,6 +5,7 @@ import {
 	parseCircuitDocument,
 	parseInterchangeYaml,
 	serializeInterchangeYaml,
+	validateDocument,
 	type CircuitDocument,
 } from "../../../packages/core/src";
 
@@ -377,6 +378,96 @@ rawAttributes: {}`;
 		expect(yaml).toContain("controlId: LEVEL");
 		expect(yaml).toContain("rowSpan: 1");
 		expect(parsed.panel).toEqual(doc.panel);
+	});
+
+	test("round-trips mutually exclusive stompbox appearance metadata", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			metadata: {
+				name: "Painted Stompbox",
+				description: "Self-contained stompbox visual design.",
+				partNumber: "PAINT-1",
+			},
+			appearance: {
+				kind: "stompbox",
+				enclosure: {
+					color: "#f8fafc",
+					strokeColor: "#111827",
+					metallicFactor: 0.1,
+					roughnessFactor: 0.7,
+				},
+				template: {
+					offColor: "#e2e8f0",
+					foldColor: "#334155",
+				},
+				defaults: {
+					label: {
+						color: "#111827",
+						fontFamily: "Vessel Block",
+						fontSizeMm: 3.2,
+					},
+				},
+				labels: {
+					"panel-brand": {
+						text: "FUZZ LAB",
+						color: "#2563eb",
+					},
+				},
+			},
+		};
+
+		const yaml = serializeInterchangeYaml(doc);
+		const parsed = parseInterchangeYaml(yaml);
+
+		expect(yaml).toContain("appearance:");
+		expect(yaml).toContain("kind: stompbox");
+		expect(yaml).toContain('color: "#f8fafc"');
+		expect(parsed.appearance).toEqual(doc.appearance);
+	});
+
+	test("rejects appearance blocks that mix stompbox and amp design data", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Bad appearance
+  description: ""
+  partNumber: ""
+source: {}
+appearance:
+  kind: stompbox
+  enclosure:
+    color: "#f8fafc"
+  amp:
+    enclosureColor: "#111827"
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}`;
+
+		expect(() => parseInterchangeYaml(yaml)).toThrow(
+			"appearance.amp: cannot be present when appearance.kind is stompbox",
+		);
+	});
+
+	test("validates mutually exclusive appearance kinds on direct documents", () => {
+		const issues = validateDocument({
+			...EMPTY_DOCUMENT,
+			appearance: {
+				kind: "amp",
+				stompbox: {
+					enclosure: {
+						color: "#f8fafc",
+					},
+				},
+			} as CircuitDocument["appearance"],
+		});
+
+		expect(issues).toContainEqual(
+			expect.objectContaining({
+				code: "appearance-invalid",
+				property: "appearance.stompbox",
+			}),
+		);
 	});
 
 	test("round-trips audio jack subtype and label metadata as component properties", () => {
