@@ -125,7 +125,7 @@ Jacks prefer semantic metadata over source type fallback:
 | Property | Effect |
 | --- | --- |
 | `Role` | Audio or control role such as `input`, `output`, `direct-output`, `send`, `return`, `expression`, `tempo-tap`, or `external-control` |
-| `ControlRole` | Specific control role for external controls |
+| `ControlRole` | Specific semantic compiler role for external controls |
 | `Interface` | Interface name such as `audio`, `audio-input`, `tap-tempo`, or `external-control-input` |
 | `AudioRole` | More specific audio role such as `guitar-input`, `output-a-mono`, or `stereo-output-b` |
 | `JackLabel` or `Label` | Display label |
@@ -133,6 +133,36 @@ Jacks prefer semantic metadata over source type fallback:
 If semantic metadata is missing, source type names such as `Circuit.Input`,
 `Circuit.Speaker`, `ltspice:InputJack`, and `ltspice:OutputJack` provide the
 basic jack role.
+
+## Semantic control roles
+
+`ControlRole` is the machine-facing semantic role field for controls that a
+host may lower into runtime playback. It is intentionally separate from visible
+labels and from `deviceInterface.controls[].role`, which remains a lower-kebab
+UI/control grouping token.
+
+Core validates `ControlRole` values on source component properties and
+`controlInterfaces[].controlRole`. Source/read-only schematics can omit
+`ControlRole`, or carry incomplete semantic annotations, and still validate as
+inspectable source content. Unknown roles are warnings by default; callers that
+are validating a document that explicitly claims playback/lowering support can
+call `validateDocument(document, { playbackClaim: true })` to promote unknown
+semantic roles to errors.
+
+The initial canonical lower-kebab roles are exported as `CONTROL_ROLE_VALUES`.
+They include:
+
+- `harmony-voice-a`
+- `harmony-voice-b`
+- `harmony-key`
+- `harmony-effect-level`
+- `tempo-tap`
+- `direct-output`
+
+Hosts can layer product- or lowering-specific checks with
+`validateDocument(document, { rules: [...] })`. That keeps generic schema and
+enum validation in core while allowing an application to report diagnostics such
+as a visible `KEY` label that claims `ControlRole: harmony-voice-a`.
 
 ## Runtime descriptors
 

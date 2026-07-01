@@ -30,6 +30,23 @@ ledgers, private artifact paths, source hashes, and packet-local evidence belong
 in the consuming project's README, catalog, validation, or source-boundary
 metadata.
 
+## Semantic controls
+
+`.vdsp` control metadata separates user-visible labels from machine-facing
+runtime roles. Visible labels remain source-faithful free text. Semantic
+compiler roles use `ControlRole` on source component properties and
+`controlInterfaces[].controlRole` in structured metadata.
+
+`ControlRole` is optional so uploaded schematics can remain source/read-only
+documents. When present, core validates it against the canonical lower-kebab
+role registry exported as `CONTROL_ROLE_VALUES`. Unknown roles are warnings for
+source/read-only validation, and errors when callers validate with
+`validateDocument(document, { playbackClaim: true })`.
+
+Use `deviceInterface.controls[].role` for UI/control grouping tokens, not
+compiler semantic roles. That field continues to use lower-kebab open tokens
+such as `gain`, `tone`, or `input-level`.
+
 ## Circuit JSON contract
 
 The v1 bidirectional Circuit JSON contract covers `.vdsp`, `.asc`, `.schx`, and `.circuit.json`.

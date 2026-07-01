@@ -22,3 +22,10 @@ perfboard, breadboard-pattern protoboard, and fabricated PCB.
 Conversions from v3 `.vdsp` to formats that cannot represent those physical
 fields throw by default. Use `convertCircuitDocumentFileWithReport()` with
 `lossPolicy: 'drop-with-diagnostics'` when intentional lossy export is needed.
+
+Core validates semantic `ControlRole` values on source component properties and
+`controlInterfaces[].controlRole`. Roles are optional for source/read-only
+schematics; unknown roles warn by default and become errors when callers pass
+`validateDocument(document, { playbackClaim: true })`. Hosts can add
+lowering-specific diagnostics with `validateDocument(document, { rules: [...] })`
+without embedding runtime policy in core.

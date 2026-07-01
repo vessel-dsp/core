@@ -116,6 +116,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(formatsPage).toContain(".schx");
 		expect(formatsPage).toContain(".circuit.json");
 		expect(formatsPage).toContain("drop-with-diagnostics");
+		expect(formatsPage).toContain("CONTROL_ROLE_VALUES");
+		expect(formatsPage).toContain("playbackClaim: true");
+		expect(formatsPage).toContain("deviceInterface.controls[].role");
 
 		const stompboxPage = readRepoFile(
 			"docs/src/content/docs/guides/stompbox.mdx",
@@ -359,6 +362,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlsPage).toContain("StepLabels");
 		expect(controlsPage).toContain("ControlStyle");
 		expect(controlsPage).toContain("Role");
+		expect(controlsPage).toContain("ControlRole");
+		expect(controlsPage).toContain("CONTROL_ROLE_VALUES");
+		expect(controlsPage).toContain("validateDocument(document, { rules:");
+		expect(controlsPage).toContain("harmony-voice-a");
 		expect(controlsPage).toContain("panel.faces[]");
 		expect(controlsPage).toContain("extractDeviceInterface");
 		expect(controlsPage).toContain("PanelMessage");
