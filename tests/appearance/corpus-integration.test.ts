@@ -2,6 +2,12 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import { createAmpProfileFromVdsp } from "../../packages/amp/src/index.js";
 import { parseInterchangeYaml } from "../../packages/core/src/formats/interchange/parser.js";
+import type {
+	CircuitDocument,
+	DocumentAmpAppearance,
+	DocumentStompboxAppearance,
+	VdspBuildDataObject,
+} from "../../packages/core/src/model/types.js";
 
 const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || "../../../artifacts";
 const PEDAL_DIR = `${ARTIFACTS_DIR}/schematics/vessel-dsp`;
@@ -10,6 +16,40 @@ const CABINET_DIR = `${ARTIFACTS_DIR}/cabinets`;
 
 function hexColor(v: string): boolean {
 	return /^#([0-9a-fA-F]{3}){1,2}$/.test(v);
+}
+
+function buildObject(value: unknown): VdspBuildDataObject | undefined {
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as VdspBuildDataObject)
+		: undefined;
+}
+
+function stringProperty(
+	value: VdspBuildDataObject | undefined,
+	property: string,
+): string | undefined {
+	const propertyValue = value?.[property];
+	return typeof propertyValue === "string" ? propertyValue : undefined;
+}
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+function stompboxAppearance(doc: CircuitDocument): DocumentStompboxAppearance {
+	const appearance = doc.appearance;
+	if (appearance?.kind !== "stompbox") {
+		throw new Error("missing or wrong appearance kind");
+	}
+	return appearance;
+}
+
+function ampAppearance(doc: CircuitDocument): DocumentAmpAppearance {
+	const appearance = doc.appearance;
+	if (appearance?.kind !== "amp") {
+		throw new Error("missing or wrong appearance kind");
+	}
+	return appearance;
 }
 
 describe("stompbox appearance corpus integration", () => {
@@ -30,7 +70,7 @@ describe("stompbox appearance corpus integration", () => {
 			try {
 				const doc = parseInterchangeYaml(src);
 				const appearance = doc.appearance;
-				if (!appearance || appearance.kind !== "stompbox") {
+				if (appearance?.kind !== "stompbox") {
 					results.push({ slug, errors: ["missing or wrong appearance kind"] });
 					continue;
 				}
@@ -41,26 +81,27 @@ describe("stompbox appearance corpus integration", () => {
 				) {
 					errors.push("invalid enclosure.color");
 				}
-				if (
-					!appearance.defaults?.label?.color ||
-					!hexColor(appearance.defaults.label.color)
-				) {
+				const defaultLabelColor = stringProperty(
+					buildObject(appearance.defaults?.label),
+					"color",
+				);
+				if (!defaultLabelColor || !hexColor(defaultLabelColor)) {
 					errors.push("invalid defaults.label.color");
 				}
-				if (
-					appearance.defaults?.led &&
-					appearance.defaults.led.color &&
-					!hexColor(appearance.defaults.led.color)
-				) {
+				const defaultLedColor = stringProperty(
+					buildObject(appearance.defaults?.led),
+					"color",
+				);
+				if (defaultLedColor && !hexColor(defaultLedColor)) {
 					errors.push("invalid led.color");
 				}
 				if (errors.length > 0) {
 					results.push({ slug, errors });
 				}
-			} catch (e: any) {
+			} catch (e) {
 				results.push({
 					slug,
-					errors: [`parse error: ${e.message.split("\n")[0]}`],
+					errors: [`parse error: ${errorMessage(e).split("\n")[0]}`],
 				});
 			}
 		}
@@ -75,24 +116,32 @@ describe("stompbox appearance corpus integration", () => {
 	it("Boss DS-1 appearance matches vision-verified colors", () => {
 		const src = fs.readFileSync(`${PEDAL_DIR}/boss-ds-1.vdsp`, "utf-8");
 		const doc = parseInterchangeYaml(src);
-		expect(doc.appearance?.kind).toBe("stompbox");
-		expect(doc.appearance?.enclosure?.color).toBe("#e37830");
-		expect(doc.appearance?.defaults?.label?.color).toBe("#222222");
-		expect(doc.appearance?.defaults?.led?.color).toBe("#ff0000");
+		const appearance = stompboxAppearance(doc);
+		expect(appearance.enclosure?.color).toBe("#e37830");
+		expect(
+			stringProperty(buildObject(appearance.defaults?.label), "color"),
+		).toBe("#222222");
+		expect(stringProperty(buildObject(appearance.defaults?.led), "color")).toBe(
+			"#ff0000",
+		);
 	});
 
 	it("Boss CE-2 appearance matches corrected blue (not grey)", () => {
 		const src = fs.readFileSync(`${PEDAL_DIR}/boss-ce-2.vdsp`, "utf-8");
 		const doc = parseInterchangeYaml(src);
-		expect(doc.appearance?.enclosure?.color).toBe("#5ca8d4");
-		expect(doc.appearance?.enclosure?.color).not.toBe("#cbc2c2");
+		const appearance = stompboxAppearance(doc);
+		expect(appearance.enclosure?.color).toBe("#5ca8d4");
+		expect(appearance.enclosure?.color).not.toBe("#cbc2c2");
 	});
 
 	it("non-Boss big-muff-pi appearance is valid", () => {
 		const src = fs.readFileSync(`${PEDAL_DIR}/big-muff-pi.vdsp`, "utf-8");
 		const doc = parseInterchangeYaml(src);
-		expect(doc.appearance?.kind).toBe("stompbox");
-		expect(hexColor(doc.appearance!.enclosure!.color!)).toBe(true);
+		const appearance = stompboxAppearance(doc);
+		const enclosureColor = appearance.enclosure?.color;
+		expect(
+			enclosureColor === undefined ? false : hexColor(enclosureColor),
+		).toBe(true);
 	});
 });
 
@@ -115,7 +164,7 @@ describe("amp appearance corpus integration", () => {
 			try {
 				const doc = parseInterchangeYaml(src);
 				const appearance = doc.appearance;
-				if (!appearance || appearance.kind !== "amp") {
+				if (appearance?.kind !== "amp") {
 					results.push({ slug, errors: ["missing or wrong appearance kind"] });
 					continue;
 				}
@@ -129,8 +178,8 @@ describe("amp appearance corpus integration", () => {
 				if (errors.length > 0) {
 					results.push({ slug, errors });
 				}
-			} catch (e: any) {
-				const msg = e.message.split("\n")[0];
+			} catch (e) {
+				const msg = errorMessage(e).split("\n")[0] ?? "";
 				if (msg.includes("unsupported component kind")) {
 					warnings.push({ slug, msg });
 					continue;
@@ -152,21 +201,28 @@ describe("amp appearance corpus integration", () => {
 	it("Fender 5F1 Champ amp appearance matches vision-verified colors", () => {
 		const src = fs.readFileSync(`${AMP_DIR}/fender-5f1-champ.vdsp`, "utf-8");
 		const doc = parseInterchangeYaml(src);
-		expect(doc.appearance?.kind).toBe("amp");
-		expect(doc.appearance?.enclosureColor).toBe("#e0d090");
-		expect(doc.appearance?.appearance?.brandLabelColor).toBe("#2a1a1a");
+		const appearance = ampAppearance(doc);
+		expect(appearance.enclosureColor).toBe("#e0d090");
+		expect(stringProperty(appearance.appearance, "brandLabelColor")).toBe(
+			"#2a1a1a",
+		);
 	});
 
 	it("Orange Rockerverb amp appearance matches vision-verified colors", () => {
 		const src = fs.readFileSync(`${AMP_DIR}/orange-rockerverb.vdsp`, "utf-8");
 		const doc = parseInterchangeYaml(src);
-		expect(doc.appearance?.enclosureColor).toBe("#e87a10");
-		expect(doc.appearance?.appearance?.controlPanelColor).toBe("#c8a848");
+		const appearance = ampAppearance(doc);
+		expect(appearance.enclosureColor).toBe("#e87a10");
+		expect(stringProperty(appearance.appearance, "controlPanelColor")).toBe(
+			"#c8a848",
+		);
 	});
 
 	it("amp profile flows through createAmpProfileFromVdsp", () => {
 		const src = fs.readFileSync(`${AMP_DIR}/fender-5f1-champ.vdsp`, "utf-8");
-		const profile = createAmpProfileFromVdsp(src, "fender-5f1-champ.vdsp");
+		const profile = createAmpProfileFromVdsp(src, {
+			filename: "fender-5f1-champ.vdsp",
+		});
 		expect(profile.enclosureColor).toBe("#e0d090");
 		expect(profile.appearance?.brandLabelColor).toBe("#2a1a1a");
 	});
@@ -210,10 +266,10 @@ describe("cabinet appearance corpus integration", () => {
 				if (errors.length > 0) {
 					results.push({ slug: entry, errors });
 				}
-			} catch (e: any) {
+			} catch (e) {
 				results.push({
 					slug: entry,
-					errors: [`parse error: ${e.message.split("\n")[0]}`],
+					errors: [`parse error: ${errorMessage(e).split("\n")[0]}`],
 				});
 			}
 		}
