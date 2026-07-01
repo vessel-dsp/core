@@ -1,5 +1,5 @@
-import { propertyQuantityValue, propertyStringValue } from "./properties";
 import { extractPanel } from "../panel/extract";
+import { propertyQuantityValue, propertyStringValue } from "./properties";
 import type {
 	BoardNet,
 	BoardRealization,
@@ -41,6 +41,7 @@ export type ValidationCode =
 	| "runtime-match-key-missing"
 	| "runtime-match-key-incomplete"
 	| "firmware-chip-missing"
+	| "invalid-control-role"
 	| "duplicate-device-interface-control-id"
 	| "invalid-device-interface-token"
 	| "control-group-context-unresolved"
@@ -73,12 +74,46 @@ export type ValidationCode =
 	| "degenerate-wire";
 
 export type ValidationIssue = Readonly<{
-	code: ValidationCode;
+	code: ValidationCode | (string & {});
 	severity: ValidationSeverity;
 	message: string;
 	componentId?: string;
 	property?: string;
 	wireId?: string;
+}>;
+
+export const CONTROL_ROLE_VALUES = [
+	"direct-output",
+	"expression",
+	"harmony-effect-level",
+	"harmony-key",
+	"harmony-voice-a",
+	"harmony-voice-b",
+	"reset",
+	"sampler-trigger",
+	"tempo-tap",
+	"trigger",
+] as const;
+
+export type ControlRole = (typeof CONTROL_ROLE_VALUES)[number];
+
+export type ValidateDocumentOptions = Readonly<{
+	/**
+	 * Set when the caller is validating a document that explicitly claims
+	 * playback/lowering support. Source-only documents should leave this false.
+	 */
+	playbackClaim?: boolean;
+	rules?: readonly DocumentValidationRule[];
+}>;
+
+export type DocumentValidationRule = (
+	doc: CircuitDocument,
+	context: DocumentValidationContext,
+) => readonly ValidationIssue[];
+
+export type DocumentValidationContext = Readonly<{
+	playbackClaim: boolean;
+	controlRoles: ReadonlySet<ControlRole>;
 }>;
 
 export type QuantityRule = Readonly<{
@@ -116,6 +151,8 @@ const INLINE_MODEL_PARAMETERS: Partial<
 	triode: ["Mu", "K", "Kp", "Kvb", "Ex", "Kg"],
 	pentode: ["Mu", "K", "Kp", "Kvb", "Ex", "Kg", "Kg1", "Kg2"],
 };
+
+const CONTROL_ROLES: ReadonlySet<string> = new Set(CONTROL_ROLE_VALUES);
 
 const RUNTIME_DESCRIPTOR_CONTROL_PROPERTIES = [
 	"TimeControl",
@@ -472,9 +509,11 @@ export function validateComponent(
 
 export function validateDocument(
 	doc: CircuitDocument,
+	options: ValidateDocumentOptions = {},
 ): readonly ValidationIssue[] {
 	const issues: ValidationIssue[] = [];
 	const seen = new Set<string>();
+	const playbackClaim = options.playbackClaim === true;
 
 	for (const component of doc.components) {
 		if (seen.has(component.id)) {
@@ -504,6 +543,13 @@ export function validateDocument(
 		for (const issue of validateSemanticMetadata(component)) {
 			issues.push(issue);
 		}
+
+		for (const issue of validateComponentControlRole(
+			component,
+			playbackClaim,
+		)) {
+			issues.push(issue);
+		}
 	}
 
 	for (const wire of doc.wires) {
@@ -519,6 +565,10 @@ export function validateDocument(
 	}
 
 	for (const issue of validateDeviceInterface(doc, seen)) {
+		issues.push(issue);
+	}
+
+	for (const issue of validateControlInterfaces(doc, playbackClaim)) {
 		issues.push(issue);
 	}
 
@@ -540,6 +590,14 @@ export function validateDocument(
 
 	for (const issue of validateV3BuildMetadata(doc, seen)) {
 		issues.push(issue);
+	}
+
+	const context: DocumentValidationContext = {
+		playbackClaim,
+		controlRoles: CONTROL_ROLES as ReadonlySet<ControlRole>,
+	};
+	for (const rule of options.rules ?? []) {
+		issues.push(...rule(doc, context));
 	}
 
 	return issues;
@@ -706,6 +764,61 @@ function validateJackSemanticMetadata(
 	return issues;
 }
 
+function validateComponentControlRole(
+	component: Component,
+	playbackClaim: boolean,
+): readonly ValidationIssue[] {
+	const value = propertyString(component, "ControlRole");
+	if (value === null || value.trim().length === 0) {
+		return [];
+	}
+	if (isKnownControlRole(value)) {
+		return [];
+	}
+	return [
+		{
+			code: "invalid-control-role",
+			severity: controlRoleSeverity(playbackClaim),
+			message: `${component.id}: ControlRole "${value}" is not a recognized semantic control role`,
+			componentId: component.id,
+			property: "ControlRole",
+		},
+	];
+}
+
+function validateControlInterfaces(
+	doc: CircuitDocument,
+	playbackClaim: boolean,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const controlInterface of doc.controlInterfaces ?? []) {
+		const value = controlInterface.controlRole;
+		if (
+			value === undefined ||
+			value.trim().length === 0 ||
+			isKnownControlRole(value)
+		) {
+			continue;
+		}
+		issues.push({
+			code: "invalid-control-role",
+			severity: controlRoleSeverity(playbackClaim),
+			message: `Control interface "${controlInterface.id}" controlRole "${value}" is not a recognized semantic control role`,
+			componentId: controlInterface.id,
+			property: "controlRole",
+		});
+	}
+	return issues;
+}
+
+function isKnownControlRole(value: string): value is ControlRole {
+	return CONTROL_ROLES.has(value);
+}
+
+function controlRoleSeverity(playbackClaim: boolean): ValidationSeverity {
+	return playbackClaim ? "error" : "warning";
+}
+
 function validateRuntimeDescriptorMetadata(
 	component: Component,
 ): readonly ValidationIssue[] {
@@ -747,7 +860,9 @@ function validateRuntimeDescriptorMetadata(
 	return issues;
 }
 
-function validateFirmwareMetadata(component: Component): readonly ValidationIssue[] {
+function validateFirmwareMetadata(
+	component: Component,
+): readonly ValidationIssue[] {
 	const issues: ValidationIssue[] = [];
 	const firmwareRequired = propertyBoolean(component, "FirmwareRequired");
 	const firmwareId = propertyString(component, "FirmwareId")?.trim() ?? "";
@@ -948,7 +1063,10 @@ function parsePositiveInteger(value: string | null): number | undefined {
 	return Number.isInteger(count) && count > 0 ? count : undefined;
 }
 
-function hasRuntimeMatchToken(value: string, token: "chip" | "firmware"): boolean {
+function hasRuntimeMatchToken(
+	value: string,
+	token: "chip" | "firmware",
+): boolean {
 	const pattern = new RegExp(`(?:^|[;\\s])${token}\\s*=`, "i");
 	return pattern.test(value);
 }
@@ -1337,22 +1455,26 @@ function validateDeviceInterfaceAudioBinding(
 		return [];
 	}
 	if (control.audioBinding.kind !== "control") {
-		return [{
-			code: "device-interface-audio-binding-invalid",
-			severity: "error",
-			message: `Device interface control "${control.id}" has unsupported audio binding kind "${control.audioBinding.kind}"`,
-			componentId: control.id,
-			property: "audioBinding.kind",
-		}];
+		return [
+			{
+				code: "device-interface-audio-binding-invalid",
+				severity: "error",
+				message: `Device interface control "${control.id}" has unsupported audio binding kind "${control.audioBinding.kind}"`,
+				componentId: control.id,
+				property: "audioBinding.kind",
+			},
+		];
 	}
 	if (control.audioBinding.controlName.trim().length === 0) {
-		return [{
-			code: "device-interface-audio-binding-invalid",
-			severity: "error",
-			message: `Device interface control "${control.id}" has an empty audio binding controlName`,
-			componentId: control.id,
-			property: "audioBinding.controlName",
-		}];
+		return [
+			{
+				code: "device-interface-audio-binding-invalid",
+				severity: "error",
+				message: `Device interface control "${control.id}" has an empty audio binding controlName`,
+				componentId: control.id,
+				property: "audioBinding.controlName",
+			},
+		];
 	}
 	return [];
 }

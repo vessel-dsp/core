@@ -1,21 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import { parseInterchangeYaml } from "../../packages/core/src/formats/interchange/parser";
 import {
-	getRulesForKind,
-	hasErrors,
-	validateComponent,
-	validateDocument,
-} from "../../packages/core/src/model/validation";
-import {
-	EMPTY_DOCUMENT,
 	type CircuitDocument,
 	type Component,
 	type ComponentKind,
+	EMPTY_DOCUMENT,
 	type PanelElementPhysicalPlacement,
 	type Point,
 	type PropertyValue,
 	type Wire,
 } from "../../packages/core/src/model/types";
+import {
+	CONTROL_ROLE_VALUES,
+	getRulesForKind,
+	hasErrors,
+	validateComponent,
+	validateDocument,
+} from "../../packages/core/src/model/validation";
 
 const V3_MECHANICAL_BOARD_URL = new URL(
 	"../fixtures/interchange/vdsp-v3-mechanical-board-realization.vdsp",
@@ -1233,6 +1234,194 @@ describe("validateDocument", () => {
 				(issue) => issue.code === "device-interface-duplicate-role",
 			),
 		).toBeUndefined();
+	});
+
+	test("known ControlRole values validate on source components and control interfaces", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("VOICE_A", "label", { ControlRole: "harmony-voice-a" }),
+			],
+			controlInterfaces: [
+				{
+					id: "tap",
+					name: "Tap",
+					role: "tempo-tap",
+					controlRole: "tempo-tap",
+				},
+			],
+		};
+
+		expect(validateDocument(doc)).toEqual([]);
+		expect(CONTROL_ROLE_VALUES).toContain("harmony-key");
+	});
+
+	test("unknown ControlRole values warn for source-only documents", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("KEY", "label", { ControlRole: "not-a-runtime-role" }),
+			],
+			controlInterfaces: [
+				{
+					id: "external",
+					name: "External",
+					role: "external-control",
+					controlRole: "mystery-role",
+				},
+			],
+		};
+
+		const issues = validateDocument(doc);
+
+		expect(issues).toContainEqual({
+			code: "invalid-control-role",
+			severity: "warning",
+			message:
+				'KEY: ControlRole "not-a-runtime-role" is not a recognized semantic control role',
+			componentId: "KEY",
+			property: "ControlRole",
+		});
+		expect(issues).toContainEqual({
+			code: "invalid-control-role",
+			severity: "warning",
+			message:
+				'Control interface "external" controlRole "mystery-role" is not a recognized semantic control role',
+			componentId: "external",
+			property: "controlRole",
+		});
+	});
+
+	test("unknown ControlRole values error when playback is claimed", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("KEY", "label", { ControlRole: "not-a-runtime-role" }),
+			],
+		};
+
+		expect(validateDocument(doc, { playbackClaim: true })).toContainEqual(
+			expect.objectContaining({
+				code: "invalid-control-role",
+				severity: "error",
+				componentId: "KEY",
+				property: "ControlRole",
+			}),
+		);
+	});
+
+	test("device interface role tokens stay separate from semantic ControlRole values", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			deviceInterface: {
+				controls: [
+					{
+						id: "voice-a",
+						label: "VOICE A",
+						kind: "knob",
+						role: "harmony.voiceA",
+					},
+				],
+			},
+		};
+
+		const issues = validateDocument(doc);
+
+		expect(issues).toContainEqual(
+			expect.objectContaining({
+				code: "invalid-device-interface-token",
+				severity: "warning",
+				componentId: "voice-a",
+				property: "role",
+			}),
+		);
+		expect(issues.some((issue) => issue.code === "invalid-control-role")).toBe(
+			false,
+		);
+	});
+
+	test("custom validation rules can report lowering-specific ControlRole mismatches", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("KEY", "label", {
+					Label: "KEY",
+					ControlRole: "harmony-voice-a",
+				}),
+			],
+		};
+
+		const issues = validateDocument(doc, {
+			rules: [
+				(document) =>
+					document.components.flatMap((component) =>
+						component.properties.Label === "KEY" &&
+						component.properties.ControlRole === "harmony-voice-a"
+							? [
+									{
+										code: "audio-engine/control-role-label-mismatch",
+										severity: "warning",
+										message:
+											'KEY: visible label "KEY" does not match ControlRole "harmony-voice-a"',
+										componentId: component.id,
+										property: "ControlRole",
+									} as const,
+								]
+							: [],
+					),
+			],
+		});
+
+		expect(issues).toContainEqual(
+			expect.objectContaining({
+				code: "audio-engine/control-role-label-mismatch",
+				severity: "warning",
+				componentId: "KEY",
+				property: "ControlRole",
+			}),
+		);
+	});
+
+	test("custom validation rules can report duplicate required semantic roles", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("KEY_A", "label", { ControlRole: "harmony-key" }),
+				makeComponent("KEY_B", "label", { ControlRole: "harmony-key" }),
+			],
+		};
+
+		const issues = validateDocument(doc, {
+			rules: [
+				(document) => {
+					const owners = document.components.filter(
+						(component) => component.properties.ControlRole === "harmony-key",
+					);
+					const duplicate = owners[1];
+					return duplicate === undefined
+						? []
+						: [
+								{
+									code: "audio-engine/duplicate-control-role",
+									severity: "error",
+									message:
+										'Controls "KEY_A" and "KEY_B" both claim required ControlRole "harmony-key"',
+									componentId: duplicate.id,
+									property: "ControlRole",
+								} as const,
+							];
+				},
+			],
+		});
+
+		expect(issues).toContainEqual({
+			code: "audio-engine/duplicate-control-role",
+			severity: "error",
+			message:
+				'Controls "KEY_A" and "KEY_B" both claim required ControlRole "harmony-key"',
+			componentId: "KEY_B",
+			property: "ControlRole",
+		});
 	});
 
 	test("view-only interface controls waive electrical requirements but still validate present values", () => {

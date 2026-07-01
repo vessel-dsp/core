@@ -1,4 +1,4 @@
-export const VERSION = "0.6.10";
+export const VERSION = "0.6.11";
 
 export type {
 	CreateComponentArgs,
@@ -201,14 +201,19 @@ export type {
 } from "./model/types";
 export { EMPTY_DOCUMENT } from "./model/types";
 export type {
+	ControlRole,
+	DocumentValidationContext,
+	DocumentValidationRule,
 	PropertyRule,
 	QuantityRule,
 	StringRule,
+	ValidateDocumentOptions,
 	ValidationCode,
 	ValidationIssue,
 	ValidationSeverity,
 } from "./model/validation";
 export {
+	CONTROL_ROLE_VALUES,
 	getRulesForKind,
 	hasErrors,
 	validateComponent,

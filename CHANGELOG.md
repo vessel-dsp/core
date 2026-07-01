@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.11
+
+- Add enum-backed semantic `ControlRole` validation for source component
+  properties and `controlInterfaces[].controlRole`, with source-only warnings
+  and playback-claimed errors.
+- Export canonical control role constants and validation rule-pack hooks so
+  hosts can layer lowering-specific diagnostics without embedding runtime
+  policy in core.
+
 ## 0.6.10
 
 - Preserve firmware-bound microcomputer runtime metadata such as `ChipClass`,
