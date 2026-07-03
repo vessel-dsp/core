@@ -1,4 +1,0 @@
-interface:
-  display_name: "shadcn/ui"
-  short_description: "Build with shadcn/ui components"
-  default_prompt: "Use $shadcn-ui to add or update shadcn/ui components in a React and Tailwind project."
