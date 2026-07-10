@@ -108,6 +108,7 @@ const ID_PREFIX: Readonly<Record<ComponentKind, string>> = {
 	"delay-ic": "U",
 	"power-amp": "U",
 	regulator: "REG",
+	"power-converter": "U",
 	"analog-switch": "SW",
 	flipflop: "FF",
 	ic: "U",

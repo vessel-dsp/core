@@ -37,6 +37,7 @@ export type ComponentKind =
 	| "delay-ic"
 	| "power-amp"
 	| "regulator"
+	| "power-converter"
 	| "analog-switch"
 	| "flipflop"
 	| "ic"
@@ -466,6 +467,7 @@ export type CircuitPowerRailBinding = VdspBuildDataObject &
 		derivation: CircuitPowerRailDerivation;
 		parentRailComponentId?: string;
 		converterComponentId?: string;
+		nominalVoltage?: ParsedQuantity;
 	}>;
 
 export type CircuitPowerDomain = VdspBuildDataObject &

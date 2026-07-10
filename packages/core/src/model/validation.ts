@@ -78,6 +78,12 @@ export type ValidationCode =
 	| "power-domain-duplicate-id"
 	| "power-rail-duplicate-ownership"
 	| "power-coverage-domains-mismatch"
+	| "power-rail-converter-required"
+	| "power-rail-converter-invalid-kind"
+	| "power-rail-role-derivation-mismatch"
+	| "power-rail-duplicate-converter-role"
+	| "power-converter-missing-part-number"
+	| "power-rail-missing-nominal-voltage"
 	| "duplicate-id"
 	| "degenerate-wire";
 
@@ -407,6 +413,13 @@ const KIND_RULES: Partial<Record<ComponentKind, readonly PropertyRule[]>> = {
 			aliases: [...MODEL_ALIASES],
 		},
 	],
+	"power-converter": [
+		{
+			kind: "string",
+			name: "ConverterKind",
+			required: true,
+		},
+	],
 	"analog-switch": [
 		{
 			kind: "string",
@@ -601,6 +614,10 @@ export function validateDocument(
 	}
 
 	for (const issue of validateCircuitPower(doc, seen)) {
+		issues.push(issue);
+	}
+
+	for (const issue of validatePowerConverterComponents(doc)) {
 		issues.push(issue);
 	}
 
@@ -2077,6 +2094,10 @@ function validateCircuitPower(
 	const issues: ValidationIssue[] = [];
 	const domainIds = new Set<string>();
 	const railOwners = new Map<string, string>();
+	const converterRoleOwners = new Map<string, string>();
+	const componentsById = new Map(
+		doc.components.map((component) => [component.id, component] as const),
+	);
 
 	const expectsDomains =
 		power.coverage === "explicit-topology" ||
@@ -2165,19 +2186,93 @@ function validateCircuitPower(
 				);
 			}
 
-			if (
-				rail.converterComponentId !== undefined &&
-				!componentIds.has(rail.converterComponentId)
-			) {
-				issues.push(
-					unresolvedIssue(
-						"power-rail-unresolved",
-						"error",
-						`Rail "${rail.railComponentId}" converterComponentId references missing component "${rail.converterComponentId}"`,
-						rail.converterComponentId,
-						"converterComponentId",
-					),
+			const isChargePumpDerivation =
+				rail.derivation === "doubler" || rail.derivation === "inverter";
+
+			if (rail.converterComponentId === undefined) {
+				if (isChargePumpDerivation) {
+					issues.push({
+						code: "power-rail-converter-required",
+						severity: "error",
+						message: `Rail "${rail.railComponentId}" derivation "${rail.derivation}" requires converterComponentId`,
+						componentId: rail.railComponentId,
+					});
+				}
+			} else {
+				const converterComponent = componentsById.get(
+					rail.converterComponentId,
 				);
+				if (converterComponent === undefined) {
+					issues.push(
+						unresolvedIssue(
+							"power-rail-unresolved",
+							"error",
+							`Rail "${rail.railComponentId}" converterComponentId references missing component "${rail.converterComponentId}"`,
+							rail.converterComponentId,
+							"converterComponentId",
+						),
+					);
+				} else if (converterComponent.kind !== "power-converter") {
+					issues.push({
+						code: "power-rail-converter-invalid-kind",
+						severity: "error",
+						message: `Rail "${rail.railComponentId}" converterComponentId "${rail.converterComponentId}" references a "${converterComponent.kind}" component, not a power-converter`,
+						componentId: rail.converterComponentId,
+					});
+				}
+
+				const converterRoleKey = `${rail.converterComponentId}::${rail.role}`;
+				const existingConverterRoleOwner =
+					converterRoleOwners.get(converterRoleKey);
+				if (
+					existingConverterRoleOwner !== undefined &&
+					existingConverterRoleOwner !== rail.railComponentId
+				) {
+					issues.push({
+						code: "power-rail-duplicate-converter-role",
+						severity: "error",
+						message: `Converter "${rail.converterComponentId}" already has a rail with role "${rail.role}" (rail "${existingConverterRoleOwner}"); rail "${rail.railComponentId}" duplicates it`,
+						componentId: rail.railComponentId,
+					});
+				}
+				converterRoleOwners.set(converterRoleKey, rail.railComponentId);
+			}
+
+			if (rail.role === "main-supply" && rail.derivation !== "direct") {
+				issues.push({
+					code: "power-rail-role-derivation-mismatch",
+					severity: "error",
+					message: `Rail "${rail.railComponentId}" role "main-supply" is incompatible with derivation "${rail.derivation}"`,
+					componentId: rail.railComponentId,
+				});
+			}
+			if (
+				rail.role === "regulated-output" &&
+				rail.derivation !== "regulator"
+			) {
+				issues.push({
+					code: "power-rail-role-derivation-mismatch",
+					severity: "error",
+					message: `Rail "${rail.railComponentId}" role "regulated-output" is incompatible with derivation "${rail.derivation}"`,
+					componentId: rail.railComponentId,
+				});
+			}
+			if (rail.role === "charge-pump-output" && !isChargePumpDerivation) {
+				issues.push({
+					code: "power-rail-role-derivation-mismatch",
+					severity: "error",
+					message: `Rail "${rail.railComponentId}" role "charge-pump-output" is incompatible with derivation "${rail.derivation}"`,
+					componentId: rail.railComponentId,
+				});
+			}
+
+			if (isChargePumpDerivation && rail.nominalVoltage === undefined) {
+				issues.push({
+					code: "power-rail-missing-nominal-voltage",
+					severity: "warning",
+					message: `Rail "${rail.railComponentId}" derivation "${rail.derivation}" has no nominalVoltage`,
+					componentId: rail.railComponentId,
+				});
 			}
 		}
 
@@ -2220,6 +2315,29 @@ function findPowerRailParentCycle(
 		current = railsById.get(current)?.parentRailComponentId;
 	}
 	return undefined;
+}
+
+function validatePowerConverterComponents(
+	doc: CircuitDocument,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const component of doc.components) {
+		if (component.kind !== "power-converter") {
+			continue;
+		}
+		const hasPartNumber = MODEL_ALIASES.some(
+			(alias) => propertyStringValue(component.properties[alias]) !== null,
+		);
+		if (!hasPartNumber) {
+			issues.push({
+				code: "power-converter-missing-part-number",
+				severity: "warning",
+				message: `Component "${component.id}" is a power-converter with no PartNumber`,
+				componentId: component.id,
+			});
+		}
+	}
+	return issues;
 }
 
 function hasV3BuildMetadata(doc: CircuitDocument): boolean {

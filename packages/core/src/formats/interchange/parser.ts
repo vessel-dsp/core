@@ -769,6 +769,14 @@ function parsePowerRailBinding(
 						`${path}.converterComponentId`,
 					),
 				}),
+		...(rail.nominalVoltage === undefined
+			? {}
+			: {
+					nominalVoltage: parseQuantity(
+						rail.nominalVoltage,
+						`${path}.nominalVoltage`,
+					),
+				}),
 	};
 }
 
@@ -2599,6 +2607,7 @@ function parseComponentKind(
 		case "delay-ic":
 		case "power-amp":
 		case "regulator":
+		case "power-converter":
 		case "analog-switch":
 		case "flipflop":
 		case "ic":

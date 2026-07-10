@@ -19,6 +19,7 @@ const KIND_COLOR: Readonly<Record<ComponentKind, string>> = {
 	"delay-ic": "#14b8a6",
 	"power-amp": "#14b8a6",
 	regulator: "#f97316",
+	"power-converter": "#f97316",
 	"analog-switch": "#eab308",
 	flipflop: "#a855f7",
 	ic: "#14b8a6",

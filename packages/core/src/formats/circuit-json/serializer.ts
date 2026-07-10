@@ -852,6 +852,7 @@ function sourceComponentElement(
 		case "delay-ic":
 		case "power-amp":
 		case "regulator":
+		case "power-converter":
 		case "analog-switch":
 		case "flipflop":
 		case "label":
@@ -1166,6 +1167,7 @@ function schematicSymbolName(component: Component): string {
 		case "delay-ic":
 		case "power-amp":
 		case "regulator":
+		case "power-converter":
 		case "analog-switch":
 		case "flipflop":
 		case "unsupported":
