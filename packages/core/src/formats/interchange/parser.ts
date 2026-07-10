@@ -1768,6 +1768,17 @@ function parseBlock(
 	return parseObject(lines, cursor, indent);
 }
 
+function assignUniqueKey(
+	out: YamlObject,
+	key: string,
+	value: YamlValue,
+): void {
+	if (Object.prototype.hasOwnProperty.call(out, key)) {
+		throw new Error(`duplicate mapping key "${key}"`);
+	}
+	out[key] = value;
+}
+
 function parseObject(
 	lines: readonly YamlLine[],
 	cursor: Cursor,
@@ -1790,10 +1801,13 @@ function parseObject(
 
 		const pair = parsePair(line.text, line.lineNumber);
 		cursor.index += 1;
-		out[pair.key] =
+		assignUniqueKey(
+			out,
+			pair.key,
 			pair.rest.length > 0
 				? parseInlineValue(pair.rest, line.lineNumber)
-				: parseNestedValue(lines, cursor, indent, line.lineNumber);
+				: parseNestedValue(lines, cursor, indent, line.lineNumber),
+		);
 	}
 	return out;
 }
@@ -1842,10 +1856,13 @@ function parseObjectItem(
 ): YamlObject {
 	const out: YamlObject = {};
 	const firstPair = parsePair(firstPairText, lineNumber);
-	out[firstPair.key] =
+	assignUniqueKey(
+		out,
+		firstPair.key,
 		firstPair.rest.length > 0
 			? parseInlineValue(firstPair.rest, lineNumber)
-			: parseNestedValue(lines, cursor, indent, lineNumber);
+			: parseNestedValue(lines, cursor, indent, lineNumber),
+	);
 
 	while (cursor.index < lines.length) {
 		const line = lines[cursor.index];
@@ -1863,10 +1880,13 @@ function parseObjectItem(
 
 		const pair = parsePair(line.text, line.lineNumber);
 		cursor.index += 1;
-		out[pair.key] =
+		assignUniqueKey(
+			out,
+			pair.key,
 			pair.rest.length > 0
 				? parseInlineValue(pair.rest, line.lineNumber)
-				: parseNestedValue(lines, cursor, indent, line.lineNumber);
+				: parseNestedValue(lines, cursor, indent, line.lineNumber),
+		);
 	}
 
 	return out;

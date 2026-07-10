@@ -367,6 +367,111 @@ rawAttributes: {}`;
 		]);
 	});
 
+	test("validateVdspCircuitDocumentSchema reports a duplicate top-level power block as duplicate-key", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Duplicate Power Key
+  description: ""
+  partNumber: ""
+source: {}
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: not-applicable
+  domains: []
+power:
+  schema: circuit-power/v1
+  coverage: not-applicable
+  domains: []
+`;
+
+		const result = validateVdspCircuitDocumentSchema(yaml);
+
+		expect(result.valid).toBe(false);
+		if (result.valid) {
+			throw new Error("expected invalid .vdsp");
+		}
+		expect(result.errors).toEqual([
+			{
+				code: "duplicate-key",
+				message: 'duplicate mapping key "power"',
+				path: "power",
+			},
+		]);
+	});
+
+	test("validateVdspCircuitDocumentSchema reports a duplicate top-level rawAttributes block as duplicate-key", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Duplicate RawAttributes Key
+  description: ""
+  partNumber: ""
+source: {}
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+rawAttributes: {}
+`;
+
+		const result = validateVdspCircuitDocumentSchema(yaml);
+
+		expect(result.valid).toBe(false);
+		if (result.valid) {
+			throw new Error("expected invalid .vdsp");
+		}
+		expect(result.errors).toEqual([
+			{
+				code: "duplicate-key",
+				message: 'duplicate mapping key "rawAttributes"',
+				path: "rawAttributes",
+			},
+		]);
+	});
+
+	test("validateVdspCircuitDocumentSchema reports a duplicate nested key inside power.domains as duplicate-key", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Duplicate Nested Key
+  description: ""
+  partNumber: ""
+source: {}
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: explicit-topology
+  domains:
+    - id: main
+      sourceComponentIds: []
+      groundPolarity: negative-ground
+      groundPolarity: positive-ground
+      rails: []
+`;
+
+		const result = validateVdspCircuitDocumentSchema(yaml);
+
+		expect(result.valid).toBe(false);
+		if (result.valid) {
+			throw new Error("expected invalid .vdsp");
+		}
+		expect(result.errors).toEqual([
+			{
+				code: "duplicate-key",
+				message: 'duplicate mapping key "groundPolarity"',
+				path: "groundPolarity",
+			},
+		]);
+	});
+
 	test("parseCircuitDocumentFile parses .yaml via interchange YAML", async () => {
 		const yaml = `schema: circuit-interchange/v2
 metadata:

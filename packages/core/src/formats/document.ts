@@ -68,7 +68,7 @@ export type CircuitDocumentFileConversionReport = Readonly<{
 }>;
 
 export type VdspSchemaValidationIssue = Readonly<{
-	code: "vdsp-schema-invalid";
+	code: "vdsp-schema-invalid" | "duplicate-key";
 	message: string;
 	path?: string;
 }>;
@@ -201,7 +201,9 @@ export function validateVdspCircuitDocumentSchema(
 			valid: false,
 			errors: [
 				{
-					code: "vdsp-schema-invalid",
+					code: DUPLICATE_MAPPING_KEY_MESSAGE.test(message)
+						? "duplicate-key"
+						: "vdsp-schema-invalid",
 					message,
 					...(path === undefined ? {} : { path }),
 				},
@@ -478,7 +480,13 @@ function stripV3OnlyData(document: CircuitDocument): CircuitDocument {
 	};
 }
 
+const DUPLICATE_MAPPING_KEY_MESSAGE = /^duplicate mapping key "([^"]+)"$/;
+
 function pathFromSchemaMessage(message: string): string | undefined {
+	const duplicateKeyMatch = DUPLICATE_MAPPING_KEY_MESSAGE.exec(message);
+	if (duplicateKeyMatch !== null) {
+		return duplicateKeyMatch[1];
+	}
 	const colonIndex = message.indexOf(":");
 	if (colonIndex <= 0) {
 		return undefined;

@@ -1346,4 +1346,76 @@ rawAttributes: {}`;
 			parseInterchangeYaml("schema: circuit-interchange/v1\ncomponents: []\n"),
 		).toThrow("unsupported interchange schema: circuit-interchange/v1");
 	});
+
+	test("rejects a duplicate top-level mapping key instead of silently overwriting it", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Duplicate Top Level Key
+  description: ""
+  partNumber: ""
+source: {}
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+rawAttributes: {}
+`;
+		expect(() => parseInterchangeYaml(yaml)).toThrow(
+			'duplicate mapping key "rawAttributes"',
+		);
+	});
+
+	test("rejects a duplicate top-level power block instead of silently overwriting it", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Duplicate Power Key
+  description: ""
+  partNumber: ""
+source: {}
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: not-applicable
+  domains: []
+power:
+  schema: circuit-power/v1
+  coverage: not-applicable
+  domains: []
+`;
+		expect(() => parseInterchangeYaml(yaml)).toThrow(
+			'duplicate mapping key "power"',
+		);
+	});
+
+	test("rejects a duplicate nested mapping key inside power.domains", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Duplicate Nested Key
+  description: ""
+  partNumber: ""
+source: {}
+components: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: explicit-topology
+  domains:
+    - id: main
+      sourceComponentIds: []
+      groundPolarity: negative-ground
+      groundPolarity: positive-ground
+      rails: []
+`;
+		expect(() => parseInterchangeYaml(yaml)).toThrow(
+			'duplicate mapping key "groundPolarity"',
+		);
+	});
 });
