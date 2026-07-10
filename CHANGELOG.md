@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.12
+
+- Add a typed `circuit-power/v1` power-topology block (`CircuitPower`,
+  `CircuitPowerDomain`, `CircuitPowerRailBinding`) to `circuit-interchange/v3`,
+  describing supply domains, ground polarity, and rail role/derivation without
+  introducing a new document schema version.
+- Validate power topology: unresolved source, rail, parent-rail, and
+  converter component references; duplicate domain ids; duplicate rail
+  ownership across domains; `parentRailComponentId` cycles; and
+  `coverage`/`domains` consistency.
+
 ## 0.6.11
 
 - Add enum-backed semantic `ControlRole` validation for source component

@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@vessel-dsp/workspace",
@@ -19,25 +20,25 @@
     },
     "packages/amp": {
       "name": "@vessel-dsp/amp",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.10",
-        "@vessel-dsp/visual-effects": "0.6.10",
+        "@vessel-dsp/core": "0.6.12",
+        "@vessel-dsp/visual-effects": "0.6.12",
         "three": "^0.184.0",
       },
     },
     "packages/cabinet": {
       "name": "@vessel-dsp/cabinet",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.10",
-        "@vessel-dsp/visual-effects": "0.6.10",
+        "@vessel-dsp/core": "0.6.12",
+        "@vessel-dsp/visual-effects": "0.6.12",
         "three": "^0.184.0",
       },
     },
     "packages/control-ui": {
       "name": "@vessel-dsp/control-ui",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "dependencies": {
         "@vessel-dsp/core": "0.6.10",
       },
@@ -56,7 +57,7 @@
     },
     "packages/core": {
       "name": "@vessel-dsp/core",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "dependencies": {
         "circuit-json": "0.0.433",
         "zod": "3",
@@ -64,14 +65,14 @@
     },
     "packages/stompbox": {
       "name": "@vessel-dsp/stompbox",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "dependencies": {
         "@vessel-dsp/core": "0.6.10",
       },
     },
     "packages/visual-effects": {
       "name": "@vessel-dsp/visual-effects",
-      "version": "0.6.10",
+      "version": "0.6.12",
       "dependencies": {
         "three": "^0.184.0",
       },
