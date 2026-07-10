@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.14
+
+- Add a `power-converter` `ComponentKind` for source-visible converter ICs
+  (charge pumps, regulators, etc.), with a required `ConverterKind` property
+  (must-have value: `charge-pump`). Lets `CircuitDocument.power` rail
+  derivations anchor charge-pump-derived rails (for example a Klon-style
+  `+V2`/`V-` pair) to a real component instead of overclaiming topology from
+  voltage labels alone.
+- Add optional `nominalVoltage` on `CircuitPowerRailBinding` so a derived rail
+  can carry its own voltage separate from the domain's `ratedVoltage`.
+- Validate converter identity: `doubler`/`inverter` derivations require
+  `converterComponentId`; `converterComponentId` must resolve to a
+  `power-converter` component; `main-supply`/`regulated-output`/
+  `charge-pump-output` roles reject electrically contradictory derivations;
+  the same converter cannot claim the same rail role twice. Warn (don't fail)
+  on a converter with no `PartNumber` or a charge-pump-derived rail with no
+  `nominalVoltage`.
+- Does not model MAX1044/ICL7660 switching transients, sag, ripple, or a sag
+  knob — converter identity is structural metadata only.
+
 ## 0.6.13
 
 - Reject duplicate YAML mapping keys instead of silently letting the later
