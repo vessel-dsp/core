@@ -6,6 +6,7 @@ import type {
 	BoardRoute,
 	BuildBomRef,
 	CircuitDocument,
+	CircuitPowerRailBinding,
 	Component,
 	ComponentKind,
 	ControlGroup,
@@ -70,6 +71,13 @@ export type ValidationCode =
 	| "board-terminal-unresolved"
 	| "board-route-feature-invalid"
 	| "board-net-unrouted"
+	| "power-source-unresolved"
+	| "power-rail-unresolved"
+	| "power-rail-parent-unresolved"
+	| "power-rail-parent-cycle"
+	| "power-domain-duplicate-id"
+	| "power-rail-duplicate-ownership"
+	| "power-coverage-domains-mismatch"
 	| "duplicate-id"
 	| "degenerate-wire";
 
@@ -589,6 +597,10 @@ export function validateDocument(
 	}
 
 	for (const issue of validateV3BuildMetadata(doc, seen)) {
+		issues.push(issue);
+	}
+
+	for (const issue of validateCircuitPower(doc, seen)) {
 		issues.push(issue);
 	}
 
@@ -2051,6 +2063,163 @@ function validateV3BuildMetadata(
 	}
 
 	return issues;
+}
+
+function validateCircuitPower(
+	doc: CircuitDocument,
+	componentIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	const power = doc.power;
+	if (power === undefined) {
+		return [];
+	}
+
+	const issues: ValidationIssue[] = [];
+	const domainIds = new Set<string>();
+	const railOwners = new Map<string, string>();
+
+	const expectsDomains =
+		power.coverage === "explicit-topology" ||
+		power.coverage === "declared-rails";
+	if (!expectsDomains && power.domains.length > 0) {
+		issues.push({
+			code: "power-coverage-domains-mismatch",
+			severity: "error",
+			message: `power.coverage "${power.coverage}" must not declare domains, found ${power.domains.length}`,
+		});
+	} else if (expectsDomains && power.domains.length === 0) {
+		issues.push({
+			code: "power-coverage-domains-mismatch",
+			severity: "warning",
+			message: `power.coverage "${power.coverage}" expects at least one domain`,
+		});
+	}
+
+	for (const domain of power.domains) {
+		if (domainIds.has(domain.id)) {
+			issues.push({
+				code: "power-domain-duplicate-id",
+				severity: "error",
+				message: `Duplicate power domain id "${domain.id}"`,
+			});
+		}
+		domainIds.add(domain.id);
+
+		for (const sourceComponentId of domain.sourceComponentIds) {
+			if (!componentIds.has(sourceComponentId)) {
+				issues.push(
+					unresolvedIssue(
+						"power-source-unresolved",
+						"error",
+						`Power domain "${domain.id}" sourceComponentIds references missing component "${sourceComponentId}"`,
+						sourceComponentId,
+						"sourceComponentIds",
+					),
+				);
+			}
+		}
+
+		const railsById = new Map(
+			domain.rails.map((rail) => [rail.railComponentId, rail] as const),
+		);
+
+		for (const rail of domain.rails) {
+			if (!componentIds.has(rail.railComponentId)) {
+				issues.push(
+					unresolvedIssue(
+						"power-rail-unresolved",
+						"error",
+						`Power domain "${domain.id}" rail references missing component "${rail.railComponentId}"`,
+						rail.railComponentId,
+						"railComponentId",
+					),
+				);
+			}
+
+			const existingOwner = railOwners.get(rail.railComponentId);
+			if (existingOwner !== undefined && existingOwner !== domain.id) {
+				issues.push(
+					unresolvedIssue(
+						"power-rail-duplicate-ownership",
+						"error",
+						`Rail component "${rail.railComponentId}" is claimed by both power domains "${existingOwner}" and "${domain.id}"`,
+						rail.railComponentId,
+						"railComponentId",
+					),
+				);
+			}
+			railOwners.set(rail.railComponentId, domain.id);
+
+			if (
+				rail.parentRailComponentId !== undefined &&
+				!railsById.has(rail.parentRailComponentId)
+			) {
+				issues.push(
+					unresolvedIssue(
+						"power-rail-parent-unresolved",
+						"error",
+						`Rail "${rail.railComponentId}" parentRailComponentId references a rail not declared in domain "${domain.id}"`,
+						rail.parentRailComponentId,
+						"parentRailComponentId",
+					),
+				);
+			}
+
+			if (
+				rail.converterComponentId !== undefined &&
+				!componentIds.has(rail.converterComponentId)
+			) {
+				issues.push(
+					unresolvedIssue(
+						"power-rail-unresolved",
+						"error",
+						`Rail "${rail.railComponentId}" converterComponentId references missing component "${rail.converterComponentId}"`,
+						rail.converterComponentId,
+						"converterComponentId",
+					),
+				);
+			}
+		}
+
+		const reportedCycleMembers = new Set<string>();
+		for (const rail of domain.rails) {
+			if (reportedCycleMembers.has(rail.railComponentId)) {
+				continue;
+			}
+			const cycle = findPowerRailParentCycle(rail.railComponentId, railsById);
+			if (cycle !== undefined) {
+				for (const member of cycle) {
+					reportedCycleMembers.add(member);
+				}
+				issues.push({
+					code: "power-rail-parent-cycle",
+					severity: "error",
+					message: `Power domain "${domain.id}" has a parentRailComponentId cycle: ${cycle.join(" -> ")}`,
+					componentId: rail.railComponentId,
+				});
+			}
+		}
+	}
+
+	return issues;
+}
+
+function findPowerRailParentCycle(
+	start: string,
+	railsById: ReadonlyMap<string, CircuitPowerRailBinding>,
+): readonly string[] | undefined {
+	const path: string[] = [];
+	const onPath = new Set<string>();
+	let current: string | undefined = start;
+	while (current !== undefined) {
+		if (onPath.has(current)) {
+			return path.slice(path.indexOf(current));
+		}
+		path.push(current);
+		onPath.add(current);
+		current = railsById.get(current)?.parentRailComponentId;
+	}
+	return undefined;
 }
 
 function hasV3BuildMetadata(doc: CircuitDocument): boolean {

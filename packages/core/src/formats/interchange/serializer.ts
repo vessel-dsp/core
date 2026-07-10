@@ -125,6 +125,9 @@ export function serializeInterchangeYaml(
 	if (doc.boards !== undefined) {
 		root.boards = doc.boards.map(buildDataObjectBlock);
 	}
+	if (doc.power !== undefined) {
+		root.power = buildDataObjectBlock(doc.power);
+	}
 
 	return `${emitYaml(root, 0)}\n`;
 }
@@ -139,6 +142,7 @@ function hasV3OnlyFields(doc: CircuitDocument): boolean {
 		doc.footprints !== undefined ||
 		doc.offBoardWiring !== undefined ||
 		doc.boards !== undefined ||
+		doc.power !== undefined ||
 		hasV3PanelFields(doc.panel)
 	);
 }

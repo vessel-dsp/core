@@ -1,0 +1,149 @@
+schema: circuit-interchange/v3
+metadata:
+  name: Voltage Divider with Power Topology
+  description: Resistive VBIAS divider fed by an explicit 9V battery domain.
+  partNumber: ""
+source:
+  format: interchange
+  filename: voltage-divider-power-topology.vdsp
+components:
+  - id: R1
+    kind: resistor
+    name: R1
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        position:
+          x: 0
+          y: -10
+      - name: b
+        position:
+          x: 0
+          y: 10
+    properties:
+      Resistance:
+        raw: "10k"
+        value: 10000
+        unit: ""
+  - id: R2
+    kind: resistor
+    name: R2
+    origin:
+      x: 0
+      y: 30
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        position:
+          x: 0
+          y: 20
+      - name: b
+        position:
+          x: 0
+          y: 40
+    properties:
+      Resistance:
+        raw: "10k"
+        value: 10000
+        unit: ""
+  - id: GND1
+    kind: ground
+    name: GND1
+    origin:
+      x: 0
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: t
+        position:
+          x: 0
+          y: 50
+    properties: {}
+  - id: BATT1
+    kind: battery
+    name: BATT1
+    origin:
+      x: 100
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: "+"
+        position:
+          x: 100
+          y: -10
+      - name: "-"
+        position:
+          x: 100
+          y: 10
+    properties:
+      V:
+        raw: "9V"
+        value: 9
+        unit: V
+  - id: RAIL_MAIN
+    kind: rail
+    name: RAIL_MAIN
+    origin:
+      x: 100
+      y: 30
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: t
+        position:
+          x: 100
+          y: 30
+    properties:
+      V:
+        raw: "9V"
+        value: 9
+        unit: V
+  - id: RAIL_BIAS
+    kind: rail
+    name: RAIL_BIAS
+    origin:
+      x: 100
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: t
+        position:
+          x: 100
+          y: 50
+    properties:
+      V:
+        raw: "4.5V"
+        value: 4.5
+        unit: V
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: explicit-topology
+  domains:
+    - id: main
+      sourceComponentIds:
+        - BATT1
+      ratedVoltage:
+        raw: "9V"
+        value: 9
+        unit: V
+      groundPolarity: negative-ground
+      rails:
+        - railComponentId: RAIL_MAIN
+          role: main-supply
+          derivation: direct
+        - railComponentId: RAIL_BIAS
+          role: bias-reference
+          derivation: divider
+          parentRailComponentId: RAIL_MAIN

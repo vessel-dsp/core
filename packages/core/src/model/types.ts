@@ -431,6 +431,59 @@ export type MechanicalBuildMetadata = VdspBuildDataObject &
 			}>;
 	}>;
 
+export type CircuitPowerCoverage =
+	| "explicit-topology"
+	| "declared-rails"
+	| "external-unspecified"
+	| "not-applicable";
+
+// Distinct from ControlInterfacePolarity (footswitch/jack polarity); this is supply grounding.
+export type CircuitPowerGroundPolarity =
+	| "negative-ground"
+	| "positive-ground"
+	| "bipolar";
+
+export type CircuitPowerRailRole =
+	| "main-supply"
+	| "bias-reference"
+	| "regulated-output"
+	| "charge-pump-output"
+	| "negative-supply";
+
+export type CircuitPowerRailDerivation =
+	| "direct"
+	| "divider"
+	| "regulator"
+	| "inverter"
+	| "doubler"
+	| "isolated"
+	| "unspecified";
+
+export type CircuitPowerRailBinding = VdspBuildDataObject &
+	Readonly<{
+		railComponentId: string;
+		role: CircuitPowerRailRole;
+		derivation: CircuitPowerRailDerivation;
+		parentRailComponentId?: string;
+		converterComponentId?: string;
+	}>;
+
+export type CircuitPowerDomain = VdspBuildDataObject &
+	Readonly<{
+		id: string;
+		sourceComponentIds: readonly string[];
+		ratedVoltage?: ParsedQuantity;
+		groundPolarity: CircuitPowerGroundPolarity;
+		rails: readonly CircuitPowerRailBinding[];
+	}>;
+
+export type CircuitPower = VdspBuildDataObject &
+	Readonly<{
+		schema: "circuit-power/v1";
+		coverage: CircuitPowerCoverage;
+		domains: readonly CircuitPowerDomain[];
+	}>;
+
 export type BuildBomRefKind =
 	| "component"
 	| "device-interface-control"
@@ -728,6 +781,7 @@ export type CircuitDocument = Readonly<{
 	footprints?: BoardFootprintCatalog;
 	offBoardWiring?: OffBoardWiringPlan;
 	boards?: readonly BoardRealization[];
+	power?: CircuitPower;
 	deviceInterface?: DeviceInterface;
 	panel?: PanelPlacementMetadata;
 	controlInterfaces?: readonly ControlInterface[];

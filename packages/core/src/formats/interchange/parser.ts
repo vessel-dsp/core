@@ -63,6 +63,13 @@ import type {
 	OffBoardWiringHarness,
 	OffBoardWiringHarnessStatus,
 	OffBoardWiringPlan,
+	CircuitPower,
+	CircuitPowerCoverage,
+	CircuitPowerDomain,
+	CircuitPowerGroundPolarity,
+	CircuitPowerRailBinding,
+	CircuitPowerRailDerivation,
+	CircuitPowerRailRole,
 	ParsedQuantity,
 	Point,
 	PropertyValue,
@@ -104,6 +111,7 @@ const V3_ONLY_TOP_LEVEL_FIELDS = [
 	"footprints",
 	"offBoardWiring",
 	"boards",
+	"power",
 ] as const;
 
 export function parseInterchangeYaml(source: string): CircuitDocument {
@@ -135,6 +143,7 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 		? parseOffBoardWiring(root.offBoardWiring)
 		: undefined;
 	const boards = isV3 ? parseBoards(root.boards) : undefined;
+	const power = isV3 ? parsePower(root.power) : undefined;
 
 	return {
 		metadata: parseMetadata(root.metadata),
@@ -150,6 +159,7 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 		...(footprints === undefined ? {} : { footprints }),
 		...(offBoardWiring === undefined ? {} : { offBoardWiring }),
 		...(boards === undefined ? {} : { boards }),
+		...(power === undefined ? {} : { power }),
 		...(deviceInterface === undefined ? {} : { deviceInterface }),
 		...(panel === undefined ? {} : { panel }),
 		...(controlInterfaces === undefined ? {} : { controlInterfaces }),
@@ -677,6 +687,173 @@ function parseBoards(
 		return undefined;
 	}
 	return optionalArray(value, "boards").map(parseBoard);
+}
+
+function parsePower(value: YamlValue | undefined): CircuitPower | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	const power = expectObject(value, "power");
+	return {
+		...parseBuildDataObject(power, "power"),
+		schema: parseLiteralString(
+			power.schema,
+			"power.schema",
+			"circuit-power/v1",
+		),
+		coverage: parseCircuitPowerCoverage(power.coverage, "power.coverage"),
+		domains: optionalArray(power.domains, "power.domains").map(
+			(domain, index) => parsePowerDomain(domain, `power.domains[${index}]`),
+		),
+	};
+}
+
+function parsePowerDomain(value: YamlValue, path: string): CircuitPowerDomain {
+	const domain = expectObject(value, path);
+	return {
+		...parseBuildDataObject(domain, path),
+		id: expectString(domain.id, `${path}.id`),
+		sourceComponentIds: optionalArray(
+			domain.sourceComponentIds,
+			`${path}.sourceComponentIds`,
+		).map((id, index) =>
+			expectString(id, `${path}.sourceComponentIds[${index}]`),
+		),
+		...(domain.ratedVoltage === undefined
+			? {}
+			: {
+					ratedVoltage: parseQuantity(
+						domain.ratedVoltage,
+						`${path}.ratedVoltage`,
+					),
+				}),
+		groundPolarity: parseCircuitPowerGroundPolarity(
+			domain.groundPolarity,
+			`${path}.groundPolarity`,
+		),
+		rails: optionalArray(domain.rails, `${path}.rails`).map((rail, index) =>
+			parsePowerRailBinding(rail, `${path}.rails[${index}]`),
+		),
+	};
+}
+
+function parsePowerRailBinding(
+	value: YamlValue,
+	path: string,
+): CircuitPowerRailBinding {
+	const rail = expectObject(value, path);
+	return {
+		...parseBuildDataObject(rail, path),
+		railComponentId: expectString(
+			rail.railComponentId,
+			`${path}.railComponentId`,
+		),
+		role: parseCircuitPowerRailRole(rail.role, `${path}.role`),
+		derivation: parseCircuitPowerRailDerivation(
+			rail.derivation,
+			`${path}.derivation`,
+		),
+		...(rail.parentRailComponentId === undefined
+			? {}
+			: {
+					parentRailComponentId: expectString(
+						rail.parentRailComponentId,
+						`${path}.parentRailComponentId`,
+					),
+				}),
+		...(rail.converterComponentId === undefined
+			? {}
+			: {
+					converterComponentId: expectString(
+						rail.converterComponentId,
+						`${path}.converterComponentId`,
+					),
+				}),
+	};
+}
+
+function parseCircuitPowerCoverage(
+	value: YamlValue | undefined,
+	path: string,
+): CircuitPowerCoverage {
+	const coverage = expectString(value, path);
+	switch (coverage) {
+		case "explicit-topology":
+		case "declared-rails":
+		case "external-unspecified":
+		case "not-applicable":
+			return coverage;
+		default:
+			throw new Error(
+				`${path}: expected explicit-topology, declared-rails, external-unspecified, or not-applicable`,
+			);
+	}
+}
+
+function parseCircuitPowerGroundPolarity(
+	value: YamlValue | undefined,
+	path: string,
+): CircuitPowerGroundPolarity {
+	const polarity = expectString(value, path);
+	switch (polarity) {
+		case "negative-ground":
+		case "positive-ground":
+		case "bipolar":
+			return polarity;
+		default:
+			throw new Error(
+				`${path}: expected negative-ground, positive-ground, or bipolar`,
+			);
+	}
+}
+
+function parseCircuitPowerRailRole(
+	value: YamlValue | undefined,
+	path: string,
+): CircuitPowerRailRole {
+	const role = expectString(value, path);
+	switch (role) {
+		case "main-supply":
+		case "bias-reference":
+		case "regulated-output":
+		case "charge-pump-output":
+		case "negative-supply":
+			return role;
+		default:
+			throw new Error(
+				`${path}: expected main-supply, bias-reference, regulated-output, charge-pump-output, or negative-supply`,
+			);
+	}
+}
+
+function parseCircuitPowerRailDerivation(
+	value: YamlValue | undefined,
+	path: string,
+): CircuitPowerRailDerivation {
+	const derivation = expectString(value, path);
+	switch (derivation) {
+		case "direct":
+		case "divider":
+		case "regulator":
+		case "inverter":
+		case "doubler":
+		case "isolated":
+		case "unspecified":
+			return derivation;
+		default:
+			throw new Error(
+				`${path}: expected direct, divider, regulator, inverter, doubler, isolated, or unspecified`,
+			);
+	}
+}
+
+function parseQuantity(value: YamlValue, path: string): ParsedQuantity {
+	const quantity = expectObject(value, path);
+	return {
+		raw: expectString(quantity.raw, `${path}.raw`),
+		value: expectNumber(quantity.value, `${path}.value`),
+		unit: expectString(quantity.unit, `${path}.unit`),
+	};
 }
 
 function parseBoard(value: YamlValue, index: number): BoardRealization {
