@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.13
+
+- Reject duplicate YAML mapping keys instead of silently letting the later
+  occurrence win. Enforced at every object nesting level (a duplicate
+  top-level `power:` or `rawAttributes:` block, or a duplicate key inside
+  `power.domains[0]`, and so on), since validation after parsing cannot tell
+  that a key was overwritten during parse.
+- `validateVdspCircuitDocumentSchema` reports duplicate keys with
+  `code: "duplicate-key"` and `path` set to the offending key.
+
 ## 0.6.12
 
 - Add a typed `circuit-power/v1` power-topology block (`CircuitPower`,
