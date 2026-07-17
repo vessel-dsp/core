@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.15
+
+- Add typed source-visible cabinet, speaker-driver, microphone-transducer, and
+  simulation profile schemas to `@vessel-dsp/core` without introducing runtime
+  simulator admission rules.
+- Add `simulationProfiles` to `.vdsp` v3 documents with parse/serialize
+  round-trip preservation, namespaced extension preservation, and explicit
+  conversion-loss diagnostics when exporting to non-VDSP formats.
+- Validate profile catalog integrity, including duplicate IDs, dangling
+  cabinet driver and simulation target references, malformed simulation units,
+  and invalid non-positive physical quantities while allowing incomplete
+  measured/profile seed records.
+
 ## 0.6.14
 
 - Add a `power-converter` `ComponentKind` for source-visible converter ICs

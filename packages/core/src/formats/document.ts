@@ -399,6 +399,9 @@ function v3OnlyDroppedFields(document: CircuitDocument): readonly string[] {
 	if (document.partProfiles !== undefined) {
 		fields.push("partProfiles");
 	}
+	if (document.simulationProfiles !== undefined) {
+		fields.push("simulationProfiles");
+	}
 	if (document.footprints !== undefined) {
 		fields.push("footprints");
 	}

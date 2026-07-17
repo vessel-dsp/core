@@ -212,6 +212,49 @@ rawAttributes: {}`;
 		);
 	});
 
+	test("conversion reports v3-only simulation profile data loss", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Simulation Profiles
+  description: ""
+  partNumber: ""
+source:
+  format: interchange
+simulationProfiles:
+  schema: simulation-profile-catalog/v1
+  units: SI
+  profiles:
+    - profileSchema: speaker-load-model/v1
+      kind: speaker-load-model
+      id: driver-linear-load
+      targetProfileIds:
+        - driver
+      domain: electromechanical
+      representation: thiele-small
+components: []
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+`;
+
+		const report = convertCircuitDocumentFileWithReport(yaml, {
+			inputFilename: "simulation-profiles.vdsp",
+			outputFormat: "circuit-json",
+			outputFilename: "simulation-profiles.circuit.json",
+			lossPolicy: "drop-with-diagnostics",
+		});
+
+		expect(report.droppedFields).toEqual(["simulationProfiles"]);
+		expect(report.diagnostics).toContainEqual(
+			expect.objectContaining({
+				code: "v3-data-dropped",
+				field: "simulationProfiles",
+			}),
+		);
+	});
+
 	test("parseVdspCircuitDocument parses .vdsp source directly", () => {
 		const yaml = `schema: circuit-interchange/v2
 metadata:

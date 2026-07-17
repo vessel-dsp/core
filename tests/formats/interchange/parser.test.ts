@@ -45,6 +45,190 @@ const V3_MECHANICAL_BOARD_URL = new URL(
 );
 
 describe("parseInterchangeYaml", () => {
+	test("round-trips known and unknown physical profiles with simulation profiles", () => {
+		const yaml = `schema: circuit-interchange/v3
+metadata:
+  name: Profile Catalog
+  description: ""
+  partNumber: ""
+source:
+  format: interchange
+partProfiles:
+  schema: part-profile-catalog/v1
+  units: SI
+  profiles:
+    - profileSchema: speaker-driver-profile/v1
+      kind: speaker-driver
+      id: celestion-vintage-30-8
+      displayName: Celestion Vintage 30 8 ohm
+      smallSignal:
+        nominalImpedanceOhms: 8
+        reOhms: 6.8
+      geometry:
+        radiatingAreaM2: 0.053
+    - profileSchema: cabinet-enclosure-profile/v1
+      kind: cabinet-enclosure
+      id: orange-ppc412
+      enclosure:
+        type: closed-back
+        netVolumeM3: 0.28
+      loadout:
+        - driverProfileId: celestion-vintage-30-8
+          count: 4
+          wiring: series-parallel
+    - profileSchema: future-profile/v9
+      kind: experimental-thing
+      id: unknown-profile
+      future:
+        keepsRoundTrip: true
+simulationProfiles:
+  schema: simulation-profile-catalog/v1
+  units: SI
+  profiles:
+    - profileSchema: speaker-large-signal-model/v1
+      kind: speaker-large-signal-model
+      id: celestion-v30-level-grid-experiment
+      targetProfileIds:
+        - celestion-vintage-30-8
+      domain: electromechanical-acoustic
+      representation: level-grid
+      operatingRegime: large-signal
+      coupling: bidirectional-electrical-mechanical
+      dataRef: measurements/v30/level-grid-v1.json
+      extensions:
+        audio-engine:
+          schema: cab-speaker-mic-experiment/v1
+          status: offline-reference-only
+components: []
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+`;
+
+		const parsed = parseInterchangeYaml(yaml);
+		const roundTrip = parseInterchangeYaml(serializeInterchangeYaml(parsed));
+
+		expect(parsed.partProfiles?.profiles[0]).toMatchObject({
+			profileSchema: "speaker-driver-profile/v1",
+			kind: "speaker-driver",
+			id: "celestion-vintage-30-8",
+			smallSignal: { nominalImpedanceOhms: 8 },
+		});
+		expect(parsed.partProfiles?.profiles[2]).toMatchObject({
+			profileSchema: "future-profile/v9",
+			future: { keepsRoundTrip: true },
+		});
+		expect(parsed.simulationProfiles?.profiles[0]).toMatchObject({
+			representation: "level-grid",
+			targetProfileIds: ["celestion-vintage-30-8"],
+			extensions: {
+				"audio-engine": {
+					status: "offline-reference-only",
+				},
+			},
+		});
+		expect(roundTrip.partProfiles).toEqual(parsed.partProfiles);
+		expect(roundTrip.simulationProfiles).toEqual(parsed.simulationProfiles);
+	});
+
+	test("validates profile references while allowing incomplete known profiles", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			partProfiles: {
+				schema: "part-profile-catalog/v1",
+				units: "SI",
+				profiles: [
+					{
+						profileSchema: "speaker-driver-profile/v1",
+						kind: "speaker-driver",
+						id: "incomplete-driver",
+					},
+					{
+						profileSchema: "cabinet-enclosure-profile/v1",
+						kind: "cabinet-enclosure",
+						id: "cab",
+						loadout: [{ driverProfileId: "missing-driver", count: 1 }],
+					},
+				],
+			},
+			simulationProfiles: {
+				schema: "simulation-profile-catalog/v1",
+				units: "SI",
+				profiles: [
+					{
+						profileSchema: "speaker-load-model/v1",
+						kind: "speaker-load-model",
+						id: "model",
+						targetProfileIds: ["missing-driver"],
+						domain: "electromechanical",
+						representation: "thiele-small",
+					},
+				],
+			},
+		};
+
+		const issues = validateDocument(doc);
+
+		expect(issues.map((issue) => issue.code)).toContain(
+			"part-profile-reference-unresolved",
+		);
+		expect(issues.map((issue) => issue.code)).toContain(
+			"simulation-profile-reference-unresolved",
+		);
+		expect(issues).not.toContainEqual(
+			expect.objectContaining({ componentId: "incomplete-driver" }),
+		);
+	});
+
+	test("rejects malformed simulation profile units and invalid physical quantities", () => {
+		const malformedUnits = `schema: circuit-interchange/v3
+metadata:
+  name: Bad Units
+  description: ""
+  partNumber: ""
+source: {}
+simulationProfiles:
+  schema: simulation-profile-catalog/v1
+  units: imperial
+  profiles: []
+components: []
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+`;
+
+		expect(() => parseInterchangeYaml(malformedUnits)).toThrow(
+			/simulationProfiles\.units: expected SI/,
+		);
+
+		const issues = validateDocument({
+			...EMPTY_DOCUMENT,
+			partProfiles: {
+				schema: "part-profile-catalog/v1",
+				profiles: [
+					{
+						profileSchema: "speaker-driver-profile/v1",
+						kind: "speaker-driver",
+						id: "driver",
+						smallSignal: { reOhms: -1 },
+					},
+				],
+			},
+		});
+
+		expect(issues).toContainEqual(
+			expect.objectContaining({
+				code: "part-profile-quantity-invalid",
+				componentId: "driver",
+				property: "smallSignal.reOhms",
+			}),
+		);
+	});
+
 	test("parses circuit-interchange/v3 mechanical build metadata without dropping physical fields", async () => {
 		const yaml = await Bun.file(V3_MECHANICAL_BOARD_URL).text();
 		const parsed = parseInterchangeYaml(yaml);

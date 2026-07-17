@@ -94,6 +94,9 @@ export function serializeInterchangeYaml(
 	if (doc.partProfiles !== undefined) {
 		root.partProfiles = buildDataObjectBlock(doc.partProfiles);
 	}
+	if (doc.simulationProfiles !== undefined) {
+		root.simulationProfiles = buildDataObjectBlock(doc.simulationProfiles);
+	}
 	if (doc.footprints !== undefined) {
 		root.footprints = buildDataObjectBlock(doc.footprints);
 	}
@@ -139,6 +142,7 @@ function hasV3OnlyFields(doc: CircuitDocument): boolean {
 		doc.build !== undefined ||
 		doc.bom !== undefined ||
 		doc.partProfiles !== undefined ||
+		doc.simulationProfiles !== undefined ||
 		doc.footprints !== undefined ||
 		doc.offBoardWiring !== undefined ||
 		doc.boards !== undefined ||

@@ -27,6 +27,8 @@ import type {
 	BuildPartProfile,
 	BuildPartProfileCatalog,
 	BuildScope,
+	SimulationProfile,
+	SimulationProfileCatalog,
 	Component,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -72,6 +74,7 @@ import type {
 	CircuitPowerRailRole,
 	ParsedQuantity,
 	Point,
+	ProfileResponseRef,
 	PropertyValue,
 	Rotation,
 	Terminal,
@@ -108,6 +111,7 @@ const V3_ONLY_TOP_LEVEL_FIELDS = [
 	"build",
 	"bom",
 	"partProfiles",
+	"simulationProfiles",
 	"footprints",
 	"offBoardWiring",
 	"boards",
@@ -138,6 +142,9 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 	const build = isV3 ? parseBuild(root.build) : undefined;
 	const bom = isV3 ? parseBom(root.bom) : undefined;
 	const partProfiles = isV3 ? parsePartProfiles(root.partProfiles) : undefined;
+	const simulationProfiles = isV3
+		? parseSimulationProfiles(root.simulationProfiles)
+		: undefined;
 	const footprints = isV3 ? parseFootprints(root.footprints) : undefined;
 	const offBoardWiring = isV3
 		? parseOffBoardWiring(root.offBoardWiring)
@@ -156,6 +163,7 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 		...(build === undefined ? {} : { build }),
 		...(bom === undefined ? {} : { bom }),
 		...(partProfiles === undefined ? {} : { partProfiles }),
+		...(simulationProfiles === undefined ? {} : { simulationProfiles }),
 		...(footprints === undefined ? {} : { footprints }),
 		...(offBoardWiring === undefined ? {} : { offBoardWiring }),
 		...(boards === undefined ? {} : { boards }),
@@ -428,10 +436,140 @@ function parsePartProfile(value: YamlValue, index: number): BuildPartProfile {
 	return {
 		...parseBuildDataObject(profile, path),
 		id: expectString(profile.id, `${path}.id`),
+		...(profile.profileSchema === undefined
+			? {}
+			: {
+					profileSchema: expectString(
+						profile.profileSchema,
+						`${path}.profileSchema`,
+					),
+				}),
 		...(profile.kind === undefined
 			? {}
 			: { kind: expectString(profile.kind, `${path}.kind`) }),
 	};
+}
+
+function parseSimulationProfiles(
+	value: YamlValue | undefined,
+): SimulationProfileCatalog | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	const catalog = expectObject(value, "simulationProfiles");
+	return {
+		...parseBuildDataObject(catalog, "simulationProfiles"),
+		schema: parseLiteralString(
+			catalog.schema,
+			"simulationProfiles.schema",
+			"simulation-profile-catalog/v1",
+		),
+		...(catalog.resolution === undefined
+			? {}
+			: {
+					resolution: expectString(
+						catalog.resolution,
+						"simulationProfiles.resolution",
+					),
+				}),
+		...(catalog.units === undefined
+			? {}
+			: {
+					units: parseSimulationProfileUnits(
+						catalog.units,
+						"simulationProfiles.units",
+					),
+				}),
+		profiles: optionalArray(
+			catalog.profiles,
+			"simulationProfiles.profiles",
+		).map((profile, index) => parseSimulationProfile(profile, index)),
+	};
+}
+
+function parseSimulationProfile(
+	value: YamlValue,
+	index: number,
+): SimulationProfile {
+	const path = `simulationProfiles.profiles[${index}]`;
+	const profile = expectObject(value, path);
+	return {
+		...parseBuildDataObject(profile, path),
+		profileSchema: expectString(profile.profileSchema, `${path}.profileSchema`),
+		kind: expectString(profile.kind, `${path}.kind`),
+		id: expectString(profile.id, `${path}.id`),
+		targetProfileIds: optionalArray(
+			profile.targetProfileIds,
+			`${path}.targetProfileIds`,
+		).map((id, targetIndex) =>
+			expectString(id, `${path}.targetProfileIds[${targetIndex}]`),
+		),
+		domain: expectString(profile.domain, `${path}.domain`),
+		representation: expectString(profile.representation, `${path}.representation`),
+		...(profile.operatingRegime === undefined
+			? {}
+			: {
+					operatingRegime: expectString(
+						profile.operatingRegime,
+						`${path}.operatingRegime`,
+					),
+				}),
+		...(profile.coupling === undefined
+			? {}
+			: { coupling: expectString(profile.coupling, `${path}.coupling`) }),
+		...(profile.parameters === undefined
+			? {}
+			: {
+					parameters: parseBuildDataObject(
+						profile.parameters,
+						`${path}.parameters`,
+					),
+				}),
+		...(profile.dataRef === undefined
+			? {}
+			: { dataRef: expectString(profile.dataRef, `${path}.dataRef`) }),
+		...(profile.assetRefs === undefined
+			? {}
+			: {
+					assetRefs: optionalArray(profile.assetRefs, `${path}.assetRefs`).map(
+						(assetRef, assetIndex) =>
+							parseProfileResponseRef(
+								assetRef,
+								`${path}.assetRefs[${assetIndex}]`,
+							),
+					),
+				}),
+	};
+}
+
+function parseProfileResponseRef(
+	value: YamlValue,
+	path: string,
+): ProfileResponseRef {
+	const ref = expectObject(value, path);
+	return {
+		...parseBuildDataObject(ref, path),
+		id: expectString(ref.id, `${path}.id`),
+		kind: expectString(ref.kind, `${path}.kind`),
+		assetRef: expectString(ref.assetRef, `${path}.assetRef`),
+		...(ref.mimeType === undefined
+			? {}
+			: { mimeType: expectString(ref.mimeType, `${path}.mimeType`) }),
+		...(ref.sha256 === undefined
+			? {}
+			: { sha256: expectString(ref.sha256, `${path}.sha256`) }),
+	};
+}
+
+function parseSimulationProfileUnits(
+	value: YamlValue | undefined,
+	path: string,
+): string {
+	const units = expectString(value, path);
+	if (units === "SI") {
+		return units;
+	}
+	throw new Error(`${path}: expected SI`);
 }
 
 function parseFootprints(

@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/stompbox",
-	"version": "0.6.14",
+	"version": "0.6.15",
 	"description": "Headless stompbox drill-layout and preview manifests for VesselDSP .vdsp documents.",
 	"keywords": [
 		"guitar-pedal",
@@ -52,7 +52,7 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/core": "0.6.14"
+		"@vessel-dsp/core": "0.6.15"
 	},
 	"publishConfig": {
 		"access": "public"

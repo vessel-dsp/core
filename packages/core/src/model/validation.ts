@@ -5,6 +5,7 @@ import type {
 	BoardRealization,
 	BoardRoute,
 	BuildBomRef,
+	BuildPartProfile,
 	CircuitDocument,
 	CircuitPowerRailBinding,
 	Component,
@@ -21,6 +22,7 @@ import type {
 	PanelFace,
 	ParsedQuantity,
 	PropertyValue,
+	SimulationProfile,
 	VdspBuildDataObject,
 } from "./types";
 
@@ -65,6 +67,11 @@ export type ValidationCode =
 	| "build-board-unresolved"
 	| "build-harness-unresolved"
 	| "bom-ref-unresolved"
+	| "part-profile-duplicate-id"
+	| "part-profile-reference-unresolved"
+	| "part-profile-quantity-invalid"
+	| "simulation-profile-duplicate-id"
+	| "simulation-profile-reference-unresolved"
 	| "offboard-endpoint-unresolved"
 	| "offboard-signal-unresolved"
 	| "board-source-hash-invalid"
@@ -2051,6 +2058,8 @@ function validateV3BuildMetadata(
 		}
 	}
 
+	issues.push(...validateProfileCatalogs(doc));
+
 	for (const board of boards) {
 		issues.push(
 			...validateBoardRealization(board, componentsById, boardNetsByBoardId),
@@ -2080,6 +2089,179 @@ function validateV3BuildMetadata(
 	}
 
 	return issues;
+}
+
+function validateProfileCatalogs(doc: CircuitDocument): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	const partProfiles = doc.partProfiles?.profiles ?? [];
+	const partProfileIds = new Set<string>();
+
+	for (const profile of partProfiles) {
+		if (partProfileIds.has(profile.id)) {
+			issues.push({
+				code: "part-profile-duplicate-id",
+				severity: "error",
+				message: `Duplicate part profile id "${profile.id}"`,
+				componentId: profile.id,
+			});
+		}
+		partProfileIds.add(profile.id);
+		issues.push(...validateKnownPhysicalProfile(profile));
+	}
+
+	for (const profile of partProfiles) {
+		if (profile.profileSchema !== "cabinet-enclosure-profile/v1") {
+			continue;
+		}
+		for (const loadout of dataObjectArray(profile, "loadout")) {
+			const driverProfileId = dataString(loadout, "driverProfileId");
+			if (driverProfileId !== undefined && !partProfileIds.has(driverProfileId)) {
+				issues.push(
+					unresolvedIssue(
+						"part-profile-reference-unresolved",
+						"error",
+						`Cabinet profile "${profile.id}" references missing driver profile "${driverProfileId}"`,
+						profile.id,
+						"loadout.driverProfileId",
+					),
+				);
+			}
+		}
+	}
+
+	const simulationProfileIds = new Set<string>();
+	for (const profile of doc.simulationProfiles?.profiles ?? []) {
+		if (simulationProfileIds.has(profile.id)) {
+			issues.push({
+				code: "simulation-profile-duplicate-id",
+				severity: "error",
+				message: `Duplicate simulation profile id "${profile.id}"`,
+				componentId: profile.id,
+			});
+		}
+		simulationProfileIds.add(profile.id);
+		issues.push(...validateSimulationProfile(profile, partProfileIds));
+	}
+
+	return issues;
+}
+
+function validateKnownPhysicalProfile(
+	profile: BuildPartProfile,
+): readonly ValidationIssue[] {
+	switch (profile.profileSchema) {
+		case "speaker-driver-profile/v1":
+			return validatePositiveDataNumbers(profile, profile.id, [
+				["smallSignal", "nominalImpedanceOhms"],
+				["smallSignal", "reOhms"],
+				["smallSignal", "leHenries"],
+				["smallSignal", "fsHz"],
+				["smallSignal", "qms"],
+				["smallSignal", "qes"],
+				["smallSignal", "qts"],
+				["smallSignal", "vasM3"],
+				["smallSignal", "mmsKg"],
+				["smallSignal", "cmsMetersPerNewton"],
+				["smallSignal", "rmsKgPerSecond"],
+				["smallSignal", "blTeslaMeters"],
+				["geometry", "radiatingAreaM2"],
+				["geometry", "xmaxM"],
+			]);
+		case "cabinet-enclosure-profile/v1":
+			return [
+				...validatePositiveDataNumbers(profile, profile.id, [
+					["enclosure", "netVolumeM3"],
+					["enclosure", "lossQ"],
+				]),
+				...validateCabinetNestedQuantities(profile),
+			];
+		case "microphone-transducer-profile/v1":
+			return validatePositiveDataNumbers(profile, profile.id, [
+				["electrical", "nominalImpedanceOhms"],
+			]);
+		default:
+			return [];
+	}
+}
+
+function validateCabinetNestedQuantities(
+	profile: BuildPartProfile,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	const enclosure = dataObject(profile, "enclosure");
+	const dimensions = dataObject(enclosure, "dimensionsM");
+	for (const key of ["width", "height", "depth"]) {
+		const value = dataNumber(dimensions, key);
+		if (value !== undefined && value <= 0) {
+			issues.push(invalidProfileQuantity(profile.id, `enclosure.dimensionsM.${key}`));
+		}
+	}
+	for (const [index, port] of dataObjectArray(enclosure, "ports").entries()) {
+		for (const key of ["areaM2", "lengthM", "tuningHz"]) {
+			const value = dataNumber(port, key);
+			if (value !== undefined && value <= 0) {
+				issues.push(
+					invalidProfileQuantity(profile.id, `enclosure.ports[${index}].${key}`),
+				);
+			}
+		}
+	}
+	for (const [index, loadout] of dataObjectArray(profile, "loadout").entries()) {
+		const count = dataNumber(loadout, "count");
+		if (count !== undefined && (!Number.isInteger(count) || count <= 0)) {
+			issues.push(invalidProfileQuantity(profile.id, `loadout[${index}].count`));
+		}
+	}
+	return issues;
+}
+
+function validateSimulationProfile(
+	profile: SimulationProfile,
+	partProfileIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const targetProfileId of profile.targetProfileIds) {
+		if (!partProfileIds.has(targetProfileId)) {
+			issues.push(
+				unresolvedIssue(
+					"simulation-profile-reference-unresolved",
+					"error",
+					`Simulation profile "${profile.id}" references missing target profile "${targetProfileId}"`,
+					profile.id,
+					"targetProfileIds",
+				),
+			);
+		}
+	}
+	return issues;
+}
+
+function validatePositiveDataNumbers(
+	profile: BuildPartProfile,
+	profileId: string,
+	paths: readonly (readonly [string, string])[],
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const [objectKey, valueKey] of paths) {
+		const value = dataNumber(dataObject(profile, objectKey), valueKey);
+		if (value !== undefined && value <= 0) {
+			issues.push(invalidProfileQuantity(profileId, `${objectKey}.${valueKey}`));
+		}
+	}
+	return issues;
+}
+
+function invalidProfileQuantity(
+	profileId: string,
+	property: string,
+): ValidationIssue {
+	return {
+		code: "part-profile-quantity-invalid",
+		severity: "error",
+		message: `Part profile "${profileId}" has invalid non-positive quantity "${property}"`,
+		componentId: profileId,
+		property,
+	};
 }
 
 function validateCircuitPower(
@@ -2347,6 +2529,7 @@ function hasV3BuildMetadata(doc: CircuitDocument): boolean {
 		doc.build !== undefined ||
 		doc.bom !== undefined ||
 		doc.partProfiles !== undefined ||
+		doc.simulationProfiles !== undefined ||
 		doc.footprints !== undefined ||
 		doc.offBoardWiring !== undefined ||
 		doc.boards !== undefined ||
@@ -2855,12 +3038,28 @@ function dataString(
 	return typeof value === "string" ? value : undefined;
 }
 
+function dataNumber(
+	object: VdspBuildDataObject | undefined,
+	key: string,
+): number | undefined {
+	const value = object?.[key];
+	return typeof value === "number" ? value : undefined;
+}
+
 function dataObject(
 	object: VdspBuildDataObject | undefined,
 	key: string,
 ): VdspBuildDataObject | undefined {
 	const value = object?.[key];
 	return isBuildDataObject(value) ? value : undefined;
+}
+
+function dataObjectArray(
+	object: VdspBuildDataObject | undefined,
+	key: string,
+): readonly VdspBuildDataObject[] {
+	const value = object?.[key];
+	return Array.isArray(value) ? value.filter(isBuildDataObject) : [];
 }
 
 function isBuildDataObject(value: unknown): value is VdspBuildDataObject {

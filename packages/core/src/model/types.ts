@@ -524,14 +524,181 @@ export type BuildPartProfile = VdspBuildDataObject &
 	Readonly<{
 		id: string;
 		kind?: string;
+		profileSchema?: string;
 	}>;
+
+export type ProfileResponseRef = VdspBuildDataObject &
+	Readonly<{
+		id: string;
+		kind: string;
+		assetRef: string;
+		mimeType?: string;
+		sha256?: string;
+	}>;
+
+export type PhysicalProfileIdentity = VdspBuildDataObject &
+	Readonly<{
+		manufacturer?: string;
+		model?: string;
+		revision?: string;
+	}>;
+
+export type PhysicalProfileBase = BuildPartProfile &
+	Readonly<{
+		profileSchema: string;
+		kind: string;
+		displayName?: string;
+		identity?: PhysicalProfileIdentity;
+		responseRefs?: readonly ProfileResponseRef[];
+		extensions?: Readonly<Record<string, VdspBuildDataObject>>;
+	}>;
+
+export type SpeakerDriverSmallSignal = VdspBuildDataObject &
+	Readonly<{
+		nominalImpedanceOhms?: number;
+		reOhms?: number;
+		leHenries?: number;
+		fsHz?: number;
+		qms?: number;
+		qes?: number;
+		qts?: number;
+		vasM3?: number;
+		mmsKg?: number;
+		cmsMetersPerNewton?: number;
+		rmsKgPerSecond?: number;
+		blTeslaMeters?: number;
+	}>;
+
+export type SpeakerDriverGeometry = VdspBuildDataObject &
+	Readonly<{
+		radiatingAreaM2?: number;
+		xmaxM?: number;
+	}>;
+
+export type SpeakerDriverProfile = PhysicalProfileBase &
+	Readonly<{
+		profileSchema: "speaker-driver-profile/v1";
+		kind: "speaker-driver";
+		smallSignal?: SpeakerDriverSmallSignal;
+		geometry?: SpeakerDriverGeometry;
+	}>;
+
+export type CabinetEnclosureType =
+	| "closed-back"
+	| "open-back"
+	| "ported"
+	| "infinite-baffle"
+	| "transmission-line"
+	| "unknown";
+
+export type CabinetDimensionsM = VdspBuildDataObject &
+	Readonly<{
+		width?: number;
+		height?: number;
+		depth?: number;
+	}>;
+
+export type CabinetPort = VdspBuildDataObject &
+	Readonly<{
+		areaM2?: number;
+		lengthM?: number;
+		tuningHz?: number;
+	}>;
+
+export type CabinetEnclosure = VdspBuildDataObject &
+	Readonly<{
+		type: CabinetEnclosureType;
+		netVolumeM3?: number;
+		dimensionsM?: CabinetDimensionsM;
+		lossQ?: number;
+		ports?: readonly CabinetPort[];
+	}>;
+
+export type CabinetDriverLoadout = VdspBuildDataObject &
+	Readonly<{
+		driverProfileId: string;
+		count: number;
+		wiring?: string;
+	}>;
+
+export type CabinetEnclosureProfile = PhysicalProfileBase &
+	Readonly<{
+		profileSchema: "cabinet-enclosure-profile/v1";
+		kind: "cabinet-enclosure";
+		enclosure?: CabinetEnclosure;
+		loadout?: readonly CabinetDriverLoadout[];
+	}>;
+
+export type MicrophoneTransducerPrinciple =
+	| "dynamic"
+	| "ribbon"
+	| "condenser"
+	| "electret-condenser"
+	| "measurement"
+	| "unknown";
+
+export type MicrophoneAcousticCoupling =
+	| "pressure"
+	| "pressure-gradient"
+	| "mixed"
+	| "unknown";
+
+export type MicrophoneTransducer = VdspBuildDataObject &
+	Readonly<{
+		principle?: MicrophoneTransducerPrinciple;
+		acousticCoupling?: MicrophoneAcousticCoupling;
+		polarPattern?: string;
+	}>;
+
+export type MicrophoneElectrical = VdspBuildDataObject &
+	Readonly<{
+		nominalImpedanceOhms?: number;
+		sensitivityDbVPerPa?: number;
+	}>;
+
+export type MicrophoneTransducerProfile = PhysicalProfileBase &
+	Readonly<{
+		profileSchema: "microphone-transducer-profile/v1";
+		kind: "microphone-transducer";
+		transducer?: MicrophoneTransducer;
+		electrical?: MicrophoneElectrical;
+	}>;
+
+export type KnownPhysicalProfile =
+	| SpeakerDriverProfile
+	| CabinetEnclosureProfile
+	| MicrophoneTransducerProfile;
 
 export type BuildPartProfileCatalog = VdspBuildDataObject &
 	Readonly<{
 		schema: "part-profile-catalog/v1";
 		resolution?: string;
 		units?: string;
-		profiles: readonly BuildPartProfile[];
+		profiles: readonly (KnownPhysicalProfile | BuildPartProfile)[];
+	}>;
+
+export type SimulationProfile = VdspBuildDataObject &
+	Readonly<{
+		profileSchema: string;
+		kind: string;
+		id: string;
+		targetProfileIds: readonly string[];
+		domain: string;
+		representation: string;
+		operatingRegime?: string;
+		coupling?: string;
+		parameters?: VdspBuildDataObject;
+		dataRef?: string;
+		assetRefs?: readonly ProfileResponseRef[];
+		extensions?: Readonly<Record<string, VdspBuildDataObject>>;
+	}>;
+
+export type SimulationProfileCatalog = VdspBuildDataObject &
+	Readonly<{
+		schema: "simulation-profile-catalog/v1";
+		resolution?: string;
+		units?: string;
+		profiles: readonly SimulationProfile[];
 	}>;
 
 export type BoardFootprint = VdspBuildDataObject &
@@ -780,6 +947,7 @@ export type CircuitDocument = Readonly<{
 	build?: BuildScope;
 	bom?: BuildBom;
 	partProfiles?: BuildPartProfileCatalog;
+	simulationProfiles?: SimulationProfileCatalog;
 	footprints?: BoardFootprintCatalog;
 	offBoardWiring?: OffBoardWiringPlan;
 	boards?: readonly BoardRealization[];
