@@ -64,6 +64,56 @@ export type PropertyValue =
 	| readonly PropertyValue[]
 	| PropertyObject;
 
+export type CircuitDocumentBehaviorFirmwareStatus =
+	| "recovered"
+	| "source-bounded-approximation"
+	| "measured-approximation"
+	| "unknown-proprietary"
+	| "dumped"
+	| "verified";
+
+export type CircuitDocumentBehaviorFirmwareArtifactType =
+	| "hex"
+	| "bin"
+	| "mask-rom"
+	| "internal-rom"
+	| "external-rom";
+
+export type CircuitDocumentBehaviorFirmwareSourceVisibility =
+	| "not-visible"
+	| "visible-chip-marking"
+	| "dump-available"
+	| "source-available";
+
+export type CircuitDocumentBehaviorFirmwareOwner =
+	| "firmware-proxy"
+	| "recovered-firmware"
+	| "measured-blackbox";
+
+export type CircuitDocumentBehaviorFirmwareRef = Readonly<{
+	id?: string;
+	status: CircuitDocumentBehaviorFirmwareStatus;
+	version?: string;
+	hash?: string;
+	artifactType?: CircuitDocumentBehaviorFirmwareArtifactType;
+	sourceVisibility?: CircuitDocumentBehaviorFirmwareSourceVisibility;
+	behaviorOwner?: CircuitDocumentBehaviorFirmwareOwner;
+	memoryComponentId?: string;
+	mcuComponentId?: string;
+	notes?: string;
+}>;
+
+export type CircuitDocumentBehaviorRoleKind =
+	| "chip-primitive"
+	| "firmware-dsp-core"
+	| "behavior-profile"
+	| "measured-blackbox";
+
+export type CircuitDocumentBehaviorRole = Readonly<{
+	kind: CircuitDocumentBehaviorRoleKind;
+	firmwareRef?: CircuitDocumentBehaviorFirmwareRef;
+}>;
+
 export type Component = Readonly<{
 	id: string;
 	kind: ComponentKind;

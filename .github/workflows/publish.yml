@@ -47,11 +47,11 @@ jobs:
             - run: bun install --frozen-lockfile
 
             - name: Verify all packages
-              if: github.event_name == 'push' || inputs.package == 'all'
+              if: github.event_name == 'workflow_dispatch' && inputs.package == 'all'
               run: bun run pack:dry-run
 
             - name: Verify core package
-              if: github.event_name == 'workflow_dispatch' && inputs.package == 'core'
+              if: github.event_name == 'push' || inputs.package == 'core'
               run: bun run --cwd packages/core pack:dry-run
 
             - name: Verify control-ui package
@@ -81,31 +81,31 @@ jobs:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish control-ui package
-              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'control-ui'
+              if: inputs.package == 'all' || inputs.package == 'control-ui'
               run: npm publish --workspace @vessel-dsp/control-ui --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish stompbox package
-              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'stompbox'
+              if: inputs.package == 'all' || inputs.package == 'stompbox'
               run: npm publish --workspace @vessel-dsp/stompbox --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish visual-effects package
-              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'visual-effects'
+              if: inputs.package == 'all' || inputs.package == 'visual-effects'
               run: npm publish --workspace @vessel-dsp/visual-effects --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish amp package
-              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'amp'
+              if: inputs.package == 'all' || inputs.package == 'amp'
               run: npm publish --workspace @vessel-dsp/amp --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             - name: Publish cabinet package
-              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'cabinet'
+              if: inputs.package == 'all' || inputs.package == 'cabinet'
               run: npm publish --workspace @vessel-dsp/cabinet --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

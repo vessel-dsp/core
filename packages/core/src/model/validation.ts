@@ -1,5 +1,9 @@
 import { extractPanel } from "../panel/extract";
-import { propertyQuantityValue, propertyStringValue } from "./properties";
+import {
+	isPropertyObject,
+	propertyQuantityValue,
+	propertyStringValue,
+} from "./properties";
 import type {
 	BoardNet,
 	BoardRealization,
@@ -44,6 +48,18 @@ export type ValidationCode =
 	| "runtime-match-key-missing"
 	| "runtime-match-key-incomplete"
 	| "firmware-chip-missing"
+	| "behavior-role-invalid"
+	| "behavior-role-kind-invalid"
+	| "behavior-role-firmware-ref-kind-mismatch"
+	| "behavior-role-firmware-ref-invalid"
+	| "behavior-role-firmware-ref-status-invalid"
+	| "behavior-role-firmware-ref-string-invalid"
+	| "behavior-role-firmware-ref-artifact-type-invalid"
+	| "behavior-role-firmware-ref-source-visibility-invalid"
+	| "behavior-role-firmware-ref-behavior-owner-invalid"
+	| "behavior-role-firmware-ref-owner-status-mismatch"
+	| "behavior-role-firmware-ref-memory-component-unresolved"
+	| "behavior-role-firmware-ref-mcu-component-unresolved"
 	| "invalid-control-role"
 	| "duplicate-device-interface-control-id"
 	| "invalid-device-interface-token"
@@ -191,6 +207,45 @@ const RUNTIME_DESCRIPTOR_CONTROL_PROPERTIES = [
 	"DirectOutJack",
 	"DirectOutputControl",
 	"DirectOutControl",
+] as const;
+
+const BEHAVIOR_ROLE_KINDS = [
+	"chip-primitive",
+	"firmware-dsp-core",
+	"behavior-profile",
+	"measured-blackbox",
+] as const;
+
+const FIRMWARE_BEHAVIOR_ROLE_KIND = "firmware-dsp-core";
+
+const FIRMWARE_REF_STATUSES = [
+	"recovered",
+	"source-bounded-approximation",
+	"measured-approximation",
+	"unknown-proprietary",
+	"dumped",
+	"verified",
+] as const;
+
+const FIRMWARE_REF_ARTIFACT_TYPES = [
+	"hex",
+	"bin",
+	"mask-rom",
+	"internal-rom",
+	"external-rom",
+] as const;
+
+const FIRMWARE_REF_SOURCE_VISIBILITIES = [
+	"not-visible",
+	"visible-chip-marking",
+	"dump-available",
+	"source-available",
+] as const;
+
+const FIRMWARE_REF_BEHAVIOR_OWNERS = [
+	"firmware-proxy",
+	"recovered-firmware",
+	"measured-blackbox",
 ] as const;
 
 type ResolvedPanelElement = Readonly<{
@@ -628,6 +683,10 @@ export function validateDocument(
 		issues.push(issue);
 	}
 
+	for (const issue of validateBehaviorRoles(doc, seen)) {
+		issues.push(issue);
+	}
+
 	const context: DocumentValidationContext = {
 		playbackClaim,
 		controlRoles: CONTROL_ROLES as ReadonlySet<ControlRole>,
@@ -744,6 +803,220 @@ function validateSemanticMetadata(
 
 	if (component.kind === "ic") {
 		issues.push(...validateFirmwareMetadata(component));
+	}
+
+	return issues;
+}
+
+function validateBehaviorRoles(
+	doc: CircuitDocument,
+	componentIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const component of doc.components) {
+		issues.push(...validateBehaviorRole(component, componentIds));
+	}
+	return issues;
+}
+
+function validateBehaviorRole(
+	component: Component,
+	componentIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	const rawRole = component.properties.BehaviorRole;
+	if (rawRole === undefined) {
+		return [];
+	}
+	if (!isPropertyObject(rawRole)) {
+		return [
+			{
+				code: "behavior-role-invalid",
+				severity: "error",
+				message: `${component.id}: BehaviorRole must be an object with kind and optional firmwareRef`,
+				componentId: component.id,
+				property: "BehaviorRole",
+			},
+		];
+	}
+
+	const issues: ValidationIssue[] = [];
+	const roleRecord = rawRole as Readonly<Record<string, PropertyValue>>;
+	const kind = propertyStringValue(roleRecord["kind"])?.trim() ?? "";
+	if (!isOneOf(kind, BEHAVIOR_ROLE_KINDS)) {
+		issues.push({
+			code: "behavior-role-kind-invalid",
+			severity: "error",
+			message: `${component.id}: BehaviorRole.kind "${kind || "<empty>"}" is not a supported behavior role kind`,
+			componentId: component.id,
+			property: "BehaviorRole.kind",
+		});
+	}
+
+	const rawFirmwareRef = roleRecord["firmwareRef"];
+	if (rawFirmwareRef === undefined) {
+		return issues;
+	}
+	if (
+		isOneOf(kind, BEHAVIOR_ROLE_KINDS) &&
+		kind !== FIRMWARE_BEHAVIOR_ROLE_KIND
+	) {
+		issues.push({
+			code: "behavior-role-firmware-ref-kind-mismatch",
+			severity: "error",
+			message: `${component.id}: BehaviorRole.firmwareRef is only valid for firmware-owning behavior kinds`,
+			componentId: component.id,
+			property: "BehaviorRole.firmwareRef",
+		});
+	}
+	issues.push(
+		...validateBehaviorFirmwareRef(component.id, rawFirmwareRef, componentIds),
+	);
+	return issues;
+}
+
+function validateBehaviorFirmwareRef(
+	componentId: string,
+	rawFirmwareRef: PropertyValue,
+	componentIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	if (!isPropertyObject(rawFirmwareRef)) {
+		return [
+			{
+				code: "behavior-role-firmware-ref-invalid",
+				severity: "error",
+				message: `${componentId}: BehaviorRole.firmwareRef must be an object with status and optional firmware metadata fields`,
+				componentId,
+				property: "BehaviorRole.firmwareRef",
+			},
+		];
+	}
+
+	const firmwareRef = rawFirmwareRef as Readonly<Record<string, PropertyValue>>;
+	const issues: ValidationIssue[] = [];
+	for (const key of [
+		"id",
+		"version",
+		"hash",
+		"notes",
+		"memoryComponentId",
+		"mcuComponentId",
+	] as const) {
+		if (
+			firmwareRef[key] !== undefined &&
+			typeof propertyStringValue(firmwareRef[key]) !== "string"
+		) {
+			issues.push({
+				code: "behavior-role-firmware-ref-string-invalid",
+				severity: "error",
+				message: `${componentId}: BehaviorRole.firmwareRef.${key} must be a scalar string value`,
+				componentId,
+				property: `BehaviorRole.firmwareRef.${key}`,
+			});
+		}
+	}
+	const status = propertyStringValue(firmwareRef["status"])?.trim() ?? "";
+	if (!isOneOf(status, FIRMWARE_REF_STATUSES)) {
+		issues.push({
+			code: "behavior-role-firmware-ref-status-invalid",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.status "${status || "<empty>"}" is not a supported firmware status`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.status",
+		});
+	}
+
+	const artifactType = optionalBehaviorRoleText(firmwareRef, "artifactType");
+	if (
+		artifactType !== undefined &&
+		!isOneOf(artifactType, FIRMWARE_REF_ARTIFACT_TYPES)
+	) {
+		issues.push({
+			code: "behavior-role-firmware-ref-artifact-type-invalid",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.artifactType "${artifactType}" is not supported`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.artifactType",
+		});
+	}
+
+	const sourceVisibility = optionalBehaviorRoleText(
+		firmwareRef,
+		"sourceVisibility",
+	);
+	if (
+		sourceVisibility !== undefined &&
+		!isOneOf(sourceVisibility, FIRMWARE_REF_SOURCE_VISIBILITIES)
+	) {
+		issues.push({
+			code: "behavior-role-firmware-ref-source-visibility-invalid",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.sourceVisibility "${sourceVisibility}" is not supported`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.sourceVisibility",
+		});
+	}
+
+	const behaviorOwner = optionalBehaviorRoleText(firmwareRef, "behaviorOwner");
+	if (
+		behaviorOwner !== undefined &&
+		!isOneOf(behaviorOwner, FIRMWARE_REF_BEHAVIOR_OWNERS)
+	) {
+		issues.push({
+			code: "behavior-role-firmware-ref-behavior-owner-invalid",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.behaviorOwner "${behaviorOwner}" is not supported`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.behaviorOwner",
+		});
+	}
+
+	if (behaviorOwner !== undefined && behaviorOwner !== "firmware-proxy") {
+		issues.push({
+			code: "behavior-role-firmware-ref-owner-status-mismatch",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.behaviorOwner must be firmware-proxy while BehaviorRole.kind=firmware-dsp-core`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.behaviorOwner",
+		});
+	}
+
+	if (
+		behaviorOwner === "recovered-firmware" &&
+		status !== "recovered" &&
+		status !== "verified"
+	) {
+		issues.push({
+			code: "behavior-role-firmware-ref-owner-status-mismatch",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.behaviorOwner=recovered-firmware requires status recovered or verified`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.behaviorOwner",
+		});
+	}
+
+	const memoryComponentId = optionalBehaviorRoleText(
+		firmwareRef,
+		"memoryComponentId",
+	);
+	if (memoryComponentId !== undefined && !componentIds.has(memoryComponentId)) {
+		issues.push({
+			code: "behavior-role-firmware-ref-memory-component-unresolved",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.memoryComponentId "${memoryComponentId}" does not resolve to a component`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.memoryComponentId",
+		});
+	}
+
+	const mcuComponentId = optionalBehaviorRoleText(firmwareRef, "mcuComponentId");
+	if (mcuComponentId !== undefined && !componentIds.has(mcuComponentId)) {
+		issues.push({
+			code: "behavior-role-firmware-ref-mcu-component-unresolved",
+			severity: "error",
+			message: `${componentId}: BehaviorRole.firmwareRef.mcuComponentId "${mcuComponentId}" does not resolve to a component`,
+			componentId,
+			property: "BehaviorRole.firmwareRef.mcuComponentId",
+		});
 	}
 
 	return issues;
@@ -1002,6 +1275,24 @@ function propertyStringAny(
 		}
 	}
 	return null;
+}
+
+function optionalBehaviorRoleText(
+	record: Readonly<Record<string, PropertyValue>>,
+	key: string,
+): string | undefined {
+	if (record[key] === undefined) {
+		return undefined;
+	}
+	const text = propertyStringValue(record[key])?.trim() ?? "";
+	return text.length > 0 ? text : "";
+}
+
+function isOneOf<const T extends readonly string[]>(
+	value: string,
+	values: T,
+): value is T[number] {
+	return values.includes(value);
 }
 
 function coerceQuantity(value: PropertyValue): ParsedQuantity | null {

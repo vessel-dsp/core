@@ -1469,6 +1469,122 @@ describe("validateDocument", () => {
 		expect(validateDocument(doc)).toEqual([]);
 	});
 
+	test("accepts BehaviorRole.firmwareRef on firmware-owning behavior roles", () => {
+		const doc = withParts([
+			makeComponent("MCU1", "ic", {
+				model: "MCU",
+				BehaviorRole: {
+					kind: "firmware-dsp-core",
+					firmwareRef: {
+						id: "fw-mcu1",
+						status: "source-bounded-approximation",
+						version: "1.0",
+						hash: "sha256:deadbeef",
+						artifactType: "internal-rom",
+						sourceVisibility: "visible-chip-marking",
+						behaviorOwner: "firmware-proxy",
+						memoryComponentId: "MEM1",
+						mcuComponentId: "MCU1",
+						notes: "visible MCU marking only",
+					},
+				},
+			}),
+			makeComponent("MEM1", "ic", { PartNumber: "external SRAM" }),
+		]);
+
+		expect(validateDocument(doc)).toEqual([]);
+	});
+
+	test("rejects BehaviorRole.firmwareRef on non-firmware behavior roles", () => {
+		const doc = withParts([
+			makeComponent("U1", "ic", {
+				model: "U1",
+				BehaviorRole: {
+					kind: "chip-primitive",
+					firmwareRef: {
+						status: "unknown-proprietary",
+					},
+				},
+			}),
+		]);
+
+		expect(validateDocument(doc).map((issue) => issue.code)).toContain(
+			"behavior-role-firmware-ref-kind-mismatch",
+		);
+	});
+
+	test("validates BehaviorRole.firmwareRef enum fields and owner status consistency", () => {
+		const doc = withParts([
+			makeComponent("MCU1", "ic", {
+				model: "MCU",
+				BehaviorRole: {
+					kind: "firmware-dsp-core",
+					firmwareRef: {
+						status: "dumped",
+						artifactType: "rom-image",
+						sourceVisibility: "hidden",
+						behaviorOwner: "recovered-firmware",
+					},
+				},
+			}),
+		]);
+
+		expect(validateDocument(doc).map((issue) => issue.code)).toEqual([
+			"behavior-role-firmware-ref-artifact-type-invalid",
+			"behavior-role-firmware-ref-source-visibility-invalid",
+			"behavior-role-firmware-ref-owner-status-mismatch",
+			"behavior-role-firmware-ref-owner-status-mismatch",
+		]);
+	});
+
+	test("validates BehaviorRole.firmwareRef MCU and memory component links", () => {
+		const doc = withParts([
+			makeComponent("MCU1", "ic", {
+				model: "MCU",
+				BehaviorRole: {
+					kind: "firmware-dsp-core",
+					firmwareRef: {
+						status: "unknown-proprietary",
+						memoryComponentId: "MISSING_MEM",
+						mcuComponentId: "MISSING_MCU",
+					},
+				},
+			}),
+		]);
+
+		expect(validateDocument(doc).map((issue) => issue.code)).toEqual([
+			"behavior-role-firmware-ref-memory-component-unresolved",
+			"behavior-role-firmware-ref-mcu-component-unresolved",
+		]);
+	});
+
+	test("validates BehaviorRole.firmwareRef scalar string fields and rejects artifactType none", () => {
+		const doc = withParts([
+			makeComponent("MCU1", "ic", {
+				model: "MCU",
+				BehaviorRole: {
+					kind: "firmware-dsp-core",
+					firmwareRef: {
+						id: ["fw-mcu1"],
+						status: "unknown-proprietary",
+						version: { major: 1 },
+						hash: ["sha256:deadbeef"],
+						artifactType: "none",
+						notes: { text: "not scalar" },
+					},
+				},
+			}),
+		]);
+
+		expect(validateDocument(doc).map((issue) => issue.code)).toEqual([
+			"behavior-role-firmware-ref-string-invalid",
+			"behavior-role-firmware-ref-string-invalid",
+			"behavior-role-firmware-ref-string-invalid",
+			"behavior-role-firmware-ref-string-invalid",
+			"behavior-role-firmware-ref-artifact-type-invalid",
+		]);
+	});
+
 	test("value-unparseable emits error for garbage values", () => {
 		const doc = withParts([
 			makeComponent("R1", "resistor", { R: "not-a-number" }),

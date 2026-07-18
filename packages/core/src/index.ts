@@ -1,4 +1,4 @@
-export const VERSION = "0.6.16";
+export const VERSION = "0.6.17";
 
 export type {
 	CreateComponentArgs,
@@ -139,6 +139,13 @@ export type {
 	CabinetEnclosureType,
 	CabinetPort,
 	CanonicalCircuitNetRef,
+	CircuitDocumentBehaviorFirmwareArtifactType,
+	CircuitDocumentBehaviorFirmwareOwner,
+	CircuitDocumentBehaviorFirmwareRef,
+	CircuitDocumentBehaviorFirmwareSourceVisibility,
+	CircuitDocumentBehaviorFirmwareStatus,
+	CircuitDocumentBehaviorRole,
+	CircuitDocumentBehaviorRoleKind,
 	CircuitDocument,
 	DocumentAmpAppearance,
 	DocumentAppearance,

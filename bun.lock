@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@vessel-dsp/workspace",
@@ -20,27 +19,27 @@
     },
     "packages/amp": {
       "name": "@vessel-dsp/amp",
-      "version": "0.6.12",
+      "version": "0.6.15",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.12",
-        "@vessel-dsp/visual-effects": "0.6.12",
+        "@vessel-dsp/core": "0.6.16",
+        "@vessel-dsp/visual-effects": "0.6.15",
         "three": "^0.184.0",
       },
     },
     "packages/cabinet": {
       "name": "@vessel-dsp/cabinet",
-      "version": "0.6.12",
+      "version": "0.6.15",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.12",
-        "@vessel-dsp/visual-effects": "0.6.12",
+        "@vessel-dsp/core": "0.6.16",
+        "@vessel-dsp/visual-effects": "0.6.15",
         "three": "^0.184.0",
       },
     },
     "packages/control-ui": {
       "name": "@vessel-dsp/control-ui",
-      "version": "0.6.12",
+      "version": "0.6.15",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.10",
+        "@vessel-dsp/core": "0.6.16",
       },
       "devDependencies": {
         "@types/react": "^18.3.18",
@@ -57,7 +56,7 @@
     },
     "packages/core": {
       "name": "@vessel-dsp/core",
-      "version": "0.6.12",
+      "version": "0.6.17",
       "dependencies": {
         "circuit-json": "0.0.433",
         "zod": "3",
@@ -65,14 +64,14 @@
     },
     "packages/stompbox": {
       "name": "@vessel-dsp/stompbox",
-      "version": "0.6.12",
+      "version": "0.6.15",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.10",
+        "@vessel-dsp/core": "0.6.16",
       },
     },
     "packages/visual-effects": {
       "name": "@vessel-dsp/visual-effects",
-      "version": "0.6.12",
+      "version": "0.6.15",
       "dependencies": {
         "three": "^0.184.0",
       },
@@ -1036,6 +1035,14 @@
     "@gerrit0/mini-shiki/@shikijs/types": ["@shikijs/types@3.23.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-3JZ5HXOZfYjsYSk0yPwBrkupyYSLpAE26Qc0HLghhZNGTZg/SKxXIIgoxOpmmeQP0RRSDJTk1/vPfw9tbw+jSQ=="],
 
     "@mdx-js/mdx/estree-walker": ["estree-walker@3.0.3", "", { "dependencies": { "@types/estree": "^1.0.0" } }, "sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g=="],
+
+    "@vessel-dsp/amp/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
+
+    "@vessel-dsp/cabinet/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
+
+    "@vessel-dsp/control-ui/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
+
+    "@vessel-dsp/stompbox/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
 
     "anymatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],
 

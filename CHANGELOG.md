@@ -1,14 +1,21 @@
 # Changelog
 
-## 0.6.16
+## 0.6.17
 
 - Extend `BehaviorRole.firmwareRef` in `@vessel-dsp/core` with richer firmware
   evidence metadata, including status, artifact/source visibility, behavior
   ownership, and optional component linkage fields while keeping the component
   role as the canonical firmware owner.
 - Validate authored `firmwareRef` entries fail-closed for invalid shape,
-  invalid status/enum values, missing explicit ids, and recovered-ownership
-  claims that are not backed by recovered or verified status.
+  invalid status/enum values, unresolved component links, and
+  recovered-ownership claims that are not backed by recovered or verified
+  status.
+
+## 0.6.16
+
+- Release metadata only. This release did not include the intended
+  `BehaviorRole.firmwareRef` schema and validation implementation; use 0.6.17
+  or later for that support.
 
 ## 0.6.15
 

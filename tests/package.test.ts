@@ -45,6 +45,7 @@ const removedWorkspacePackageDirs = [
 	`packages/${"react" + "-component"}`,
 	`packages/${"sim" + "ulation"}`,
 ] as const;
+const CORE_COMPATIBLE_DEPENDENCY_VERSIONS = ["0.6.16"] as const;
 
 function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -184,6 +185,16 @@ function runtimeDependencies(pkg: JsonRecord): JsonRecord {
 	return isRecord(pkg.dependencies) ? pkg.dependencies : {};
 }
 
+function expectCoreDependencyCompatible(
+	version: unknown,
+	core: JsonRecord,
+): void {
+	expect([
+		...CORE_COMPATIBLE_DEPENDENCY_VERSIONS,
+		String(core.version),
+	]).toContain(version);
+}
+
 function devDependencies(pkg: JsonRecord): JsonRecord {
 	return isRecord(pkg.devDependencies) ? pkg.devDependencies : {};
 }
@@ -306,7 +317,7 @@ describe("workspace package contract", () => {
 			importPath: "./dist/node.js",
 			typesPath: "./dist/node.d.ts",
 		});
-		expect(deps["@vessel-dsp/core"]).toBe(core.version);
+		expectCoreDependencyCompatible(deps["@vessel-dsp/core"], core);
 		expectNoReactRuntimeDependency(pkg);
 		expect(typeof createStompboxDrillLayoutFromVdsp).toBe("function");
 		expect(typeof createStompboxHardwareProfileFromVdsp).toBe("function");
@@ -353,7 +364,7 @@ describe("workspace package contract", () => {
 				default: "./dist/styles.css",
 			});
 		}
-		expect(deps["@vessel-dsp/core"]).toBe(core.version);
+		expectCoreDependencyCompatible(deps["@vessel-dsp/core"], core);
 		expect(deps.react).toBeUndefined();
 		expect(deps["react-dom"]).toBeUndefined();
 		expect(peerDeps.react).toBe(">=18.2 <20");
@@ -408,12 +419,12 @@ describe("workspace package contract", () => {
 		}
 		expect(ampDeps.three).toBeDefined();
 		expect(ampDeps["@vessel-dsp/visual-effects"]).toBe(visualEffects.version);
-		expect(ampDeps["@vessel-dsp/core"]).toBe(core.version);
+		expectCoreDependencyCompatible(ampDeps["@vessel-dsp/core"], core);
 		expect(cabinetDeps.three).toBeDefined();
 		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBe(
 			visualEffects.version,
 		);
-		expect(cabinetDeps["@vessel-dsp/core"]).toBe(core.version);
+		expectCoreDependencyCompatible(cabinetDeps["@vessel-dsp/core"], core);
 		expect(typeof createAmpProfileFromVdsp).toBe("function");
 		expect(typeof createAmpPreviewLayout).toBe("function");
 		expect(typeof createCabinetPreviewLayout).toBe("function");
@@ -698,7 +709,7 @@ describe("published import surface", () => {
 });
 
 describe("npm publish workflow", () => {
-	test("publishes all packages on tags and supports individual workflow dispatch packages", async () => {
+	test("publishes core on tags and supports all or individual workflow dispatch packages", async () => {
 		const workflow = await readPublishWorkflow();
 
 		expect(workflow).toContain("name: Publish to npm");
@@ -723,9 +734,8 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("registry-url: https://registry.npmjs.org");
 		expect(workflow).toContain("scope: '@vessel-dsp'");
 		expect(workflow).toContain("bun install --frozen-lockfile");
-		expect(workflow).toContain(
-			"github.event_name == 'push' || inputs.package == 'all'",
-		);
+		expect(workflow).toContain("github.event_name == 'push'");
+		expect(workflow).toContain("inputs.package == 'all'");
 		expect(workflow).toContain("inputs.package == 'core'");
 		expect(workflow).toContain("inputs.package == 'control-ui'");
 		expect(workflow).toContain("inputs.package == 'stompbox'");
@@ -733,6 +743,9 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("inputs.package == 'amp'");
 		expect(workflow).toContain("inputs.package == 'cabinet'");
 		expect(workflow).toContain("name: Verify all packages");
+		expect(workflow).toContain(
+			"github.event_name == 'workflow_dispatch' && inputs.package == 'all'",
+		);
 		expect(workflow).toContain("run: bun run pack:dry-run");
 		expect(workflow).toContain("name: Verify core package");
 		expect(workflow).toContain("run: bun run --cwd packages/core pack:dry-run");
@@ -839,15 +852,15 @@ describe("release metadata", () => {
 		const controlUiDistIndex = await readControlUiDistIndexJs();
 		const controlUiDistTypes = await readControlUiDistIndexDts();
 
-		expect(core.version).toBe("0.6.16");
+		expect(core.version).toBe("0.6.17");
 		expect(stompbox.version).toBe("0.6.15");
 		expect(controlUi.version).toBe("0.6.15");
 		expect(visualEffects.version).toBe("0.6.15");
 		expect(amp.version).toBe("0.6.15");
 		expect(cabinet.version).toBe("0.6.15");
-		expect(VERSION).toBe("0.6.16");
-		expect(distIndex).toContain('export const VERSION = "0.6.16";');
-		expect(distTypes).toContain('export declare const VERSION = "0.6.16";');
+		expect(VERSION).toBe("0.6.17");
+		expect(distIndex).toContain('export const VERSION = "0.6.17";');
+		expect(distTypes).toContain('export declare const VERSION = "0.6.17";');
 		expect(distTypes).toContain("DeviceInterfaceAudioBinding");
 		expect(stompboxDistIndex).toContain("createStompboxDrillLayoutFromVdsp");
 		expect(stompboxDistIndex).toContain(
@@ -893,7 +906,7 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlSurface");
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
-		expect(changelog).toStartWith("# Changelog\n\n## 0.6.16\n\n");
+		expect(changelog).toStartWith("# Changelog\n\n## 0.6.17\n\n");
 		expect(changelog).toContain("@vessel-dsp/control-ui");
 	});
 });
