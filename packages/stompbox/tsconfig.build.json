@@ -7,7 +7,12 @@
 		"declarationMap": true,
 		"sourceMap": true,
 		"outDir": "dist",
-		"rootDir": "src"
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@vessel-dsp/core": ["packages/core/dist/index.d.ts"],
+			"@vessel-dsp/core/*": ["packages/core/dist/*"]
+		}
 	},
 	"include": ["src/**/*"]
 }

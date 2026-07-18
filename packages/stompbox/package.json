@@ -47,7 +47,7 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
 		"clean": "rm -rf dist",
-		"prepack": "bun run build",
+		"prepack": "bun run --cwd ../core build && bun run build",
 		"pack:dry-run": "npm pack --dry-run",
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
