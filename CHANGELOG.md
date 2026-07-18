@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.16
+
+- Extend `BehaviorRole.firmwareRef` in `@vessel-dsp/core` with richer firmware
+  evidence metadata, including status, artifact/source visibility, behavior
+  ownership, and optional component linkage fields while keeping the component
+  role as the canonical firmware owner.
+- Validate authored `firmwareRef` entries fail-closed for invalid shape,
+  invalid status/enum values, missing explicit ids, and recovered-ownership
+  claims that are not backed by recovered or verified status.
+
 ## 0.6.15
 
 - Add typed source-visible cabinet, speaker-driver, microphone-transducer, and

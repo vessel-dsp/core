@@ -287,10 +287,11 @@ describe("workspace package contract", () => {
 
 	test("stompbox package publishes headless drill layout and preview manifest APIs", async () => {
 		const pkg = await readPackageJson("stompbox");
+		const core = await readPackageJson("core");
 		const deps = runtimeDependencies(pkg);
 
 		expect(pkg.name).toBe("@vessel-dsp/stompbox");
-		expect(pkg.version).toBe(VERSION);
+		expect(pkg.version).toBe("0.6.15");
 		expect(pkg.private).not.toBe(true);
 		expect(pkg.type).toBe("module");
 		expect(pkg.sideEffects).toBe(false);
@@ -305,7 +306,7 @@ describe("workspace package contract", () => {
 			importPath: "./dist/node.js",
 			typesPath: "./dist/node.d.ts",
 		});
-		expect(deps["@vessel-dsp/core"]).toBe(VERSION);
+		expect(deps["@vessel-dsp/core"]).toBe(core.version);
 		expectNoReactRuntimeDependency(pkg);
 		expect(typeof createStompboxDrillLayoutFromVdsp).toBe("function");
 		expect(typeof createStompboxHardwareProfileFromVdsp).toBe("function");
@@ -329,12 +330,13 @@ describe("workspace package contract", () => {
 
 	test("control-ui package publishes optional React panel controls", async () => {
 		const pkg = await readPackageJson("control-ui");
+		const core = await readPackageJson("core");
 		const deps = runtimeDependencies(pkg);
 		const peerDeps = isRecord(pkg.peerDependencies) ? pkg.peerDependencies : {};
 		const devDeps = devDependencies(pkg);
 
 		expect(pkg.name).toBe("@vessel-dsp/control-ui");
-		expect(pkg.version).toBe(VERSION);
+		expect(pkg.version).toBe("0.6.15");
 		expect(pkg.private).not.toBe(true);
 		expect(pkg.type).toBe("module");
 		expect(pkg.main).toBe("./dist/index.js");
@@ -351,7 +353,7 @@ describe("workspace package contract", () => {
 				default: "./dist/styles.css",
 			});
 		}
-		expect(deps["@vessel-dsp/core"]).toBe(VERSION);
+		expect(deps["@vessel-dsp/core"]).toBe(core.version);
 		expect(deps.react).toBeUndefined();
 		expect(deps["react-dom"]).toBeUndefined();
 		expect(peerDeps.react).toBe(">=18.2 <20");
@@ -384,6 +386,8 @@ describe("workspace package contract", () => {
 	test("amp and cabinet packages publish generated 3D visualization APIs", async () => {
 		const amp = await readPackageJson("amp");
 		const cabinet = await readPackageJson("cabinet");
+		const core = await readPackageJson("core");
+		const visualEffects = await readPackageJson("visual-effects");
 		const ampDeps = runtimeDependencies(amp);
 		const cabinetDeps = runtimeDependencies(cabinet);
 
@@ -403,11 +407,13 @@ describe("workspace package contract", () => {
 			expectNoReactRuntimeDependency(pkg);
 		}
 		expect(ampDeps.three).toBeDefined();
-		expect(ampDeps["@vessel-dsp/visual-effects"]).toBe(VERSION);
-		expect(ampDeps["@vessel-dsp/core"]).toBe(VERSION);
+		expect(ampDeps["@vessel-dsp/visual-effects"]).toBe(visualEffects.version);
+		expect(ampDeps["@vessel-dsp/core"]).toBe(core.version);
 		expect(cabinetDeps.three).toBeDefined();
-		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBe(VERSION);
-		expect(cabinetDeps["@vessel-dsp/core"]).toBe(VERSION);
+		expect(cabinetDeps["@vessel-dsp/visual-effects"]).toBe(
+			visualEffects.version,
+		);
+		expect(cabinetDeps["@vessel-dsp/core"]).toBe(core.version);
 		expect(typeof createAmpProfileFromVdsp).toBe("function");
 		expect(typeof createAmpPreviewLayout).toBe("function");
 		expect(typeof createCabinetPreviewLayout).toBe("function");
@@ -833,15 +839,15 @@ describe("release metadata", () => {
 		const controlUiDistIndex = await readControlUiDistIndexJs();
 		const controlUiDistTypes = await readControlUiDistIndexDts();
 
-		expect(core.version).toBe("0.6.15");
+		expect(core.version).toBe("0.6.16");
 		expect(stompbox.version).toBe("0.6.15");
 		expect(controlUi.version).toBe("0.6.15");
 		expect(visualEffects.version).toBe("0.6.15");
 		expect(amp.version).toBe("0.6.15");
 		expect(cabinet.version).toBe("0.6.15");
-		expect(VERSION).toBe("0.6.15");
-		expect(distIndex).toContain('export const VERSION = "0.6.15";');
-		expect(distTypes).toContain('export declare const VERSION = "0.6.15";');
+		expect(VERSION).toBe("0.6.16");
+		expect(distIndex).toContain('export const VERSION = "0.6.16";');
+		expect(distTypes).toContain('export declare const VERSION = "0.6.16";');
 		expect(distTypes).toContain("DeviceInterfaceAudioBinding");
 		expect(stompboxDistIndex).toContain("createStompboxDrillLayoutFromVdsp");
 		expect(stompboxDistIndex).toContain(
@@ -887,7 +893,7 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlSurface");
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
-		expect(changelog).toStartWith("# Changelog\n\n## 0.6.15\n\n");
+		expect(changelog).toStartWith("# Changelog\n\n## 0.6.16\n\n");
 		expect(changelog).toContain("@vessel-dsp/control-ui");
 	});
 });

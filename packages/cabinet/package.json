@@ -46,7 +46,7 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/core": "0.6.15",
+		"@vessel-dsp/core": "0.6.16",
 		"@vessel-dsp/visual-effects": "0.6.15",
 		"three": "^0.184.0"
 	},
