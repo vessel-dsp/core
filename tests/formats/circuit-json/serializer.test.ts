@@ -317,6 +317,38 @@ describe("serializeCircuitJsonDocument", () => {
 		]);
 	});
 
+	test("exports display components as opaque Circuit JSON source chips with diagnostics", () => {
+		const doc = withParts([
+			makeComponent(
+				"OLED1",
+				"display",
+				[
+					["vcc", 0, 0],
+					["gnd", 20, 0],
+					["sda", 40, 0],
+					["scl", 60, 0],
+				],
+				{ PartNumber: "SSD1306 128x64", DisplayKind: "oled", Bus: "i2c" },
+			),
+		]);
+
+		const circuitJson = serializeCircuitJsonDocument(doc);
+
+		expect(recordsOfType(circuitJson.elements, "source_component")).toEqual([
+			{
+				type: "source_component",
+				ftype: "simple_chip",
+				source_component_id: "source_component:OLED1",
+				name: "OLED1",
+				display_name: "OLED1",
+				manufacturer_part_number: "SSD1306 128x64",
+			},
+		]);
+		expect(circuitJson.warnings).toContain(
+			"OLED1 (display): Circuit JSON has no display source-component mapping; emitted opaque simple_chip source component metadata only",
+		);
+	});
+
 	test("exports JFET source components and ports with an explicit lossy mapping warning", () => {
 		const doc = withParts([
 			makeComponent(

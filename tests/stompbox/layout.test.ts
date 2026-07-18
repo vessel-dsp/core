@@ -3504,6 +3504,99 @@ describe("stompbox runtime preview state", () => {
 		});
 	});
 
+	test("preserves source display panel metadata when runtime descriptors are present", () => {
+		const document = parseCircuitDocumentFile(
+			`schema: circuit-interchange/v3
+metadata:
+  name: Display Runtime Descriptor
+source:
+  format: interchange
+  filename: display-runtime.vdsp
+components:
+  - id: U1
+    kind: ic
+    name: Delay core
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      RuntimeDescriptor: "true"
+      TimeControl: Time
+      TimeControlWipe: 0.35
+      TimeControlSweep: linear
+    sourceTypeName: "Circuit.MicroBlockDelayChip, Circuit"
+  - id: OLED1
+    kind: display
+    name: Status OLED
+    origin:
+      x: 120
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      DisplayKind: oled
+      Bus: i2c
+      Columns: 128
+      Rows: 64
+      DriverComponentId: U1
+      DefaultText:
+        - READY
+    sourceTypeName: "Circuit.Display.OLED"
+panel:
+  faces:
+    - id: top
+      layout:
+        kind: stompbox-grid
+        rows: 1
+        columns: 2
+        indexing: one-based
+      elements:
+        - bind:
+            componentId: U1
+            controlId: U1:time
+          kind: knob
+          grid:
+            row: 1
+            column: 1
+        - bind:
+            componentId: OLED1
+            controlId: OLED1
+          kind: display
+          grid:
+            row: 1
+            column: 2
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+`,
+			{ filename: "display-runtime.vdsp" },
+		);
+
+		const surface = createStompboxControlSurface(document, {
+			pedalId: "display-runtime",
+		});
+
+		expect(surface.panel.knobs.map((knob) => knob.id)).toEqual(["U1:time"]);
+		expect(surface.panel.displays).toEqual([
+			{
+				id: "OLED1",
+				name: "Status OLED",
+				displayKind: "oled",
+				bus: "i2c",
+				grid: { rows: 64, columns: 128 },
+				driverComponentId: "U1",
+				sourceComponentId: "OLED1",
+				defaultText: ["READY"],
+			},
+		]);
+	});
+
 	test("merges partial authored panel controls with omitted source-derived controls", () => {
 		const document = parseCircuitDocumentFile(vdspWithPartialPanelControls, {
 			filename: "partial-panel-controls.vdsp",

@@ -1,4 +1,4 @@
-export const VERSION = "0.6.17";
+export const VERSION = "0.6.18";
 
 export type {
 	CreateComponentArgs,
@@ -283,6 +283,10 @@ export type {
 	ControlState,
 	ControlValue,
 	DeviceInterfaceProvenance,
+	DisplayBusKind,
+	DisplayGrid,
+	DisplayIndicator,
+	DisplayKind,
 	ExternalControlAssignmentHint,
 	ExtractedControlGroupMembership,
 	ExtractedDeviceInterface,

@@ -632,6 +632,82 @@ rawAttributes: {}`;
 		expect(parsed.panel).toEqual(doc.panel);
 	});
 
+	test("round-trips display components and display panel element bindings", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			metadata: {
+				name: "Display pedal",
+				description: "Pedal with source display metadata.",
+				partNumber: "",
+			},
+			components: [
+				{
+					id: "MCU1",
+					kind: "ic",
+					name: "MCU1",
+					origin: { x: 0, y: 0 },
+					rotation: 0,
+					flipped: false,
+					terminals: [],
+					properties: { PartNumber: "ATmega" },
+					sourceTypeName: null,
+				},
+				{
+					id: "OLED1",
+					kind: "display",
+					name: "OLED1",
+					origin: { x: 100, y: 0 },
+					rotation: 0,
+					flipped: false,
+					terminals: [
+						{ name: "vcc", position: { x: 80, y: -20 } },
+						{ name: "gnd", position: { x: 80, y: 20 } },
+					],
+					properties: {
+						DisplayKind: "oled",
+						Bus: "i2c",
+						Columns: 128,
+						Rows: 64,
+						DriverComponentId: "MCU1",
+						DefaultText: ["READY"],
+					},
+					sourceTypeName: "Circuit.Display.OLED",
+				},
+			],
+			panel: {
+				faces: [
+					{
+						id: "top",
+						layout: {
+							kind: "stompbox-grid",
+							rows: 1,
+							columns: 1,
+							indexing: "one-based",
+						},
+						elements: [
+							{
+								bind: { componentId: "OLED1", controlId: "OLED1" },
+								kind: "display",
+								grid: { row: 1, column: 1 },
+								label: "Status",
+							},
+						],
+					},
+				],
+			},
+		};
+
+		const yaml = serializeInterchangeYaml(doc);
+		const parsed = parseInterchangeYaml(yaml);
+
+		expect(yaml).toContain("kind: display");
+		expect(parsed.components.find((component) => component.id === "OLED1")).toEqual(
+			doc.components[1],
+		);
+		expect(parsed.panel).toEqual(doc.panel);
+		expect(validateDocument(parsed)).toEqual([]);
+	});
+
 	test("round-trips mutually exclusive stompbox appearance metadata", () => {
 		const doc: CircuitDocument = {
 			...EMPTY_DOCUMENT,

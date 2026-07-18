@@ -85,6 +85,42 @@ export type LedIndicator = Readonly<{
 	description?: string;
 }>;
 
+export type DisplayKind =
+	| "lcd-character"
+	| "lcd-graphic"
+	| "oled"
+	| "seven-segment"
+	| "led-matrix"
+	| "custom"
+	| "unknown";
+
+export type DisplayBusKind =
+	| "i2c"
+	| "spi"
+	| "parallel"
+	| "gpio"
+	| "serial"
+	| "module-internal"
+	| "unknown";
+
+export type DisplayGrid = Readonly<{
+	rows: number;
+	columns: number;
+}>;
+
+export type DisplayIndicator = Readonly<{
+	id: string;
+	name: string;
+	displayKind: DisplayKind;
+	bus?: DisplayBusKind;
+	grid?: DisplayGrid;
+	driverComponentId?: string;
+	sourceComponentId?: string;
+	partNumber?: string;
+	description?: string;
+	defaultText?: readonly string[];
+}>;
+
 export type JackRole =
 	| "input"
 	| "output"
@@ -135,6 +171,7 @@ export type Panel = Readonly<{
 	sliders?: readonly SliderControl[];
 	switches: readonly SwitchControl[];
 	leds: readonly LedIndicator[];
+	displays?: readonly DisplayIndicator[];
 	jacks: readonly JackPort[];
 }>;
 

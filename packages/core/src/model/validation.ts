@@ -1,6 +1,7 @@
 import { extractPanel } from "../panel/extract";
 import {
 	isPropertyObject,
+	propertyNumericValue,
 	propertyQuantityValue,
 	propertyStringValue,
 } from "./properties";
@@ -42,6 +43,11 @@ export type ValidationCode =
 	| "invalid-jack-role"
 	| "invalid-jack-interface"
 	| "invalid-jack-audio-role"
+	| "display-kind-invalid"
+	| "display-bus-invalid"
+	| "display-grid-invalid"
+	| "display-driver-unresolved"
+	| "display-default-text-invalid"
 	| "descriptor-control-empty"
 	| "descriptor-mode-label-mismatch"
 	| "firmware-id-missing"
@@ -246,6 +252,26 @@ const FIRMWARE_REF_BEHAVIOR_OWNERS = [
 	"firmware-proxy",
 	"recovered-firmware",
 	"measured-blackbox",
+] as const;
+
+const DISPLAY_KINDS = [
+	"lcd-character",
+	"lcd-graphic",
+	"oled",
+	"seven-segment",
+	"led-matrix",
+	"custom",
+	"unknown",
+] as const;
+
+const DISPLAY_BUS_KINDS = [
+	"i2c",
+	"spi",
+	"parallel",
+	"gpio",
+	"serial",
+	"module-internal",
+	"unknown",
 ] as const;
 
 type ResolvedPanelElement = Readonly<{
@@ -683,6 +709,10 @@ export function validateDocument(
 		issues.push(issue);
 	}
 
+	for (const issue of validateDisplayComponents(doc, seen)) {
+		issues.push(issue);
+	}
+
 	for (const issue of validateBehaviorRoles(doc, seen)) {
 		issues.push(issue);
 	}
@@ -817,6 +847,137 @@ function validateBehaviorRoles(
 		issues.push(...validateBehaviorRole(component, componentIds));
 	}
 	return issues;
+}
+
+function validateDisplayComponents(
+	doc: CircuitDocument,
+	componentIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const component of doc.components) {
+		if (component.kind !== "display") {
+			continue;
+		}
+		issues.push(...validateDisplayMetadata(component, componentIds));
+	}
+	return issues;
+}
+
+function validateDisplayMetadata(
+	component: Component,
+	componentIds: ReadonlySet<string>,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	const displayKind = propertyString(component, "DisplayKind");
+	if (
+		displayKind !== null &&
+		displayKind.trim().length > 0 &&
+		!isOneOf(normalizeDisplayKindToken(displayKind), DISPLAY_KINDS)
+	) {
+		issues.push({
+			code: "display-kind-invalid",
+			severity: "error",
+			message: `${component.id}: DisplayKind "${displayKind}" is not supported`,
+			componentId: component.id,
+			property: "DisplayKind",
+		});
+	}
+
+	const bus = propertyString(component, "Bus");
+	if (
+		bus !== null &&
+		bus.trim().length > 0 &&
+		!isOneOf(normalizeDisplayBusToken(bus), DISPLAY_BUS_KINDS)
+	) {
+		issues.push({
+			code: "display-bus-invalid",
+			severity: "error",
+			message: `${component.id}: Bus "${bus}" is not supported for display metadata`,
+			componentId: component.id,
+			property: "Bus",
+		});
+	}
+
+	const gridIssues = validateDisplayGridMetadata(component);
+	issues.push(...gridIssues);
+
+	const driverComponentId = propertyString(component, "DriverComponentId");
+	if (
+		driverComponentId !== null &&
+		driverComponentId.trim().length > 0 &&
+		!componentIds.has(driverComponentId.trim())
+	) {
+		issues.push({
+			code: "display-driver-unresolved",
+			severity: "error",
+			message: `${component.id}: DriverComponentId "${driverComponentId}" does not resolve to a component`,
+			componentId: component.id,
+			property: "DriverComponentId",
+		});
+	}
+
+	const defaultText = component.properties.DefaultText;
+	if (defaultText !== undefined) {
+		if (
+			!Array.isArray(defaultText) ||
+			defaultText.some((line) => propertyStringValue(line) === null)
+		) {
+			issues.push({
+				code: "display-default-text-invalid",
+				severity: "error",
+				message: `${component.id}: DefaultText must be an array of scalar string values`,
+				componentId: component.id,
+				property: "DefaultText",
+			});
+		}
+	}
+
+	return issues;
+}
+
+function validateDisplayGridMetadata(
+	component: Component,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	const characterGrid = propertyString(component, "CharacterGrid");
+	if (characterGrid !== null && characterGrid.trim().length > 0) {
+		const match = characterGrid.trim().match(/^(\d+)\s*[xX]\s*(\d+)$/);
+		if (match === null) {
+			issues.push(displayGridIssue(component, "CharacterGrid"));
+		} else {
+			const columns = Number.parseInt(match[1]!, 10);
+			const rows = Number.parseInt(match[2]!, 10);
+			if (columns <= 0 || rows <= 0) {
+				issues.push(displayGridIssue(component, "CharacterGrid"));
+			}
+		}
+	}
+
+	for (const property of ["Rows", "Columns"] as const) {
+		const raw = component.properties[property];
+		if (raw === undefined) {
+			continue;
+		}
+		const value = propertyNumericValue(raw);
+		if (value === undefined || !Number.isInteger(value) || value <= 0) {
+			issues.push(displayGridIssue(component, property));
+		}
+	}
+
+	return issues;
+}
+
+function displayGridIssue(
+	component: Component,
+	property: "CharacterGrid" | "Rows" | "Columns",
+): ValidationIssue {
+	return {
+		code: "display-grid-invalid",
+		severity: "error",
+		message: `${component.id}: ${property} must describe positive integer display dimensions`,
+		componentId: component.id,
+		property,
+	};
 }
 
 function validateBehaviorRole(
@@ -1286,6 +1447,39 @@ function optionalBehaviorRoleText(
 	}
 	const text = propertyStringValue(record[key])?.trim() ?? "";
 	return text.length > 0 ? text : "";
+}
+
+function normalizeDisplayKindToken(value: string): string {
+	const normalized = normalizeToken(value);
+	if (
+		["lcd-character", "character-lcd", "char-lcd", "hd44780"].includes(
+			normalized,
+		)
+	) {
+		return "lcd-character";
+	}
+	if (["lcd-graphic", "graphic-lcd", "glcd"].includes(normalized)) {
+		return "lcd-graphic";
+	}
+	if (normalized.includes("oled") || normalized.includes("ssd1306")) {
+		return "oled";
+	}
+	if (["seven-segment", "7-segment", "7seg"].includes(normalized)) {
+		return "seven-segment";
+	}
+	if (["led-matrix", "matrix-led", "dot-matrix"].includes(normalized)) {
+		return "led-matrix";
+	}
+	return normalized;
+}
+
+function normalizeDisplayBusToken(value: string): string {
+	const normalized = normalizeToken(value);
+	if (normalized === "iic") return "i2c";
+	if (normalized === "8080") return "parallel";
+	if (normalized === "uart" || normalized === "rs232") return "serial";
+	if (normalized === "internal") return "module-internal";
+	return normalized;
 }
 
 function isOneOf<const T extends readonly string[]>(
@@ -2173,6 +2367,14 @@ function resolvePanelElements(
 			id: led.id,
 			componentId: componentIdFromPanelElementId(led.id),
 			kind: "led",
+		});
+	}
+	for (const display of panel.displays ?? []) {
+		resolved.push({
+			id: display.id,
+			componentId:
+				display.sourceComponentId ?? componentIdFromPanelElementId(display.id),
+			kind: "display",
 		});
 	}
 	for (const jack of panel.jacks) {

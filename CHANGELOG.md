@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.18
+
+- Add phase-one display hardware metadata to `@vessel-dsp/core`: `display`
+  component, panel, and device-interface kinds; typed `Panel.displays`
+  descriptors; `.vdsp` parse/serialize round-trip support; validation for
+  display kind, bus, grid dimensions, driver component links, and default text.
+- Preserve display modules as visible panel metadata only. This release does
+  not add display runtime values, framebuffer/matrix protocol, or runtime-driven
+  display updates.
+- Preserve source display panel metadata in `@vessel-dsp/stompbox` when panels
+  are rebuilt from runtime descriptor controls.
+
 ## 0.6.17
 
 - Extend `BehaviorRole.firmwareRef` in `@vessel-dsp/core` with richer firmware

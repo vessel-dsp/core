@@ -17,6 +17,10 @@ import type {
 } from "../model/types";
 import type {
 	DeviceInterfaceProvenance,
+	DisplayBusKind,
+	DisplayGrid,
+	DisplayIndicator,
+	DisplayKind,
 	ExtractedControlGroupMembership,
 	ExtractedDeviceInterface,
 	ExtractedDeviceInterfaceControl,
@@ -98,6 +102,7 @@ export function extractPanel(doc: CircuitDocument): Panel {
 	const sliders: SliderControl[] = [];
 	const switches: SwitchControl[] = [];
 	const leds: LedIndicator[] = [];
+	const displays: DisplayIndicator[] = [];
 	const jacks: JackPort[] = [];
 
 	for (const component of doc.components) {
@@ -129,6 +134,10 @@ export function extractPanel(doc: CircuitDocument): Panel {
 				leds.push(toLed(component));
 				break;
 			}
+			case "display": {
+				displays.push(toDisplay(component));
+				break;
+			}
 			case "jack": {
 				jacks.push(toJack(component));
 				break;
@@ -156,6 +165,7 @@ export function extractPanel(doc: CircuitDocument): Panel {
 		sliders,
 		switches,
 		leds,
+		...(displays.length > 0 ? { displays } : {}),
 		jacks,
 	};
 }
@@ -348,6 +358,22 @@ function inferDeviceInterfaceControls(
 				componentId: componentIdFromControlId(led.id),
 				controlId: led.id,
 				controlName: led.name,
+			},
+			provenance: "source-inferred",
+		});
+	}
+
+	for (const display of panel.displays ?? []) {
+		controls.push({
+			id: display.id,
+			label: display.name,
+			kind: "display",
+			role: "indicator",
+			binding: {
+				componentId:
+					display.sourceComponentId ?? componentIdFromControlId(display.id),
+				controlId: display.id,
+				controlName: display.name,
 			},
 			provenance: "source-inferred",
 		});
@@ -669,6 +695,34 @@ function toLed(component: Component): LedIndicator {
 		...(description !== undefined && description.length > 0
 			? { description }
 			: {}),
+	};
+}
+
+function toDisplay(component: Component): DisplayIndicator {
+	const displayKind = resolveDisplayKind(component);
+	const bus = resolveDisplayBus(component);
+	const grid = resolveDisplayGrid(component);
+	const driverComponentId = nonEmptyString(
+		propertyString(component, "DriverComponentId"),
+	);
+	const partNumber = propertyString(component, "PartNumber") ?? undefined;
+	const description = propertyString(component, "Description") ?? undefined;
+	const defaultText = displayDefaultText(component.properties.DefaultText);
+	return {
+		id: component.id,
+		name: component.name,
+		displayKind,
+		...(bus !== undefined ? { bus } : {}),
+		...(grid !== undefined ? { grid } : {}),
+		...(driverComponentId !== undefined ? { driverComponentId } : {}),
+		sourceComponentId: component.id,
+		...(partNumber !== undefined && partNumber.length > 0
+			? { partNumber }
+			: {}),
+		...(description !== undefined && description.length > 0
+			? { description }
+			: {}),
+		...(defaultText !== undefined ? { defaultText } : {}),
 	};
 }
 
@@ -1023,6 +1077,121 @@ function inferLedColor(component: Component): string | undefined {
 	if (part.includes("yellow")) return "yellow";
 	if (part.includes("white")) return "white";
 	return undefined;
+}
+
+function resolveDisplayKind(component: Component): DisplayKind {
+	const explicit = propertyStringAny(component, [
+		"DisplayKind",
+		"Kind",
+		"DisplayType",
+		"Type",
+	]);
+	if (explicit !== null) {
+		return normalizeDisplayKind(explicit);
+	}
+	const part = propertyStringAny(component, ["PartNumber", "Model"]);
+	if (part !== null) {
+		return normalizeDisplayKind(part);
+	}
+	return "unknown";
+}
+
+function normalizeDisplayKind(value: string): DisplayKind {
+	const normalized = normalizeToken(value);
+	if (
+		["lcd-character", "character-lcd", "char-lcd", "hd44780"].includes(
+			normalized,
+		)
+	) {
+		return "lcd-character";
+	}
+	if (["lcd-graphic", "graphic-lcd", "glcd"].includes(normalized)) {
+		return "lcd-graphic";
+	}
+	if (normalized.includes("oled") || normalized.includes("ssd1306")) {
+		return "oled";
+	}
+	if (["seven-segment", "7-segment", "7seg"].includes(normalized)) {
+		return "seven-segment";
+	}
+	if (["led-matrix", "matrix-led", "dot-matrix"].includes(normalized)) {
+		return "led-matrix";
+	}
+	if (normalized === "custom") {
+		return "custom";
+	}
+	if (normalized === "unknown") {
+		return "unknown";
+	}
+	return "unknown";
+}
+
+function resolveDisplayBus(component: Component): DisplayBusKind | undefined {
+	const bus = propertyString(component, "Bus");
+	return bus === null ? undefined : normalizeDisplayBus(bus);
+}
+
+function normalizeDisplayBus(value: string): DisplayBusKind {
+	const normalized = normalizeToken(value);
+	if (normalized === "i2c" || normalized === "iic") return "i2c";
+	if (normalized === "spi") return "spi";
+	if (normalized === "parallel" || normalized === "8080") return "parallel";
+	if (normalized === "gpio") return "gpio";
+	if (
+		normalized === "serial" ||
+		normalized === "uart" ||
+		normalized === "rs232"
+	) {
+		return "serial";
+	}
+	if (normalized === "module-internal" || normalized === "internal") {
+		return "module-internal";
+	}
+	if (normalized === "unknown") return "unknown";
+	return "unknown";
+}
+
+function resolveDisplayGrid(component: Component): DisplayGrid | undefined {
+	const explicitGrid = propertyString(component, "CharacterGrid");
+	if (explicitGrid !== null) {
+		const match = explicitGrid.trim().match(/^(\d+)\s*[xX]\s*(\d+)$/);
+		if (match?.[1] !== undefined && match[2] !== undefined) {
+			const columns = Number.parseInt(match[1], 10);
+			const rows = Number.parseInt(match[2], 10);
+			if (columns > 0 && rows > 0) {
+				return { rows, columns };
+			}
+		}
+	}
+	const rows = parseNumeric(component.properties.Rows);
+	const columns = parseNumeric(component.properties.Columns);
+	if (
+		rows !== undefined &&
+		columns !== undefined &&
+		Number.isInteger(rows) &&
+		Number.isInteger(columns) &&
+		rows > 0 &&
+		columns > 0
+	) {
+		return { rows, columns };
+	}
+	return undefined;
+}
+
+function displayDefaultText(
+	value: PropertyValue | undefined,
+): readonly string[] | undefined {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+	const out: string[] = [];
+	for (const item of value) {
+		const text = propertyStringValue(item);
+		if (text !== null) {
+			out.push(text);
+		}
+	}
+	return out.length === value.length ? out : undefined;
 }
 
 function shortType(sourceTypeName: string | null): string | null {

@@ -1500,11 +1500,12 @@ function parseDeviceInterfaceControlKind(
 		case "selector":
 		case "footswitch":
 		case "led":
+		case "display":
 		case "jack":
 			return kind;
 		default:
 			throw new Error(
-				`${path}: expected knob, slider, switch, selector, footswitch, led, or jack`,
+				`${path}: expected knob, slider, switch, selector, footswitch, led, display, or jack`,
 			);
 	}
 }
@@ -2538,11 +2539,12 @@ function parsePanelControlKind(
 		case "selector":
 		case "footswitch":
 		case "led":
+		case "display":
 		case "jack":
 			return kind;
 		default:
 			throw new Error(
-				`${path}: expected knob, slider, switch, selector, footswitch, led, or jack`,
+				`${path}: expected knob, slider, switch, selector, footswitch, led, display, or jack`,
 			);
 	}
 }
@@ -2722,6 +2724,7 @@ function parseComponentKind(
 		case "inductor":
 		case "diode":
 		case "led":
+		case "display":
 		case "bjt":
 		case "jfet":
 		case "mosfet":

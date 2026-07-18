@@ -1585,6 +1585,68 @@ describe("validateDocument", () => {
 		]);
 	});
 
+	test("accepts display metadata and panel placement binding", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("MCU1", "ic", { PartNumber: "ATmega" }),
+				makeComponent("LCD1", "display", {
+					DisplayKind: "HD44780",
+					Bus: "parallel",
+					CharacterGrid: "16x2",
+					DriverComponentId: "MCU1",
+					DefaultText: ["READY", "TAP TEMPO"],
+				}),
+			],
+			panel: {
+				faces: [
+					{
+						id: "top",
+						layout: {
+							kind: "stompbox-grid",
+							rows: 1,
+							columns: 1,
+							indexing: "one-based",
+						},
+						elements: [
+							{
+								bind: { componentId: "LCD1", controlId: "LCD1" },
+								kind: "display",
+								grid: { row: 1, column: 1 },
+							},
+						],
+					},
+				],
+			},
+		};
+
+		expect(validateDocument(doc)).toEqual([]);
+	});
+
+	test("validates malformed display metadata", () => {
+		const doc = withParts([
+			makeComponent("OLED1", "display", {
+				DisplayKind: "crt",
+				Bus: "lvds",
+				CharacterGrid: "two-lines",
+				Rows: 0,
+				Columns: 2.5,
+				DriverComponentId: "MISSING_MCU",
+				DefaultText: "READY",
+			}),
+		]);
+
+		expect(validateDocument(doc).map((issue) => issue.code)).toEqual([
+			"display-kind-invalid",
+			"display-bus-invalid",
+			"display-grid-invalid",
+			"display-grid-invalid",
+			"display-grid-invalid",
+			"display-driver-unresolved",
+			"display-default-text-invalid",
+		]);
+	});
+
 	test("value-unparseable emits error for garbage values", () => {
 		const doc = withParts([
 			makeComponent("R1", "resistor", { R: "not-a-number" }),

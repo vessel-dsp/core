@@ -224,6 +224,7 @@ const DIRECT_EXPORT_KINDS: ReadonlySet<ComponentKind> = new Set<ComponentKind>([
 	"inductor",
 	"diode",
 	"led",
+	"display",
 	"bjt",
 	"jfet",
 	"mosfet",
@@ -842,6 +843,17 @@ function sourceComponentElement(
 					? { manufacturer_part_number: manufacturerPartNumber }
 					: {}),
 			};
+		case "display":
+			warnings.push(
+				`${component.id} (display): Circuit JSON has no display source-component mapping; emitted opaque simple_chip source component metadata only`,
+			);
+			return {
+				...base,
+				ftype: "simple_chip",
+				...(manufacturerPartNumber !== null
+					? { manufacturer_part_number: manufacturerPartNumber }
+					: {}),
+			};
 		case "ota":
 		case "triode":
 		case "pentode":
@@ -1156,6 +1168,7 @@ function schematicSymbolName(component: Component): string {
 		case "port":
 			return "testpoint_right";
 		case "jack":
+		case "display":
 		case "ic":
 		case "ota":
 		case "triode":
@@ -1842,6 +1855,8 @@ function kindFromCircuitJsonFtype(ftype: string | null): ComponentKind {
 		case "simple_test_point":
 			return "port";
 		case "simple_chip":
+			// Circuit JSON does not distinguish generic ICs from display modules.
+			// Display source semantics remain .vdsp-only and import as generic ICs.
 			return "ic";
 		default:
 			return "unsupported";

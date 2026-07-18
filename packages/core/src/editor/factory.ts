@@ -85,6 +85,7 @@ const ID_PREFIX: Readonly<Record<ComponentKind, string>> = {
 	inductor: "L",
 	diode: "D",
 	led: "LED",
+	display: "DSP",
 	bjt: "Q",
 	jfet: "J",
 	mosfet: "M",

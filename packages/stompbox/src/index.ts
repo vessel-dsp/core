@@ -2498,6 +2498,8 @@ function panelFromRuntimeControls(
 	basePanel: Panel,
 	controls: readonly StompboxRuntimeControlDescriptor[],
 ): Panel {
+	// Phase-one display support is visible panel metadata only. Rebuild
+	// runtime-owned knobs/switches while preserving non-runtime source hardware.
 	return {
 		...(basePanel.placement === undefined
 			? {}
@@ -2543,6 +2545,9 @@ function panelFromRuntimeControls(
 				}),
 			),
 		leds: basePanel.leds,
+		...(basePanel.displays === undefined
+			? {}
+			: { displays: basePanel.displays }),
 		jacks: basePanel.jacks,
 	};
 }
@@ -8018,6 +8023,7 @@ function defaultPartIdForPanelKind(
 		case "jack":
 			return defaultPartIds.audioJack;
 		case "slider":
+		case "display":
 			return undefined;
 	}
 }

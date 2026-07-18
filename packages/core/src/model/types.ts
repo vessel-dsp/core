@@ -14,6 +14,7 @@ export type ComponentKind =
 	| "inductor"
 	| "diode"
 	| "led"
+	| "display"
 	| "bjt"
 	| "jfet"
 	| "mosfet"
@@ -303,6 +304,7 @@ export type DeviceInterfaceControlKind =
 	| "selector"
 	| "footswitch"
 	| "led"
+	| "display"
 	| "jack";
 
 export type DeviceInterfaceBinding = Readonly<{
@@ -357,6 +359,7 @@ export type PanelControlKind =
 	| "selector"
 	| "footswitch"
 	| "led"
+	| "display"
 	| "jack";
 
 export type PanelGridPosition = Readonly<{

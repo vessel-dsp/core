@@ -128,6 +128,56 @@ describe("extractPanel", () => {
 		expect(led.partNumber).toBe("3mm red");
 	});
 
+	test("extracts display metadata and infers a display device-interface control", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				makeComponent("MCU1", "ic", { PartNumber: "ATmega" }),
+				makeComponent("OLED1", "display", {
+					DisplayKind: "SSD1306 OLED",
+					Bus: "I2C",
+					Columns: 128,
+					Rows: 64,
+					DriverComponentId: "MCU1",
+					PartNumber: "SSD1306 128x64",
+					Description: "Status display",
+					DefaultText: ["BYPASS", "ON"],
+				}),
+			],
+		};
+
+		const panel = extractPanel(doc);
+		expect(panel.displays).toEqual([
+			{
+				id: "OLED1",
+				name: "OLED1",
+				displayKind: "oled",
+				bus: "i2c",
+				grid: { rows: 64, columns: 128 },
+				driverComponentId: "MCU1",
+				sourceComponentId: "OLED1",
+				partNumber: "SSD1306 128x64",
+				description: "Status display",
+				defaultText: ["BYPASS", "ON"],
+			},
+		]);
+
+		const deviceInterface = extractDeviceInterface(doc);
+		expect(deviceInterface.controls).toContainEqual(
+			expect.objectContaining({
+				id: "OLED1",
+				kind: "display",
+				role: "indicator",
+				binding: {
+					componentId: "OLED1",
+					controlId: "OLED1",
+					controlName: "OLED1",
+				},
+				provenance: "source-inferred",
+			}),
+		);
+	});
+
 	test("classifies Input and Speaker jacks by role", async () => {
 		const doc = parseSchx(await loadFixture("spdt-bypass-pedal"));
 		const panel = extractPanel(doc);

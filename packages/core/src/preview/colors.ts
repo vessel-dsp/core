@@ -9,6 +9,7 @@ const KIND_COLOR: Readonly<Record<ComponentKind, string>> = {
 	transformer: "#14b8a6",
 	diode: "#ef4444",
 	led: "#ef4444",
+	display: "#06b6d4",
 	bjt: "#ef4444",
 	jfet: "#ef4444",
 	mosfet: "#ef4444",

@@ -56,7 +56,7 @@
     },
     "packages/core": {
       "name": "@vessel-dsp/core",
-      "version": "0.6.17",
+      "version": "0.6.18",
       "dependencies": {
         "circuit-json": "0.0.433",
         "zod": "3",
@@ -64,9 +64,9 @@
     },
     "packages/stompbox": {
       "name": "@vessel-dsp/stompbox",
-      "version": "0.6.15",
+      "version": "0.6.16",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.16",
+        "@vessel-dsp/core": "0.6.18",
       },
     },
     "packages/visual-effects": {
@@ -1041,8 +1041,6 @@
     "@vessel-dsp/cabinet/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
 
     "@vessel-dsp/control-ui/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
-
-    "@vessel-dsp/stompbox/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
 
     "anymatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],
 
