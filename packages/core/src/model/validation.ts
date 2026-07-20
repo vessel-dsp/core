@@ -114,7 +114,13 @@ export type ValidationCode =
 	| "power-converter-missing-part-number"
 	| "power-rail-missing-nominal-voltage"
 	| "duplicate-id"
-	| "degenerate-wire";
+	| "degenerate-wire"
+	| "trace-connectivity-incomplete"
+	| "trace-floating-node"
+	| "trace-shorted-part"
+	| "trace-divider-asymmetry"
+	| "trace-rc-corner"
+	| "trace-nonstandard-value";
 
 export type ValidationIssue = Readonly<{
 	code: ValidationCode | (string & {});

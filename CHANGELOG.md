@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.19
+
+- Add advisory trace plausibility checks to `@vessel-dsp/core`, including
+  coverage-gated structural checks plus opt-in preferred-value and RC-corner
+  heuristics for source transcription review.
+- Export trace plausibility APIs and validation issue codes for downstream
+  conversion/audit tooling.
+
 ## 0.6.18
 
 - Add phase-one display hardware metadata to `@vessel-dsp/core`: `display`

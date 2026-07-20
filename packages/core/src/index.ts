@@ -1,4 +1,4 @@
-export const VERSION = "0.6.18";
+export const VERSION = "0.6.19";
 
 export type {
 	CreateComponentArgs,
@@ -253,6 +253,14 @@ export {
 	validateComponent,
 	validateDocument,
 } from "./model/validation";
+export type { TracePlausibilityOptions } from "./model/trace-plausibility";
+export {
+	traceConnectivityCompleteness,
+	validatePreferredValues,
+	validateRcCornerHeuristic,
+	validateTracePlausibility,
+	validateTraceStructure,
+} from "./model/trace-plausibility";
 export type {
 	AmpAppearanceProfile,
 	AmpControlKind,
