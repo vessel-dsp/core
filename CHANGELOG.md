@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.20
+
+- Add opt-in, topology-aware audio trace warnings for destructive capacitor
+  shunts, extreme direct input loading, and declared op-amp buffers with open
+  passive feedback paths. Ambiguous roles and incomplete boundary connectivity
+  produce abstention warnings rather than circuit claims.
+- Add `.vdsp` parsing that preserves source-declared node membership and roles
+  for advisory validation, with geometric connectivity as an explicit fallback.
+
 ## 0.6.19
 
 - Add advisory trace plausibility checks to `@vessel-dsp/core`, including

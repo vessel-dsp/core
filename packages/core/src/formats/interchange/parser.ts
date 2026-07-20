@@ -1,4 +1,11 @@
 import { isParsedQuantity } from "../../model/properties";
+import {
+	pinKey,
+	resolveConnectivity,
+	type Connectivity,
+	type NodeId,
+	type PinRef,
+} from "../../model/connectivity";
 import type {
 	CircuitDocument,
 	CircuitDocumentDevice,
@@ -118,6 +125,13 @@ const V3_ONLY_TOP_LEVEL_FIELDS = [
 	"power",
 ] as const;
 
+export type InterchangeTopologyParseResult = Readonly<{
+	document: CircuitDocument;
+	connectivity: Connectivity;
+	nodeRoles: ReadonlyMap<NodeId, string>;
+	connectivitySource: "declared" | "geometric";
+}>;
+
 export function parseInterchangeYaml(source: string): CircuitDocument {
 	const value = parseYamlSubset(source);
 	const root = expectObject(value, "root");
@@ -178,6 +192,331 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 		warnings: parseWarnings(root.diagnostics),
 		rawAttributes: parseStringRecord(root.rawAttributes, "rawAttributes"),
 	};
+}
+
+/** Parse a document together with source-declared node membership and roles. */
+export function parseInterchangeYamlWithTopology(
+	source: string,
+): InterchangeTopologyParseResult {
+	const document = parseInterchangeYaml(source);
+	const root = expectObject(parseYamlSubset(source), "root");
+	const declared = parseDeclaredTopology(root, document);
+	if (declared) return { document, ...declared, connectivitySource: "declared" };
+	const connectivity = resolveConnectivity(document);
+	return {
+		document,
+		connectivity,
+		nodeRoles: new Map(
+			[...connectivity.nodeMembers.keys()].map((nodeId) => [
+				nodeId,
+				nodeId === connectivity.groundNodeId ? "ground" : "signal",
+			]),
+		),
+		connectivitySource: "geometric",
+	};
+}
+
+type ParsedDeclaredTopology = Readonly<{
+	connectivity: Connectivity;
+	nodeRoles: ReadonlyMap<NodeId, string>;
+}>;
+
+function parseDeclaredTopology(
+	root: YamlObject,
+	document: CircuitDocument,
+): ParsedDeclaredTopology | null {
+	const rawComponents = optionalArray(root.components, "components");
+	const rawNodes = optionalArray(root.nodes, "nodes");
+	const nodeKeys = new Set<string>();
+	let declaredTerminalCount = 0;
+	for (const [componentIndex, rawComponent] of rawComponents.entries()) {
+		const component = expectObject(rawComponent, `components[${componentIndex}]`);
+		for (const [terminalIndex, rawTerminal] of optionalArray(
+			component.terminals,
+			`components[${componentIndex}].terminals`,
+		).entries()) {
+			const terminal = expectObject(
+				rawTerminal,
+				`components[${componentIndex}].terminals[${terminalIndex}]`,
+			);
+			const key = declaredNodeKey(terminal.node);
+			if (key === null) continue;
+			nodeKeys.add(key);
+			declaredTerminalCount += 1;
+		}
+	}
+	for (const [index, rawNode] of rawNodes.entries()) {
+		const node = expectObject(rawNode, `nodes[${index}]`);
+		const key = declaredNodeKey(node.id);
+		if (key !== null) nodeKeys.add(key);
+	}
+	if (declaredTerminalCount === 0 && rawNodes.length === 0) return null;
+
+	const nodeIds = declaredNodeIds(nodeKeys);
+	const pinToNode = new Map<string, NodeId>();
+	const nodeMembers = new Map<NodeId, PinRef[]>(
+		[...nodeIds.values()].map((nodeId) => [nodeId, []]),
+	);
+	const nodeRoles = new Map<NodeId, string>();
+	for (const [index, rawNode] of rawNodes.entries()) {
+		const node = expectObject(rawNode, `nodes[${index}]`);
+		const key = declaredNodeKey(node.id);
+		const nodeId = key === null ? undefined : nodeIds.get(key);
+		if (nodeId === undefined) continue;
+		if (typeof node.role === "string" && node.role.trim()) {
+			nodeRoles.set(nodeId, node.role.trim());
+		}
+	}
+
+	if (declaredTerminalCount > 0) {
+		for (const [componentIndex, rawComponent] of rawComponents.entries()) {
+			const component = expectObject(rawComponent, `components[${componentIndex}]`);
+			const componentId = expectString(
+				component.id,
+				`components[${componentIndex}].id`,
+			);
+			for (const [terminalIndex, rawTerminal] of optionalArray(
+				component.terminals,
+				`components[${componentIndex}].terminals`,
+			).entries()) {
+				const path = `components[${componentIndex}].terminals[${terminalIndex}]`;
+				const terminal = expectObject(rawTerminal, path);
+				const key = declaredNodeKey(terminal.node);
+				const nodeId = key === null ? undefined : nodeIds.get(key);
+				if (nodeId === undefined) continue;
+				addDeclaredPin(
+					pinToNode,
+					nodeMembers,
+					nodeId,
+					{
+						componentId,
+						terminalName: expectString(terminal.name, `${path}.name`),
+					},
+					path,
+				);
+			}
+		}
+	} else {
+		parseDeclaredNodeMembers(
+			rawNodes,
+			document,
+			nodeIds,
+			pinToNode,
+			nodeMembers,
+		);
+	}
+
+	let groundNodeId: NodeId | null = null;
+	for (const [nodeId, role] of nodeRoles) {
+		if (role.toLowerCase() === "ground") {
+			groundNodeId = nodeId;
+			break;
+		}
+	}
+	if (groundNodeId === null) {
+		for (const component of document.components) {
+			if (component.kind !== "ground") continue;
+			const terminal = component.terminals[0];
+			if (!terminal) continue;
+			const nodeId = pinToNode.get(
+				pinKey({ componentId: component.id, terminalName: terminal.name }),
+			);
+			if (nodeId !== undefined) {
+				groundNodeId = nodeId;
+				break;
+			}
+		}
+	}
+	for (const nodeId of nodeMembers.keys()) {
+		if (!nodeRoles.has(nodeId)) {
+			nodeRoles.set(nodeId, nodeId === groundNodeId ? "ground" : "signal");
+		}
+	}
+	return {
+		connectivity: {
+			pinToNode,
+			nodeMembers,
+			groundNodeId,
+			nodeCount: nodeMembers.size,
+		},
+		nodeRoles,
+	};
+}
+
+function declaredNodeKey(value: YamlValue | undefined): string | null {
+	if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+		return String(value);
+	}
+	if (typeof value === "string" && value.trim()) return value.trim();
+	return null;
+}
+
+function declaredNodeIds(keys: ReadonlySet<string>): ReadonlyMap<string, NodeId> {
+	const out = new Map<string, NodeId>();
+	const used = new Set<NodeId>();
+	for (const key of keys) {
+		if (!/^\d+$/.test(key)) continue;
+		const nodeId = Number(key);
+		if (!Number.isSafeInteger(nodeId)) continue;
+		out.set(key, nodeId);
+		used.add(nodeId);
+	}
+	let nextId = 0;
+	for (const key of keys) {
+		if (out.has(key)) continue;
+		while (used.has(nextId)) nextId += 1;
+		out.set(key, nextId);
+		used.add(nextId);
+	}
+	return out;
+}
+
+function addDeclaredPin(
+	pinToNode: Map<string, NodeId>,
+	nodeMembers: Map<NodeId, PinRef[]>,
+	nodeId: NodeId,
+	pin: PinRef,
+	path: string,
+): void {
+	const key = pinKey(pin);
+	const previousNode = pinToNode.get(key);
+	if (previousNode !== undefined) {
+		throw new Error(
+			`${path}: pin "${pin.componentId}.${pin.terminalName}" already belongs to node ${previousNode}`,
+		);
+	}
+	pinToNode.set(key, nodeId);
+	const members = nodeMembers.get(nodeId);
+	if (!members) throw new Error(`${path}: unknown declared node ${nodeId}`);
+	members.push(pin);
+}
+
+function parseDeclaredNodeMembers(
+	rawNodes: readonly YamlValue[],
+	document: CircuitDocument,
+	nodeIds: ReadonlyMap<string, NodeId>,
+	pinToNode: Map<string, NodeId>,
+	nodeMembers: Map<NodeId, PinRef[]>,
+): void {
+	const componentTerminals = new Map(
+		document.components.map((component) => [
+			component.id,
+			new Set(component.terminals.map((terminal) => terminal.name)),
+		]),
+	);
+	const seenNodeKeys = new Set<string>();
+	for (const [index, rawNode] of rawNodes.entries()) {
+		const path = `nodes[${index}]`;
+		const node = expectObject(rawNode, path);
+		const key = declaredNodeKey(node.id);
+		if (key === null) throw new Error(`${path}.id: expected node identifier`);
+		if (seenNodeKeys.has(key)) throw new Error(`${path}.id: duplicate node id ${key}`);
+		seenNodeKeys.add(key);
+		const nodeId = nodeIds.get(key);
+		if (nodeId === undefined) throw new Error(`${path}.id: unknown node identifier`);
+		for (const [memberIndex, rawMember] of optionalArray(
+			node.members,
+			`${path}.members`,
+		).entries()) {
+			const memberPath = `${path}.members[${memberIndex}]`;
+			const member = declaredNodeMemberObject(rawMember, memberPath);
+			const componentId = expectString(
+				member.componentId,
+				`${memberPath}.componentId`,
+			);
+			const terminalName = expectString(
+				member.terminalName,
+				`${memberPath}.terminalName`,
+			);
+			const terminals = componentTerminals.get(componentId);
+			if (!terminals) {
+				throw new Error(
+					`${memberPath}.componentId: unknown component "${componentId}"`,
+				);
+			}
+			if (!terminals.has(terminalName)) {
+				throw new Error(
+					`${memberPath}.terminalName: unknown terminal "${componentId}.${terminalName}"`,
+				);
+			}
+			addDeclaredPin(
+				pinToNode,
+				nodeMembers,
+				nodeId,
+				{ componentId, terminalName },
+				memberPath,
+			);
+		}
+	}
+}
+
+function declaredNodeMemberObject(value: YamlValue, path: string): YamlObject {
+	if (isYamlObject(value) && value.componentId !== undefined) return value;
+	let flowText: string | null = typeof value === "string" ? value : null;
+	if (isYamlObject(value)) {
+		const entries = Object.entries(value);
+		const first = entries[0];
+		if (entries.length === 1 && first?.[0].trimStart().startsWith("{")) {
+			flowText = `${first[0]}: ${scalarText(first[1], path)}`;
+		}
+	}
+	if (!flowText?.trim().startsWith("{") || !flowText.trim().endsWith("}")) {
+		return expectObject(value, path);
+	}
+	const body = flowText.trim().slice(1, -1);
+	const out: YamlObject = {};
+	for (const field of splitFlowFields(body, path)) {
+		const colon = field.indexOf(":");
+		if (colon <= 0) throw new Error(`${path}: invalid flow mapping member`);
+		const key = field.slice(0, colon).trim();
+		const rawValue = field.slice(colon + 1).trim();
+		if (!key || !rawValue) throw new Error(`${path}: invalid flow mapping member`);
+		let parsedValue: string;
+		if (rawValue.startsWith('"')) {
+			try {
+				const parsed: unknown = JSON.parse(rawValue);
+				if (typeof parsed !== "string") throw new Error();
+				parsedValue = parsed;
+			} catch {
+				throw new Error(`${path}: invalid quoted flow mapping value`);
+			}
+		} else if (rawValue.startsWith("'") && rawValue.endsWith("'")) {
+			parsedValue = rawValue.slice(1, -1).replace(/''/g, "'");
+		} else {
+			parsedValue = rawValue;
+		}
+		assignUniqueKey(out, key, parsedValue);
+	}
+	return out;
+}
+
+function splitFlowFields(value: string, path: string): readonly string[] {
+	const fields: string[] = [];
+	let start = 0;
+	let quote: '"' | "'" | null = null;
+	let escaped = false;
+	for (let index = 0; index < value.length; index += 1) {
+		const char = value[index];
+		if (escaped) {
+			escaped = false;
+			continue;
+		}
+		if (quote === '"' && char === "\\") {
+			escaped = true;
+			continue;
+		}
+		if (char === '"' || char === "'") {
+			quote = quote === null ? char : quote === char ? null : quote;
+			continue;
+		}
+		if (char === "," && quote === null) {
+			fields.push(value.slice(start, index).trim());
+			start = index + 1;
+		}
+	}
+	if (quote !== null) throw new Error(`${path}: unterminated quoted flow mapping`);
+	fields.push(value.slice(start).trim());
+	return fields.filter(Boolean);
 }
 
 function rejectV3OnlyTopLevelFields(root: YamlObject): void {

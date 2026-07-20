@@ -120,7 +120,11 @@ export type ValidationCode =
 	| "trace-shorted-part"
 	| "trace-divider-asymmetry"
 	| "trace-rc-corner"
-	| "trace-nonstandard-value";
+	| "trace-nonstandard-value"
+	| "trace-audio-role-ambiguous"
+	| "trace-audio-shunt-extreme"
+	| "trace-input-loading-extreme"
+	| "trace-opamp-feedback-open";
 
 export type ValidationIssue = Readonly<{
 	code: ValidationCode | (string & {});

@@ -29,3 +29,28 @@ schematics; unknown roles warn by default and become errors when callers pass
 `validateDocument(document, { playbackClaim: true })`. Hosts can add
 lowering-specific diagnostics with `validateDocument(document, { rules: [...] })`
 without embedding runtime policy in core.
+
+## Advisory trace warnings
+
+Trace plausibility checks are warnings for source review, not import gates or
+proof of circuit correctness. Structural checks run by default and fail closed
+when connectivity is incomplete. Role-aware audio checks are opt-in:
+
+```ts
+import {
+  parseVdspCircuitDocumentWithTopology,
+  validateTracePlausibility,
+} from "@vessel-dsp/core";
+
+const parsed = parseVdspCircuitDocumentWithTopology(source);
+const issues = validateTracePlausibility(parsed.document, {
+  connectivity: parsed.connectivity,
+  nodeRoles: parsed.nodeRoles,
+  includeAudioTopology: true,
+});
+```
+
+The audio checks warn about destructive signal-path RC shunts, extreme direct
+input loading, and explicitly declared audio buffers without a passive
+negative-feedback path. They require unique audio input/output roles and
+locally connected boundary nodes; unavailable coverage is reported explicitly.

@@ -1,4 +1,4 @@
-export const VERSION = "0.6.19";
+export const VERSION = "0.6.20";
 
 export type {
 	CreateComponentArgs,
@@ -62,13 +62,18 @@ export {
 	parseCircuitDocument,
 	parseCircuitDocumentFile,
 	parseVdspCircuitDocument,
+	parseVdspCircuitDocumentWithTopology,
 	serializeCircuitDocumentFile,
 	serializeVdspCircuitDocument,
 	validateVdspCircuitDocumentSchema,
 	vdspFileExtension,
 	vdspFilenameFromName,
 } from "./formats/document";
-export { parseInterchangeYaml } from "./formats/interchange/parser";
+export type { InterchangeTopologyParseResult } from "./formats/interchange/parser";
+export {
+	parseInterchangeYaml,
+	parseInterchangeYamlWithTopology,
+} from "./formats/interchange/parser";
 export type {
 	InterchangeSourceFormat,
 	SerializeInterchangeYamlOptions,
@@ -256,6 +261,7 @@ export {
 export type { TracePlausibilityOptions } from "./model/trace-plausibility";
 export {
 	traceConnectivityCompleteness,
+	validateAudioTopologyWarnings,
 	validatePreferredValues,
 	validateRcCornerHeuristic,
 	validateTracePlausibility,

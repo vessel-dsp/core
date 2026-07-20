@@ -5,7 +5,11 @@ import { parseSchx } from "./schx/parser";
 import { serializeSchx } from "./schx/serializer";
 import { parseSpiceNetlist } from "./spice/parser";
 import { serializeSpiceNetlist } from "./spice/serializer";
-import { parseInterchangeYaml } from "./interchange/parser";
+import {
+	parseInterchangeYaml,
+	parseInterchangeYamlWithTopology,
+	type InterchangeTopologyParseResult,
+} from "./interchange/parser";
 import { serializeInterchangeYaml } from "./interchange/serializer";
 import {
 	parseCircuitJsonDocument,
@@ -183,6 +187,12 @@ export function vdspFilenameFromName(name: string): string {
 
 export function parseVdspCircuitDocument(source: string): CircuitDocument {
 	return parseInterchangeYaml(source);
+}
+
+export function parseVdspCircuitDocumentWithTopology(
+	source: string,
+): InterchangeTopologyParseResult {
+	return parseInterchangeYamlWithTopology(source);
 }
 
 export function validateVdspCircuitDocumentSchema(
