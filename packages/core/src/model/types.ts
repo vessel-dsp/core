@@ -504,6 +504,12 @@ export type CircuitPowerRailRole =
 	| "charge-pump-output"
 	| "negative-supply";
 
+// Where the domain's power boundary enters the graph. `mains-ac` = a wall socket
+// feeding an in-graph PSU (transformer/rectifier/filter). `external-dc` = a
+// battery or DC adapter arriving ready-made. Distinct from CircuitPowerCoverage
+// (how much topology is modeled) and from a rail's role/derivation.
+export type CircuitPowerSourceKind = "mains-ac" | "external-dc";
+
 export type CircuitPowerRailDerivation =
 	| "direct"
 	| "divider"
@@ -529,6 +535,9 @@ export type CircuitPowerDomain = VdspBuildDataObject &
 		sourceComponentIds: readonly string[];
 		ratedVoltage?: ParsedQuantity;
 		groundPolarity: CircuitPowerGroundPolarity;
+		// Optional in circuit-power/v1 (additive). When absent, ownership is
+		// inferred from source components. New/rewritten documents should emit it.
+		sourceKind?: CircuitPowerSourceKind;
 		rails: readonly CircuitPowerRailBinding[];
 	}>;
 

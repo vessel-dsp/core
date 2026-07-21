@@ -25,6 +25,7 @@ describe("power converter identity", () => {
 				{
 					id: "klon-charge-pump-domain",
 					groundPolarity: "bipolar",
+					sourceKind: "external-dc",
 					rails: [
 						{ railComponentId: "RAIL_MAIN", role: "main-supply" },
 						{

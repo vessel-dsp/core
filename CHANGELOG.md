@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.21
+
+- Enforce single-owner supply rails in `@vessel-dsp/core`: a modeled voltage may
+  have only one owner (a mains PSU/transformer, a battery/DC-adapter boundary, or
+  a converter/regulator/divider output), so a `kind: rail` that asserts an ideal
+  source on top of an already-owned voltage is a `power-rail-fixed-owner-conflict`
+  validation error. The rule is power-model driven and connectivity-independent:
+  it never reads wires, node identity, or component voltage properties, so the
+  verdict is identical for `wires: []` and a fully connected drawing.
+- Add the optional `CircuitPowerDomain.sourceKind` (`mains-ac` | `external-dc`)
+  field and export the `CircuitPowerSourceKind` type. The interchange parser
+  normalizes the provisional `powerSourceKind` alias into it and rejects
+  conflicting values. New codes: `power-domain-source-kind-conflict`,
+  `power-domain-source-kind-unresolved`, `power-domain-source-owner-unresolved`,
+  and `power-rail-fixed-owner-conflict`.
+
 ## 0.6.20
 
 - Add opt-in, topology-aware audio trace warnings for destructive capacitor

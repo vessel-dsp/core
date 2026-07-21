@@ -88,7 +88,7 @@ components:
         value: 9
         unit: V
   - id: RAIL_MAIN
-    kind: rail
+    kind: port
     name: RAIL_MAIN
     origin:
       x: 100
@@ -100,13 +100,9 @@ components:
         position:
           x: 100
           y: 30
-    properties:
-      V:
-        raw: "9V"
-        value: 9
-        unit: V
+    properties: {}
   - id: RAIL_BIAS
-    kind: rail
+    kind: port
     name: RAIL_BIAS
     origin:
       x: 100
@@ -118,11 +114,7 @@ components:
         position:
           x: 100
           y: 50
-    properties:
-      V:
-        raw: "4.5V"
-        value: 4.5
-        unit: V
+    properties: {}
 wires: []
 directives: []
 diagnostics: []
@@ -139,6 +131,7 @@ power:
         value: 9
         unit: V
       groundPolarity: negative-ground
+      sourceKind: external-dc
       rails:
         - railComponentId: RAIL_MAIN
           role: main-supply
@@ -147,3 +140,7 @@ power:
           role: bias-reference
           derivation: divider
           parentRailComponentId: RAIL_MAIN
+          nominalVoltage:
+            raw: "4.5V"
+            value: 4.5
+            unit: V

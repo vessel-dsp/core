@@ -1,16 +1,12 @@
-import { isParsedQuantity } from "../../model/properties";
 import {
-	pinKey,
-	resolveConnectivity,
 	type Connectivity,
 	type NodeId,
 	type PinRef,
+	pinKey,
+	resolveConnectivity,
 } from "../../model/connectivity";
+import { isParsedQuantity } from "../../model/properties";
 import type {
-	CircuitDocument,
-	CircuitDocumentDevice,
-	CircuitDocumentDeviceKind,
-	DocumentAppearance,
 	BoardApplicability,
 	BoardEdgeTerminal,
 	BoardFamily,
@@ -19,8 +15,8 @@ import type {
 	BoardFootprintPlacement,
 	BoardKind,
 	BoardNet,
-	BoardNetMember,
 	BoardNetlist,
+	BoardNetMember,
 	BoardPlacedPad,
 	BoardRealization,
 	BoardRoute,
@@ -34,44 +30,9 @@ import type {
 	BuildPartProfile,
 	BuildPartProfileCatalog,
 	BuildScope,
-	SimulationProfile,
-	SimulationProfileCatalog,
-	Component,
-	ComponentKind,
-	ComponentTerminalRef,
-	ControlApplicabilityPredicate,
-	ControlContext,
-	ControlGroup,
-	ControlGroupMember,
-	DeviceInterface,
-	DeviceInterfaceAudioBinding,
-	DeviceInterfaceBinding,
-	DeviceInterfaceControlKind,
-	ControlInterface,
-	ControlInterfaceAssignmentHint,
-	ControlInterfaceConnector,
-	ControlInterfacePolarity,
-	ControlInterfaceRole,
-	ControlOutput,
-	ControlOutputSwitchMode,
-	DocumentSource,
-	PanelColumnOrder,
-	PanelControlKind,
-	PanelElementBinding,
-	PanelElementPhysicalPlacement,
-	PanelFaceGeometry,
-	PanelGridLayout,
-	PanelGridIndexing,
-	PanelGridPosition,
-	PanelPlacementMetadata,
-	PanelRowOrder,
-	MechanicalBuildMetadata,
-	OffBoardWiringConnection,
-	OffBoardWiringCoverage,
-	OffBoardWiringEndpoint,
-	OffBoardWiringHarness,
-	OffBoardWiringHarnessStatus,
-	OffBoardWiringPlan,
+	CircuitDocument,
+	CircuitDocumentDevice,
+	CircuitDocumentDeviceKind,
 	CircuitPower,
 	CircuitPowerCoverage,
 	CircuitPowerDomain,
@@ -79,11 +40,51 @@ import type {
 	CircuitPowerRailBinding,
 	CircuitPowerRailDerivation,
 	CircuitPowerRailRole,
+	CircuitPowerSourceKind,
+	Component,
+	ComponentKind,
+	ComponentTerminalRef,
+	ControlApplicabilityPredicate,
+	ControlContext,
+	ControlGroup,
+	ControlGroupMember,
+	ControlInterface,
+	ControlInterfaceAssignmentHint,
+	ControlInterfaceConnector,
+	ControlInterfacePolarity,
+	ControlInterfaceRole,
+	ControlOutput,
+	ControlOutputSwitchMode,
+	DeviceInterface,
+	DeviceInterfaceAudioBinding,
+	DeviceInterfaceBinding,
+	DeviceInterfaceControlKind,
+	DocumentAppearance,
+	DocumentSource,
+	MechanicalBuildMetadata,
+	OffBoardWiringConnection,
+	OffBoardWiringCoverage,
+	OffBoardWiringEndpoint,
+	OffBoardWiringHarness,
+	OffBoardWiringHarnessStatus,
+	OffBoardWiringPlan,
+	PanelColumnOrder,
+	PanelControlKind,
+	PanelElementBinding,
+	PanelElementPhysicalPlacement,
+	PanelFaceGeometry,
+	PanelGridIndexing,
+	PanelGridLayout,
+	PanelGridPosition,
+	PanelPlacementMetadata,
+	PanelRowOrder,
 	ParsedQuantity,
 	Point,
 	ProfileResponseRef,
 	PropertyValue,
 	Rotation,
+	SimulationProfile,
+	SimulationProfileCatalog,
 	Terminal,
 	VdspBuildDataObject,
 	VdspBuildDataValue,
@@ -201,7 +202,8 @@ export function parseInterchangeYamlWithTopology(
 	const document = parseInterchangeYaml(source);
 	const root = expectObject(parseYamlSubset(source), "root");
 	const declared = parseDeclaredTopology(root, document);
-	if (declared) return { document, ...declared, connectivitySource: "declared" };
+	if (declared)
+		return { document, ...declared, connectivitySource: "declared" };
 	const connectivity = resolveConnectivity(document);
 	return {
 		document,
@@ -230,7 +232,10 @@ function parseDeclaredTopology(
 	const nodeKeys = new Set<string>();
 	let declaredTerminalCount = 0;
 	for (const [componentIndex, rawComponent] of rawComponents.entries()) {
-		const component = expectObject(rawComponent, `components[${componentIndex}]`);
+		const component = expectObject(
+			rawComponent,
+			`components[${componentIndex}]`,
+		);
 		for (const [terminalIndex, rawTerminal] of optionalArray(
 			component.terminals,
 			`components[${componentIndex}].terminals`,
@@ -270,7 +275,10 @@ function parseDeclaredTopology(
 
 	if (declaredTerminalCount > 0) {
 		for (const [componentIndex, rawComponent] of rawComponents.entries()) {
-			const component = expectObject(rawComponent, `components[${componentIndex}]`);
+			const component = expectObject(
+				rawComponent,
+				`components[${componentIndex}]`,
+			);
 			const componentId = expectString(
 				component.id,
 				`components[${componentIndex}].id`,
@@ -351,7 +359,9 @@ function declaredNodeKey(value: YamlValue | undefined): string | null {
 	return null;
 }
 
-function declaredNodeIds(keys: ReadonlySet<string>): ReadonlyMap<string, NodeId> {
+function declaredNodeIds(
+	keys: ReadonlySet<string>,
+): ReadonlyMap<string, NodeId> {
 	const out = new Map<string, NodeId>();
 	const used = new Set<NodeId>();
 	for (const key of keys) {
@@ -410,10 +420,12 @@ function parseDeclaredNodeMembers(
 		const node = expectObject(rawNode, path);
 		const key = declaredNodeKey(node.id);
 		if (key === null) throw new Error(`${path}.id: expected node identifier`);
-		if (seenNodeKeys.has(key)) throw new Error(`${path}.id: duplicate node id ${key}`);
+		if (seenNodeKeys.has(key))
+			throw new Error(`${path}.id: duplicate node id ${key}`);
 		seenNodeKeys.add(key);
 		const nodeId = nodeIds.get(key);
-		if (nodeId === undefined) throw new Error(`${path}.id: unknown node identifier`);
+		if (nodeId === undefined)
+			throw new Error(`${path}.id: unknown node identifier`);
 		for (const [memberIndex, rawMember] of optionalArray(
 			node.members,
 			`${path}.members`,
@@ -470,7 +482,8 @@ function declaredNodeMemberObject(value: YamlValue, path: string): YamlObject {
 		if (colon <= 0) throw new Error(`${path}: invalid flow mapping member`);
 		const key = field.slice(0, colon).trim();
 		const rawValue = field.slice(colon + 1).trim();
-		if (!key || !rawValue) throw new Error(`${path}: invalid flow mapping member`);
+		if (!key || !rawValue)
+			throw new Error(`${path}: invalid flow mapping member`);
 		let parsedValue: string;
 		if (rawValue.startsWith('"')) {
 			try {
@@ -514,7 +527,8 @@ function splitFlowFields(value: string, path: string): readonly string[] {
 			start = index + 1;
 		}
 	}
-	if (quote !== null) throw new Error(`${path}: unterminated quoted flow mapping`);
+	if (quote !== null)
+		throw new Error(`${path}: unterminated quoted flow mapping`);
 	fields.push(value.slice(start).trim());
 	return fields.filter(Boolean);
 }
@@ -844,7 +858,10 @@ function parseSimulationProfile(
 			expectString(id, `${path}.targetProfileIds[${targetIndex}]`),
 		),
 		domain: expectString(profile.domain, `${path}.domain`),
-		representation: expectString(profile.representation, `${path}.representation`),
+		representation: expectString(
+			profile.representation,
+			`${path}.representation`,
+		),
 		...(profile.operatingRegime === undefined
 			? {}
 			: {
@@ -1187,8 +1204,21 @@ function parsePower(value: YamlValue | undefined): CircuitPower | undefined {
 
 function parsePowerDomain(value: YamlValue, path: string): CircuitPowerDomain {
 	const domain = expectObject(value, path);
-	return {
+	// sourceKind and the provisional powerSourceKind alias are normalized into the
+	// typed field below; drop both from the build-data passthrough so the parser is
+	// the single normalization boundary and only canonical sourceKind round-trips.
+	const buildData: Record<string, VdspBuildDataValue | undefined> = {
 		...parseBuildDataObject(domain, path),
+	};
+	delete buildData.sourceKind;
+	delete buildData.powerSourceKind;
+	const sourceKind = parsePowerSourceKind(
+		domain.sourceKind,
+		domain.powerSourceKind,
+		path,
+	);
+	return {
+		...buildData,
 		id: expectString(domain.id, `${path}.id`),
 		sourceComponentIds: optionalArray(
 			domain.sourceComponentIds,
@@ -1208,10 +1238,53 @@ function parsePowerDomain(value: YamlValue, path: string): CircuitPowerDomain {
 			domain.groundPolarity,
 			`${path}.groundPolarity`,
 		),
+		...(sourceKind === undefined ? {} : { sourceKind }),
 		rails: optionalArray(domain.rails, `${path}.rails`).map((rail, index) =>
 			parsePowerRailBinding(rail, `${path}.rails[${index}]`),
 		),
 	};
+}
+
+// Resolves the canonical `sourceKind` and the provisional `powerSourceKind`
+// build-data alias into one typed value: canonical wins, a same-valued alias is
+// accepted, and disagreeing keys are rejected.
+function parsePowerSourceKind(
+	canonical: YamlValue | undefined,
+	legacy: YamlValue | undefined,
+	path: string,
+): CircuitPowerSourceKind | undefined {
+	const canonicalKind =
+		canonical === undefined
+			? undefined
+			: coercePowerSourceKind(canonical, `${path}.sourceKind`);
+	const legacyKind =
+		legacy === undefined
+			? undefined
+			: coercePowerSourceKind(legacy, `${path}.powerSourceKind`);
+	if (
+		canonicalKind !== undefined &&
+		legacyKind !== undefined &&
+		canonicalKind !== legacyKind
+	) {
+		throw new Error(
+			`${path}: sourceKind "${canonicalKind}" conflicts with powerSourceKind "${legacyKind}"`,
+		);
+	}
+	return canonicalKind ?? legacyKind;
+}
+
+function coercePowerSourceKind(
+	value: YamlValue,
+	path: string,
+): CircuitPowerSourceKind {
+	const kind = expectString(value, path);
+	switch (kind) {
+		case "mains-ac":
+		case "external-dc":
+			return kind;
+		default:
+			throw new Error(`${path}: expected mains-ac or external-dc`);
+	}
 }
 
 function parsePowerRailBinding(
@@ -2254,12 +2327,8 @@ function parseBlock(
 	return parseObject(lines, cursor, indent);
 }
 
-function assignUniqueKey(
-	out: YamlObject,
-	key: string,
-	value: YamlValue,
-): void {
-	if (Object.prototype.hasOwnProperty.call(out, key)) {
+function assignUniqueKey(out: YamlObject, key: string, value: YamlValue): void {
+	if (Object.hasOwn(out, key)) {
 		throw new Error(`duplicate mapping key "${key}"`);
 	}
 	out[key] = value;

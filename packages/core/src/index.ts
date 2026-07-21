@@ -1,4 +1,4 @@
-export const VERSION = "0.6.20";
+export const VERSION = "0.6.21";
 
 export type {
 	CreateComponentArgs,
@@ -109,6 +109,15 @@ export {
 	propertyValueForSourceAttribute,
 } from "./model/properties";
 export { parseQuantity } from "./model/quantity";
+export type { TracePlausibilityOptions } from "./model/trace-plausibility";
+export {
+	traceConnectivityCompleteness,
+	validateAudioTopologyWarnings,
+	validatePreferredValues,
+	validateRcCornerHeuristic,
+	validateTracePlausibility,
+	validateTraceStructure,
+} from "./model/trace-plausibility";
 export type {
 	BoardApplicability,
 	BoardEdgeTerminal,
@@ -144,6 +153,7 @@ export type {
 	CabinetEnclosureType,
 	CabinetPort,
 	CanonicalCircuitNetRef,
+	CircuitDocument,
 	CircuitDocumentBehaviorFirmwareArtifactType,
 	CircuitDocumentBehaviorFirmwareOwner,
 	CircuitDocumentBehaviorFirmwareRef,
@@ -151,11 +161,6 @@ export type {
 	CircuitDocumentBehaviorFirmwareStatus,
 	CircuitDocumentBehaviorRole,
 	CircuitDocumentBehaviorRoleKind,
-	CircuitDocument,
-	DocumentAmpAppearance,
-	DocumentAppearance,
-	DocumentAppearanceLabel,
-	DocumentAppearanceMaterial,
 	CircuitDocumentDevice,
 	CircuitDocumentDeviceKind,
 	CircuitPower,
@@ -165,6 +170,7 @@ export type {
 	CircuitPowerRailBinding,
 	CircuitPowerRailDerivation,
 	CircuitPowerRailRole,
+	CircuitPowerSourceKind,
 	Component,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -185,9 +191,13 @@ export type {
 	DeviceInterfaceBinding,
 	DeviceInterfaceControl,
 	DeviceInterfaceControlKind,
+	DocumentAmpAppearance,
+	DocumentAppearance,
+	DocumentAppearanceLabel,
+	DocumentAppearanceMaterial,
 	DocumentMetadata,
-	DocumentStompboxAppearance,
 	DocumentSource,
+	DocumentStompboxAppearance,
 	KnownPhysicalProfile,
 	MechanicalBuildMetadata,
 	MicrophoneAcousticCoupling,
@@ -258,41 +268,6 @@ export {
 	validateComponent,
 	validateDocument,
 } from "./model/validation";
-export type { TracePlausibilityOptions } from "./model/trace-plausibility";
-export {
-	traceConnectivityCompleteness,
-	validateAudioTopologyWarnings,
-	validatePreferredValues,
-	validateRcCornerHeuristic,
-	validateTracePlausibility,
-	validateTraceStructure,
-} from "./model/trace-plausibility";
-export type {
-	AmpAppearanceProfile,
-	AmpControlKind,
-	AmpControlPanelProfile,
-	AmpControlProfile,
-	AmpDimensions,
-	AmpProfile,
-	AmpProfileValidation,
-	CabinetAppearanceProfile,
-	CabinetDimensions,
-	CabinetProfile,
-	CabinetProfileValidation,
-	ProfileValidationResult,
-} from "./profiles";
-export {
-	ampAppearanceProfileSchema,
-	ampControlKindSchema,
-	ampControlPanelProfileSchema,
-	ampControlProfileSchema,
-	ampProfileSchema,
-	cabinetAppearanceProfileSchema,
-	cabinetProfileSchema,
-	profileDimensionsSchema,
-	validateAmpProfile,
-	validateCabinetProfile,
-} from "./profiles";
 export type {
 	ControlState,
 	ControlValue,
@@ -366,3 +341,29 @@ export { findSnap } from "./preview/snap";
 export type { SymbolDef } from "./preview/symbols";
 export { COMPONENT_KINDS, symbolFor } from "./preview/symbols";
 export { findChainCorners, findWireChain } from "./preview/wire-chains";
+export type {
+	AmpAppearanceProfile,
+	AmpControlKind,
+	AmpControlPanelProfile,
+	AmpControlProfile,
+	AmpDimensions,
+	AmpProfile,
+	AmpProfileValidation,
+	CabinetAppearanceProfile,
+	CabinetDimensions,
+	CabinetProfile,
+	CabinetProfileValidation,
+	ProfileValidationResult,
+} from "./profiles";
+export {
+	ampAppearanceProfileSchema,
+	ampControlKindSchema,
+	ampControlPanelProfileSchema,
+	ampControlProfileSchema,
+	ampProfileSchema,
+	cabinetAppearanceProfileSchema,
+	cabinetProfileSchema,
+	profileDimensionsSchema,
+	validateAmpProfile,
+	validateCabinetProfile,
+} from "./profiles";

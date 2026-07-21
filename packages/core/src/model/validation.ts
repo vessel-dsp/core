@@ -12,7 +12,9 @@ import type {
 	BuildBomRef,
 	BuildPartProfile,
 	CircuitDocument,
+	CircuitPowerDomain,
 	CircuitPowerRailBinding,
+	CircuitPowerSourceKind,
 	Component,
 	ComponentKind,
 	ControlGroup,
@@ -113,6 +115,10 @@ export type ValidationCode =
 	| "power-rail-duplicate-converter-role"
 	| "power-converter-missing-part-number"
 	| "power-rail-missing-nominal-voltage"
+	| "power-domain-source-kind-conflict"
+	| "power-domain-source-kind-unresolved"
+	| "power-domain-source-owner-unresolved"
+	| "power-rail-fixed-owner-conflict"
 	| "duplicate-id"
 	| "degenerate-wire"
 	| "trace-connectivity-incomplete"
@@ -1179,7 +1185,10 @@ function validateBehaviorFirmwareRef(
 		});
 	}
 
-	const mcuComponentId = optionalBehaviorRoleText(firmwareRef, "mcuComponentId");
+	const mcuComponentId = optionalBehaviorRoleText(
+		firmwareRef,
+		"mcuComponentId",
+	);
 	if (mcuComponentId !== undefined && !componentIds.has(mcuComponentId)) {
 		issues.push({
 			code: "behavior-role-firmware-ref-mcu-component-unresolved",
@@ -2594,7 +2603,9 @@ function validateV3BuildMetadata(
 	return issues;
 }
 
-function validateProfileCatalogs(doc: CircuitDocument): readonly ValidationIssue[] {
+function validateProfileCatalogs(
+	doc: CircuitDocument,
+): readonly ValidationIssue[] {
 	const issues: ValidationIssue[] = [];
 	const partProfiles = doc.partProfiles?.profiles ?? [];
 	const partProfileIds = new Set<string>();
@@ -2618,7 +2629,10 @@ function validateProfileCatalogs(doc: CircuitDocument): readonly ValidationIssue
 		}
 		for (const loadout of dataObjectArray(profile, "loadout")) {
 			const driverProfileId = dataString(loadout, "driverProfileId");
-			if (driverProfileId !== undefined && !partProfileIds.has(driverProfileId)) {
+			if (
+				driverProfileId !== undefined &&
+				!partProfileIds.has(driverProfileId)
+			) {
 				issues.push(
 					unresolvedIssue(
 						"part-profile-reference-unresolved",
@@ -2696,7 +2710,9 @@ function validateCabinetNestedQuantities(
 	for (const key of ["width", "height", "depth"]) {
 		const value = dataNumber(dimensions, key);
 		if (value !== undefined && value <= 0) {
-			issues.push(invalidProfileQuantity(profile.id, `enclosure.dimensionsM.${key}`));
+			issues.push(
+				invalidProfileQuantity(profile.id, `enclosure.dimensionsM.${key}`),
+			);
 		}
 	}
 	for (const [index, port] of dataObjectArray(enclosure, "ports").entries()) {
@@ -2704,15 +2720,23 @@ function validateCabinetNestedQuantities(
 			const value = dataNumber(port, key);
 			if (value !== undefined && value <= 0) {
 				issues.push(
-					invalidProfileQuantity(profile.id, `enclosure.ports[${index}].${key}`),
+					invalidProfileQuantity(
+						profile.id,
+						`enclosure.ports[${index}].${key}`,
+					),
 				);
 			}
 		}
 	}
-	for (const [index, loadout] of dataObjectArray(profile, "loadout").entries()) {
+	for (const [index, loadout] of dataObjectArray(
+		profile,
+		"loadout",
+	).entries()) {
 		const count = dataNumber(loadout, "count");
 		if (count !== undefined && (!Number.isInteger(count) || count <= 0)) {
-			issues.push(invalidProfileQuantity(profile.id, `loadout[${index}].count`));
+			issues.push(
+				invalidProfileQuantity(profile.id, `loadout[${index}].count`),
+			);
 		}
 	}
 	return issues;
@@ -2748,7 +2772,9 @@ function validatePositiveDataNumbers(
 	for (const [objectKey, valueKey] of paths) {
 		const value = dataNumber(dataObject(profile, objectKey), valueKey);
 		if (value !== undefined && value <= 0) {
-			issues.push(invalidProfileQuantity(profileId, `${objectKey}.${valueKey}`));
+			issues.push(
+				invalidProfileQuantity(profileId, `${objectKey}.${valueKey}`),
+			);
 		}
 	}
 	return issues;
@@ -2931,10 +2957,7 @@ function validateCircuitPower(
 					componentId: rail.railComponentId,
 				});
 			}
-			if (
-				rail.role === "regulated-output" &&
-				rail.derivation !== "regulator"
-			) {
+			if (rail.role === "regulated-output" && rail.derivation !== "regulator") {
 				issues.push({
 					code: "power-rail-role-derivation-mismatch",
 					severity: "error",
@@ -2979,9 +3002,195 @@ function validateCircuitPower(
 				});
 			}
 		}
+
+		for (const issue of validateDomainSupplyOwnership(domain, componentsById)) {
+			issues.push(issue);
+		}
 	}
 
 	return issues;
+}
+
+// Kinds that can own an external-DC boundary (a ready-made DC input).
+const EXTERNAL_DC_SOURCE_KINDS: ReadonlySet<ComponentKind> =
+	new Set<ComponentKind>(["rail", "battery", "voltage-source"]);
+
+// Resolves the domain's declared source kind. The interchange parser already
+// normalizes the provisional `powerSourceKind` alias into `sourceKind`, but the
+// alias is still honored here for documents built without that parser.
+function resolveDeclaredSourceKind(
+	domain: CircuitPowerDomain,
+): CircuitPowerSourceKind | undefined {
+	if (domain.sourceKind !== undefined) {
+		return domain.sourceKind;
+	}
+	const legacy = domain.powerSourceKind;
+	if (legacy === "mains-ac" || legacy === "external-dc") {
+		return legacy;
+	}
+	return undefined;
+}
+
+function quoteIds(ids: readonly string[]): string {
+	return ids.map((id) => `"${id}"`).join(", ");
+}
+
+/**
+ * One-owner supply rule. A modeled voltage must have a single owner: a mains PSU
+ * (transformer) owns what it produces, a battery/adapter owns a direct DC input,
+ * and a converter/regulator/divider owns its produced output. A `kind: rail` that
+ * asserts an ideal source on top of an already-owned voltage is a fixed-owner
+ * conflict. This is purely power-model driven — it never reads wires, node
+ * identity, connectivity completeness, or component voltage properties, so it
+ * produces the same verdict for `wires: []` and a fully connected drawing.
+ */
+function validateDomainSupplyOwnership(
+	domain: CircuitPowerDomain,
+	componentsById: ReadonlyMap<string, Component>,
+): readonly ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+
+	// Only resolved source components participate; missing references are already
+	// reported by power-source-unresolved and stay authoritative there.
+	const sources = domain.sourceComponentIds
+		.map((id) => componentsById.get(id))
+		.filter((component): component is Component => component !== undefined);
+	const transformerIds = sources
+		.filter((component) => component.kind === "transformer")
+		.map((component) => component.id);
+	const dcSourceIds = sources
+		.filter((component) => EXTERNAL_DC_SOURCE_KINDS.has(component.kind))
+		.map((component) => component.id);
+	const batteryIds = sources
+		.filter(
+			(component) =>
+				component.kind === "battery" || component.kind === "voltage-source",
+		)
+		.map((component) => component.id);
+
+	const declared = resolveDeclaredSourceKind(domain);
+
+	// A declared external-DC boundary contradicted by transformer evidence is a
+	// conflict; do not silently override the declaration with inference.
+	if (declared === "external-dc" && transformerIds.length > 0) {
+		issues.push({
+			code: "power-domain-source-kind-conflict",
+			severity: "error",
+			message: `Power domain "${domain.id}" declares sourceKind "external-dc" but references transformer ${quoteIds(transformerIds)}; a transformer indicates a mains/AC-derived supply. Reconcile the declared source kind with the actual boundary.`,
+		});
+		return issues;
+	}
+
+	// Resolve the boundary kind: declaration first, then unambiguous inference from
+	// source components only (never rails[], node identity, or device class).
+	let kind: CircuitPowerSourceKind | undefined = declared;
+	if (kind === undefined) {
+		if (transformerIds.length > 0) {
+			kind = "mains-ac";
+		} else if (dcSourceIds.length > 0) {
+			kind = "external-dc";
+		}
+	}
+	if (kind === undefined) {
+		issues.push({
+			code: "power-domain-source-kind-unresolved",
+			severity: "error",
+			message: `Power domain "${domain.id}" has no resolvable source kind: declare sourceKind ("mains-ac" or "external-dc") or reference an unambiguous source component. Ownership cannot be inferred and rails are not checked.`,
+		});
+		return issues;
+	}
+
+	const railsById = new Map(
+		domain.rails.map((rail) => [rail.railComponentId, rail] as const),
+	);
+	const referencedIds = new Set<string>([
+		...domain.sourceComponentIds,
+		...domain.rails.map((rail) => rail.railComponentId),
+	]);
+
+	// A single direct kind: rail may own an external-DC boundary — but only when no
+	// physical battery/voltage-source is present (that component would own it) and
+	// the rail is both a declared source (sourceComponentIds) and bound direct with
+	// no converter.
+	const directOwnerRailIds = new Set<string>();
+	if (kind === "external-dc" && batteryIds.length === 0) {
+		for (const id of referencedIds) {
+			if (componentsById.get(id)?.kind !== "rail") continue;
+			const binding = railsById.get(id);
+			if (
+				domain.sourceComponentIds.includes(id) &&
+				binding !== undefined &&
+				binding.derivation === "direct" &&
+				binding.converterComponentId === undefined
+			) {
+				directOwnerRailIds.add(id);
+			}
+		}
+	}
+
+	// Boundary-owner completeness: a resolved kind still needs a real owner. A
+	// declared sourceKind string must not make an ownerless domain look valid.
+	const hasOwner =
+		kind === "mains-ac"
+			? transformerIds.length > 0
+			: batteryIds.length > 0 || directOwnerRailIds.size > 0;
+	if (!hasOwner) {
+		issues.push({
+			code: "power-domain-source-owner-unresolved",
+			severity: "error",
+			message:
+				kind === "mains-ac"
+					? `Power domain "${domain.id}" resolves to mains-ac but references no transformer to own the wall boundary; a resistor, capacitor, diode, jack, IC, or regulator in sourceComponentIds does not own it.`
+					: `Power domain "${domain.id}" resolves to external-dc but has no eligible boundary owner: reference a battery/voltage-source, or a direct kind: rail listed in sourceComponentIds and bound with derivation "direct" (no converter).`,
+		});
+		return issues;
+	}
+
+	// Flag each referenced kind: rail that duplicates an already-owned voltage.
+	for (const id of referencedIds) {
+		if (componentsById.get(id)?.kind !== "rail") continue;
+		if (directOwnerRailIds.has(id)) continue;
+		issues.push({
+			code: "power-rail-fixed-owner-conflict",
+			severity: "error",
+			message: fixedOwnerConflictMessage(
+				domain,
+				kind,
+				id,
+				railsById.get(id),
+				batteryIds,
+				transformerIds,
+			),
+			componentId: id,
+		});
+	}
+
+	return issues;
+}
+
+function fixedOwnerConflictMessage(
+	domain: CircuitPowerDomain,
+	kind: CircuitPowerSourceKind,
+	railId: string,
+	binding: CircuitPowerRailBinding | undefined,
+	batteryIds: readonly string[],
+	transformerIds: readonly string[],
+): string {
+	let owner: string;
+	if (kind === "mains-ac") {
+		owner = `the mains PSU (transformer ${quoteIds(transformerIds)}) produces this voltage`;
+	} else if (batteryIds.length > 0) {
+		owner = `the external source ${quoteIds(batteryIds)} already owns the DC boundary`;
+	} else if (binding?.converterComponentId !== undefined) {
+		owner = `converter "${binding.converterComponentId}" produces this output`;
+	} else if (binding !== undefined && binding.derivation !== "direct") {
+		owner = `the "${binding.derivation}"-derived chain produces this output`;
+	} else if (!domain.sourceComponentIds.includes(railId)) {
+		owner = `it is bound as a rail but is not a declared source in sourceComponentIds`;
+	} else {
+		owner = `it appears only as sourceComponentIds membership without a direct rails[] binding`;
+	}
+	return `Rail component "${railId}" is a fixed source (kind: rail) in power domain "${domain.id}", but ${owner}. Represent the produced/derived node as kind: port (a named net) with its rails[] binding instead of a second ideal source; keep any expected value in rails[].nominalVoltage.`;
 }
 
 function findPowerRailParentCycle(

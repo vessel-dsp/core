@@ -54,3 +54,18 @@ The audio checks warn about destructive signal-path RC shunts, extreme direct
 input loading, and explicitly declared audio buffers without a passive
 negative-feedback path. They require unique audio input/output roles and
 locally connected boundary nodes; unavailable coverage is reported explicitly.
+
+## Supply-rail ownership
+
+Every modeled supply voltage must have a single owner. A mains PSU (a referenced
+`transformer`) owns the voltages it produces, a battery/DC-adapter owns a direct
+DC boundary, and a converter/regulator/divider owns its produced output. A
+`kind: rail` that asserts an ideal source on top of an already-owned voltage is a
+`power-rail-fixed-owner-conflict` error from `validateDocument`. Declare the
+boundary with the optional `CircuitPowerDomain.sourceKind`
+(`mains-ac` | `external-dc`); when absent it is inferred from the domain's source
+components. The check is power-model driven and connectivity-independent — it
+never reads wires, node identity, or component voltage properties, so it produces
+the same verdict for `wires: []` and a fully connected drawing. Represent a
+produced/derived node as `kind: port` (a named net) with its `rails[]` binding
+instead of a second ideal source.

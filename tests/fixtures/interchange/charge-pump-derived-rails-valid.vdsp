@@ -30,7 +30,7 @@ components:
         value: 9
         unit: V
   - id: RAIL_MAIN
-    kind: rail
+    kind: port
     name: RAIL_MAIN
     origin:
       x: 0
@@ -42,11 +42,7 @@ components:
         position:
           x: 0
           y: 30
-    properties:
-      V:
-        raw: "9V"
-        value: 9
-        unit: V
+    properties: {}
   - id: U_CP
     kind: power-converter
     name: U_CP
@@ -78,7 +74,7 @@ components:
       PartNumber: MAX1044
       Description: "Source-visible charge pump that derives +V2 and V- from +V."
   - id: RAIL_PLUS2
-    kind: rail
+    kind: port
     name: RAIL_PLUS2
     origin:
       x: 80
@@ -90,13 +86,9 @@ components:
         position:
           x: 80
           y: 20
-    properties:
-      V:
-        raw: "18V"
-        value: 18
-        unit: V
+    properties: {}
   - id: RAIL_MINUS
-    kind: rail
+    kind: port
     name: RAIL_MINUS
     origin:
       x: 80
@@ -108,11 +100,7 @@ components:
         position:
           x: 80
           y: 40
-    properties:
-      V:
-        raw: "-9V"
-        value: -9
-        unit: V
+    properties: {}
 wires: []
 directives: []
 diagnostics: []
@@ -129,6 +117,7 @@ power:
         value: 9
         unit: V
       groundPolarity: bipolar
+      sourceKind: external-dc
       rails:
         - railComponentId: RAIL_MAIN
           role: main-supply
