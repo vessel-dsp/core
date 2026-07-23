@@ -1654,6 +1654,88 @@ describe("validateDocument", () => {
 		const issues = validateDocument(doc);
 		expect(issues.some((i) => i.code === "value-unparseable")).toBe(true);
 	});
+
+	test("InterfaceOnly on a wired active-device kind warns instead of silently waiving", () => {
+		const doc = withParts([
+			makeComponent("BYPASS_LED", "led", { InterfaceOnly: true }),
+		]);
+		const issues = validateDocument(doc);
+		expect(
+			issues.find((i) => i.code === "interface-only-active-device"),
+		).toMatchObject({
+			severity: "warning",
+			componentId: "BYPASS_LED",
+		});
+		// Still waived for model-required, per the existing waiver path.
+		expect(issues.find((i) => i.code === "model-required")).toBeUndefined();
+	});
+
+	test("InterfaceOnly on a non-active-device kind (e.g. potentiometer) does not warn", () => {
+		const doc = withParts([
+			makeComponent("CHECK_LED_STUB", "potentiometer", {
+				InterfaceOnly: true,
+			}),
+		]);
+		const issues = validateDocument(doc);
+		expect(
+			issues.find((i) => i.code === "interface-only-active-device"),
+		).toBeUndefined();
+	});
+
+	test("InterfaceOnly on an active-device kind with no terminals does not warn", () => {
+		const doc: CircuitDocument = {
+			...EMPTY_DOCUMENT,
+			components: [
+				{
+					...makeComponent("CHECK_LED", "led", { InterfaceOnly: true }),
+					terminals: [],
+				},
+			],
+			wires: [],
+		};
+		const issues = validateDocument(doc);
+		expect(
+			issues.find((i) => i.code === "interface-only-active-device"),
+		).toBeUndefined();
+	});
+
+	test("legacy Support: view-only property warns as invalid current schema vocabulary", () => {
+		const doc = withParts([
+			makeComponent("D1", "diode", { Support: "view-only", model: "1N4148" }),
+		]);
+		const issues = validateDocument(doc);
+		expect(
+			issues.find((i) => i.code === "schema-invalid-legacy-support-view-only"),
+		).toMatchObject({
+			severity: "warning",
+			componentId: "D1",
+			property: "Support",
+		});
+		expect(
+			issues.find((i) => i.code === "interface-only-active-device"),
+		).toBeUndefined();
+	});
+
+	test("legacy Support: view-only does not waive current schema requirements", () => {
+		const doc = withParts([
+			makeComponent("D1", "diode", { Support: "view-only" }),
+		]);
+		const issues = validateDocument(doc);
+		expect(issues.map((i) => i.code)).toContain(
+			"schema-invalid-legacy-support-view-only",
+		);
+		expect(issues.map((i) => i.code)).toContain("model-required");
+	});
+
+	test("Support values other than view-only are not flagged as legacy", () => {
+		const doc = withParts([
+			makeComponent("D1", "diode", { Support: "full", model: "1N4148" }),
+		]);
+		const issues = validateDocument(doc);
+		expect(
+			issues.find((i) => i.code === "schema-invalid-legacy-support-view-only"),
+		).toBeUndefined();
+	});
 });
 
 describe("validateComponent", () => {

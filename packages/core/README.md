@@ -69,3 +69,16 @@ never reads wires, node identity, or component voltage properties, so it produce
 the same verdict for `wires: []` and a fully connected drawing. Represent a
 produced/derived node as `kind: port` (a named net) with its `rails[]` binding
 instead of a second ideal source.
+
+## InterfaceOnly usage
+
+`InterfaceOnly: true` marks a component with no real electrical branch — an
+unpopulated/DNP position or a panel/UI reference stub with no wired terminals.
+`validateDocument` warns with `interface-only-active-device` when it is used on
+a wired active-device kind (diode, LED, transistor, op-amp, tube, IC, and
+similar `model`-identity kinds) with two or more declared terminals; use a
+generic `model`/`Type` value plus an honest source-gap disclosure instead of an
+`InterfaceOnly` waiver. Legacy `Support: "view-only"` is no longer treated as an
+interface-only marker; it is reported as
+`schema-invalid-legacy-support-view-only`, since playable/support status is
+derived downstream by the host runtime/compiler.

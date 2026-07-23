@@ -38,6 +38,8 @@ export type ValidationSeverity = "error" | "warning";
 export type ValidationCode =
 	| "value-required"
 	| "model-required"
+	| "interface-only-active-device"
+	| "schema-invalid-legacy-support-view-only"
 	| "value-unparseable"
 	| "value-out-of-range"
 	| "unit-mismatch"
@@ -665,6 +667,14 @@ export function validateDocument(
 			issues.push(issue);
 		}
 
+		for (const issue of validateInterfaceOnlyUsage(component)) {
+			issues.push(issue);
+		}
+
+		for (const issue of validateLegacySupportViewOnlySchema(component)) {
+			issues.push(issue);
+		}
+
 		for (const issue of validateSemanticMetadata(component)) {
 			issues.push(issue);
 		}
@@ -821,14 +831,82 @@ function isInterfaceOnlyComponent(component: Component): boolean {
 	if (interfaceOnly === true) {
 		return true;
 	}
-	if (
+	return (
 		typeof interfaceOnly === "string" &&
 		normalizeToken(interfaceOnly) === "true"
-	) {
-		return true;
-	}
+	);
+}
+
+// `Support: "view-only"` is legacy schema vocabulary, not a current source
+// property. Current validation only reports the schema problem; playable/support
+// status is derived later by a host runtime/compiler from the source graph.
+function validateLegacySupportViewOnlySchema(
+	component: Component,
+): readonly ValidationIssue[] {
 	const support = component.properties.Support;
-	return typeof support === "string" && normalizeToken(support) === "view-only";
+	const isLegacyViewOnly =
+		typeof support === "string" && normalizeToken(support) === "view-only";
+	if (!isLegacyViewOnly) {
+		return [];
+	}
+	return [
+		{
+			code: "schema-invalid-legacy-support-view-only",
+			severity: "warning",
+			message: `${component.id}: property "Support: view-only" is legacy schema vocabulary and is not valid in the current runtime-agnostic source schema. Use a legacy validator for legacy documents; otherwise remove this property. Playable/support status is derived downstream by the host runtime/compiler.`,
+			componentId: component.id,
+			property: "Support",
+		},
+	];
+}
+
+// Kinds whose whole purpose is representing a real active electrical device
+// (they all require a "model"/"Type" identity). InterfaceOnly should never
+// stand in for "real device, unspecified part" on these kinds -- only for a
+// genuinely absent branch (no real terminals wired, e.g. an unpopulated/DNP
+// position or a panel/UI reference stub).
+const ACTIVE_DEVICE_MODEL_KINDS = new Set<ComponentKind>([
+	"diode",
+	"led",
+	"bjt",
+	"jfet",
+	"mosfet",
+	"opamp",
+	"triode",
+	"pentode",
+	"tube-diode",
+	"optocoupler",
+	"ota",
+	"bbd",
+	"delay-ic",
+	"power-amp",
+	"regulator",
+	"analog-switch",
+	"flipflop",
+	"ic",
+]);
+
+function validateInterfaceOnlyUsage(
+	component: Component,
+): readonly ValidationIssue[] {
+	if (!isInterfaceOnlyComponent(component)) {
+		return [];
+	}
+	if (!ACTIVE_DEVICE_MODEL_KINDS.has(component.kind)) {
+		return [];
+	}
+	if (component.terminals.length < 2) {
+		return [];
+	}
+	return [
+		{
+			code: "interface-only-active-device",
+			severity: "warning",
+			message: `${component.id}: marked InterfaceOnly but declares ${component.terminals.length} terminals on an active-device kind ("${component.kind}") -- InterfaceOnly is for components with no real electrical branch (an unpopulated/DNP position, or a panel/UI reference stub with no wired terminals), not for a real, wired device whose exact part is simply unconfirmed. Use a generic "model"/"Type" value plus an honest source-gap disclosure (e.g. PartNumberDisclosure) instead of an InterfaceOnly waiver.`,
+			componentId: component.id,
+			property: "InterfaceOnly",
+		},
+	];
 }
 
 function validateSemanticMetadata(

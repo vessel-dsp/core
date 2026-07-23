@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.22
+
+- Warn when `InterfaceOnly` is used on a wired active-device kind (diode, LED,
+  transistor, op-amp, tube, IC, and similar `model`-identity kinds) with two or
+  more declared terminals. `InterfaceOnly` is for components with no real
+  electrical branch (an unpopulated/DNP position or a panel/UI reference stub),
+  not a waiver for a real device whose exact part is unconfirmed. New code:
+  `interface-only-active-device`.
+- Report legacy `Support: "view-only"` as a schema problem instead of treating
+  it as a current interface-only marker. The property is legacy vocabulary from
+  the pre-runtime-agnostic schema; playable/support status is derived downstream
+  by the host runtime/compiler. New code:
+  `schema-invalid-legacy-support-view-only`.
+
 ## 0.6.21
 
 - Enforce single-owner supply rails in `@vessel-dsp/core`: a modeled voltage may
