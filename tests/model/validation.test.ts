@@ -12,10 +12,12 @@ import {
 } from "../../packages/core/src/model/types";
 import {
 	CONTROL_ROLE_VALUES,
+	createSourceRuntimeBoundaryRule,
 	getRulesForKind,
 	hasErrors,
 	validateComponent,
 	validateDocument,
+	validateSourceRuntimeBoundary,
 } from "../../packages/core/src/model/validation";
 
 const V3_MECHANICAL_BOARD_URL = new URL(
@@ -357,7 +359,7 @@ describe("validateDocument", () => {
 		expect(issue?.property).toBe("ModeLabels");
 	});
 
-	test("firmware-required ICs warn when firmware identity metadata is incomplete", () => {
+	test("firmware-required ICs warn when source firmware identity metadata is incomplete", () => {
 		const doc = withParts([
 			makeComponent(
 				"U1",
@@ -381,42 +383,128 @@ describe("validateDocument", () => {
 			componentId: "U1",
 			property: "FirmwareId",
 		});
-		expect(issues).toContainEqual({
-			code: "runtime-match-key-missing",
-			severity: "warning",
-			message:
-				"U1: FirmwareRequired is true but RuntimeMatchKey is missing or empty",
-			componentId: "U1",
-			property: "RuntimeMatchKey",
-		});
+		expect(
+			issues.filter((issue) => issue.code.startsWith("runtime-match-key")),
+		).toEqual([]);
 	});
 
-	test("firmware runtime match keys warn when they do not bind chip and firmware", () => {
+	test("source/runtime boundary validation reports runtime selector properties", () => {
+		const doc = {
+			...withParts([
+				makeComponent(
+					"U1",
+					"ic",
+					{
+						Chip: "M37470M2-326SP",
+						FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
+						FirmwareRequired: true,
+						RuntimeMatchKey: "chip=M37470M2-326SP",
+						RuntimeOwnership: "source-reference",
+						BehaviorRole: {
+							kind: "firmware-dsp-core",
+							firmwareRef: {
+								status: "unknown-proprietary",
+								behaviorOwner: "firmware-proxy",
+							},
+						},
+					},
+					"Circuit.Microcontroller",
+				),
+				makeComponent(
+					"U2",
+					"ic",
+					{
+						RuntimeDescriptor: "true",
+						DescriptorType: "microblock-delay-chip",
+						descriptor: { saturationMode: "runtime-soft-clip" },
+						mechanism: { memoryType: "bbd" },
+						AmpLaneRouteId: "champ-bright",
+						ConsumerAdmissionBoundary: "runtime owner",
+						CircuitGraphCompilerParityReportRefV1: "phase2",
+						PrimitivePinMap: "runtime pin shell",
+						DirectOutputRuntimeBoundary: "dry runtime branch",
+					},
+					"Circuit.MicroBlockDelayChip",
+				),
+			]),
+			rawAttributes: {
+				RuntimeContainerClaimBoundary: "stored runtime receipt",
+				CircuitGraphCompilerLiveCertificateV1: "{}",
+				exact_source_admission_status: "ready",
+			},
+		};
+
+		const issues = validateSourceRuntimeBoundary(doc);
+
+		expect(
+			issues.map((issue) => ({
+				componentId: issue.componentId,
+				property: issue.property,
+				severity: issue.severity,
+			})),
+		).toEqual([
+			{
+				componentId: undefined,
+				property: "RuntimeContainerClaimBoundary",
+				severity: "error",
+			},
+			{
+				componentId: undefined,
+				property: "CircuitGraphCompilerLiveCertificateV1",
+				severity: "error",
+			},
+			{
+				componentId: undefined,
+				property: "exact_source_admission_status",
+				severity: "error",
+			},
+			{ componentId: "U1", property: "RuntimeMatchKey", severity: "error" },
+			{ componentId: "U1", property: "RuntimeOwnership", severity: "error" },
+			{
+				componentId: "U1",
+				property: "BehaviorRole.firmwareRef.behaviorOwner",
+				severity: "error",
+			},
+			{ componentId: "U2", property: "RuntimeDescriptor", severity: "error" },
+			{ componentId: "U2", property: "DescriptorType", severity: "error" },
+			{ componentId: "U2", property: "descriptor", severity: "error" },
+			{ componentId: "U2", property: "mechanism", severity: "error" },
+			{ componentId: "U2", property: "AmpLaneRouteId", severity: "error" },
+			{
+				componentId: "U2",
+				property: "ConsumerAdmissionBoundary",
+				severity: "error",
+			},
+			{
+				componentId: "U2",
+				property: "CircuitGraphCompilerParityReportRefV1",
+				severity: "error",
+			},
+			{ componentId: "U2", property: "PrimitivePinMap", severity: "error" },
+			{
+				componentId: "U2",
+				property: "DirectOutputRuntimeBoundary",
+				severity: "error",
+			},
+		]);
+	});
+
+	test("source/runtime boundary validation can run as a custom document rule", () => {
 		const doc = withParts([
-			makeComponent(
-				"U1",
-				"ic",
-				{
-					Chip: "M37470M2-326SP",
-					FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
-					FirmwareRequired: true,
-					RuntimeMatchKey: "chip=M37470M2-326SP",
-				},
-				"Circuit.Microcontroller",
-			),
+			makeComponent("U1", "ic", {
+				PartNumber: "PT2399",
+				RuntimeDescriptor: "true",
+			}),
 		]);
 
-		const issue = validateDocument(doc).find(
-			(candidate) => candidate.code === "runtime-match-key-incomplete",
-		);
+		const issue = validateDocument(doc, {
+			rules: [createSourceRuntimeBoundaryRule({ severity: "warning" })],
+		}).find((candidate) => candidate.code === "source-runtime-boundary-property");
 
-		expect(issue).toEqual({
-			code: "runtime-match-key-incomplete",
+		expect(issue).toMatchObject({
 			severity: "warning",
-			message:
-				'U1: RuntimeMatchKey should include both "chip=" and "firmware=" tokens',
 			componentId: "U1",
-			property: "RuntimeMatchKey",
+			property: "RuntimeDescriptor",
 		});
 	});
 
@@ -428,8 +516,6 @@ describe("validateDocument", () => {
 				{
 					FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
 					FirmwareRequired: true,
-					RuntimeMatchKey:
-						"chip=M37470M2-326SP; firmware=boss-hr-2-m37470m2-326sp-control-firmware-v1",
 				},
 				"Circuit.Microcontroller",
 			),
@@ -458,8 +544,6 @@ describe("validateDocument", () => {
 					ChipClass: "microcomputer",
 					FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
 					FirmwareRequired: true,
-					RuntimeMatchKey:
-						"chip=M37470M2-326SP; firmware=boss-hr-2-m37470m2-326sp-control-firmware-v1",
 				},
 				"Circuit.Microcontroller",
 			),

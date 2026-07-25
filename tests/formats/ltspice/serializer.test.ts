@@ -71,7 +71,7 @@ describe("serializeLtspiceAsc", () => {
 					properties: {
 						R: "470 ohm",
 						SourceOnly: "true",
-						RuntimeOwnership: "source-reference",
+						SourceReviewStatus: "source-reference",
 						SourceBoundaryRole: "power-tube-screen-grid",
 					},
 					sourceTypeName: "Circuit.Resistor",
@@ -90,7 +90,7 @@ describe("serializeLtspiceAsc", () => {
 					properties: {
 						C: "16uF",
 						SourceOnly: "true",
-						RuntimeOwnership: "source-reference",
+						SourceReviewStatus: "source-reference",
 						CanCapGroupId: "C_MAIN",
 						CanCapSection: "A",
 					},
@@ -105,7 +105,7 @@ describe("serializeLtspiceAsc", () => {
 		expect(asc).toContain("SYMATTR InstName R_SCREEN");
 		expect(asc).toContain("SYMATTR Value 470 ohm");
 		expect(asc).toContain("SYMATTR SourceOnly true");
-		expect(asc).toContain("SYMATTR RuntimeOwnership source-reference");
+		expect(asc).toContain("SYMATTR SourceReviewStatus source-reference");
 		expect(asc).toContain("SYMATTR SourceBoundaryRole power-tube-screen-grid");
 		expect(asc).toContain("SYMBOL cap");
 		expect(asc).toContain("SYMATTR InstName C_MAIN_A");

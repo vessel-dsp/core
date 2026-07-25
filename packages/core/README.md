@@ -30,6 +30,15 @@ schematics; unknown roles warn by default and become errors when callers pass
 lowering-specific diagnostics with `validateDocument(document, { rules: [...] })`
 without embedding runtime policy in core.
 
+For canonical `.vdsp` intake, use `validateSourceRuntimeBoundary(document)` or
+`createSourceRuntimeBoundaryRule()` to report legacy runtime/admission/proxy
+selectors in component properties or top-level raw attributes, such as
+`RuntimeMatchKey`, `RuntimeDescriptor`, `DescriptorType`, stored compiler
+certificate/admission metadata, and nested
+`BehaviorRole.firmwareRef.behaviorOwner`. The parser remains tolerant so legacy
+documents can still be inspected and migrated without rewriting source files
+during import.
+
 ## Advisory trace warnings
 
 Trace plausibility checks are warnings for source review, not import gates or

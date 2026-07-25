@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.23
+
+- Add opt-in canonical `.vdsp` source/runtime boundary validation through
+  `validateSourceRuntimeBoundary()` and `createSourceRuntimeBoundaryRule()`.
+  The rule reports runtime, admission, and proxy metadata such as
+  `RuntimeMatchKey`, `RuntimeDescriptor`, `DescriptorType`, stored compiler or
+  admission metadata, and nested `BehaviorRole.firmwareRef.behaviorOwner` while
+  keeping legacy parsing tolerant.
+- Stop treating `RuntimeMatchKey` as required source firmware metadata.
+  Firmware source evidence validation now checks `FirmwareRequired`,
+  `FirmwareId`, and chip identity without encouraging runtime selector fields
+  in canonical `.vdsp`.
+
 ## 0.6.22
 
 - Warn when `InterfaceOnly` is used on a wired active-device kind (diode, LED,

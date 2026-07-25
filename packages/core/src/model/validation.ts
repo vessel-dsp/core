@@ -58,6 +58,7 @@ export type ValidationCode =
 	| "runtime-match-key-missing"
 	| "runtime-match-key-incomplete"
 	| "firmware-chip-missing"
+	| "source-runtime-boundary-property"
 	| "behavior-role-invalid"
 	| "behavior-role-kind-invalid"
 	| "behavior-role-firmware-ref-kind-mismatch"
@@ -177,6 +178,10 @@ export type DocumentValidationContext = Readonly<{
 	controlRoles: ReadonlySet<ControlRole>;
 }>;
 
+export type ValidateSourceRuntimeBoundaryOptions = Readonly<{
+	severity?: ValidationSeverity;
+}>;
+
 export type QuantityRule = Readonly<{
 	kind: "quantity";
 	name: string;
@@ -271,6 +276,46 @@ const FIRMWARE_REF_BEHAVIOR_OWNERS = [
 	"recovered-firmware",
 	"measured-blackbox",
 ] as const;
+
+const SOURCE_RUNTIME_BOUNDARY_EXACT_PROPERTIES = new Set([
+	"AmpRuntimeGraphManifest",
+	"BehaviorOwner",
+	"CircuitGraphCompilerLiveCertificateV1",
+	"CircuitGraphCompilerParityReportRefV1",
+	"CompilerCertificate",
+	"CompilerManifest",
+	"ConsumerAdmissionBoundary",
+	"DescriptorType",
+	"Mechanism",
+	"Primitive",
+	"PrimitiveBoundary",
+	"PrimitiveClass",
+	"PrimitiveKind",
+	"PrimitivePinMap",
+	"RuntimeMatchKey",
+	"SimulateCapacitances",
+	"SimulationStatus",
+	"SourceInputRuntimeBoundary",
+	"SourceMnaTopology",
+	"SourceOutputRuntimeBoundary",
+	"SourcePartOwnership",
+	"SourceProfileKey",
+	"SyntheticForPlayability",
+].map(normalizeSourceRuntimeBoundaryToken));
+
+const SOURCE_RUNTIME_BOUNDARY_PROPERTY_PREFIXES = [
+	"AmpLane",
+	"AmpPreamp",
+	"AmpRuntime",
+	"Descriptor",
+	"ExactSourceAdmission",
+	"Primitive",
+	"Runtime",
+].map(normalizeSourceRuntimeBoundaryToken);
+
+const SOURCE_RUNTIME_BOUNDARY_NESTED_PROPERTIES = new Set([
+	"BehaviorRole.firmwareRef.behaviorOwner",
+].map(normalizeSourceRuntimeBoundaryPath));
 
 const DISPLAY_KINDS = [
 	"lcd-character",
@@ -1129,6 +1174,45 @@ function validateBehaviorRole(
 	return issues;
 }
 
+export function validateSourceRuntimeBoundary(
+	doc: CircuitDocument,
+	options: ValidateSourceRuntimeBoundaryOptions = {},
+): readonly ValidationIssue[] {
+	const severity = options.severity ?? "error";
+	const issues: ValidationIssue[] = [];
+	collectSourceRuntimeBoundaryIssues(
+		doc.rawAttributes,
+		"",
+		severity,
+		issues,
+		{
+			subject: "document",
+			rootRuntimeDescriptor: false,
+		},
+	);
+	for (const component of doc.components) {
+		collectSourceRuntimeBoundaryIssues(
+			component.properties,
+			"",
+			severity,
+			issues,
+			{
+				componentId: component.id,
+				subject: component.id,
+				rootRuntimeDescriptor:
+					component.properties.RuntimeDescriptor === "true",
+			},
+		);
+	}
+	return issues;
+}
+
+export function createSourceRuntimeBoundaryRule(
+	options: ValidateSourceRuntimeBoundaryOptions = {},
+): DocumentValidationRule {
+	return (doc) => validateSourceRuntimeBoundary(doc, options);
+}
+
 function validateBehaviorFirmwareRef(
 	componentId: string,
 	rawFirmwareRef: PropertyValue,
@@ -1433,8 +1517,6 @@ function validateFirmwareMetadata(
 	const issues: ValidationIssue[] = [];
 	const firmwareRequired = propertyBoolean(component, "FirmwareRequired");
 	const firmwareId = propertyString(component, "FirmwareId")?.trim() ?? "";
-	const runtimeMatchKey =
-		propertyString(component, "RuntimeMatchKey")?.trim() ?? "";
 	const chip = propertyString(component, "Chip")?.trim() ?? "";
 
 	if (firmwareRequired && firmwareId.length === 0) {
@@ -1444,30 +1526,6 @@ function validateFirmwareMetadata(
 			message: `${component.id}: FirmwareRequired is true but FirmwareId is missing or empty`,
 			componentId: component.id,
 			property: "FirmwareId",
-		});
-	}
-
-	if (firmwareRequired && runtimeMatchKey.length === 0) {
-		issues.push({
-			code: "runtime-match-key-missing",
-			severity: "warning",
-			message: `${component.id}: FirmwareRequired is true but RuntimeMatchKey is missing or empty`,
-			componentId: component.id,
-			property: "RuntimeMatchKey",
-		});
-	}
-
-	if (
-		runtimeMatchKey.length > 0 &&
-		(!hasRuntimeMatchToken(runtimeMatchKey, "chip") ||
-			!hasRuntimeMatchToken(runtimeMatchKey, "firmware"))
-	) {
-		issues.push({
-			code: "runtime-match-key-incomplete",
-			severity: "warning",
-			message: `${component.id}: RuntimeMatchKey should include both "chip=" and "firmware=" tokens`,
-			componentId: component.id,
-			property: "RuntimeMatchKey",
 		});
 	}
 
@@ -1482,6 +1540,85 @@ function validateFirmwareMetadata(
 	}
 
 	return issues;
+}
+
+type SourceRuntimeBoundaryIssueTarget = Readonly<{
+	componentId?: string;
+	subject: string;
+	rootRuntimeDescriptor: boolean;
+}>;
+
+function collectSourceRuntimeBoundaryIssues(
+	properties: Readonly<Record<string, PropertyValue>>,
+	pathPrefix: string,
+	severity: ValidationSeverity,
+	issues: ValidationIssue[],
+	target: SourceRuntimeBoundaryIssueTarget,
+): void {
+	for (const [key, value] of Object.entries(properties)) {
+		const propertyPath = pathPrefix.length > 0 ? `${pathPrefix}.${key}` : key;
+		if (isSourceRuntimeBoundaryProperty(target, key, propertyPath)) {
+			issues.push({
+				code: "source-runtime-boundary-property",
+				severity,
+				message: `${target.subject}: property "${propertyPath}" is runtime/admission/proxy metadata and should not be canonical .vdsp source authority`,
+				...(target.componentId === undefined
+					? {}
+					: { componentId: target.componentId }),
+				property: propertyPath,
+			});
+		}
+
+		if (isPropertyObject(value)) {
+			collectSourceRuntimeBoundaryIssues(
+				value,
+				propertyPath,
+				severity,
+				issues,
+				target,
+			);
+			continue;
+		}
+		if (Array.isArray(value)) {
+			value.forEach((item, index) => {
+				if (isPropertyObject(item)) {
+					collectSourceRuntimeBoundaryIssues(
+						item,
+						`${propertyPath}[${index}]`,
+						severity,
+						issues,
+						target,
+					);
+				}
+			});
+		}
+	}
+}
+
+function isSourceRuntimeBoundaryProperty(
+	target: SourceRuntimeBoundaryIssueTarget,
+	key: string,
+	path: string,
+): boolean {
+	const normalizedKey = normalizeSourceRuntimeBoundaryToken(key);
+	const normalizedPath = normalizeSourceRuntimeBoundaryPath(path);
+	return (
+		SOURCE_RUNTIME_BOUNDARY_EXACT_PROPERTIES.has(normalizedKey) ||
+		SOURCE_RUNTIME_BOUNDARY_NESTED_PROPERTIES.has(normalizedPath) ||
+		(normalizedKey === "mechanism" && target.rootRuntimeDescriptor) ||
+		SOURCE_RUNTIME_BOUNDARY_PROPERTY_PREFIXES.some((prefix) =>
+			normalizedKey.startsWith(prefix),
+		) ||
+		normalizedPath.includes("runtimeboundary")
+	);
+}
+
+function normalizeSourceRuntimeBoundaryPath(path: string): string {
+	return normalizeSourceRuntimeBoundaryToken(path.replace(/\[\d+\]/gu, ""));
+}
+
+function normalizeSourceRuntimeBoundaryToken(value: string): string {
+	return value.toLowerCase().replace(/[^a-z0-9]+/gu, "");
 }
 
 function shortSourceType(sourceTypeName: string | null): string | null {
@@ -1679,14 +1816,6 @@ function parsePositiveInteger(value: string | null): number | undefined {
 	}
 	const count = Number(trimmed);
 	return Number.isInteger(count) && count > 0 ? count : undefined;
-}
-
-function hasRuntimeMatchToken(
-	value: string,
-	token: "chip" | "firmware",
-): boolean {
-	const pattern = new RegExp(`(?:^|[;\\s])${token}\\s*=`, "i");
-	return pattern.test(value);
 }
 
 function normalizeToken(value: string): string {

@@ -120,7 +120,7 @@ describe("Circuit JSON conversion round trips", () => {
 					properties: {
 						C: "16uF",
 						SourceOnly: "true",
-						RuntimeOwnership: "source-reference",
+						SourceReviewStatus: "source-reference",
 						SourceBoundaryRole: "reservoir-filter-section",
 						CanCapGroupId: "C_MAIN",
 						CanCapSection: "A",
@@ -141,7 +141,7 @@ describe("Circuit JSON conversion round trips", () => {
 		);
 
 		expect(component?.properties.SourceOnly).toBe("true");
-		expect(component?.properties.RuntimeOwnership).toBe("source-reference");
+		expect(component?.properties.SourceReviewStatus).toBe("source-reference");
 		expect(component?.properties.SourceBoundaryRole).toBe(
 			"reservoir-filter-section",
 		);

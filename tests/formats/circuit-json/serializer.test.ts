@@ -400,7 +400,7 @@ describe("serializeCircuitJsonDocument", () => {
 				{
 					C: "16uF",
 					SourceOnly: "true",
-					RuntimeOwnership: "source-reference",
+					SourceReviewStatus: "source-reference",
 					CanCapGroupId: "C_MAIN",
 					CanCapSection: "A",
 					SourceBoundaryRole: "reservoir-filter-section",
@@ -418,7 +418,7 @@ describe("serializeCircuitJsonDocument", () => {
 				{
 					R: "470 ohm",
 					SourceOnly: "true",
-					RuntimeOwnership: "source-reference",
+					SourceReviewStatus: "source-reference",
 					SourceBoundaryRole: "power-tube-screen-grid",
 				},
 			),
@@ -475,12 +475,12 @@ describe("serializeCircuitJsonDocument", () => {
 			{
 				type: "source_property_ignored_warning",
 				source_property_ignored_warning_id:
-					"vessel_dsp_property:source_component:C_MAIN_A:RuntimeOwnership",
+					"vessel_dsp_property:source_component:C_MAIN_A:SourceReviewStatus",
 				source_component_id: "source_component:C_MAIN_A",
-				property_name: "RuntimeOwnership",
+				property_name: "SourceReviewStatus",
 				error_type: "source_property_ignored_warning",
 				message:
-					'vessel-dsp-property-json:{"property":"RuntimeOwnership","value":"source-reference"}',
+					'vessel-dsp-property-json:{"property":"SourceReviewStatus","value":"source-reference"}',
 			},
 			{
 				type: "source_property_ignored_warning",
@@ -535,12 +535,12 @@ describe("serializeCircuitJsonDocument", () => {
 			{
 				type: "source_property_ignored_warning",
 				source_property_ignored_warning_id:
-					"vessel_dsp_property:source_component:R_SCREEN:RuntimeOwnership",
+					"vessel_dsp_property:source_component:R_SCREEN:SourceReviewStatus",
 				source_component_id: "source_component:R_SCREEN",
-				property_name: "RuntimeOwnership",
+				property_name: "SourceReviewStatus",
 				error_type: "source_property_ignored_warning",
 				message:
-					'vessel-dsp-property-json:{"property":"RuntimeOwnership","value":"source-reference"}',
+					'vessel-dsp-property-json:{"property":"SourceReviewStatus","value":"source-reference"}',
 			},
 			{
 				type: "source_property_ignored_warning",

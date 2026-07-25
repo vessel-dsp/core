@@ -1,4 +1,4 @@
-export const VERSION = "0.6.22";
+export const VERSION = "0.6.23";
 
 export type {
 	CreateComponentArgs,
@@ -257,16 +257,19 @@ export type {
 	QuantityRule,
 	StringRule,
 	ValidateDocumentOptions,
+	ValidateSourceRuntimeBoundaryOptions,
 	ValidationCode,
 	ValidationIssue,
 	ValidationSeverity,
 } from "./model/validation";
 export {
 	CONTROL_ROLE_VALUES,
+	createSourceRuntimeBoundaryRule,
 	getRulesForKind,
 	hasErrors,
 	validateComponent,
 	validateDocument,
+	validateSourceRuntimeBoundary,
 } from "./model/validation";
 export type {
 	ControlState,

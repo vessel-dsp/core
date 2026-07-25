@@ -58,7 +58,7 @@ kind, component properties, and source type metadata.
 The `.vdsp` serializer preserves the document model and any authored placement
 metadata. It does not automatically write a computed `panel.faces[]` block for
 every imported schematic. Consumers should call `extractPanel()` after parsing
-when they need the runtime control descriptor.
+when they need the extracted panel descriptor.
 
 ## Control families
 
@@ -71,7 +71,7 @@ when they need the runtime control descriptor.
 | `kind: "switch"` | `SwitchControl` |
 | `kind: "led"` | `LedIndicator` |
 | `kind: "jack"` | `JackPort` |
-| `kind: "ic"` plus `RuntimeDescriptor: "true"` | Runtime descriptor knobs and external jack ports |
+| legacy/imported `kind: "ic"` plus `RuntimeDescriptor: "true"` | Compatibility descriptor knobs and external jack ports |
 
 Unsupported component kinds stay in the circuit document but do not become
 panel controls.
@@ -164,11 +164,20 @@ Hosts can layer product- or lowering-specific checks with
 enum validation in core while allowing an application to report diagnostics such
 as a visible `KEY` label that claims `ControlRole: harmony-voice-a`.
 
-## Runtime descriptors
+## Legacy runtime descriptors
 
 LiveSPICE runtime descriptor symbols import as `ic` components with
-`RuntimeDescriptor: "true"`. These can expose source-visible controls without
-turning DSP internals into regular schematic parts.
+`RuntimeDescriptor: "true"`. Core preserves them for `.schx` import and legacy
+`.vdsp` compatibility, and `extractPanel()` can expose their source-visible
+controls. Do not use descriptor fields as canonical `.vdsp` runtime authority;
+host runtimes should derive lowering behavior from source facts plus their own
+registries, overlays, or manifests.
+
+Canonical intake can add `validateSourceRuntimeBoundary(document)` or
+`createSourceRuntimeBoundaryRule()` to report runtime/admission/proxy selectors
+in component properties or top-level raw attributes, such as `RuntimeMatchKey`,
+`RuntimeDescriptor`, `DescriptorType`, stored compiler certificate/admission
+metadata, or nested `BehaviorRole.firmwareRef.behaviorOwner`.
 
 Continuous descriptor controls use property pairs such as:
 

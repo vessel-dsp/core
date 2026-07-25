@@ -75,7 +75,7 @@ describe("serializeSpiceNetlist", () => {
 					properties: {
 						R: "470 ohm",
 						SourceOnly: "true",
-						RuntimeOwnership: "source-reference",
+						SourceReviewStatus: "source-reference",
 						SourceBoundaryRole: "power-tube-screen-grid",
 					},
 					sourceTypeName: "Circuit.Resistor",
@@ -94,7 +94,7 @@ describe("serializeSpiceNetlist", () => {
 					properties: {
 						C: "16uF",
 						SourceOnly: "true",
-						RuntimeOwnership: "source-reference",
+						SourceReviewStatus: "source-reference",
 						CanCapGroupId: "C_MAIN",
 						CanCapSection: "A",
 					},
@@ -105,7 +105,7 @@ describe("serializeSpiceNetlist", () => {
 
 		const text = serializeSpiceNetlist(doc);
 
-		expect(text).toMatch(/^\* R_SCREEN RuntimeOwnership=source-reference$/m);
+		expect(text).toMatch(/^\* R_SCREEN SourceReviewStatus=source-reference$/m);
 		expect(text).toMatch(
 			/^\* R_SCREEN SourceBoundaryRole=power-tube-screen-grid$/m,
 		);
