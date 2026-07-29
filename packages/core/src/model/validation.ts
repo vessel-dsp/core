@@ -277,31 +277,39 @@ const FIRMWARE_REF_BEHAVIOR_OWNERS = [
 	"measured-blackbox",
 ] as const;
 
-const SOURCE_RUNTIME_BOUNDARY_EXACT_PROPERTIES = new Set([
-	"AmpRuntimeGraphManifest",
-	"BehaviorOwner",
-	"CircuitGraphCompilerLiveCertificateV1",
-	"CircuitGraphCompilerParityReportRefV1",
-	"CompilerCertificate",
-	"CompilerManifest",
-	"ConsumerAdmissionBoundary",
-	"DescriptorType",
-	"Mechanism",
-	"Primitive",
-	"PrimitiveBoundary",
-	"PrimitiveClass",
-	"PrimitiveKind",
-	"PrimitivePinMap",
-	"RuntimeMatchKey",
-	"SimulateCapacitances",
-	"SimulationStatus",
-	"SourceInputRuntimeBoundary",
-	"SourceMnaTopology",
-	"SourceOutputRuntimeBoundary",
-	"SourcePartOwnership",
-	"SourceProfileKey",
-	"SyntheticForPlayability",
-].map(normalizeSourceRuntimeBoundaryToken));
+const SOURCE_RUNTIME_BOUNDARY_EXACT_PROPERTIES = new Set(
+	[
+		"AmpRuntimeGraphManifest",
+		"BehaviorRole",
+		"BehaviorOwner",
+		"CircuitGraphCompilerLiveCertificateV1",
+		"CircuitGraphCompilerParityReportRefV1",
+		"CompilerCertificate",
+		"CompilerManifest",
+		"ConsumerAdmissionBoundary",
+		"DescriptorType",
+		"FirmwareExternalStop",
+		"FirmwareStatus",
+		"InterfaceOnly",
+		"Mechanism",
+		"Primitive",
+		"PrimitiveBoundary",
+		"PrimitiveClass",
+		"PrimitiveKind",
+		"PrimitivePinMap",
+		"RuntimeMatchKey",
+		"SimulateCapacitances",
+		"SimulationStatus",
+		"SourceBoundaryNote",
+		"SourceInputRuntimeBoundary",
+		"SourceMnaTopology",
+		"SourceOnly",
+		"SourceOutputRuntimeBoundary",
+		"SourcePartOwnership",
+		"SourceProfileKey",
+		"SyntheticForPlayability",
+	].map(normalizeSourceRuntimeBoundaryToken),
+);
 
 const SOURCE_RUNTIME_BOUNDARY_PROPERTY_PREFIXES = [
 	"AmpLane",
@@ -313,9 +321,11 @@ const SOURCE_RUNTIME_BOUNDARY_PROPERTY_PREFIXES = [
 	"Runtime",
 ].map(normalizeSourceRuntimeBoundaryToken);
 
-const SOURCE_RUNTIME_BOUNDARY_NESTED_PROPERTIES = new Set([
-	"BehaviorRole.firmwareRef.behaviorOwner",
-].map(normalizeSourceRuntimeBoundaryPath));
+const SOURCE_RUNTIME_BOUNDARY_NESTED_PROPERTIES = new Set(
+	["BehaviorRole.firmwareRef.behaviorOwner"].map(
+		normalizeSourceRuntimeBoundaryPath,
+	),
+);
 
 const DISPLAY_KINDS = [
 	"lcd-character",
@@ -1178,18 +1188,12 @@ export function validateSourceRuntimeBoundary(
 	doc: CircuitDocument,
 	options: ValidateSourceRuntimeBoundaryOptions = {},
 ): readonly ValidationIssue[] {
-	const severity = options.severity ?? "error";
+	const severity = options.severity ?? "warning";
 	const issues: ValidationIssue[] = [];
-	collectSourceRuntimeBoundaryIssues(
-		doc.rawAttributes,
-		"",
-		severity,
-		issues,
-		{
-			subject: "document",
-			rootRuntimeDescriptor: false,
-		},
-	);
+	collectSourceRuntimeBoundaryIssues(doc.rawAttributes, "", severity, issues, {
+		subject: "document",
+		rootRuntimeDescriptor: false,
+	});
 	for (const component of doc.components) {
 		collectSourceRuntimeBoundaryIssues(
 			component.properties,
@@ -1557,7 +1561,12 @@ function collectSourceRuntimeBoundaryIssues(
 ): void {
 	for (const [key, value] of Object.entries(properties)) {
 		const propertyPath = pathPrefix.length > 0 ? `${pathPrefix}.${key}` : key;
-		if (isSourceRuntimeBoundaryProperty(target, key, propertyPath)) {
+		const isBoundaryProperty = isSourceRuntimeBoundaryProperty(
+			target,
+			key,
+			propertyPath,
+		);
+		if (isBoundaryProperty) {
 			issues.push({
 				code: "source-runtime-boundary-property",
 				severity,
@@ -1570,6 +1579,9 @@ function collectSourceRuntimeBoundaryIssues(
 		}
 
 		if (isPropertyObject(value)) {
+			if (isBoundaryProperty) {
+				continue;
+			}
 			collectSourceRuntimeBoundaryIssues(
 				value,
 				propertyPath,

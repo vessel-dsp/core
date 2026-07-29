@@ -30,14 +30,16 @@ schematics; unknown roles warn by default and become errors when callers pass
 lowering-specific diagnostics with `validateDocument(document, { rules: [...] })`
 without embedding runtime policy in core.
 
-For canonical `.vdsp` intake, use `validateSourceRuntimeBoundary(document)` or
-`createSourceRuntimeBoundaryRule()` to report legacy runtime/admission/proxy
-selectors in component properties or top-level raw attributes, such as
-`RuntimeMatchKey`, `RuntimeDescriptor`, `DescriptorType`, stored compiler
-certificate/admission metadata, and nested
-`BehaviorRole.firmwareRef.behaviorOwner`. The parser remains tolerant so legacy
-documents can still be inspected and migrated without rewriting source files
-during import.
+For canonical `.vdsp` intake, `validateVdspCircuitDocumentSchema(source)`
+returns warnings for legacy runtime/admission/proxy selectors in component
+properties or top-level raw attributes, such as `RuntimeMatchKey`,
+`RuntimeDescriptor`, `DescriptorType`, stored compiler certificate/admission
+metadata, and legacy markers like `SourceOnly`, `InterfaceOnly`,
+`SourceBoundaryNote`, `FirmwareStatus`, `FirmwareExternalStop`, and
+`BehaviorRole`. Direct `CircuitDocument` callers can use
+`validateSourceRuntimeBoundary(document)` or `createSourceRuntimeBoundaryRule()`
+for the same check. The parser remains tolerant so legacy documents can still be
+inspected and migrated without rewriting source files during import.
 
 ## Advisory trace warnings
 
@@ -81,13 +83,14 @@ instead of a second ideal source.
 
 ## InterfaceOnly usage
 
-`InterfaceOnly: true` marks a component with no real electrical branch — an
-unpopulated/DNP position or a panel/UI reference stub with no wired terminals.
+Legacy `InterfaceOnly: true` marks a component with no real electrical branch —
+an unpopulated/DNP position or a panel/UI reference stub with no wired terminals.
 `validateDocument` warns with `interface-only-active-device` when it is used on
 a wired active-device kind (diode, LED, transistor, op-amp, tube, IC, and
 similar `model`-identity kinds) with two or more declared terminals; use a
 generic `model`/`Type` value plus an honest source-gap disclosure instead of an
-`InterfaceOnly` waiver. Legacy `Support: "view-only"` is no longer treated as an
-interface-only marker; it is reported as
+`InterfaceOnly` waiver. Canonical `.vdsp` intake also reports `InterfaceOnly` as
+legacy source-boundary metadata. Legacy `Support: "view-only"` is no longer
+treated as an interface-only marker; it is reported as
 `schema-invalid-legacy-support-view-only`, since playable/support status is
 derived downstream by the host runtime/compiler.

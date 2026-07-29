@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.24
+
+- Extend canonical `.vdsp` source/runtime boundary warnings to the legacy
+  runtime marker cleanup set: `SourceOnly`, `InterfaceOnly`,
+  `SourceBoundaryNote`, `FirmwareStatus`, `FirmwareExternalStop`, and
+  `BehaviorRole`.
+- Wire `validateVdspCircuitDocumentSchema()` to return those warnings during
+  canonical `.vdsp` intake while keeping legacy parsing tolerant for inspection
+  and migration.
+
 ## 0.6.23
 
 - Add opt-in canonical `.vdsp` source/runtime boundary validation through

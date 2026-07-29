@@ -398,6 +398,11 @@ describe("validateDocument", () => {
 						Chip: "M37470M2-326SP",
 						FirmwareId: "boss-hr-2-m37470m2-326sp-control-firmware-v1",
 						FirmwareRequired: true,
+						SourceOnly: "true",
+						InterfaceOnly: "true",
+						SourceBoundaryNote: "runtime boundary marker",
+						FirmwareStatus: "firmware-dump-unavailable",
+						FirmwareExternalStop: "external firmware unavailable",
 						RuntimeMatchKey: "chip=M37470M2-326SP",
 						RuntimeOwnership: "source-reference",
 						BehaviorRole: {
@@ -446,45 +451,54 @@ describe("validateDocument", () => {
 			{
 				componentId: undefined,
 				property: "RuntimeContainerClaimBoundary",
-				severity: "error",
+				severity: "warning",
 			},
 			{
 				componentId: undefined,
 				property: "CircuitGraphCompilerLiveCertificateV1",
-				severity: "error",
+				severity: "warning",
 			},
 			{
 				componentId: undefined,
 				property: "exact_source_admission_status",
-				severity: "error",
+				severity: "warning",
 			},
-			{ componentId: "U1", property: "RuntimeMatchKey", severity: "error" },
-			{ componentId: "U1", property: "RuntimeOwnership", severity: "error" },
+			{ componentId: "U1", property: "SourceOnly", severity: "warning" },
+			{ componentId: "U1", property: "InterfaceOnly", severity: "warning" },
 			{
 				componentId: "U1",
-				property: "BehaviorRole.firmwareRef.behaviorOwner",
-				severity: "error",
+				property: "SourceBoundaryNote",
+				severity: "warning",
 			},
-			{ componentId: "U2", property: "RuntimeDescriptor", severity: "error" },
-			{ componentId: "U2", property: "DescriptorType", severity: "error" },
-			{ componentId: "U2", property: "descriptor", severity: "error" },
-			{ componentId: "U2", property: "mechanism", severity: "error" },
-			{ componentId: "U2", property: "AmpLaneRouteId", severity: "error" },
+			{ componentId: "U1", property: "FirmwareStatus", severity: "warning" },
+			{
+				componentId: "U1",
+				property: "FirmwareExternalStop",
+				severity: "warning",
+			},
+			{ componentId: "U1", property: "RuntimeMatchKey", severity: "warning" },
+			{ componentId: "U1", property: "RuntimeOwnership", severity: "warning" },
+			{ componentId: "U1", property: "BehaviorRole", severity: "warning" },
+			{ componentId: "U2", property: "RuntimeDescriptor", severity: "warning" },
+			{ componentId: "U2", property: "DescriptorType", severity: "warning" },
+			{ componentId: "U2", property: "descriptor", severity: "warning" },
+			{ componentId: "U2", property: "mechanism", severity: "warning" },
+			{ componentId: "U2", property: "AmpLaneRouteId", severity: "warning" },
 			{
 				componentId: "U2",
 				property: "ConsumerAdmissionBoundary",
-				severity: "error",
+				severity: "warning",
 			},
 			{
 				componentId: "U2",
 				property: "CircuitGraphCompilerParityReportRefV1",
-				severity: "error",
+				severity: "warning",
 			},
-			{ componentId: "U2", property: "PrimitivePinMap", severity: "error" },
+			{ componentId: "U2", property: "PrimitivePinMap", severity: "warning" },
 			{
 				componentId: "U2",
 				property: "DirectOutputRuntimeBoundary",
-				severity: "error",
+				severity: "warning",
 			},
 		]);
 	});
@@ -499,7 +513,9 @@ describe("validateDocument", () => {
 
 		const issue = validateDocument(doc, {
 			rules: [createSourceRuntimeBoundaryRule({ severity: "warning" })],
-		}).find((candidate) => candidate.code === "source-runtime-boundary-property");
+		}).find(
+			(candidate) => candidate.code === "source-runtime-boundary-property",
+		);
 
 		expect(issue).toMatchObject({
 			severity: "warning",

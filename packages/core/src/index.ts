@@ -1,4 +1,4 @@
-export const VERSION = "0.6.23";
+export const VERSION = "0.6.24";
 
 export type {
 	CreateComponentArgs,
@@ -50,6 +50,7 @@ export type {
 	ParseCircuitDocumentOptions,
 	SerializeCircuitDocumentFileOptions,
 	SerializeVdspCircuitDocumentOptions,
+	ValidateVdspCircuitDocumentSchemaOptions,
 	VdspSchemaValidationIssue,
 	VdspSchemaValidationResult,
 } from "./formats/document";

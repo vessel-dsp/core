@@ -1,4 +1,8 @@
 import type { CircuitDocument, DocumentSource } from "../model/types";
+import {
+	validateSourceRuntimeBoundary,
+	type ValidationIssue,
+} from "../model/validation";
 import { parseLtspiceAsc } from "./ltspice/parser";
 import { serializeLtspiceAsc } from "./ltspice/serializer";
 import { parseSchx } from "./schx/parser";
@@ -77,15 +81,21 @@ export type VdspSchemaValidationIssue = Readonly<{
 	path?: string;
 }>;
 
+export type ValidateVdspCircuitDocumentSchemaOptions = Readonly<{
+	sourceRuntimeBoundaryWarnings?: boolean;
+}>;
+
 export type VdspSchemaValidationResult =
 	| Readonly<{
 			valid: true;
 			document: CircuitDocument;
 			errors: readonly [];
+			warnings: readonly ValidationIssue[];
 	  }>
 	| Readonly<{
 			valid: false;
 			errors: readonly VdspSchemaValidationIssue[];
+			warnings: readonly [];
 	  }>;
 
 export const vdspFileExtension = ".vdsp";
@@ -197,12 +207,15 @@ export function parseVdspCircuitDocumentWithTopology(
 
 export function validateVdspCircuitDocumentSchema(
 	source: string,
+	options: ValidateVdspCircuitDocumentSchemaOptions = {},
 ): VdspSchemaValidationResult {
 	try {
+		const document = parseVdspCircuitDocument(source);
 		return {
 			valid: true,
-			document: parseVdspCircuitDocument(source),
+			document,
 			errors: [],
+			warnings: validateVdspSchemaWarnings(document, options),
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -218,8 +231,19 @@ export function validateVdspCircuitDocumentSchema(
 					...(path === undefined ? {} : { path }),
 				},
 			],
+			warnings: [],
 		};
 	}
+}
+
+function validateVdspSchemaWarnings(
+	document: CircuitDocument,
+	options: ValidateVdspCircuitDocumentSchemaOptions,
+): readonly ValidationIssue[] {
+	if (options.sourceRuntimeBoundaryWarnings === false) {
+		return [];
+	}
+	return validateSourceRuntimeBoundary(document, { severity: "warning" });
 }
 
 export function parseCircuitDocumentFile(

@@ -359,6 +359,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlsPage).toContain('kind: "potentiometer"');
 		expect(controlsPage).toContain('RuntimeDescriptor: "true"');
 		expect(controlsPage).toContain("Legacy runtime descriptors");
+		expect(controlsPage).toContain("validateVdspCircuitDocumentSchema(source)");
 		expect(controlsPage).toContain("validateSourceRuntimeBoundary(document)");
 		expect(controlsPage).toContain("Wipe");
 		expect(controlsPage).toContain("StepLabels");

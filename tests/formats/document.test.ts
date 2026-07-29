@@ -299,6 +299,97 @@ rawAttributes: {}`;
 		}
 		expect(result.document.metadata.name).toBe("Valid Schema");
 		expect(result.errors).toEqual([]);
+		expect(result.warnings).toEqual([]);
+	});
+
+	test("validateVdspCircuitDocumentSchema warns about source/runtime boundary metadata", () => {
+		const yaml = `schema: circuit-interchange/v2
+metadata:
+  name: Boundary Metadata
+  description: ""
+  partNumber: ""
+source: {}
+components:
+  - id: U1
+    kind: ic
+    name: U1
+    sourceTypeName: Circuit.MicroBlockDelayChip
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      SourceOnly: "true"
+      InterfaceOnly: "true"
+      SourceBoundaryNote: runtime boundary marker
+      FirmwareStatus: firmware-dump-unavailable
+      FirmwareExternalStop: external firmware unavailable
+      BehaviorRole:
+        kind: firmware-dsp-core
+        firmwareRef:
+          status: unknown-proprietary
+          behaviorOwner: firmware-proxy
+      RuntimeDescriptor: "true"
+      DescriptorType: microblock-delay-chip
+      mechanism:
+        memoryType: bbd
+nodes: []
+wires: []
+directives: []
+diagnostics: []
+rawAttributes:
+  RuntimeContainerClaimBoundary: stored runtime receipt`;
+
+		const result = validateVdspCircuitDocumentSchema(yaml);
+
+		expect(result.valid).toBe(true);
+		if (!result.valid) {
+			throw new Error(result.errors[0]?.message ?? "expected valid .vdsp");
+		}
+		expect(result.errors).toEqual([]);
+		expect(
+			result.warnings.map((warning) => ({
+				componentId: warning.componentId,
+				property: warning.property,
+				severity: warning.severity,
+			})),
+		).toEqual([
+			{
+				componentId: undefined,
+				property: "RuntimeContainerClaimBoundary",
+				severity: "warning",
+			},
+			{ componentId: "U1", property: "SourceOnly", severity: "warning" },
+			{ componentId: "U1", property: "InterfaceOnly", severity: "warning" },
+			{
+				componentId: "U1",
+				property: "SourceBoundaryNote",
+				severity: "warning",
+			},
+			{ componentId: "U1", property: "FirmwareStatus", severity: "warning" },
+			{
+				componentId: "U1",
+				property: "FirmwareExternalStop",
+				severity: "warning",
+			},
+			{ componentId: "U1", property: "BehaviorRole", severity: "warning" },
+			{ componentId: "U1", property: "RuntimeDescriptor", severity: "warning" },
+			{ componentId: "U1", property: "DescriptorType", severity: "warning" },
+			{ componentId: "U1", property: "mechanism", severity: "warning" },
+		]);
+
+		const parseOnlyResult = validateVdspCircuitDocumentSchema(yaml, {
+			sourceRuntimeBoundaryWarnings: false,
+		});
+		expect(parseOnlyResult.valid).toBe(true);
+		if (!parseOnlyResult.valid) {
+			throw new Error(
+				parseOnlyResult.errors[0]?.message ?? "expected valid .vdsp",
+			);
+		}
+		expect(parseOnlyResult.warnings).toEqual([]);
 	});
 
 	test("validateVdspCircuitDocumentSchema rejects v1 without migration", () => {

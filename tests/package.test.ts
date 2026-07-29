@@ -852,15 +852,15 @@ describe("release metadata", () => {
 		const controlUiDistIndex = await readControlUiDistIndexJs();
 		const controlUiDistTypes = await readControlUiDistIndexDts();
 
-		expect(core.version).toBe("0.6.23");
+		expect(core.version).toBe("0.6.24");
 		expect(stompbox.version).toBe("0.6.16");
 		expect(controlUi.version).toBe("0.6.15");
 		expect(visualEffects.version).toBe("0.6.15");
 		expect(amp.version).toBe("0.6.15");
 		expect(cabinet.version).toBe("0.6.15");
-		expect(VERSION).toBe("0.6.23");
-		expect(distIndex).toContain('export const VERSION = "0.6.23";');
-		expect(distTypes).toContain('export declare const VERSION = "0.6.23";');
+		expect(VERSION).toBe("0.6.24");
+		expect(distIndex).toContain('export const VERSION = "0.6.24";');
+		expect(distTypes).toContain('export declare const VERSION = "0.6.24";');
 		expect(distTypes).toContain("DeviceInterfaceAudioBinding");
 		expect(stompboxDistIndex).toContain("createStompboxDrillLayoutFromVdsp");
 		expect(stompboxDistIndex).toContain(
@@ -906,7 +906,7 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlSurface");
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
-		expect(changelog).toStartWith("# Changelog\n\n## 0.6.23\n\n");
+		expect(changelog).toStartWith("# Changelog\n\n## 0.6.24\n\n");
 		expect(changelog).toContain("@vessel-dsp/control-ui");
 	});
 });

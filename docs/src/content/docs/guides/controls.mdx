@@ -173,11 +173,15 @@ controls. Do not use descriptor fields as canonical `.vdsp` runtime authority;
 host runtimes should derive lowering behavior from source facts plus their own
 registries, overlays, or manifests.
 
-Canonical intake can add `validateSourceRuntimeBoundary(document)` or
+Canonical `.vdsp` intake reports these as warnings from
+`validateVdspCircuitDocumentSchema(source)`. Direct `CircuitDocument` callers
+can use `validateSourceRuntimeBoundary(document)` or
 `createSourceRuntimeBoundaryRule()` to report runtime/admission/proxy selectors
 in component properties or top-level raw attributes, such as `RuntimeMatchKey`,
 `RuntimeDescriptor`, `DescriptorType`, stored compiler certificate/admission
-metadata, or nested `BehaviorRole.firmwareRef.behaviorOwner`.
+metadata, or legacy markers like `SourceOnly`, `InterfaceOnly`,
+`SourceBoundaryNote`, `FirmwareStatus`, `FirmwareExternalStop`, and
+`BehaviorRole`.
 
 Continuous descriptor controls use property pairs such as:
 
