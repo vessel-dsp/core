@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.25
+
+- Validate `sourceTypeName` against an explicit vocabulary during `.vdsp`
+  parsing. The field was typed `string | null` and parsed straight through, so
+  any spelling was accepted silently; every consumer matches it exactly, which
+  made each unrecognised spelling a component that quietly failed to resolve.
+- Emit the first parser-generated warnings for it: `source-type-name-alias`
+  names the canonical spelling for a known variant, and
+  `source-type-name-not-a-device-class` covers values that record what a
+  consumer does with a component rather than what the component is.
+  `source-type-name-unsupported` covers everything else.
+- Values are reported, never rewritten. Documents keep parsing, and the
+  recorded spelling is preserved verbatim.
+
 ## 0.6.24
 
 - Extend canonical `.vdsp` source/runtime boundary warnings to the legacy

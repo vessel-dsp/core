@@ -1677,4 +1677,95 @@ power:
 			'duplicate mapping key "groundPolarity"',
 		);
 	});
+
+	test("reports a sourceTypeName outside the supported vocabulary", () => {
+		// Every consumer matches this field exactly, so an unrecognised spelling is a
+		// component that silently fails to resolve. The value is reported, never
+		// rewritten: source fidelity first, and rewriting would hide the drift.
+		const yaml = `schema: circuit-interchange/v2
+metadata:
+  name: "Vocabulary"
+  description: ""
+  partNumber: ""
+components:
+  - id: R1
+    kind: resistor
+    name: R1
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties: {}
+  - id: Q1
+    kind: bjt
+    name: Q1
+    sourceTypeName: Circuit.Bjt
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties: {}
+  - id: U1
+    kind: ic
+    name: U1
+    sourceTypeName: Circuit.SupportChip
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties: {}
+  - id: U2
+    kind: ic
+    name: U2
+    sourceTypeName: Circuit.Ouptut
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties: {}
+wires: []
+`;
+		const parsed = parseInterchangeYaml(yaml);
+
+		// A canonical value is silent.
+		expect(
+			parsed.warnings.filter((warning) => warning.componentId === "R1"),
+		).toHaveLength(0);
+
+		// A known spelling of a supported concept names the canonical form.
+		const alias = parsed.warnings.find(
+			(warning) => warning.code === "source-type-name-alias",
+		);
+		expect(alias?.componentId).toBe("Q1");
+		expect(alias?.message).toContain("Circuit.BipolarJunctionTransistor");
+
+		// A value describing consumer treatment rather than a device is called out
+		// separately, because the fix is to state the part, not pick a category.
+		const intent = parsed.warnings.find(
+			(warning) => warning.code === "source-type-name-not-a-device-class",
+		);
+		expect(intent?.componentId).toBe("U1");
+
+		// Anything else, including a typo, is unsupported.
+		const unknown = parsed.warnings.find(
+			(warning) => warning.code === "source-type-name-unsupported",
+		);
+		expect(unknown?.componentId).toBe("U2");
+
+		// The document is still parsed, and the value is preserved verbatim.
+		expect(parsed.components).toHaveLength(4);
+		expect(
+			parsed.components.find((component) => component.id === "U1")
+				?.sourceTypeName,
+		).toBe("Circuit.SupportChip");
+	});
 });

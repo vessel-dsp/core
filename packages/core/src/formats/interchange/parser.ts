@@ -6,6 +6,7 @@ import {
 	resolveConnectivity,
 } from "../../model/connectivity";
 import { isParsedQuantity } from "../../model/properties";
+import { classifySourceTypeName } from "./source-type-names";
 import type {
 	BoardApplicability,
 	BoardEdgeTerminal,
@@ -153,6 +154,11 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 	const controlGroups = parseControlGroups(root.controlGroups);
 	const controlContexts = parseControlContexts(root.controlContexts);
 	const deviceInterface = parseDeviceInterface(root.deviceInterface);
+	// Collected while parsing components, then merged with the document's own
+	// `diagnostics` block. Built before the literal below so the result does not
+	// depend on object-key evaluation order.
+	const componentWarnings: Warning[] = [];
+	const components = parseComponents(root.components, componentWarnings);
 	const mechanical = isV3 ? parseMechanical(root.mechanical) : undefined;
 	const build = isV3 ? parseBuild(root.build) : undefined;
 	const bom = isV3 ? parseBom(root.bom) : undefined;
@@ -187,10 +193,10 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 		...(panel === undefined ? {} : { panel }),
 		...(controlInterfaces === undefined ? {} : { controlInterfaces }),
 		...(controlOutputs === undefined ? {} : { controlOutputs }),
-		components: parseComponents(root.components),
+		components,
 		wires: parseWires(root.wires),
 		directives: parseStringArray(root.directives, "directives"),
-		warnings: parseWarnings(root.diagnostics),
+		warnings: [...parseWarnings(root.diagnostics), ...componentWarnings],
 		rawAttributes: parseStringRecord(root.rawAttributes, "rawAttributes"),
 	};
 }
@@ -2957,12 +2963,21 @@ function parsePanelControlKind(
 	}
 }
 
-function parseComponents(value: YamlValue | undefined): readonly Component[] {
+function parseComponents(
+	value: YamlValue | undefined,
+	warnings: Warning[],
+): readonly Component[] {
 	return optionalArray(value, "components").map((item, index) => {
 		const path = `components[${index}]`;
 		const component = expectObject(item, path);
+		const id = expectString(component.id, `${path}.id`);
+		const sourceTypeName = parseNullableString(
+			component.sourceTypeName,
+			`${path}.sourceTypeName`,
+		);
+		collectSourceTypeNameWarnings(id, sourceTypeName, warnings);
 		return {
-			id: expectString(component.id, `${path}.id`),
+			id,
 			kind: parseComponentKind(component.kind, `${path}.kind`),
 			name: expectString(component.name, `${path}.name`),
 			origin: parsePoint(component.origin, `${path}.origin`),
@@ -2970,11 +2985,50 @@ function parseComponents(value: YamlValue | undefined): readonly Component[] {
 			flipped: expectBoolean(component.flipped, `${path}.flipped`),
 			terminals: parseTerminals(component.terminals, `${path}.terminals`),
 			properties: parseProperties(component.properties, `${path}.properties`),
-			sourceTypeName: parseNullableString(
-				component.sourceTypeName,
-				`${path}.sourceTypeName`,
-			),
+			sourceTypeName,
 		};
+	});
+}
+
+/**
+ * Report a `sourceTypeName` outside the supported vocabulary.
+ *
+ * The value is never rewritten. Every consumer matches this field exactly, so an
+ * unrecognised spelling is a component that silently fails to resolve, and until now
+ * nothing said so -- the field is typed `string | null` and parsed straight through.
+ * Warning rather than throwing keeps existing documents readable while making the
+ * drift visible; the survey behind the vocabulary found 107 distinct values in one
+ * corpus for roughly 40 concepts.
+ */
+function collectSourceTypeNameWarnings(
+	componentId: string,
+	sourceTypeName: string | null,
+	warnings: Warning[],
+): void {
+	const verdict = classifySourceTypeName(sourceTypeName);
+	if (verdict === null || verdict.status === "supported") {
+		return;
+	}
+	if (verdict.status === "alias") {
+		warnings.push({
+			code: "source-type-name-alias",
+			message: `sourceTypeName "${sourceTypeName}" is a non-canonical spelling; use "${verdict.canonical}".`,
+			componentId,
+		});
+		return;
+	}
+	if (verdict.status === "modelling-intent") {
+		warnings.push({
+			code: "source-type-name-not-a-device-class",
+			message: `sourceTypeName "${sourceTypeName}" records what a consumer does with this component, not what it is, so it cannot identify a device. State the device class; let the boundary that owns a region declare what it encloses.`,
+			componentId,
+		});
+		return;
+	}
+	warnings.push({
+		code: "source-type-name-unsupported",
+		message: `sourceTypeName "${sourceTypeName}" is not a supported source type.`,
+		componentId,
 	});
 }
 
