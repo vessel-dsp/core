@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.6.26
+
+- Merge inline terminal `node` keys and the `nodes` ledger into one declared
+  connectivity interpretation during `.vdsp` parsing. Declaring any inline
+  terminal node previously made the parser ignore every `members` list in the
+  ledger, so a packet that split its declarations across both styles silently
+  lost the ledger-only pins - including, in the reported case, leaving the
+  ground node with no members at all and no warning.
+- Agreement between the two styles is treated as redundant rather than
+  ambiguous, which is what lets a serialized document (core writes both an
+  inline `node` per terminal and a `nodes` ledger) round-trip unchanged.
+  Disagreement about the same pin is refused with the existing
+  `already belongs to node` error.
+- The ledger is now validated on every document that has one, so a `members`
+  entry naming an unknown component or terminal, or a duplicate node id, is
+  reported instead of skipped whenever inline terminal nodes are also present.
+- Accept declared `connectivity` and `nodeRoles` in
+  `serializeInterchangeYaml()` and `serializeVdspCircuitDocument()`. Both wrote
+  connectivity resolved from terminal geometry, so a parse/serialize round trip
+  renumbered author-declared node ids and rewrote every node role to `ground`
+  or `signal`, discarding tokens such as `supply`. Passing the values back from
+  `parseInterchangeYamlWithTopology()` now preserves both; omitting them keeps
+  the previous geometric behaviour.
+- Add `INTERCHANGE_CONTRACT_VERSION` so consumers can gate adoption on parse
+  behaviour instead of a package version range.
+- Add a canonical potentiometer terminal-role vocabulary:
+  `classifyPotentiometerTerminalRole()`, `resolvePotentiometerTerminalRoles()`
+  and `resolveDocumentPotentiometerTerminalRoles()`. A pot's ends are only
+  meaningful as a rotational pair, and rotation cannot be recovered from a
+  schematic - terminal positions say which end is drawn where, not which way the
+  shaft turns - so a consumer inferring it from topology produces controls that
+  sweep backwards on some documents, silently.
+- Lug numbers and spelling variants (`1`/`2`/`3`, `lug 2`, `Pin_3`,
+  `counter-clockwise`, `slider`) normalize to `ccw`/`wiper`/`cw` with no
+  diagnostic; the resolved role is keyed by the raw token, so nothing is
+  rewritten. Tokens that name an end without its rotation (`a`, `b`, `left`)
+  resolve to no role at all: `complete` stays false and a
+  `potentiometer-terminal-role-ambiguous` diagnostic says the source does not
+  carry the semantics, rather than a guess being supplied.
+- `.vdsp` intake reports those diagnostics as parser warnings. No corpus
+  document gains one: all 65 potentiometers surveyed either use lug numbers
+  (the 2 in `.vdsp`) or arrive from `.schx` with core's own catalog names
+  (the other 63), and warning an author about a token core invented would be
+  noise.
+- Parse `.schx` device-model parameters into structured quantities instead of
+  leaving them as text: the tube set (`Kg`, `Rgk`, `Vg`, `Gamma`, `Ig0`, the
+  interelectrode capacitances, and `Kg1`/`Kg2` on a pentode), op-amp `Rin`,
+  `Rout`, `Aol` and `GBP`, the uppercase bipolar spellings `IS`/`BF`/`BR`/`n`
+  that only the long `BipolarJunctionTransistor` shortType listed, and `Wipe`
+  on a variable resistor. 137 values across the corpus that consumers had to
+  re-parse. A discrete selector `Position` stays a string - it is state, not a
+  device parameter.
+- Extract the duplicated `normalizeToken()` into `model/tokens.ts`. It was
+  byte-identical in `model/validation.ts` and `panel/extract.ts`, and a second
+  copy is how two vocabularies drift apart.
+
 ## 0.6.25
 
 - Validate `sourceTypeName` against an explicit vocabulary during `.vdsp`

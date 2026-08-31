@@ -2,6 +2,7 @@ import {
 	getPinNode,
 	resolveConnectivity,
 	type Connectivity,
+	type NodeId,
 } from "../../model/connectivity";
 import { isParsedQuantity, isPropertyObject } from "../../model/properties";
 import type {
@@ -44,6 +45,21 @@ export type SerializeInterchangeYamlOptions = Readonly<{
 	filename?: string;
 	source?: DocumentSource | null;
 	sourceFormat?: InterchangeSourceFormat | null;
+	/**
+	 * Declared connectivity to write instead of connectivity resolved from
+	 * terminal geometry. Pass the `connectivity` from
+	 * `parseInterchangeYamlWithTopology()` to keep author-declared node
+	 * identifiers stable across a parse/serialize round trip; geometric
+	 * resolution renumbers them.
+	 */
+	connectivity?: Connectivity;
+	/**
+	 * Declared node role tokens to write instead of deriving `ground`/`signal`
+	 * from the resolved connectivity. Roles are written verbatim, so any token a
+	 * document declared survives the round trip. Nodes absent from the map fall
+	 * back to the derived role.
+	 */
+	nodeRoles?: ReadonlyMap<NodeId, string>;
 }>;
 
 type YamlScalar = string | number | boolean | null;
@@ -57,7 +73,7 @@ export function serializeInterchangeYaml(
 	doc: CircuitDocument,
 	options: SerializeInterchangeYamlOptions = {},
 ): string {
-	const connectivity = resolveConnectivity(doc);
+	const connectivity = options.connectivity ?? resolveConnectivity(doc);
 	const schema = hasV3OnlyFields(doc)
 		? "circuit-interchange/v3"
 		: "circuit-interchange/v2";
@@ -119,7 +135,7 @@ export function serializeInterchangeYaml(
 		components: doc.components.map((component) =>
 			componentBlock(component, connectivity),
 		),
-		nodes: nodeBlocks(connectivity),
+		nodes: nodeBlocks(connectivity, options.nodeRoles),
 		wires: doc.wires.map(wireBlock),
 		directives: doc.directives,
 		diagnostics: doc.warnings.map(warningBlock),
@@ -601,12 +617,17 @@ function propertyValueBlock(value: PropertyValue): YamlValue {
 	};
 }
 
-function nodeBlocks(connectivity: Connectivity): readonly MutableYamlObject[] {
+function nodeBlocks(
+	connectivity: Connectivity,
+	nodeRoles?: ReadonlyMap<NodeId, string>,
+): readonly MutableYamlObject[] {
 	return Array.from(connectivity.nodeMembers.entries())
 		.sort(([a], [b]) => a - b)
 		.map(([id, members]) => ({
 			id,
-			role: id === connectivity.groundNodeId ? "ground" : "signal",
+			role:
+				nodeRoles?.get(id) ??
+				(id === connectivity.groundNodeId ? "ground" : "signal"),
 			members: members.map((member) => ({
 				componentId: member.componentId,
 				terminalName: member.terminalName,

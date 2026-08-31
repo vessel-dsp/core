@@ -3,6 +3,7 @@ import {
 	propertyNumericValue,
 	propertyStringValue,
 } from "../model/properties";
+import { normalizeToken } from "../model/tokens";
 import type {
 	CircuitDocument,
 	Component,
@@ -1299,13 +1300,6 @@ function isRuntimeDescriptor(component: Component): boolean {
 	return (
 		component.kind === "ic" && component.properties.RuntimeDescriptor === "true"
 	);
-}
-
-function normalizeToken(value: string): string {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/[\s_]+/g, "-");
 }
 
 function clamp01(v: number): number {

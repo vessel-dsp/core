@@ -6,6 +6,7 @@ import {
 	resolveConnectivity,
 } from "../../model/connectivity";
 import { isParsedQuantity } from "../../model/properties";
+import { resolvePotentiometerTerminalRoles } from "../../model/terminal-roles";
 import { classifySourceTypeName } from "./source-type-names";
 import type {
 	BoardApplicability,
@@ -279,6 +280,10 @@ function parseDeclaredTopology(
 		}
 	}
 
+	// Inline terminal `node` keys and the `nodes` ledger are complementary
+	// declarations of the same connectivity, and serialized documents carry both.
+	// Read both so a mixed packet cannot silently drop ledger-only members;
+	// `addDeclaredPin` refuses only where the two disagree.
 	if (declaredTerminalCount > 0) {
 		for (const [componentIndex, rawComponent] of rawComponents.entries()) {
 			const component = expectObject(
@@ -310,7 +315,8 @@ function parseDeclaredTopology(
 				);
 			}
 		}
-	} else {
+	}
+	if (rawNodes.length > 0) {
 		parseDeclaredNodeMembers(
 			rawNodes,
 			document,
@@ -396,6 +402,9 @@ function addDeclaredPin(
 ): void {
 	const key = pinKey(pin);
 	const previousNode = pinToNode.get(key);
+	// Agreement between the inline and ledger declarations is redundant, not
+	// ambiguous: record the pin once. Disagreement is unresolvable, so refuse.
+	if (previousNode === nodeId) return;
 	if (previousNode !== undefined) {
 		throw new Error(
 			`${path}: pin "${pin.componentId}.${pin.terminalName}" already belongs to node ${previousNode}`,
@@ -2976,7 +2985,7 @@ function parseComponents(
 			`${path}.sourceTypeName`,
 		);
 		collectSourceTypeNameWarnings(id, sourceTypeName, warnings);
-		return {
+		const parsed: Component = {
 			id,
 			kind: parseComponentKind(component.kind, `${path}.kind`),
 			name: expectString(component.name, `${path}.name`),
@@ -2987,6 +2996,8 @@ function parseComponents(
 			properties: parseProperties(component.properties, `${path}.properties`),
 			sourceTypeName,
 		};
+		collectTerminalRoleWarnings(parsed, warnings);
+		return parsed;
 	});
 }
 
@@ -3000,6 +3011,23 @@ function parseComponents(
  * drift visible; the survey behind the vocabulary found 107 distinct values in one
  * corpus for roughly 40 concepts.
  */
+/**
+ * Report potentiometer terminal names that carry no sweep direction.
+ *
+ * Lug numbers and spelling variants resolve silently -- the common cases should cost
+ * an author nothing. Only an under-specified or unrecognised token is reported, and
+ * the name is never rewritten, so a document that means `ccw` but says `a` stays
+ * readable while the gap becomes visible.
+ */
+function collectTerminalRoleWarnings(
+	component: Component,
+	warnings: Warning[],
+): void {
+	const resolution = resolvePotentiometerTerminalRoles(component);
+	if (resolution === null) return;
+	warnings.push(...resolution.diagnostics);
+}
+
 function collectSourceTypeNameWarnings(
 	componentId: string,
 	sourceTypeName: string | null,

@@ -1,4 +1,5 @@
 import { extractPanel } from "../panel/extract";
+import { normalizeToken } from "./tokens";
 import {
 	isPropertyObject,
 	propertyNumericValue,
@@ -1828,13 +1829,6 @@ function parsePositiveInteger(value: string | null): number | undefined {
 	}
 	const count = Number(trimmed);
 	return Number.isInteger(count) && count > 0 ? count : undefined;
-}
-
-function normalizeToken(value: string): string {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/[\s_]+/g, "-");
 }
 
 function validateDeviceInterface(

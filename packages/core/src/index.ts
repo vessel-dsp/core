@@ -1,4 +1,4 @@
-export const VERSION = "0.6.25";
+export const VERSION = "0.6.26";
 
 export type {
 	CreateComponentArgs,
@@ -70,6 +70,20 @@ export {
 	vdspFileExtension,
 	vdspFilenameFromName,
 } from "./formats/document";
+export { INTERCHANGE_CONTRACT_VERSION } from "./formats/interchange/contract";
+export {
+	AMBIGUOUS_POTENTIOMETER_END_TOKENS,
+	POTENTIOMETER_TERMINAL_ROLE_ALIASES,
+	POTENTIOMETER_TERMINAL_ROLES,
+	classifyPotentiometerTerminalRole,
+	resolveDocumentPotentiometerTerminalRoles,
+	resolvePotentiometerTerminalRoles,
+} from "./model/terminal-roles";
+export type {
+	PotentiometerTerminalRole,
+	PotentiometerTerminalRoleResolution,
+	PotentiometerTerminalRoleVerdict,
+} from "./model/terminal-roles";
 export type { InterchangeTopologyParseResult } from "./formats/interchange/parser";
 export {
 	parseInterchangeYaml,

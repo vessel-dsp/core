@@ -1,3 +1,4 @@
+import type { Connectivity, NodeId } from "../model/connectivity";
 import type { CircuitDocument, DocumentSource } from "../model/types";
 import {
 	validateSourceRuntimeBoundary,
@@ -40,6 +41,14 @@ export type ParseCircuitDocumentFileOptions = Readonly<{
 export type SerializeVdspCircuitDocumentOptions = Readonly<{
 	filename?: string;
 	source?: DocumentSource;
+	/**
+	 * Declared connectivity and node role tokens to write instead of resolving
+	 * them from terminal geometry. Pass these straight back from
+	 * `parseVdspCircuitDocumentWithTopology()` to round-trip a document without
+	 * renumbering its declared node identifiers or flattening its role tokens.
+	 */
+	connectivity?: Connectivity;
+	nodeRoles?: ReadonlyMap<NodeId, string>;
 }>;
 
 export type SerializeCircuitDocumentFileOptions = Readonly<{
@@ -354,6 +363,12 @@ export function serializeVdspCircuitDocument(
 ): string {
 	return serializeInterchangeYaml(document, {
 		source: vdspSource(document, options),
+		...(options.connectivity === undefined
+			? {}
+			: { connectivity: options.connectivity }),
+		...(options.nodeRoles === undefined
+			? {}
+			: { nodeRoles: options.nodeRoles }),
 	});
 }
 
