@@ -339,6 +339,7 @@ export type TerminalRole =
 	// transformer note in `TERMINAL_ROLES_BY_KIND`.
 	| "winding"
 	| "windingTap"
+	| "windingCenterTap"
 	| "shield"
 	// Mechanical contacts.
 	| "common"
@@ -371,12 +372,25 @@ const OPAMP: readonly TerminalRole[] = [
 /**
  * Which roles each kind may declare.
  *
- * **`transformer` and `switch` are deliberately coarse.** A transformer terminal's role is that it
- * is a winding end or a tap; *which* winding it belongs to is membership, which a flat role cannot
- * express and which the 107 spellings in the survey are currently carrying inside names
- * (`hv_red_a_345vac`). That needs a winding construct; until it exists, `winding`/`windingTap`
- * states what is true without pretending to state the grouping. `switch` is the same shape: 232
- * spellings naming what each contact connects to.
+ * **A transformer terminal's role says what the terminal is; `windings` says which coil it is
+ * on.** An end is `winding`, and a tap is one of two things that no amount of connectivity or
+ * position can tell apart:
+ *
+ * - `windingCenterTap` is the point the coil is *referenced* at -- grounded on a power
+ *   transformer's HV winding, tied to B+ on an output transformer's plate winding. Both ends then
+ *   swing in antiphase about it and both halves are live at once, which is what makes the
+ *   rectifier or the push-pull pair downstream work.
+ * - `windingTap` is an *alternative output* point: a speaker winding's 4/8/16 Ω taps, of which a
+ *   selector normally makes one live.
+ *
+ * A consumer that guesses is wrong on one of the two. A grounded end identifies the reference on
+ * a speaker winding and says nothing about an output transformer's primary, whose ends can
+ * include ground; every node of `orange-rockerverb`'s tapped secondary carries a load, so
+ * "everything is live" reads it as centre-tapped; and both kinds declare the tap in the middle,
+ * so order says nothing either.
+ *
+ * `switch` is still deliberately coarse: 232 spellings naming what each contact connects to, and
+ * a pole is closer to a winding than to a device.
  *
  * Kinds that are not electrical devices (`label`, `named-wire`, `port`, `unsupported`) take `pin`,
  * since their terminals are attachment points rather than electrodes.
@@ -414,7 +428,7 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 		"negative",
 		"pin",
 	],
-	transformer: ["winding", "windingTap", "shield"],
+	transformer: ["winding", "windingTap", "windingCenterTap", "shield"],
 	switch: ["common", "throw", "coil", "pin"],
 	selector: ["common", "throw", "coil", "pin"],
 	"analog-switch": ["common", "throw", "coil", "pin"],

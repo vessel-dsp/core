@@ -72,8 +72,17 @@ than the real fault, which is that the document never said what its coils are.
    what a spelling table cannot recover: `secondary_4`, `secondary_8`, `secondary_16` are ordered
    by their names only by luck, and `hv_center_tap` says "centre" in prose.
 2. **End versus tap comes from the terminal's own `role`,** which core already carries: `winding`
-   for an end, `windingTap` for a tap. A winding entry therefore needs no per-terminal metadata —
-   `role` plus ordered `terminals` is the whole entry.
+   for an end, `windingTap` or `windingCenterTap` for a tap. A winding entry therefore needs no
+   per-terminal metadata — `role` plus ordered `terminals` is the whole entry.
+
+   The two tap roles are the one thing a consumer cannot work out. A **centre tap** is the point
+   the coil is referenced at, and both halves are live at once — that is what makes a full-wave
+   rectifier full-wave and a push-pull primary push-pull. An **output tap** is one of several
+   alternatives, of which a selector makes one live. Three consumer-side tests were tried and each
+   was wrong on one shape: a grounded end finds the reference on a speaker winding but an output
+   transformer's primary can have ground as an *end*; "every node carries a load" reads
+   `orange-rockerverb`'s tapped secondary as centre-tapped, because every node of it does; and
+   both kinds sit in the middle of the list. So it is declared.
 3. **No terminal belongs to two windings.** Coupled coils share no conductor. An autotransformer
    is one tapped winding, not two overlapping ones, so a shared terminal is an error rather than a
    shape to support.

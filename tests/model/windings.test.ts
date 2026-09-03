@@ -36,7 +36,7 @@ describe("transformer windings", () => {
 				["primary_a", "winding"],
 				["primary_b", "winding"],
 				["hv_a", "winding"],
-				["hv_center_tap", "windingTap"],
+				["hv_center_tap", "windingCenterTap"],
 				["hv_b", "winding"],
 				["filament_a", "winding"],
 				["filament_b", "winding"],
@@ -55,6 +55,38 @@ describe("transformer windings", () => {
 		const hv = windingEndsAndTaps(t, t.windings![1]!);
 		expect(hv.ends).toEqual(["hv_a", "hv_b"]);
 		expect(hv.taps).toEqual(["hv_center_tap"]);
+	});
+
+	it("separates a coil's reference tap from its alternative output taps", () => {
+		// The two are one declaration and different circuits, so the terminal's own role has to
+		// say which. A power transformer's HV winding is referenced at its centre and both halves
+		// are live at once; a speaker winding's 4/8/16 taps are alternatives.
+		const t = xfmr(
+			[
+				["hv_a", "winding"],
+				["hv_center_tap", "windingCenterTap"],
+				["hv_b", "winding"],
+				["secondary_common", "winding"],
+				["secondary_8", "windingTap"],
+				["secondary_16", "winding"],
+			],
+			[
+				{ role: "hv", terminals: ["hv_a", "hv_center_tap", "hv_b"] },
+				{
+					role: "secondary",
+					terminals: ["secondary_common", "secondary_8", "secondary_16"],
+				},
+			],
+		);
+		expect(validateComponentWindings(t)).toEqual([]);
+		// Both count as taps for ends-and-taps; what differs is which one a consumer may treat as
+		// simultaneously live with both ends.
+		expect(windingEndsAndTaps(t, t.windings![0]!).taps).toEqual(["hv_center_tap"]);
+		expect(windingEndsAndTaps(t, t.windings![1]!).taps).toEqual(["secondary_8"]);
+		expect(windingEndsAndTaps(t, t.windings![1]!).ends).toEqual([
+			"secondary_common",
+			"secondary_16",
+		]);
 	});
 
 	it("keeps three impedance taps on one secondary in ascending order", () => {
@@ -111,7 +143,7 @@ describe("transformer windings", () => {
 		const t = xfmr(
 			[
 				["power_tube_heater_a_3v15", "winding"],
-				["power_tube_heater_center_0v", "windingTap"],
+				["power_tube_heater_center_0v", "windingCenterTap"],
 				["power_tube_heater_b_3v15", "winding"],
 				["preamp_heater_a_6vac_black", "winding"],
 				["preamp_heater_b_6vac_black", "winding"],

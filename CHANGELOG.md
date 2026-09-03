@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.36
+
+- Add `windingCenterTap` to the transformer terminal vocabulary, splitting the tap role in two.
+  A **centre tap** is the point a coil is referenced at -- grounded on a power transformer's HV
+  winding, tied to B+ on an output transformer's plate winding -- and both halves are live at once.
+  An **alternative output tap** is a speaker winding's 4/8/16 Ω point, of which a selector
+  normally makes one live. They are different circuits and `windingTap` said both.
+- Nothing a consumer can compute separates them, which is why this is a declaration. A grounded
+  end identifies the reference on a speaker winding and says nothing about an output
+  transformer's primary, whose ends can include ground. "Every node carries a load" reads
+  `orange-rockerverb`'s tapped secondary as centre-tapped, because every node of it does. And
+  both kinds declare the tap in the middle, so coil order says nothing either. Each of those
+  three was tried in a consumer and each was wrong on one of the two shapes.
+- The corpus splits cleanly: 40 reference taps (`primary_ct`, `hv_center_tap`, `low_ct`,
+  `heater_center`, `power_tube_heater_center_0v` and their camelCase and colour-coded spellings)
+  against 15 output taps (`secondary_4`/`_8`/`_16`, `secondary_hot`, `secondary_15ohm`,
+  `secondary_7r5ohm`, `secondary_3r75ohm`).
+- `windingEndsAndTaps()` counts both as taps, since both are.
+
 ## 0.6.35
 
 - Drop `shield` from `WindingRole`, and stop warning that a `role: shield` terminal belongs to no

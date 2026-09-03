@@ -1,4 +1,4 @@
-export const VERSION = "0.6.35";
+export const VERSION = "0.6.36";
 
 export type {
 	CreateComponentArgs,

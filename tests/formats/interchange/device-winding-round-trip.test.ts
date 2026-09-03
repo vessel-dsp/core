@@ -103,7 +103,7 @@ components:
           x: 120
           y: 0
       - name: hv_center_tap
-        role: windingTap
+        role: windingCenterTap
         node: 8
         position:
           x: 120

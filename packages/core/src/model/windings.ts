@@ -17,7 +17,8 @@
 // refusal. `secondary_16`/`secondary_8`/`secondary_4` are three taps on one coil, and only the
 // names say so.
 //
-// **Ends and taps are told apart by each terminal's own role**, `winding` against `windingTap`,
+// **Ends and taps are told apart by each terminal's own role**, `winding` against `windingTap` or
+// `windingCenterTap`,
 // which the terminal vocabulary already carries. A winding entry therefore needs nothing but its
 // role and its terminals in coil order.
 
@@ -187,7 +188,8 @@ export function windingEndsAndTaps(
 	const ends: string[] = [];
 	const taps: string[] = [];
 	for (const name of winding.terminals) {
-		(roleOf.get(name) === "windingTap" ? taps : ends).push(name);
+		const role = roleOf.get(name);
+		(role === "windingTap" || role === "windingCenterTap" ? taps : ends).push(name);
 	}
 	return { ends, taps };
 }
