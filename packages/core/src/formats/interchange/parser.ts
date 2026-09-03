@@ -44,6 +44,7 @@ import type {
 	CircuitPowerRailRole,
 	CircuitPowerSourceKind,
 	Component,
+	ComponentDevice,
 	ComponentKind,
 	ComponentTerminalRef,
 	ControlApplicabilityPredicate,
@@ -2993,6 +2994,7 @@ function parseComponents(
 			rotation: parseRotation(component.rotation, `${path}.rotation`),
 			flipped: expectBoolean(component.flipped, `${path}.flipped`),
 			terminals: parseTerminals(component.terminals, `${path}.terminals`),
+			...parseComponentDevices(component.devices, `${path}.devices`),
 			properties: parseProperties(component.properties, `${path}.properties`),
 			sourceTypeName,
 		};
@@ -3058,6 +3060,39 @@ function collectSourceTypeNameWarnings(
 		message: `sourceTypeName "${sourceTypeName}" is not a supported source type.`,
 		componentId,
 	});
+}
+
+/**
+ * A component's declared device list, or nothing when it declares none.
+ *
+ * Absent and empty are the same statement -- "this component is one device" -- so an empty list
+ * is dropped rather than carried, and `componentDevices()` gives every caller one shape.
+ */
+function parseComponentDevices(
+	value: YamlValue | undefined,
+	path: string,
+): { devices?: readonly ComponentDevice[] } {
+	const raw = optionalArray(value, path);
+	if (raw.length === 0) return {};
+	const devices = raw.map((item, index) => {
+		const devicePath = `${path}[${index}]`;
+		const device = expectObject(item, devicePath);
+		const kind =
+			typeof device.kind === "string" && device.kind.trim()
+				? (device.kind.trim() as ComponentKind)
+				: undefined;
+		return {
+			id: expectString(device.id, `${devicePath}.id`),
+			...(kind === undefined ? {} : { kind }),
+			terminals: optionalArray(
+				device.terminals,
+				`${devicePath}.terminals`,
+			).map((terminal, terminalIndex) =>
+				expectString(terminal, `${devicePath}.terminals[${terminalIndex}]`),
+			),
+		};
+	});
+	return { devices };
 }
 
 function parseTerminals(

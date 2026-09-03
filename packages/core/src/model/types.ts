@@ -137,14 +137,59 @@ export type CircuitDocumentBehaviorRole = Readonly<{
 	firmwareRef?: CircuitDocumentBehaviorFirmwareRef;
 }>;
 
+/**
+ * One device inside a component's package.
+ *
+ * A component models a schematic **symbol**, which may hold several devices: a dual rectifier is
+ * two diodes on one cathode, a dual op-amp two amplifiers on one supply pair, an optocoupler an
+ * LED beside a photoresistor. Consumers need the devices, and before this construct each one
+ * reconstructed the split by parsing terminal names.
+ *
+ * See `docs/device-construct-design.md` for the survey this is built from and for the two cases
+ * that are *not* uses of it: transformer windings and switch poles both group the terminals of a
+ * single device, which is the opposite claim.
+ */
+export type ComponentDevice = Readonly<{
+	/** Unique within its component. Addressable as `<componentId>.<deviceId>`. */
+	id: string;
+	/**
+	 * This device's law. Omitted means the component's own `kind`, which is the common case; an
+	 * optocoupler is why it can differ, holding an `led` and a `variable-resistor`.
+	 */
+	kind?: ComponentKind;
+	/**
+	 * The component terminals this device uses, by `name`.
+	 *
+	 * By name rather than index or position: a name is already unique within its component -- the
+	 * `nodes` ledger addresses pins as `<componentId>.<name>` and core refuses duplicates -- so a
+	 * name is a sufficient reference, and stating membership here is what an index could not do.
+	 *
+	 * A terminal may appear in several devices. The shared cathode of a dual rectifier and the
+	 * shared supplies of a dual op-amp are the ordinary case, not an exception.
+	 *
+	 * Order carries no meaning. A device binds by the `role` its terminals declare, and the
+	 * ambiguity a role could not resolve existed only across the whole package.
+	 */
+	terminals: readonly string[];
+}>;
+
 export type Component = Readonly<{
 	id: string;
+	/** What this package primarily is, and the default `kind` of every device inside it. */
 	kind: ComponentKind;
 	name: string;
 	origin: Point;
 	rotation: Rotation;
 	flipped: boolean;
 	terminals: readonly Terminal[];
+	/**
+	 * The devices this package contains.
+	 *
+	 * Omitted means exactly one device, of the component's `kind`, using all its terminals --
+	 * which is what nearly every component is, and why declaring it is not required. Use
+	 * `componentDevices()` to read either shape uniformly.
+	 */
+	devices?: readonly ComponentDevice[];
 	properties: Readonly<Record<string, PropertyValue>>;
 	sourceTypeName: string | null;
 }>;

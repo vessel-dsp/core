@@ -562,6 +562,17 @@ function componentBlock(
 		terminals: component.terminals.map((terminal) =>
 			terminalBlock(component, terminal, connectivity),
 		),
+		// Emitted only when declared: a component that is one device says nothing, which is what
+		// nearly every component is.
+		...(component.devices === undefined || component.devices.length === 0
+			? {}
+			: {
+					devices: component.devices.map((device) => ({
+						id: device.id,
+						...(device.kind === undefined ? {} : { kind: device.kind }),
+						terminals: [...device.terminals],
+					})),
+				}),
 		properties: propertiesBlock(component.properties),
 	};
 }

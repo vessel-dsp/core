@@ -52,9 +52,24 @@ drove a bias rail.
     - { name: v_pos,   role: supplyPositive, node: 9 }
   devices:
     - id: A
-      terminals: [out_a, in_a_neg, in_a_pos, v_pos, v_neg]
-    - id: B
-      terminals: [out_b, in_b_neg, in_b_pos, v_pos, v_neg]
+      terminals: [out_a, in_a_neg, in_a_pos, v_pos, v_neg]   # shown inline for brevity;
+    - id: B                                                   # the format needs block form
+      terminals: [out_b, in_b_neg, in_b_pos, v_pos, v_neg]    # -- see the note below
+```
+
+**A note on YAML shape.** The interchange format parses a deliberate *subset* of YAML in which the
+only flow collections are the empty `[]` and `{}`. A device's terminal list is therefore written in
+block form; the inline lists in this document are shorthand for readability, not valid source:
+
+```yaml
+  devices:
+    - id: A
+      terminals:
+        - out_a
+        - in_a_neg
+        - in_a_pos
+        - v_pos
+        - v_neg
 ```
 
 ### Three rules, and that is the whole construct

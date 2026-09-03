@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.6.30
+
+- Add `Component.devices`: the devices a package contains. A component models a schematic
+  **symbol**, and a symbol may hold several devices - a dual rectifier is two diodes on one
+  cathode, a dual op-amp two amplifiers on one supply pair, an optocoupler an LED beside a
+  photoresistor. Consumers need the devices, and until now each one reconstructed the split by
+  parsing terminal names. Design: `docs/device-construct-design.md`.
+- **A device names its terminals by `name`.** Names are already unique within a component - the
+  `nodes` ledger addresses pins as `<componentId>.<name>` and core refuses duplicates - so a name
+  is a sufficient reference, and membership is the thing an index could not state. Order carries
+  no meaning: a device binds by the `role` its terminals declare.
+- **A terminal may belong to several devices.** A dual rectifier's shared cathode and a dual
+  op-amp's shared supplies are the ordinary case, needing no special rule.
+- **`kind` is declarable per device**, defaulting to the component's. An optocoupler is why: it
+  holds an `led` and a `variable-resistor`, two laws in one package.
+- **Omitting `devices` means exactly one device**, of the component's kind, using all its
+  terminals. That is nearly every component - 8,462 resistors in the survey say nothing - and
+  `componentDevices()` returns the same shape either way, so no caller branches on whether the
+  list was written down.
+- `deviceTerminalRoles(component, device)` is the binding a law reads, scoped to one device. That
+  scope is the point: a dual op-amp declares two of every signal role across its package, and only
+  inside a device is the read unambiguous. This is the defect that motivated the construct - a
+  consumer guessing the pairing put both inputs of `boss-dm-3`'s `IC1` on one node and drove a
+  bias rail.
+- `validateComponentDevices()` reports a malformed declaration as an **error** (a terminal that
+  does not exist, a duplicate device id, an empty device, a repeated terminal, or a role the
+  device's kind cannot carry) and a terminal belonging to no device as a **warning**, since that
+  is either decorative or an omission and the document cannot say which. Whether a device's roles
+  are *sufficient* for its law stays with the consumer: encoding one law's expectations in the
+  format would make the format wrong for the next law.
+- Parser and serializer round-trip `devices`, emitting it only when declared. Terminal lists are
+  written in **block form**; the interchange format parses a YAML subset whose only flow
+  collections are the empty `[]` and `{}`.
+
 ## 0.6.29
 
 - Remove the `index` field added to `Terminal` in 0.6.28. It was a half-measure: for the case it

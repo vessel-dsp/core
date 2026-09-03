@@ -6,6 +6,7 @@ import {
 	propertyQuantityValue,
 	propertyStringValue,
 } from "./properties";
+import { validateComponentDevices } from "./devices";
 import type {
 	BoardNet,
 	BoardRealization,
@@ -739,6 +740,12 @@ export function validateDocument(
 			component,
 			playbackClaim,
 		)) {
+			issues.push(issue);
+		}
+
+		// A declared device list must refer to terminals that exist and claim roles its kind can
+		// carry. Whether a device's roles are *sufficient* for its law stays with the consumer.
+		for (const issue of validateComponentDevices(component)) {
 			issues.push(issue);
 		}
 	}
