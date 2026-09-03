@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.33
+
+- Add `ac` to `TerminalRole`, legal on `diode`, for a bridge rectifier's alternating input legs.
+  Such a leg is neither an anode nor a cathode: on one half cycle it conducts *into* the positive
+  rail and on the other the negative rail conducts into it, so one terminal serves two junctions
+  of opposite orientation. Naming it `anode` would state a direction it does not have, and the DC
+  side already has `positive`/`negative`.
+- Without it a diode's role vocabulary could not express what 12 corpus bridge terminals declare
+  (`ac_a`/`ac_b`, `ac_left`/`ac_right`, `acA`/`acB`), which is the gap that blocked a consumer from
+  replacing its own bridge-topology table with a read.
+
 ## 0.6.32
 
 - Add a canonical carrier-polarity vocabulary and validation. Polarity flips a device's whole

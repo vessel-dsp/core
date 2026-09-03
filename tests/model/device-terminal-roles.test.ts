@@ -223,3 +223,20 @@ describe("the terminal role field", () => {
 		// A role repeats where a name cannot: two interchangeable ends are both `end`.
 	});
 });
+
+describe("a bridge rectifier's AC legs", () => {
+	it("gives a diode an `ac` role, distinct from anode and cathode", () => {
+		// On one half cycle the leg conducts into the positive rail and on the other the negative
+		// rail conducts into it, so it is one terminal serving two junctions of opposite
+		// orientation. Calling it `anode` would state a direction it does not have.
+		expect(isLegalTerminalRole("diode", "ac")).toBe(true);
+		expect(terminalRolesFor("diode")).toContain("positive");
+		expect(terminalRolesFor("diode")).toContain("negative");
+	});
+
+	it("keeps `ac` off the kinds that have no alternating input", () => {
+		expect(isLegalTerminalRole("led", "ac")).toBe(false);
+		expect(isLegalTerminalRole("bjt", "ac")).toBe(false);
+		expect(isLegalTerminalRole("triode", "ac")).toBe(false);
+	});
+});

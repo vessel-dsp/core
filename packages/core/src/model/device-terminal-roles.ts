@@ -291,6 +291,15 @@ export type TerminalRole =
 	// Junction.
 	| "anode"
 	| "cathode"
+	/**
+	 * A bridge rectifier's alternating input leg.
+	 *
+	 * Neither an anode nor a cathode: on one half cycle the leg conducts *into* the positive rail
+	 * and on the other the negative rail conducts into it, so it is one terminal serving two
+	 * junctions with opposite orientation. Naming it `anode` would state a direction it does not
+	 * have. The DC side already has `positive`/`negative`; this is the AC side.
+	 */
+	| "ac"
 	// Bipolar.
 	| "base"
 	| "collector"
@@ -379,7 +388,9 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 	"variable-resistor": [...TWO_TERMINAL, "wiper"],
 	capacitor: TWO_TERMINAL,
 	inductor: TWO_TERMINAL,
-	diode: [...TWO_TERMINAL, "anode", "cathode", "plate", "heater"],
+	// `ac` for a bridge's input legs, `positive`/`negative` for its DC rails, and `plate`/`heater`
+	// because eight corpus tube rectifiers declare `kind: diode` rather than `tube-diode`.
+	diode: [...TWO_TERMINAL, "anode", "cathode", "ac", "plate", "heater"],
 	led: ["anode", "cathode", "end"],
 	bjt: ["base", "collector", "emitter", "pin"],
 	jfet: ["gate", "drain", "source", "pin"],
