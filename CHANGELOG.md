@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.6.32
+
+- Add a canonical carrier-polarity vocabulary and validation. Polarity flips a device's whole
+  transfer curve - an NPN read as PNP does not conduct, a p-channel FET read as n-channel biases
+  backwards - and the corpus stated it across **three keys**: `Type` (239 bjt + 103 jfet + 1
+  mosfet), `Polarity` (28 bjt + 3 jfet) and `Channel` (3 jfet), with case drift (`npn`/`NPN`) and
+  quoting artifacts (`'N'` sixteen times). `Polarity` is canonical; `Type` and `Channel` are
+  reported where they carry this fact.
+- `DevicePolarity` is `npn | pnp | n-channel | p-channel`, and `POLARITIES_BY_KIND` keeps the
+  bipolar and field-effect pairs apart. An `npn` MOSFET is the **one error** rather than a
+  warning: it is not a document predating a vocabulary, it is a claim that cannot be true.
+- **`Type` and `Polarity` each carry more than this concept, and the others are reported rather
+  than folded in**, because reading any of them as a carrier polarity would be worse than saying
+  so: a diode's `Type` is a device *family* (`Zener`, `Schottky`, `Germanium`) and each selects a
+  different law; a capacitor's `Polarity: electrolytic` is a dielectric that *implies*
+  polarization; a `voltage-source`'s `center-negative` is a DC barrel jack's sleeve; and
+  `Type: IC`/`LED`/`OTA` merely restates `kind`.
+- Normalization folds case, separators, stray YAML quotes and CamelCase boundaries, with the
+  acronym rule written so `NPN` survives whole rather than splitting into letters. An
+  abbreviation or a kind restatement is **not** folded: `N`, `NJF` and `N-channel JFET` all mean
+  n-channel and are all documents to correct, the same rule the taper vocabulary applies to `A`.
+- A missing polarity on an active device is reported, because its transfer curve depends on it and
+  silence forces a consumer to guess - measured downstream as 37 FETs whose channel does not
+  resolve.
+- **A suppression bug found by disbelieving a good-looking measurement.** The first version
+  suppressed the missing-polarity report whenever *any* superseded key was a string, so a JFET
+  declaring `Type: 'N'` - which states no polarity this vocabulary can read - was reported as
+  clean. Corpus counts went from 1 unrecognized to the true 105, and missing from 167 to 271:
+  **105 devices had been hidden by the presence of a key whose value did not resolve.** The
+  suppression now requires that the other key actually carry a usable polarity.
+- **A declared part suppresses the missing-polarity report.** A 2N3904 is NPN and a 2N3906 is PNP,
+  so a `PartNumber`/`Model`/`Chip` identifies the polarity even where the document does not spell
+  it out. Core holds no part catalog and cannot check which, but a consumer that does is not
+  guessing, and warning here would make the check noise on every properly identified transistor.
+  Found by a pre-existing fixture - a BJT carrying only `Model: 2N3904` - which is exactly the
+  case the first draft got wrong.
+- Corpus position after this release: 544 bjt/jfet/mosfet components, **288 clean (52.9%)**, 242
+  carrying the polarity under `Type` (a key rename), **13** where neither a polarity nor a part
+  identifies it, and 1 unrecognized value. The earlier draft of this entry reported 30 clean and
+  271 missing; those figures were taken before the part-identification rule and before the
+  suppression bug was fixed, and are wrong.
+
 ## 0.6.31
 
 - Add a canonical potentiometer taper vocabulary and validation. Taper is **audible** - it is how

@@ -1,4 +1,4 @@
-export const VERSION = "0.6.31";
+export const VERSION = "0.6.32";
 
 export type {
 	CreateComponentArgs,
@@ -84,6 +84,15 @@ export type {
 	PotentiometerTerminalRoleResolution,
 	PotentiometerTerminalRoleVerdict,
 } from "./model/terminal-roles";
+export {
+	DEVICE_POLARITIES,
+	POLARITIES_BY_KIND,
+	POLARITY_PROPERTY_KEY,
+	SUPERSEDED_POLARITY_PROPERTY_KEYS,
+	classifyPolarity,
+	collectPolarityIssues,
+} from "./model/polarity";
+export type { DevicePolarity, PolarityIssue, PolarityVerdict } from "./model/polarity";
 export {
 	POTENTIOMETER_TAPERS,
 	SUPERSEDED_TAPER_PROPERTY_KEYS,

@@ -7,6 +7,7 @@ import {
 	propertyStringValue,
 } from "./properties";
 import { validateComponentDevices } from "./devices";
+import { collectPolarityIssues } from "./polarity";
 import { collectTaperIssues } from "./taper";
 import type {
 	BoardNet,
@@ -751,6 +752,10 @@ export function validateDocument(
 		}
 
 		for (const issue of collectTaperIssues(component)) {
+			issues.push(issue);
+		}
+
+		for (const issue of collectPolarityIssues(component)) {
 			issues.push(issue);
 		}
 	}
