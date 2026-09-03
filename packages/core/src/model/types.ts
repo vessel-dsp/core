@@ -173,6 +173,54 @@ export type ComponentDevice = Readonly<{
 	terminals: readonly string[];
 }>;
 
+/**
+ * What a winding is for.
+ *
+ * Taken from the 12 groups a consumer's spelling table currently produces, plus the two an
+ * electromechanical transducer needs. `drive`/`pickup` are a spring reverb tank: its coils are a
+ * driver and a pickup, and which is which decides whether the recovery amp's signal goes into the
+ * springs or comes out of them -- not a distinction `primary`/`secondary` can carry, because
+ * neither coil transforms the other's voltage.
+ */
+export type WindingRole =
+	| "primary"
+	| "secondary"
+	| "hv"
+	| "filament"
+	| "rectifier-heater"
+	| "bias"
+	| "low-voltage"
+	| "auxiliary"
+	| "shield"
+	| "drive"
+	| "pickup";
+
+/**
+ * One coil of a transformer.
+ *
+ * See `model/windings.ts` for the survey this is built from and for why it is the sibling of
+ * `ComponentDevice` rather than a use of it.
+ */
+export type ComponentWinding = Readonly<{
+	/** Optional, for reference and diagnostics. Unique within its component when given. */
+	id?: string;
+	role: WindingRole;
+	/**
+	 * The component terminals forming this coil, **in order along it**, by `name`.
+	 *
+	 * Order is the only thing that places a tap: `[hv_a, hv_center_tap, hv_b]` says the centre tap
+	 * sits between the ends, and `[secondary_common, secondary_4, secondary_8, secondary_16]` says
+	 * those impedance taps ascend from the common end. Which entries are ends and which are taps
+	 * comes from each terminal's own `role` (`winding` or `windingTap`), so this list does not
+	 * repeat it.
+	 *
+	 * A role may repeat across windings -- a transformer can carry two `secondary` coils, one
+	 * feeding a speaker and one a constant-voltage line output -- so windings are distinguished by
+	 * their terminals, or by `id` where a document gives one.
+	 */
+	terminals: readonly string[];
+}>;
+
 export type Component = Readonly<{
 	id: string;
 	/** What this package primarily is, and the default `kind` of every device inside it. */
@@ -190,6 +238,18 @@ export type Component = Readonly<{
 	 * `componentDevices()` to read either shape uniformly.
 	 */
 	devices?: readonly ComponentDevice[];
+	/**
+	 * The coils this transformer's terminals form.
+	 *
+	 * The sibling of `devices`, and deliberately not a use of it: a package holding several
+	 * devices is one claim, while a transformer is *one* device whose coils are magnetically
+	 * coupled -- calling each winding a device would say they are independent. See
+	 * `model/windings.ts` for what terminal names were carrying before this existed.
+	 *
+	 * Omitted means the document does not state its winding grouping, which is every document
+	 * written before this construct.
+	 */
+	windings?: readonly ComponentWinding[];
 	properties: Readonly<Record<string, PropertyValue>>;
 	sourceTypeName: string | null;
 }>;

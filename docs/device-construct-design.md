@@ -177,8 +177,8 @@ declaration is well-formed and that roles are legal for the kind; it does not en
 
 1. **Transformer windings are a sibling construct, not a use of this one.** A transformer is *one*
    device whose terminals group into coupled coils. Modelling each winding as a device would claim
-   they are independent, which is the opposite of what a transformer is. That needs `windings[]`,
-   with per-tap metadata — 53 transformers carrying 107 distinct spellings are waiting on it.
+   they are independent, which is the opposite of what a transformer is. Built separately as
+   [`windings`](./winding-construct-design.md).
 2. **A missing device law.** `Q1_UJT` is one device; the problem is that no `ComponentKind` names
    a unijunction. Grouping does not help.
 3. **Switch contacts.** 232 spellings naming what each contact connects to. A pole is closer to a

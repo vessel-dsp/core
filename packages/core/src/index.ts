@@ -1,4 +1,4 @@
-export const VERSION = "0.6.33";
+export const VERSION = "0.6.34";
 
 export type {
 	CreateComponentArgs,
@@ -101,6 +101,13 @@ export {
 	collectTaperIssues,
 } from "./model/taper";
 export type { PotentiometerTaper, TaperIssue, TaperVerdict } from "./model/taper";
+export {
+	WINDING_ROLES,
+	validateComponentWindings,
+	windingEndsAndTaps,
+	windingOfTerminal,
+} from "./model/windings";
+export type { WindingIssue } from "./model/windings";
 export {
 	componentDevices,
 	deviceTerminalRoles,
@@ -229,6 +236,7 @@ export type {
 	CircuitPowerSourceKind,
 	Component,
 	ComponentDevice,
+	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
 	ControlApplicabilityPredicate,
@@ -303,6 +311,7 @@ export type {
 	VdspBuildDataScalar,
 	VdspBuildDataValue,
 	Warning,
+	WindingRole,
 	Wire,
 } from "./model/types";
 export { EMPTY_DOCUMENT } from "./model/types";

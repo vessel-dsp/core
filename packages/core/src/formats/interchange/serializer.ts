@@ -573,6 +573,16 @@ function componentBlock(
 						terminals: [...device.terminals],
 					})),
 				}),
+		// Likewise a component with no coupled coils, which is everything but a transformer.
+		...(component.windings === undefined || component.windings.length === 0
+			? {}
+			: {
+					windings: component.windings.map((winding) => ({
+						...(winding.id === undefined ? {} : { id: winding.id }),
+						role: winding.role,
+						terminals: [...winding.terminals],
+					})),
+				}),
 		properties: propertiesBlock(component.properties),
 	};
 }

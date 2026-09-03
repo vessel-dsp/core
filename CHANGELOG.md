@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.34
+
+- Add `windings`, the sibling to `devices`: a transformer declares which of its terminals form
+  each coupled coil, in coil order, and `role`/`windingTap` on the terminals themselves says which
+  are ends and which are taps. A winding entry is `role` plus ordered `terminals` — nothing more,
+  because core already carries the per-terminal fact.
+- Eleven roles: `primary`, `secondary`, `hv`, `filament`, `rectifier-heater`, `bias`,
+  `low-voltage`, `auxiliary`, `shield`, `drive`, `pickup`. Roles may repeat, which is what makes a
+  second secondary expressible; a consumer distinguishes windings by their terminals or by an
+  optional `id`.
+- `drive`/`pickup` exist for a spring reverb tank, where neither coil transforms the other's
+  voltage. It is the one `transformer`-kind component in the corpus that is not a transformer, and
+  calling its coils primary/secondary states something false about it.
+- Validation: unknown role, unknown or repeated terminal, a terminal claimed by two windings, an
+  empty list and a duplicate `id` are errors; a single-ended winding and a winding-role terminal
+  no winding couples are warnings. `windingOfTerminal()` and `windingEndsAndTaps()` are the read
+  side.
+- Measured against the corpus first: 53 transformers, 296 terminals, and a consumer table of 110
+  spelling entries reconstructing 12 winding classes — four of which (`secondaryalt`,
+  `secondaryalt2`, `secondaryalt3`, `secondaryline`) exist only because a spelling-keyed record
+  has nowhere to put two coils with the same role. Design and the connectivity boundary it must
+  not cross: `docs/winding-construct-design.md`.
+
 ## 0.6.33
 
 - Add `ac` to `TerminalRole`, legal on `diode`, for a bridge rectifier's alternating input legs.

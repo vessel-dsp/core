@@ -45,6 +45,7 @@ import type {
 	CircuitPowerSourceKind,
 	Component,
 	ComponentDevice,
+	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
 	ControlApplicabilityPredicate,
@@ -92,6 +93,7 @@ import type {
 	VdspBuildDataObject,
 	VdspBuildDataValue,
 	Warning,
+	WindingRole,
 	Wire,
 } from "../../model/types";
 
@@ -2995,6 +2997,7 @@ function parseComponents(
 			flipped: expectBoolean(component.flipped, `${path}.flipped`),
 			terminals: parseTerminals(component.terminals, `${path}.terminals`),
 			...parseComponentDevices(component.devices, `${path}.devices`),
+			...parseComponentWindings(component.windings, `${path}.windings`),
 			properties: parseProperties(component.properties, `${path}.properties`),
 			sourceTypeName,
 		};
@@ -3060,6 +3063,38 @@ function collectSourceTypeNameWarnings(
 		message: `sourceTypeName "${sourceTypeName}" is not a supported source type.`,
 		componentId,
 	});
+}
+
+/**
+ * A transformer's declared winding list, or nothing when it declares none.
+ *
+ * Absent and empty are the same statement, so an empty list is dropped rather than carried.
+ */
+function parseComponentWindings(
+	value: YamlValue | undefined,
+	path: string,
+): { windings?: readonly ComponentWinding[] } {
+	const raw = optionalArray(value, path);
+	if (raw.length === 0) return {};
+	const windings = raw.map((item, index) => {
+		const windingPath = `${path}[${index}]`;
+		const winding = expectObject(item, windingPath);
+		const id =
+			typeof winding.id === "string" && winding.id.trim()
+				? winding.id.trim()
+				: undefined;
+		return {
+			...(id === undefined ? {} : { id }),
+			role: expectString(winding.role, `${windingPath}.role`) as WindingRole,
+			terminals: optionalArray(
+				winding.terminals,
+				`${windingPath}.terminals`,
+			).map((terminal, terminalIndex) =>
+				expectString(terminal, `${windingPath}.terminals[${terminalIndex}]`),
+			),
+		};
+	});
+	return { windings };
 }
 
 /**
