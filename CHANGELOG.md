@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.6.28
+
+- Add a **required** `role` field to `Terminal`, with an optional `index`. A terminal's name is
+  the pin's identity in the `nodes` ledger and must be unique within its component, so it cannot
+  also carry the electrode - a dual rectifier has two plates and can only name one of them
+  `plate`. The role is now its own typed field, and the name goes back to being whatever the
+  source printed.
+- This supersedes 0.6.27's approach, which inferred the role from the name against a canonical
+  vocabulary. That was the wrong layer: it made the name normative and left every consumer
+  parsing text. 0.6.27's `classifyDeviceTerminalRole` remains, now as the **migration reader** -
+  it is what writes a `role` into the 26,016 terminals written before the field existed.
+- `TERMINAL_ROLES_BY_KIND` declares which roles each of the 32 component kinds may carry, and
+  `isLegalTerminalRole(kind, role)` checks one. `screen` is legal on a pentode and not a triode;
+  `wiper` on a potentiometer and not a diode.
+- Two values exist so that a required field is satisfiable on every kind, and neither is a
+  loophole. **`pin`** is an opaque part's numbered pin - pin 7 of an unknown IC has no electrode
+  meaning, and 2,648 `ic` terminals across 1,566 spellings are exactly this. **`end`** is one of
+  two interchangeable ends, so `end` twice on a resistor is correct rather than under-specified.
+  A role may repeat within a component; a name may not.
+- `collectTerminalRoleWarnings()` reports two distinct things: `terminal-role-missing` for a
+  terminal that declares none, and `terminal-role-illegal` for a role its kind cannot carry. The
+  missing case is a **warning, not a refusal**, because refusing would reject every document
+  written before this release; the warning count is the backfill's remaining work. The illegal
+  case is always the document's error.
+- `transformer` and `switch` take deliberately coarse roles (`winding`/`windingTap`/`shield`,
+  `common`/`throw`/`coil`). A transformer terminal's role is that it is a winding end; *which*
+  winding it belongs to is membership, which a flat role cannot express and which those packets'
+  107 spellings currently carry inside names. That needs a winding construct.
+- Parser and serializer round-trip `role` and `index`, and emit them only when declared, so a
+  document written before this release serializes back unchanged.
+
 ## 0.6.27
 
 - Add a canonical terminal-role vocabulary for the active devices whose electrodes are

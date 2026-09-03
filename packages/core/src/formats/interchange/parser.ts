@@ -3067,8 +3067,20 @@ function parseTerminals(
 	return optionalArray(value, path).map((item, index) => {
 		const terminalPath = `${path}[${index}]`;
 		const terminal = expectObject(item, terminalPath);
+		const role =
+			typeof terminal.role === "string" && terminal.role.trim()
+				? terminal.role.trim()
+				: undefined;
+		const roleIndex =
+			typeof terminal.index === "string" && terminal.index.trim()
+				? terminal.index.trim()
+				: typeof terminal.index === "number"
+					? String(terminal.index)
+					: undefined;
 		return {
 			name: expectString(terminal.name, `${terminalPath}.name`),
+			...(role === undefined ? {} : { role }),
+			...(roleIndex === undefined ? {} : { index: roleIndex }),
 			position: parsePoint(terminal.position, `${terminalPath}.position`),
 		};
 	});

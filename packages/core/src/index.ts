@@ -1,4 +1,4 @@
-export const VERSION = "0.6.27";
+export const VERSION = "0.6.28";
 
 export type {
 	CreateComponentArgs,
@@ -87,6 +87,10 @@ export type {
 export {
 	AMBIGUOUS_DEVICE_TERMINAL_TOKENS,
 	DEVICE_TERMINAL_ROLES,
+	TERMINAL_ROLES_BY_KIND,
+	collectTerminalRoleWarnings,
+	isLegalTerminalRole,
+	terminalRolesFor,
 	INDEXABLE_DEVICE_TERMINAL_ROLES,
 	classifyDeviceTerminalRole,
 	isRoledDeviceKind,
@@ -96,6 +100,7 @@ export type {
 	DeviceTerminalRole,
 	DeviceTerminalRoleVerdict,
 	RoledDeviceKind,
+	TerminalRole,
 } from "./model/device-terminal-roles";
 export type { InterchangeTopologyParseResult } from "./formats/interchange/parser";
 export {

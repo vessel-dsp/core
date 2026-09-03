@@ -265,3 +265,242 @@ export function resolveComponentTerminalRoles(
 	}
 	return resolved;
 }
+
+// ---------------------------------------------------------------------------
+// The `role` field contract (0.6.28)
+//
+// Everything above infers a role from a terminal's *name*, which was the wrong layer: a name is
+// the pin's identity in the `nodes:` ledger, and loading it with semantics is what made every
+// consumer grow a spelling table. A terminal carries its role in its own typed field instead, and
+// the name goes back to being whatever the transcriber read off the page.
+//
+// The inference above does not go away -- it is how 26,016 existing terminals get a `role` written
+// into them without a human typing each one. It is a migration reader, not the contract.
+//
+// **Every terminal has a role, so the vocabulary must cover every kind.** That forces two values
+// that look like escape hatches and are not:
+//
+//   `pin`  -- an opaque part's numbered pin. Pin 7 of an unknown IC has no electrode meaning;
+//             saying `pin` is a true statement about it, where inventing a role would not be.
+//             2,648 `ic` terminals across 1,566 spellings are this, and no enum can absorb them.
+//   `end`  -- one of two interchangeable ends. A resistor genuinely has no first or second
+//             terminal, so `end` twice on one component is correct rather than under-specified.
+//             This is why a role need not be unique within a component while a *name* must be.
+// ---------------------------------------------------------------------------
+
+/** Every role a terminal may declare, across every component kind. */
+export type TerminalRole =
+	// Interchangeable ends, and stated polarity where a part has it.
+	| "end"
+	| "positive"
+	| "negative"
+	// Junction.
+	| "anode"
+	| "cathode"
+	// Bipolar.
+	| "base"
+	| "collector"
+	| "emitter"
+	// Field effect.
+	| "gate"
+	| "drain"
+	| "source"
+	| "bulk"
+	// Vacuum. (`cathode` is shared with the junction group.)
+	| "grid"
+	| "screen"
+	| "suppressor"
+	| "plate"
+	| "heater"
+	// Amplifier signal and support pins.
+	| "nonInverting"
+	| "inverting"
+	| "output"
+	| "supplyPositive"
+	| "supplyNegative"
+	| "bias"
+	| "compensation"
+	| "balance"
+	// Potentiometer sweep, matching `PotentiometerTerminalRole`.
+	| "ccw"
+	| "wiper"
+	| "cw"
+	// Connectors.
+	| "tip"
+	| "ring"
+	| "sleeve"
+	| "send"
+	| "return"
+	| "switchContact"
+	// Magnetics. Which winding a terminal belongs to is structure, not a role -- see the
+	// transformer note in `TERMINAL_ROLES_BY_KIND`.
+	| "winding"
+	| "windingTap"
+	| "shield"
+	// Mechanical contacts.
+	| "common"
+	| "throw"
+	| "coil"
+	// Circuit reference.
+	| "ground"
+	// An opaque part's numbered pin: position, no semantics.
+	| "pin";
+
+const TWO_TERMINAL: readonly TerminalRole[] = ["end", "positive", "negative"];
+const SUPPLY: readonly TerminalRole[] = [
+	"positive",
+	"negative",
+	"ground",
+	"end",
+];
+const OPAMP: readonly TerminalRole[] = [
+	"nonInverting",
+	"inverting",
+	"output",
+	"supplyPositive",
+	"supplyNegative",
+	"bias",
+	"compensation",
+	"balance",
+	"pin",
+];
+
+/**
+ * Which roles each kind may declare.
+ *
+ * **`transformer` and `switch` are deliberately coarse.** A transformer terminal's role is that it
+ * is a winding end or a tap; *which* winding it belongs to is membership, which a flat role cannot
+ * express and which the 107 spellings in the survey are currently carrying inside names
+ * (`hv_red_a_345vac`). That needs a winding construct; until it exists, `winding`/`windingTap`
+ * states what is true without pretending to state the grouping. `switch` is the same shape: 232
+ * spellings naming what each contact connects to.
+ *
+ * Kinds that are not electrical devices (`label`, `named-wire`, `port`, `unsupported`) take `pin`,
+ * since their terminals are attachment points rather than electrodes.
+ */
+export const TERMINAL_ROLES_BY_KIND: Readonly<
+	Record<string, readonly TerminalRole[]>
+> = {
+	resistor: TWO_TERMINAL,
+	"variable-resistor": [...TWO_TERMINAL, "wiper"],
+	capacitor: TWO_TERMINAL,
+	inductor: TWO_TERMINAL,
+	diode: [...TWO_TERMINAL, "anode", "cathode", "plate", "heater"],
+	led: ["anode", "cathode", "end"],
+	bjt: ["base", "collector", "emitter", "pin"],
+	jfet: ["gate", "drain", "source", "pin"],
+	mosfet: ["gate", "drain", "source", "bulk", "pin"],
+	triode: ["grid", "cathode", "plate", "heater"],
+	pentode: ["grid", "screen", "suppressor", "cathode", "plate", "heater"],
+	"tube-diode": ["plate", "cathode", "heater"],
+	opamp: OPAMP,
+	ota: OPAMP,
+	comparator: OPAMP,
+	potentiometer: ["ccw", "wiper", "cw", "end"],
+	jack: [
+		"tip",
+		"ring",
+		"sleeve",
+		"send",
+		"return",
+		"switchContact",
+		"ground",
+		"positive",
+		"negative",
+		"pin",
+	],
+	transformer: ["winding", "windingTap", "shield"],
+	switch: ["common", "throw", "coil", "pin"],
+	selector: ["common", "throw", "coil", "pin"],
+	"analog-switch": ["common", "throw", "coil", "pin"],
+	optocoupler: ["anode", "cathode", "end", "pin"],
+	"voltage-source": SUPPLY,
+	"current-source": SUPPLY,
+	battery: SUPPLY,
+	rail: SUPPLY,
+	ground: ["ground"],
+	// Opaque parts: pins are data, and which subset carries executable meaning is a separate
+	// declared interface rather than a role.
+	ic: ["pin"],
+	bbd: ["pin"],
+	"delay-ic": ["pin"],
+	regulator: ["pin", "positive", "negative", "ground"],
+	"power-converter": ["pin", "positive", "negative", "ground"],
+	"power-amp": ["pin", "nonInverting", "inverting", "output"],
+	flipflop: ["pin"],
+	// Not electrical devices; their terminals are attachment points.
+	label: ["pin"],
+	"named-wire": ["pin"],
+	port: ["pin", "end"],
+	unsupported: ["pin"],
+};
+
+/** Is `role` a legal declaration for a component of `kind`? */
+export function isLegalTerminalRole(
+	kind: ComponentKind | string,
+	role: string,
+): role is TerminalRole {
+	return (TERMINAL_ROLES_BY_KIND[kind] ?? []).includes(role as TerminalRole);
+}
+
+/** The roles `kind` accepts, or an empty list for a kind with no declared vocabulary. */
+export function terminalRolesFor(
+	kind: ComponentKind | string,
+): readonly TerminalRole[] {
+	return TERMINAL_ROLES_BY_KIND[kind] ?? [];
+}
+
+/**
+ * Diagnostics for the `role` field: one for a role a kind cannot carry, one for a terminal that
+ * declares none.
+ *
+ * **Both are warnings, and the missing-role one is the whole migration.** The format requires a
+ * role on every terminal, but 26,016 terminals were written before the field existed, so refusing
+ * a document without one would refuse the entire corpus. Reporting instead makes the backfill
+ * measurable — the warning count is the work remaining — and lets it proceed document by
+ * document. Tighten to a refusal once the count reaches zero.
+ *
+ * An **illegal** role is a different thing and is always the document's error: `screen` on a
+ * triode, or `wiper` on a diode, is a claim the kind cannot support.
+ */
+export function collectTerminalRoleWarnings(
+	components: readonly {
+		readonly id: string;
+		readonly kind: string;
+		readonly terminals: readonly {
+			readonly name: string;
+			readonly role?: string;
+		}[];
+	}[],
+): readonly {
+	readonly code: "terminal-role-illegal" | "terminal-role-missing";
+	readonly message: string;
+	readonly componentId: string;
+}[] {
+	const warnings: {
+		code: "terminal-role-illegal" | "terminal-role-missing";
+		message: string;
+		componentId: string;
+	}[] = [];
+	for (const component of components) {
+		const legal = terminalRolesFor(component.kind);
+		for (const terminal of component.terminals) {
+			if (terminal.role === undefined) {
+				warnings.push({
+					code: "terminal-role-missing",
+					message: `terminal "${terminal.name}" declares no role; ${component.kind} terminals must declare one of: ${legal.join(", ") || "(no vocabulary for this kind)"}`,
+					componentId: component.id,
+				});
+				continue;
+			}
+			if (!isLegalTerminalRole(component.kind, terminal.role)) {
+				warnings.push({
+					code: "terminal-role-illegal",
+					message: `terminal "${terminal.name}" declares role "${terminal.role}", which a ${component.kind} cannot carry; legal roles: ${legal.join(", ") || "(none)"}`,
+					componentId: component.id,
+				});
+			}
+		}
+	}
+	return warnings;
+}

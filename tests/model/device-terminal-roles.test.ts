@@ -4,8 +4,11 @@ import {
 	DEVICE_TERMINAL_ROLES,
 	INDEXABLE_DEVICE_TERMINAL_ROLES,
 	classifyDeviceTerminalRole,
+	collectTerminalRoleWarnings,
+	isLegalTerminalRole,
 	isRoledDeviceKind,
 	resolveComponentTerminalRoles,
+	terminalRolesFor,
 } from "../../packages/core/src/model/device-terminal-roles";
 
 describe("device terminal roles", () => {
@@ -164,5 +167,61 @@ describe("device terminal roles", () => {
 		for (const role of INDEXABLE_DEVICE_TERMINAL_ROLES) {
 			expect(declared.has(role)).toBe(true);
 		}
+	});
+});
+
+describe("the terminal role field", () => {
+	it("accepts a role its kind carries and rejects one it does not", () => {
+		expect(isLegalTerminalRole("pentode", "screen")).toBe(true);
+		expect(isLegalTerminalRole("triode", "screen")).toBe(false);
+		expect(isLegalTerminalRole("diode", "wiper")).toBe(false);
+		expect(isLegalTerminalRole("potentiometer", "wiper")).toBe(true);
+	});
+
+	it("covers every component kind, so a required field is satisfiable everywhere", () => {
+		// The point of `pin` and `end`: without them a required role would be impossible to
+		// declare on an opaque chip or an unordered two-terminal part.
+		expect(terminalRolesFor("ic")).toEqual(["pin"]);
+		expect(terminalRolesFor("resistor")).toContain("end");
+		for (const kind of ["ic", "switch", "transformer", "label", "port", "unsupported"]) {
+			expect(terminalRolesFor(kind).length).toBeGreaterThan(0);
+		}
+	});
+
+	it("reports a missing role separately from an illegal one", () => {
+		const warnings = collectTerminalRoleWarnings([
+			{
+				id: "V1",
+				kind: "triode",
+				terminals: [
+					{ name: "plate", role: "plate" },
+					{ name: "grid" },
+					{ name: "k", role: "screen" },
+				],
+			},
+		]);
+		expect(warnings.map((w) => w.code)).toEqual([
+			"terminal-role-missing",
+			"terminal-role-illegal",
+		]);
+		// The missing-role warning is the migration counter; the illegal one is a document error.
+		expect(warnings[0]?.message).toContain("grid, cathode, plate, heater");
+		expect(warnings[1]?.message).toContain("a triode cannot carry");
+	});
+
+	it("says nothing about a fully declared component", () => {
+		expect(
+			collectTerminalRoleWarnings([
+				{
+					id: "R1",
+					kind: "resistor",
+					terminals: [
+						{ name: "a", role: "end" },
+						{ name: "b", role: "end" },
+					],
+				},
+			]),
+		).toEqual([]);
+		// A role repeats where a name cannot: two interchangeable ends are both `end`.
 	});
 });

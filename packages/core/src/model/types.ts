@@ -48,7 +48,29 @@ export type ComponentKind =
 	| "unsupported";
 
 export type Terminal = Readonly<{
+	/**
+	 * The pin's identity. Referenced as `<componentId>.<name>` by the `nodes` ledger, so it must
+	 * be unique within its component -- which is why it cannot also be the role: a dual rectifier
+	 * has two plates and can only name one of them `plate`.
+	 *
+	 * Free text on purpose. It is what the source printed, and nothing infers behaviour from it.
+	 */
 	name: string;
+	/**
+	 * Which electrode this is. See `TERMINAL_ROLES_BY_KIND` for the roles each component kind may
+	 * declare.
+	 *
+	 * Optional in the *type* only so that documents written before 0.6.28 still parse; the format
+	 * requires it, and a terminal without one is reported by
+	 * `collectMissingTerminalRoleWarnings`. Treat `undefined` as "this document predates the
+	 * field", never as "this terminal has no role".
+	 */
+	role?: string;
+	/**
+	 * Distinguishes two terminals sharing a role, as a dual rectifier's plates do. Meaningful only
+	 * with `role`; the consuming device law decides whether a repetition is significant.
+	 */
+	index?: string;
 	position: Point;
 }>;
 
