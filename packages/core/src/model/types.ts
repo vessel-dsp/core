@@ -176,11 +176,19 @@ export type ComponentDevice = Readonly<{
 /**
  * What a winding is for.
  *
- * Taken from the 12 groups a consumer's spelling table currently produces, plus the two an
- * electromechanical transducer needs. `drive`/`pickup` are a spring reverb tank: its coils are a
- * driver and a pickup, and which is which decides whether the recovery amp's signal goes into the
- * springs or comes out of them -- not a distinction `primary`/`secondary` can carry, because
- * neither coil transforms the other's voltage.
+ * Taken from the groups a consumer's spelling table produces, plus the two an electromechanical
+ * transducer needs. `drive`/`pickup` are a spring reverb tank: its coils are a driver and a
+ * pickup, and which is which decides whether the recovery amp's signal goes into the springs or
+ * comes out of them -- not a distinction `primary`/`secondary` can carry, because neither coil
+ * transforms the other's voltage.
+ *
+ * A role may repeat on one transformer. `orange-rockerverb`'s power transformer carries two
+ * filament windings, a 3.15-0-3.15 V pair for the power tubes and a 6.3 V pair for the preamp;
+ * a record keyed on a role, or on a terminal spelling, has nowhere to put the second. Windings
+ * are distinguished by their terminals, or by an optional `id`.
+ *
+ * There is deliberately no `shield` role. A shield is a grounded foil between windings, not a
+ * coil, and `role: shield` on the terminal says all of it.
  */
 export type WindingRole =
 	| "primary"
@@ -191,7 +199,6 @@ export type WindingRole =
 	| "bias"
 	| "low-voltage"
 	| "auxiliary"
-	| "shield"
 	| "drive"
 	| "pickup";
 

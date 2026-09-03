@@ -37,7 +37,6 @@ export const WINDING_ROLES: readonly WindingRole[] = [
 	"bias",
 	"low-voltage",
 	"auxiliary",
-	"shield",
 	"drive",
 	"pickup",
 ];
@@ -144,6 +143,10 @@ export function validateComponentWindings(
 	}
 
 	for (const terminal of component.terminals) {
+		// A shield is deliberately not a coil: it is a grounded foil between windings, and
+		// `role: shield` on the terminal is the whole statement. Warning that nothing couples it
+		// would ask for a winding entry that would be false.
+		if (terminal.role === "shield") continue;
 		if (!claimed.has(terminal.name)) {
 			issues.push({
 				code: "winding-terminal-orphaned",

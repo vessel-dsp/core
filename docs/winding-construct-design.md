@@ -9,7 +9,7 @@ consumer had to guess the grouping back out of terminal spellings.
 
 ## The measurement
 
-53 transformers in the corpus, 296 terminals, and downstream a 110-entry table keyed on folded
+55 transformers in the corpus, 363 terminals, and downstream a 110-entry table keyed on folded
 terminal spellings — `primaryplus`, `hvreda345vac`, `powertubeheatercenter0v`, `tankreturnhot` —
 mapping each to a `{ winding, end }` pair. The table reconstructs 12 winding classes:
 
@@ -21,6 +21,9 @@ mapping each to a `{ winding, end }` pair. The table reconstructs 12 winding cla
 | `filament` | 40 | `secondaryalt` | 4 |
 | `rectifierheater` | 20 | `secondaryline` | 1 |
 | `lowvoltage` | 18 | `shield` | 1 |
+
+(55 transformers, 363 terminals, counted after two files using a quoted-scalar style were found
+to have been skipped by the first pass — the same shape that hid a pedal from an earlier backfill.)
 
 `secondaryalt`, `secondaryalt2`, `secondaryalt3` and `secondaryline` are not four kinds of
 winding. They are the table's way of saying "another secondary", because a `Record<string, …>`
@@ -77,20 +80,26 @@ than the real fault, which is that the document never said what its coils are.
 
 ### Roles may repeat
 
-Two `secondary` coils on one magnetic is ordinary — a speaker winding and a constant-voltage line
-output. Windings are distinguished by their terminals, and by an optional `id` when a consumer or
-a reader wants to name one. This is what deletes `secondaryalt3`.
+`orange-rockerverb`'s power transformer carries **two filament windings** — a 3.15-0-3.15 V pair
+for the power tube heaters and a separate 6.3 V pair for the preamp. A record keyed on a role, or
+on a terminal spelling, has nowhere to put the second; the spelling table collapsed both into one
+`filament` class. Windings are distinguished by their terminals, and by an optional `id` when a
+consumer or a reader wants to name one. This is also what deletes `secondaryalt3`.
 
-### Eleven roles
+### Ten roles
 
 `primary`, `secondary`, `hv`, `filament`, `rectifier-heater`, `bias`, `low-voltage`, `auxiliary`,
-`shield`, `drive`, `pickup`.
+`drive`, `pickup`.
 
-The first nine are the corpus's classes with the `alt`/`line` suffixes folded away. `drive` and
+The first eight are the corpus's classes with the `alt`/`line` suffixes folded away. `drive` and
 `pickup` are for a spring reverb tank, where neither coil transforms the other's voltage: one
 drives the springs and one picks up what comes back. The table calls the tank's coils `secondary`
 and `secondaryalt`, which is exactly wrong about what it is — and a reverb tank is the one
 `transformer`-kind component in the corpus that is not a transformer.
+
+There is deliberately no `shield` role. `tycobrahe-octavia`'s T1 brings out a `shield_nc` pin, and
+a shield is a grounded foil between windings rather than a coil, so `role: shield` on the terminal
+is the whole statement and no winding entry couples it.
 
 ### Declaring nothing is a valid statement
 
@@ -121,6 +130,9 @@ same terminal claimed by two windings, an empty terminal list, a duplicate `id`.
 Warnings: a single-terminal winding (real — a bias tap whose return is grounded inside the
 transformer — but usually a transcription that stopped early), and a terminal with a winding role
 that no winding couples.
+
+Across the backfilled corpus that is 11 warnings and no errors. All 11 are single-ended `bias`
+windings, which is the legitimate case the warning names.
 
 ## What it deletes downstream
 

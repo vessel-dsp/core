@@ -100,25 +100,55 @@ describe("transformer windings", () => {
 		expect(windingOfTerminal(tank, "output_hot")?.role).toBe("pickup");
 		expect(WINDING_ROLES).toContain("drive");
 		expect(WINDING_ROLES).toContain("pickup");
+		// A shield is not a coil, so it has no winding role and is not expected to be coupled.
+		expect(WINDING_ROLES).not.toContain("shield");
 	});
 
-	it("lets a role repeat, because a transformer may carry two secondaries", () => {
-		// One feeds a speaker, one a constant-voltage line output. They are distinguished by
-		// their terminals rather than by role.
+	it("lets a role repeat, which one transformer in the corpus needs", () => {
+		// `orange-rockerverb`'s power transformer: 3.15-0-3.15 V for the power tube heaters and a
+		// separate 6.3 V pair for the preamp. Both are filament windings, and a record keyed on a
+		// role -- or on a terminal spelling -- has nowhere to put the second.
 		const t = xfmr(
 			[
-				["secondary_common", "winding"],
-				["secondary_15ohm", "windingTap"],
-				["secondary_100v", "winding"],
-				["secondary_100v_return", "winding"],
+				["power_tube_heater_a_3v15", "winding"],
+				["power_tube_heater_center_0v", "windingTap"],
+				["power_tube_heater_b_3v15", "winding"],
+				["preamp_heater_a_6vac_black", "winding"],
+				["preamp_heater_b_6vac_black", "winding"],
 			],
 			[
-				{ id: "speaker", role: "secondary", terminals: ["secondary_common", "secondary_15ohm"] },
-				{ id: "line", role: "secondary", terminals: ["secondary_100v", "secondary_100v_return"] },
+				{
+					id: "power_tube_heater",
+					role: "filament",
+					terminals: [
+						"power_tube_heater_a_3v15",
+						"power_tube_heater_center_0v",
+						"power_tube_heater_b_3v15",
+					],
+				},
+				{
+					id: "preamp_heater",
+					role: "filament",
+					terminals: ["preamp_heater_a_6vac_black", "preamp_heater_b_6vac_black"],
+				},
 			],
 		);
 		expect(validateComponentWindings(t)).toEqual([]);
-		expect(windingOfTerminal(t, "secondary_100v")?.id).toBe("line");
+		expect(windingOfTerminal(t, "preamp_heater_a_6vac_black")?.id).toBe("preamp_heater");
+		expect(windingOfTerminal(t, "power_tube_heater_center_0v")?.id).toBe("power_tube_heater");
+	});
+
+	it("does not ask a shield terminal to belong to a winding", () => {
+		// `tycobrahe-octavia`'s T1 brings out a `shield_nc` pin. Coupling it to a coil would state
+		// something false, and it is the only orphan in the corpus.
+		expect(
+			validateComponentWindings(
+				xfmr(
+					[["primary_a", "winding"], ["primary_b", "winding"], ["shield_nc", "shield"]],
+					[{ role: "primary", terminals: ["primary_a", "primary_b"] }],
+				),
+			),
+		).toEqual([]);
 	});
 
 	it("errors on an unknown terminal, a duplicate id, an unknown role and a repeat", () => {
@@ -168,7 +198,7 @@ describe("transformer windings", () => {
 		expect(
 			validateComponentWindings(
 				xfmr(
-					[["a", "winding"], ["b", "winding"], ["shield_nc", "shield"]],
+					[["a", "winding"], ["b", "winding"], ["secondary_a", "winding"]],
 					[{ role: "primary", terminals: ["a", "b"] }],
 				),
 			).map((i) => i.code),

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.35
+
+- Drop `shield` from `WindingRole`, and stop warning that a `role: shield` terminal belongs to no
+  winding. A shield is a grounded foil between windings, not a coil: the terminal role says all of
+  it, and asking for a winding entry would ask for a false one. Found by backfilling the corpus —
+  it was the only `winding-terminal-orphaned` warning in 55 transformers.
+- Correct what justifies a repeating role. The corpus case is `orange-rockerverb`'s power
+  transformer carrying **two filament windings** (3.15-0-3.15 V for the power tube heaters, 6.3 V
+  for the preamp), not the two secondaries 0.6.34 described — every multi-tap secondary in the
+  corpus turned out to be one coil, including `orange-gro100`'s 100 V line output, which its own
+  `SecondaryTaps` lists alongside the 15/7.5/3.75 Ω taps.
+- The backfill also corrected the count: 55 transformers and 363 terminals, not 53 and 296. Two
+  documents quote their scalars (`kind: "transformer"`) and the first scan matched only unquoted
+  ones.
+
 ## 0.6.34
 
 - Add `windings`, the sibling to `devices`: a transformer declares which of its terminals form
