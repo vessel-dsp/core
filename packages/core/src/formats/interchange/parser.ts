@@ -3083,6 +3083,29 @@ function parseComponentWindings(
 			typeof winding.id === "string" && winding.id.trim()
 				? winding.id.trim()
 				: undefined;
+		const impedances = optionalArray(
+			winding.impedances,
+			`${windingPath}.impedances`,
+		).map((entry, ratingIndex) => {
+			const ratingPath = `${windingPath}.impedances[${ratingIndex}]`;
+			const rating = expectObject(entry, ratingPath);
+			const across = optionalArray(rating.across, `${ratingPath}.across`).map(
+				(name, nameIndex) =>
+					expectString(name, `${ratingPath}.across[${nameIndex}]`),
+			);
+			if (across.length !== 2) {
+				throw new Error(
+					`${ratingPath}.across: expected exactly two terminal names, got ${across.length}`,
+				);
+			}
+			return {
+				across: [across[0], across[1]] as readonly [string, string],
+				impedance: parseQuantity(
+					expectObject(rating.impedance, `${ratingPath}.impedance`),
+					`${ratingPath}.impedance`,
+				),
+			};
+		});
 		return {
 			...(id === undefined ? {} : { id }),
 			role: expectString(winding.role, `${windingPath}.role`) as WindingRole,
@@ -3092,6 +3115,10 @@ function parseComponentWindings(
 			).map((terminal, terminalIndex) =>
 				expectString(terminal, `${windingPath}.terminals[${terminalIndex}]`),
 			),
+			...(winding.voltage === undefined
+				? {}
+				: { voltage: parseQuantity(winding.voltage, `${windingPath}.voltage`) }),
+			...(impedances.length === 0 ? {} : { impedances }),
 		};
 	});
 	return { windings };

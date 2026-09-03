@@ -119,12 +119,24 @@ components:
         terminals:
           - primary_a
           - primary_b
+        impedances:
+          - across:
+              - primary_a
+              - primary_b
+            impedance:
+              raw: "3.4 kO plate-to-plate"
+              value: 3400
+              unit: O
       - id: hv
         role: hv
         terminals:
           - hv_a
           - hv_center_tap
           - hv_b
+        voltage:
+          raw: "290-0-290 VAC source-visible"
+          value: 290
+          unit: V
     properties: {}
 nodes:
   - id: 0
@@ -202,6 +214,15 @@ describe("devices and windings round-trip", () => {
 			"hv_center_tap",
 			"hv_b",
 		]);
+		// A coil's own rated voltage, and a rating that names the pair it is measured across.
+		expect(t1?.windings?.[1]?.voltage?.value).toBe(290);
+		expect(t1?.windings?.[0]?.impedances?.[0]?.across).toEqual([
+			"primary_a",
+			"primary_b",
+		]);
+		expect(t1?.windings?.[0]?.impedances?.[0]?.impedance.value).toBe(3400);
+		expect(t1?.windings?.[0]?.voltage).toBeUndefined();
+		expect(t1?.windings?.[1]?.impedances).toBeUndefined();
 
 		expect(serializeInterchangeYaml(document)).toBe(source);
 	});
@@ -216,9 +237,16 @@ describe("devices and windings round-trip", () => {
 		).toEqual([]);
 
 		// Dropping both declarations leaves a valid document that serializes without the keys.
-		const bare = parseInterchangeYaml(
-			source.replace(/\n    (devices|windings):\n(      .*\n|        .*\n|          .*\n)+/g, "\n"),
+		// The strip matches any depth below the key, because a winding's ratings nest four levels
+		// under it -- an indent-listing regex made this assertion vacuous once already.
+		const stripped = source.replace(
+			/\n    (?:devices|windings):\n(?: {6,}.*\n)+/g,
+			"\n",
 		);
+		expect(stripped).not.toContain("across:");
+		expect(stripped).not.toContain("impedance:");
+		expect(stripped).not.toContain("- role:");
+		const bare = parseInterchangeYaml(stripped);
 		expect(bare.warnings).toEqual([]);
 		expect(bare.components.every((c) => c.devices === undefined)).toBe(true);
 		expect(bare.components.every((c) => c.windings === undefined)).toBe(true);

@@ -116,6 +116,76 @@ Absent and empty mean the same thing — this component has no declared coils �
 dropped on parse rather than carried, and nothing is emitted for the components that are not
 transformers.
 
+## Electrical ratings belong to the coil
+
+A winding entry carries two optional typed quantities, and they have different shapes because they
+are different kinds of fact.
+
+### `voltage` — one per coil
+
+```yaml
+  - id: power_tube_heater
+    role: filament
+    terminals: [power_tube_heater_a, power_tube_heater_center, power_tube_heater_b]
+    voltage:
+      raw: "3.15-0-3.15 VAC source-visible"
+      value: 3.15
+      unit: "V"
+```
+
+**Across the pair a stamp uses**: per half where the coil declares a `windingCenterTap`, end to
+end otherwise. That is how a transformer is printed — nobody rates a 330-0-330 V winding "660 V",
+and `fender-5e3-deluxe-tweed`'s own `Derivation` property says its 330 "is the per-half voltage of
+the stated center-tapped 330-0-330 winding". The centre tap being declared (0.6.36) is what makes
+this a convention with no ambiguity rather than a guess.
+
+It has to live on the coil because a component property keyed on a winding class holds one value
+per class. `orange-rockerverb`'s power transformer states 3.15 V for its power-tube heater winding
+and 6 V for its preamp heater winding, and had to invent `PowerTubeFilamentSecondary` and
+`PreampHeaterSecondary` to say so — the quantity-side twin of `secondaryalt3`. A consumer keyed on
+the class collapsed both into one value anyway, and drove the 3.15-0-3.15 winding at 6 V per half.
+
+Across the corpus, 10 property spellings state per-winding quantities today:
+`HighVoltageSecondary` (21), `FilamentSecondary` (16), `BiasSecondary` (14),
+`RectifierHeaterSecondary` (11), `LowVoltageSecondary` (7), `HeaterSecondary` (3),
+`PowerTubeFilamentSecondary` (1), `PreampHeaterSecondary` (1), plus `InputImpedance` (5) and
+`OutputImpedance` (5), which are the reverb tanks' drive and pickup ratings under a second name.
+All of them become one field on the coil that owns them.
+
+### `impedances` — one per rated pair
+
+```yaml
+  - role: primary
+    terminals: [primary_a_yellow, primary_ct_red, primary_b_brown]
+    impedances:
+      - across: [primary_a_yellow, primary_b_brown]
+        impedance: { raw: "3.4 kΩ plate-to-plate", value: 3400, unit: "Ω" }
+  - role: secondary
+    terminals: [secondary_common_black, secondary_8_yellow, secondary_hot]
+    impedances:
+      - across: [secondary_common_black, secondary_8_yellow]
+        impedance: { raw: "8 Ω", value: 8, unit: "Ω" }
+      - across: [secondary_common_black, secondary_hot]
+        impedance: { raw: "16 Ω", value: 16, unit: "Ω" }
+```
+
+**The pair is explicit because transformers are not rated by one convention.** A primary is
+printed *plate-to-plate* — end to end, across its centre tap — while a speaker secondary is
+printed *from its common* to each tap. Every `PrimaryImpedance` in the corpus reads "… plate-to-
+plate"; every `SecondaryImpedance` is a tap value. A bare number per winding would need a
+convention, and either convention is wrong for one of the two.
+
+One coil can carry several ratings, which is the case a single number cannot express at all:
+`orange-gro100`'s output transformer states four on one winding (100 V line, 15 Ω, 7.5 Ω, 3.75 Ω)
+and `orange-rockerverb`'s states two that are *simultaneously loaded* — a 16 Ω jack and an 8 Ω
+jack, each with its own feedback resistor. That last one is why this field exists: a consumer that
+could see only one rating had to drop a wired speaker branch.
+
+**No per-tap turns ratio is needed.** Between any two rated pairs on one core the turns ratio is
+the square root of the impedance ratio, so `windingImpedanceAcross()` plus arithmetic answers
+every question a lowering asks. `TurnsRatio` stays a component property: it is a relation between
+coils, not a property of one.
+
 ## What connectivity still owns, and windings must not
 
 The old table's `end` vocabulary contained two values that are not winding structure at all:
@@ -136,6 +206,11 @@ fact that contradicts its own wiring.
 Errors: unknown role, a terminal name no terminal has, a terminal listed twice in one winding, the
 same terminal claimed by two windings, an empty terminal list, a duplicate `id`.
 
+On ratings: a pair naming a terminal that is **not on this winding** (the one worth catching — it
+reads as a valid pair and silently rates the wrong coil), a pair naming one terminal twice, and a
+non-positive impedance or voltage. A negative voltage would state a phase the declaration cannot
+carry; a non-positive impedance is a turns ratio nothing can be derived from.
+
 Warnings: a single-terminal winding (real — a bias tap whose return is grounded inside the
 transformer — but usually a transcription that stopped early), and a terminal with a winding role
 that no winding couples.
@@ -147,15 +222,18 @@ windings, which is the legitimate case the warning names.
 
 In `vessel-dsp/workbench`, `src/compiler/transformer.ts`'s 110-entry `transformerTerminalRoles`
 table and the winding-class reconstruction around it, plus `lower.ts`'s `springReverbTerminalRoles`
-— the last remaining terminal-spelling vocabulary in that file.
+— the last remaining terminal-spelling vocabulary in that file. Both deleted 2026-09-03.
+
+The ratings delete three more: `netlist.ts`'s `secondaryWindingVoltageProperties` (8 property
+spellings folding to 5 winding classes, and the refusal that guards its `*Secondary` suffix),
+`device-laws.ts`'s `windingVoltageParameters` (5 entries), and `transformer.ts`'s
+`HEATER_CLASS_WINDINGS` (5 entries, which exists only to excuse a winding whose voltage the class
+map could not carry).
 
 ## Open questions
 
-1. **Turns ratio.** Ratio lives in component properties today and the corpus states it per
-   transformer, which works while every transformer has one primary. A three-winding output
-   transformer with two independent ratios would need it per winding.
-2. **Winding polarity.** Coil order gives each winding an orientation, but nothing states the
+1. **Winding polarity.** Coil order gives each winding an orientation, but nothing states the
    relative phase *between* two windings — the dot convention. No corpus document depends on it,
    and inverting a speaker winding is inaudible in a single-transformer signal path.
-3. **Switch poles.** 232 contact spellings are waiting on the same shape: one mechanism, several
+2. **Switch poles.** 232 contact spellings are waiting on the same shape: one mechanism, several
    grouped contacts. A pole is closer to a winding than to a device.

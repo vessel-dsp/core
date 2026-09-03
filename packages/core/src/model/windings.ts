@@ -25,6 +25,7 @@
 import type {
 	Component,
 	ComponentWinding,
+	ParsedQuantity,
 	Terminal,
 	WindingRole,
 } from "./types";
@@ -141,6 +142,47 @@ export function validateComponentWindings(
 			}
 			claimed.add(name);
 		}
+
+		for (const [index, rating] of (winding.impedances ?? []).entries()) {
+			const at = `winding "${label}" impedance ${index}`;
+			const [from, to] = rating.across;
+			if (from === to) {
+				issues.push({
+					code: "winding-impedance-degenerate",
+					severity: "error",
+					message: `${at} is rated across terminal "${from}" and itself, which measures nothing`,
+					componentId: component.id,
+				});
+			}
+			for (const name of rating.across) {
+				// A rating across a terminal of a *different* coil is the mistake worth catching:
+				// it reads as a valid pair and silently rates the wrong winding.
+				if (!seenHere.has(name)) {
+					issues.push({
+						code: "winding-impedance-terminal-foreign",
+						severity: "error",
+						message: `${at} is rated across terminal "${name}", which is not on this winding`,
+						componentId: component.id,
+					});
+				}
+			}
+			if (!(rating.impedance.value > 0)) {
+				issues.push({
+					code: "winding-impedance-not-positive",
+					severity: "error",
+					message: `${at} states ${rating.impedance.value}, and an impedance rating a turns ratio is derived from must be positive`,
+					componentId: component.id,
+				});
+			}
+		}
+		if (winding.voltage !== undefined && !(winding.voltage.value > 0)) {
+			issues.push({
+				code: "winding-voltage-not-positive",
+				severity: "error",
+				message: `winding "${label}" states voltage ${winding.voltage.value}; a coil's rated AC voltage is an amplitude, so a sign here would state a phase the declaration cannot carry`,
+				componentId: component.id,
+			});
+		}
 	}
 
 	for (const terminal of component.terminals) {
@@ -158,6 +200,27 @@ export function validateComponentWindings(
 		}
 	}
 	return issues;
+}
+
+/**
+ * The rated impedance measured across `from` and `to`, in either order, or null.
+ *
+ * A consumer asking "what is this tap rated at" and a consumer asking "what is the turns ratio
+ * between these two pairs" both start here, and neither has to know which order a document wrote
+ * the pair in.
+ */
+export function windingImpedanceAcross(
+	winding: ComponentWinding,
+	from: string,
+	to: string,
+): ParsedQuantity | null {
+	for (const rating of winding.impedances ?? []) {
+		const [a, b] = rating.across;
+		if ((a === from && b === to) || (a === to && b === from)) {
+			return rating.impedance;
+		}
+	}
+	return null;
 }
 
 /** The winding a terminal belongs to, or null. Keyed by terminal name. */

@@ -1,4 +1,4 @@
-export const VERSION = "0.6.36";
+export const VERSION = "0.6.37";
 
 export type {
 	CreateComponentArgs,
@@ -105,6 +105,7 @@ export {
 	WINDING_ROLES,
 	validateComponentWindings,
 	windingEndsAndTaps,
+	windingImpedanceAcross,
 	windingOfTerminal,
 } from "./model/windings";
 export type { WindingIssue } from "./model/windings";
@@ -237,6 +238,7 @@ export type {
 	Component,
 	ComponentDevice,
 	ComponentWinding,
+	WindingImpedance,
 	ComponentKind,
 	ComponentTerminalRef,
 	ControlApplicabilityPredicate,

@@ -3,6 +3,7 @@ import {
 	WINDING_ROLES,
 	validateComponentWindings,
 	windingEndsAndTaps,
+	windingImpedanceAcross,
 	windingOfTerminal,
 } from "../../packages/core/src/model/windings";
 import type { Component } from "../../packages/core/src/model/types";
@@ -28,6 +29,9 @@ const xfmr = (
 		sourceTypeName: null,
 		...(windings === undefined ? {} : { windings }),
 	}) as Component;
+
+const ohms = (value: number) => ({ raw: `${value} \u03a9`, value, unit: "\u03a9" });
+const volts = (value: number) => ({ raw: `${value} VAC`, value, unit: "V" });
 
 describe("transformer windings", () => {
 	it("groups a power transformer's coils, keeping tap position from order", () => {
@@ -237,5 +241,143 @@ describe("transformer windings", () => {
 		).toEqual(["winding-terminal-orphaned"]);
 		// A document that declares no windings cannot be malformed, so it is never reported.
 		expect(validateComponentWindings(xfmr([["a", "winding"]]))).toEqual([]);
+	});
+});
+
+describe("winding ratings", () => {
+	it("rates a primary plate-to-plate and a secondary from its common, on one part", () => {
+		// The reason a rating names its pair. A primary is printed across its ends, over the
+		// centre tap; a speaker secondary is printed from its common to each tap. A bare number
+		// per winding would need a convention, and either convention is wrong for one of them.
+		const t = xfmr(
+			[
+				["primary_a", "winding"],
+				["primary_ct", "windingCenterTap"],
+				["primary_b", "winding"],
+				["secondary_common", "winding"],
+				["secondary_8", "windingTap"],
+				["secondary_16", "winding"],
+			],
+			[
+				{
+					role: "primary",
+					terminals: ["primary_a", "primary_ct", "primary_b"],
+					impedances: [
+						{ across: ["primary_a", "primary_b"], impedance: ohms(3400) },
+					],
+				},
+				{
+					role: "secondary",
+					terminals: ["secondary_common", "secondary_8", "secondary_16"],
+					impedances: [
+						{ across: ["secondary_common", "secondary_8"], impedance: ohms(8) },
+						{ across: ["secondary_common", "secondary_16"], impedance: ohms(16) },
+					],
+				},
+			],
+		);
+		expect(validateComponentWindings(t)).toEqual([]);
+		const secondary = t.windings![1]!;
+		// Either order finds it, so a consumer never has to know how the document wrote the pair.
+		expect(windingImpedanceAcross(secondary, "secondary_common", "secondary_8")?.value).toBe(8);
+		expect(windingImpedanceAcross(secondary, "secondary_8", "secondary_common")?.value).toBe(8);
+		expect(windingImpedanceAcross(secondary, "secondary_8", "secondary_16")).toBeNull();
+		// The turns ratio between any two rated pairs is the square root of the impedance ratio,
+		// which is what removes the need for a separate per-tap ratio.
+		const primary = windingImpedanceAcross(t.windings![0]!, "primary_a", "primary_b")!;
+		const tap16 = windingImpedanceAcross(secondary, "secondary_common", "secondary_16")!;
+		expect(Math.sqrt(primary.value / tap16.value)).toBeCloseTo(14.577, 3);
+	});
+
+	it("carries a voltage per coil, which two windings of one role both need", () => {
+		// `orange-rockerverb`: 3.15-0-3.15 V for the power tube heaters and 6 V for the preamp.
+		// Stated in component properties these had to become two invented keys
+		// (`PowerTubeFilamentSecondary`, `PreampHeaterSecondary`) and a consumer keyed on the
+		// winding class still collapsed them to one value.
+		const t = xfmr(
+			[
+				["power_tube_heater_a", "winding"],
+				["power_tube_heater_center", "windingCenterTap"],
+				["power_tube_heater_b", "winding"],
+				["preamp_heater_a", "winding"],
+				["preamp_heater_b", "winding"],
+			],
+			[
+				{
+					id: "power_tube_heater",
+					role: "filament",
+					terminals: [
+						"power_tube_heater_a",
+						"power_tube_heater_center",
+						"power_tube_heater_b",
+					],
+					voltage: volts(3.15),
+				},
+				{
+					id: "preamp_heater",
+					role: "filament",
+					terminals: ["preamp_heater_a", "preamp_heater_b"],
+					voltage: volts(6),
+				},
+			],
+		);
+		expect(validateComponentWindings(t)).toEqual([]);
+		expect(t.windings!.map((w) => w.voltage?.value)).toEqual([3.15, 6]);
+		// Per half where a centre tap is declared, end to end where none is. The declared centre
+		// tap is what makes that unambiguous.
+		expect(windingEndsAndTaps(t, t.windings![0]!).taps).toEqual([
+			"power_tube_heater_center",
+		]);
+		expect(windingEndsAndTaps(t, t.windings![1]!).taps).toEqual([]);
+	});
+
+	it("errors on a rating across another coil's terminal, its own terminal twice, or nothing", () => {
+		// The foreign-terminal case is the one worth catching: it reads as a valid pair and
+		// silently rates the wrong winding.
+		const issues = validateComponentWindings(
+			xfmr(
+				[
+					["primary_a", "winding"],
+					["primary_b", "winding"],
+					["secondary_a", "winding"],
+					["secondary_b", "winding"],
+				],
+				[
+					{
+						role: "primary",
+						terminals: ["primary_a", "primary_b"],
+						impedances: [
+							{ across: ["primary_a", "secondary_b"], impedance: ohms(3400) },
+							{ across: ["primary_a", "primary_a"], impedance: ohms(3400) },
+						],
+					},
+					{
+						role: "secondary",
+						terminals: ["secondary_a", "secondary_b"],
+						impedances: [
+							{ across: ["secondary_a", "secondary_b"], impedance: ohms(0) },
+						],
+						voltage: volts(-6),
+					},
+				],
+			),
+		);
+		const codes = issues.map((i) => i.code);
+		expect(codes).toContain("winding-impedance-terminal-foreign");
+		expect(codes).toContain("winding-impedance-degenerate");
+		expect(codes).toContain("winding-impedance-not-positive");
+		expect(codes).toContain("winding-voltage-not-positive");
+		expect(issues.every((i) => i.severity === "error")).toBe(true);
+	});
+
+	it("says nothing when a winding states no ratings, which is most of them", () => {
+		expect(
+			validateComponentWindings(
+				xfmr(
+					[["a", "winding"], ["b", "winding"]],
+					[{ role: "primary", terminals: ["a", "b"] }],
+				),
+			),
+		).toEqual([]);
 	});
 });

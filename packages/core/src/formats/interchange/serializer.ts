@@ -20,6 +20,7 @@ import type {
 	ControlInterface,
 	ControlInterfaceBinding,
 	ControlOutput,
+	ParsedQuantity,
 	DocumentSource,
 	PanelElementBinding,
 	PanelElementPhysicalPlacement,
@@ -581,6 +582,17 @@ function componentBlock(
 						...(winding.id === undefined ? {} : { id: winding.id }),
 						role: winding.role,
 						terminals: [...winding.terminals],
+						...(winding.voltage === undefined
+							? {}
+							: { voltage: quantityBlock(winding.voltage) }),
+						...(winding.impedances === undefined || winding.impedances.length === 0
+							? {}
+							: {
+									impedances: winding.impedances.map((rating) => ({
+										across: [...rating.across],
+										impedance: quantityBlock(rating.impedance),
+									})),
+								}),
 					})),
 				}),
 		properties: propertiesBlock(component.properties),
@@ -639,6 +651,10 @@ function propertyValueBlock(value: PropertyValue): YamlValue {
 		value: value.value,
 		unit: value.unit,
 	};
+}
+
+function quantityBlock(quantity: ParsedQuantity): MutableYamlObject {
+	return { raw: quantity.raw, value: quantity.value, unit: quantity.unit };
 }
 
 function nodeBlocks(

@@ -221,11 +221,48 @@ export type ComponentWinding = Readonly<{
 	 * comes from each terminal's own `role` (`winding` or `windingTap`), so this list does not
 	 * repeat it.
 	 *
-	 * A role may repeat across windings -- a transformer can carry two `secondary` coils, one
-	 * feeding a speaker and one a constant-voltage line output -- so windings are distinguished by
-	 * their terminals, or by `id` where a document gives one.
+	 * A role may repeat across windings -- `orange-rockerverb`'s power transformer carries two
+	 * `filament` coils -- so windings are distinguished by their terminals, or by `id` where a
+	 * document gives one.
 	 */
 	terminals: readonly string[];
+	/**
+	 * This coil's rated AC voltage, **across the pair a stamp uses**: per half where the coil
+	 * declares a `windingCenterTap`, end to end otherwise.
+	 *
+	 * That is how a transformer is printed. Nobody rates a 330-0-330 V winding "660 V", and
+	 * `fender-5e3-deluxe-tweed`'s own `Derivation` property says its 330 "is the per-half voltage
+	 * of the stated center-tapped 330-0-330 winding". The centre tap being declared is what makes
+	 * the convention unambiguous rather than a guess.
+	 *
+	 * It belongs here and not in component properties because a property keyed on a winding class
+	 * holds one value per class. `orange-rockerverb` states 3.15 V for its power-tube heater coil
+	 * and 6 V for its preamp heater coil, and had to invent `PowerTubeFilamentSecondary` and
+	 * `PreampHeaterSecondary` to say so -- the quantity-side twin of the `secondaryalt3` problem
+	 * `windings` already deleted.
+	 */
+	voltage?: ParsedQuantity;
+	/**
+	 * Rated impedances, each stating the terminal pair it is measured across.
+	 *
+	 * **The pair is explicit because transformers are not rated by one convention.** A primary is
+	 * printed plate-to-plate -- end to end, across its centre tap -- while a speaker secondary is
+	 * printed from its common to each tap. `orange-gro100`'s output transformer states four
+	 * ratings on one coil (100 V line, 15 Ω, 7.5 Ω, 3.75 Ω) and `orange-rockerverb`'s states two
+	 * that are simultaneously loaded. A single number per winding cannot hold that, and a
+	 * convention about which pair a bare number means would be wrong for one of the two shapes.
+	 *
+	 * A consumer needs no separate turns ratio: between any two rated pairs on one core the turns
+	 * ratio is the square root of the impedance ratio.
+	 */
+	impedances?: readonly WindingImpedance[];
+}>;
+
+/** One rated impedance of a coil, and the terminal pair it is rated across. */
+export type WindingImpedance = Readonly<{
+	/** Exactly two terminal names of the winding this belongs to. */
+	across: readonly [string, string];
+	impedance: ParsedQuantity;
 }>;
 
 export type Component = Readonly<{

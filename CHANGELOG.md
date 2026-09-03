@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.6.37
+
+- A winding carries its own **`voltage`** and its own **`impedances`**. Both optional; most
+  windings state neither.
+- `voltage` is one typed quantity per coil, measured **across the pair a stamp uses** -- per half
+  where the coil declares a `windingCenterTap`, end to end otherwise, which is how a transformer
+  is printed. The declared centre tap from 0.6.36 is what makes that a convention rather than a
+  guess.
+- It has to live on the coil because a component property keyed on a winding class holds one value
+  per class. `orange-rockerverb`'s power transformer states 3.15 V for its power-tube heater coil
+  and 6 V for its preamp heater coil, and had to invent `PowerTubeFilamentSecondary` and
+  `PreampHeaterSecondary` to say so. A consumer keyed on the class collapsed both to one value and
+  drove the 3.15-0-3.15 V winding at 6 V per half -- measured in the shipping program, not
+  predicted. This is the quantity-side twin of the `secondaryalt3` problem `windings` deleted.
+- `impedances` is a list, and **each entry names the terminal pair it is rated across**, because
+  transformers are not rated by one convention: a primary is printed plate-to-plate, across its
+  centre tap, while a speaker secondary is printed from its common to each tap. Every
+  `PrimaryImpedance` in the corpus reads "... plate-to-plate"; every `SecondaryImpedance` is a tap
+  value. A bare number per winding would need a convention and either one is wrong for one of the
+  two.
+- A list rather than a single value because one coil really carries several ratings.
+  `orange-gro100`'s output transformer states four (100 V line, 15 Ω, 7.5 Ω, 3.75 Ω) and
+  `orange-rockerverb`'s states two that are *simultaneously loaded*, a 16 Ω jack and an 8 Ω jack
+  each with its own feedback resistor. A consumer that could see one rating had to drop a wired
+  speaker branch, which is the defect this closes.
+- No per-tap turns ratio is needed: between any two rated pairs on one core the turns ratio is the
+  square root of the impedance ratio. `windingImpedanceAcross()` reads a rating in either terminal
+  order. `TurnsRatio` stays a component property -- it is a relation between coils, not a property
+  of one.
+- Validation: a pair naming a terminal not on this winding (it reads as valid and silently rates
+  the wrong coil), a pair naming one terminal twice, and a non-positive impedance or voltage are
+  errors.
+- These replace 10 component-property spellings, `InputImpedance`/`OutputImpedance` included --
+  the reverb tanks' drive and pickup ratings under a second name.
+
 ## 0.6.36
 
 - Add `windingCenterTap` to the transformer terminal vocabulary, splitting the tap role in two.
