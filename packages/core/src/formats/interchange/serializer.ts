@@ -576,7 +576,6 @@ function terminalBlock(
 		// Emitted only when declared, so a pre-0.6.28 document round-trips unchanged rather than
 		// gaining an empty field.
 		...(terminal.role === undefined ? {} : { role: terminal.role }),
-		...(terminal.index === undefined ? {} : { index: terminal.index }),
 		node:
 			getPinNode(connectivity, {
 				componentId: component.id,

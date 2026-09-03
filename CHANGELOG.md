@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.6.29
+
+- Remove the `index` field added to `Terminal` in 0.6.28. It was a half-measure: for the case it
+  handled a unique `name` already sufficed, and for the case that is actually hard it was not
+  enough. Nothing declared it -- zero terminals in the 26,016-terminal survey -- so removing it
+  now costs nothing.
+- **What it could not do.** `index` labelled a terminal without saying which *device inside the
+  package* it belonged to. On a dual rectifier that is harmless, because both plates share one
+  cathode and the pairing is forced; on a dual op-amp declared as one component it says nothing
+  useful, because `index: a` on an output and an input does not state that they are one section.
+  That is grouping, not indexing.
+- **A role may repeat within a component, and the unique `name` distinguishes the pins.** A
+  resistor's two ends are both `end`; a dual rectifier's two plates are both `plate`, named
+  `plate_a` and `plate_b`. A construct that groups terminals into devices refers to them by name,
+  which states the pairing directly -- the thing `index` only gestured at.
+- This is what a netlist has always done: SPICE has no packages, only elements, and each element
+  carries its own complete positional node list (`Q1 nc nb ne`). A dual rectifier is two `B`
+  lines, not one component with two plates. The remaining complexity in this format is that a
+  component models a schematic *symbol*, which may hold several devices; `role` says what an
+  electrode is, and a device/section construct is what will say which device it serves.
+- `INDEXABLE_DEVICE_TERMINAL_ROLES` is renamed `SUFFIXABLE_DEVICE_TERMINAL_ROLES`, and
+  `classifyDeviceTerminalRole` still resolves a suffixed name (`plate_a`) to its plain role, since
+  that is how the backfill reads existing documents. The suffix distinguishes the name and carries
+  no meaning of its own.
+
 ## 0.6.28
 
 - Add a **required** `role` field to `Terminal`, with an optional `index`. A terminal's name is

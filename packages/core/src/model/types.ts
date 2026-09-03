@@ -61,16 +61,16 @@ export type Terminal = Readonly<{
 	 * declare.
 	 *
 	 * Optional in the *type* only so that documents written before 0.6.28 still parse; the format
-	 * requires it, and a terminal without one is reported by
-	 * `collectMissingTerminalRoleWarnings`. Treat `undefined` as "this document predates the
-	 * field", never as "this terminal has no role".
+	 * requires it, and a terminal without one is reported by `collectTerminalRoleWarnings`. Treat
+	 * `undefined` as "this document predates the field", never as "this terminal has no role".
+	 *
+	 * A role may repeat within a component -- a resistor's two ends are both `end`, a dual
+	 * rectifier's two plates both `plate`. The unique `name` is what distinguishes them, and a
+	 * device that groups several terminals refers to them by name. There is deliberately no index
+	 * field: it labelled a terminal without saying which device inside the package it belonged to,
+	 * which is the part a name-referencing device list states directly.
 	 */
 	role?: string;
-	/**
-	 * Distinguishes two terminals sharing a role, as a dual rectifier's plates do. Meaningful only
-	 * with `role`; the consuming device law decides whether a repetition is significant.
-	 */
-	index?: string;
 	position: Point;
 }>;
 

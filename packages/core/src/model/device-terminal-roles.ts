@@ -123,23 +123,22 @@ export const DEVICE_TERMINAL_ROLES: Readonly<
 };
 
 /**
- * Electrodes that may legitimately appear more than once on one component, and therefore need an
- * index in the terminal name.
+ * Electrodes that may legitimately appear more than once on one component, so their pin names
+ * carry a distinguishing suffix.
  *
- * **This is forced by the format, not a spelling preference.** A terminal name is the pin's
- * identity -- the `nodes:` ledger references it as `<component>.<terminal>` -- so core rejects two
- * terminals sharing a name (`pin "V1.plate" already belongs to node 1`). Every tube rectifier in
- * the survey is a dual, two plates on one directly heated cathode, so it *cannot* name both plates
- * `plate`. `plate_a`/`plate_b` are the canonical indexed form of one role, not two spellings of it.
+ * **Forced by the format, not a spelling preference.** A terminal name is the pin's identity --
+ * the `nodes:` ledger references it as `<component>.<terminal>` -- so core rejects two terminals
+ * sharing a name (`pin "V1.plate" already belongs to node 1`). Every tube rectifier in the survey
+ * is a dual, two plates on one directly heated cathode, so it cannot name both plates `plate`.
  *
- * A heater is listed for the same reason: its two ends are one electrode. Whether a repetition is
- * meaningful is the consuming device law's question; this only says the name is well-formed.
+ * The suffix distinguishes the name and means nothing by itself. Which device inside a package a
+ * pin belongs to is stated by that device's own terminal list, which refers to pins by name.
  */
-export const INDEXABLE_DEVICE_TERMINAL_ROLES: ReadonlySet<DeviceTerminalRole> =
+export const SUFFIXABLE_DEVICE_TERMINAL_ROLES: ReadonlySet<DeviceTerminalRole> =
 	new Set<DeviceTerminalRole>(["plate", "heater", "grid", "cathode"]);
 
-/** A one-token index suffix: `a`..`d` or `1`..`9`. Anything else is not an index. */
-const INDEX_PATTERN = /^(?:[a-d]|[1-9])$/;
+/** A one-token name suffix: `a`..`d` or `1`..`9`. */
+const NAME_SUFFIX_PATTERN = /^(?:[a-d]|[1-9])$/;
 
 /**
  * Tokens that name a terminal without naming an electrode.
@@ -188,12 +187,7 @@ export const AMBIGUOUS_DEVICE_TERMINAL_TOKENS: ReadonlySet<string> = new Set([
 const PACKAGE_PIN_PATTERN = /^(?:pin|p|terminal|lug|t)?-?\d{1,3}$/;
 
 export type DeviceTerminalRoleVerdict =
-	| {
-			readonly status: "canonical";
-			readonly role: DeviceTerminalRole;
-			/** Set when the name carried an index, as a dual rectifier's plates must. */
-			readonly index?: string;
-	  }
+	| { readonly status: "canonical"; readonly role: DeviceTerminalRole }
 	| { readonly status: "ambiguous" }
 	| { readonly status: "package-pin"; readonly pin: number }
 	| { readonly status: "unrecognized" }
@@ -217,18 +211,18 @@ export function classifyDeviceTerminalRole(
 	if ((legal as readonly string[]).includes(token)) {
 		return { status: "canonical", role: token as DeviceTerminalRole };
 	}
-	// An indexed electrode: `plate-a` is one role plus a distinguishing suffix, which the format
-	// forces because a pin name must be unique within its component.
+	// A suffixed electrode: `plate-a` and `plate-b` are two pins carrying the same role, which the
+	// format forces because a pin name must be unique within its component. The suffix
+	// distinguishes the *name*; it carries no meaning of its own, so the verdict is just the role.
 	const split = token.lastIndexOf("-");
 	if (split > 0) {
 		const head = token.slice(0, split);
-		const index = token.slice(split + 1);
 		if (
 			(legal as readonly string[]).includes(head) &&
-			INDEXABLE_DEVICE_TERMINAL_ROLES.has(head as DeviceTerminalRole) &&
-			INDEX_PATTERN.test(index)
+			SUFFIXABLE_DEVICE_TERMINAL_ROLES.has(head as DeviceTerminalRole) &&
+			NAME_SUFFIX_PATTERN.test(token.slice(split + 1))
 		) {
-			return { status: "canonical", role: head as DeviceTerminalRole, index };
+			return { status: "canonical", role: head as DeviceTerminalRole };
 		}
 	}
 	// Ambiguity is checked before the pin pattern so a token that is both (`a`, `b`) reports the

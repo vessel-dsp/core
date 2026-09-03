@@ -1,4 +1,4 @@
-export const VERSION = "0.6.28";
+export const VERSION = "0.6.29";
 
 export type {
 	CreateComponentArgs,
@@ -91,7 +91,7 @@ export {
 	collectTerminalRoleWarnings,
 	isLegalTerminalRole,
 	terminalRolesFor,
-	INDEXABLE_DEVICE_TERMINAL_ROLES,
+	SUFFIXABLE_DEVICE_TERMINAL_ROLES,
 	classifyDeviceTerminalRole,
 	isRoledDeviceKind,
 	resolveComponentTerminalRoles,

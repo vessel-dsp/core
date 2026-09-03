@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	AMBIGUOUS_DEVICE_TERMINAL_TOKENS,
 	DEVICE_TERMINAL_ROLES,
-	INDEXABLE_DEVICE_TERMINAL_ROLES,
+	SUFFIXABLE_DEVICE_TERMINAL_ROLES,
 	classifyDeviceTerminalRole,
 	collectTerminalRoleWarnings,
 	isLegalTerminalRole,
@@ -45,30 +45,28 @@ describe("device terminal roles", () => {
 		expect(classifyDeviceTerminalRole("mosfet", "body")).toEqual({ status: "unrecognized" });
 	});
 
-	it("accepts an index on an electrode that legitimately repeats", () => {
+	it("resolves a suffixed name to the plain role, carrying no index of its own", () => {
 		// Forced by the format: a pin name is the pin's identity, so a dual rectifier cannot name
-		// both plates `plate`.
+		// both plates `plate`. The suffix distinguishes the *name* and means nothing by itself --
+		// which device inside a package a pin belongs to is that device's own terminal list.
 		expect(classifyDeviceTerminalRole("tube-diode", "plate_a")).toEqual({
 			status: "canonical",
 			role: "plate",
-			index: "a",
 		});
 		expect(classifyDeviceTerminalRole("tube-diode", "heater_b")).toEqual({
 			status: "canonical",
 			role: "heater",
-			index: "b",
 		});
 		expect(classifyDeviceTerminalRole("pentode", "grid_1")).toEqual({
 			status: "canonical",
 			role: "grid",
-			index: "1",
 		});
 	});
 
-	it("refuses an index where the electrode cannot repeat, or the suffix is not an index", () => {
+	it("refuses a suffix where the electrode cannot repeat, or the suffix is not one", () => {
 		// A BJT has one base; `base_1`/`base_2` are a unijunction's bar ends on a component
 		// declared `kind: bjt`, and resolving them onto a BJT would model a different device.
-		expect(INDEXABLE_DEVICE_TERMINAL_ROLES.has("base")).toBe(false);
+		expect(SUFFIXABLE_DEVICE_TERMINAL_ROLES.has("base")).toBe(false);
 		expect(classifyDeviceTerminalRole("bjt", "base1")).toEqual({ status: "unrecognized" });
 		expect(classifyDeviceTerminalRole("bjt", "base_2")).toEqual({ status: "unrecognized" });
 		// `cathode_filament` is a spelling, not an index: `filament` is not an index token.
@@ -162,9 +160,9 @@ describe("device terminal roles", () => {
 		}
 	});
 
-	it("keeps every indexable role inside some kind's declared roles", () => {
+	it("keeps every suffixable role inside some kind's declared roles", () => {
 		const declared = new Set(Object.values(DEVICE_TERMINAL_ROLES).flat());
-		for (const role of INDEXABLE_DEVICE_TERMINAL_ROLES) {
+		for (const role of SUFFIXABLE_DEVICE_TERMINAL_ROLES) {
 			expect(declared.has(role)).toBe(true);
 		}
 	});
