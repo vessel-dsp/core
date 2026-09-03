@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.6.31
+
+- Add a canonical potentiometer taper vocabulary and validation. Taper is **audible** - it is how
+  a knob's travel maps to its effect - and the corpus stated it across **two keys with 46 distinct
+  values between them**: `Taper` (264 declarations, 30 values) and `Sweep` (397, 16).
+- **The two keys are one fact, proven by the 57 components that declare both**: `Taper: B` sits
+  beside `Sweep: Linear` 26 times, `Taper: A` beside `Sweep: Logarithmic` 8 times, `Taper: C`
+  beside `ReverseLogarithmic`/`ReverseAudio` 7 times. One is the manufacturer letter code, the
+  other the law's English name. `Taper` is canonical; `Sweep` is superseded and reported.
+- **Spellings are `KnobTaper`'s**, from `panel/types.ts`, which shipped first and is published API
+  with consumers in `control-ui` and panel extraction. The first draft of this vocabulary used
+  `logarithmic` and would have created a second spelling for the same law inside one package -
+  precisely the drift this work removes. The corpus writes `Logarithmic`, so the corpus backfills;
+  a published enum with consumers is the stronger constraint. Cost of that choice, measured: 139
+  extra declarations to correct.
+- **Letter codes are deliberately not accepted.** `A`, `B` and `C` are printed markings whose
+  meaning is a convention rather than a definition - the mapping the 57 pairs reveal is the
+  Japanese/Alps one this corpus happens to use, not a universal. The marking is source provenance;
+  the law goes in `Taper`.
+- **Three classes of existing value are not tapers**, and each gets its own verdict and message
+  because the fix differs: `Unknown`/`source-unmarked`/`not-visible` state *absence* (fix: omit
+  the property, since a value for absence is worse than absence), `trim`/`Trim` names a physical
+  package rather than a resistance law, and `0..1` is a travel range.
+- Normalization folds case, separators and CamelCase word boundaries, so `ReverseLog`,
+  `Reverse Log` and `reverse-log` are one value. A **synonym** is not a spelling: `Audio` and
+  `Logarithmic` name this law under other words and are reported, not accepted.
+- `classifyTaper(value)` returns `canonical | absence | not-a-law | unrecognized`;
+  `collectTaperIssues(component)` reports per component and runs inside document validation. All
+  verdicts are warnings, for the reason the terminal-role work settled: a vocabulary that refused
+  every document written before it existed would refuse the corpus, and the counts are the
+  backfill's remaining work.
+- Adds `docs/vdsp-property-format-review.md`, a measured review of all 58,021 property
+  declarations across 567 keys: key naming is consistent (563 of 567 PascalCase), but 55 keys hold
+  more than one value type, 8 carry number-as-string quoting drift (`0.5` / `'0.5'` / `0.50`, and
+  `PartNumber` as a YAML **number**), 11 carry booleans as strings, and `Resistance`/`R`,
+  `Capacitance`/`C`, `Voltage`/`V` are synonym pairs. `Type`/`Polarity`/`Channel` is named as the
+  next vocabulary worth closing - three keys for device polarity, with `Polarity` conflating
+  capacitor polarity and transistor polarity.
+
 ## 0.6.30
 
 - Add `Component.devices`: the devices a package contains. A component models a schematic

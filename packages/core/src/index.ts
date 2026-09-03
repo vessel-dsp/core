@@ -1,4 +1,4 @@
-export const VERSION = "0.6.30";
+export const VERSION = "0.6.31";
 
 export type {
 	CreateComponentArgs,
@@ -84,6 +84,14 @@ export type {
 	PotentiometerTerminalRoleResolution,
 	PotentiometerTerminalRoleVerdict,
 } from "./model/terminal-roles";
+export {
+	POTENTIOMETER_TAPERS,
+	SUPERSEDED_TAPER_PROPERTY_KEYS,
+	TAPER_PROPERTY_KEY,
+	classifyTaper,
+	collectTaperIssues,
+} from "./model/taper";
+export type { PotentiometerTaper, TaperIssue, TaperVerdict } from "./model/taper";
 export {
 	componentDevices,
 	deviceTerminalRoles,
