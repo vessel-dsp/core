@@ -1,4 +1,4 @@
-export const VERSION = "0.6.26";
+export const VERSION = "0.6.27";
 
 export type {
 	CreateComponentArgs,
@@ -84,6 +84,19 @@ export type {
 	PotentiometerTerminalRoleResolution,
 	PotentiometerTerminalRoleVerdict,
 } from "./model/terminal-roles";
+export {
+	AMBIGUOUS_DEVICE_TERMINAL_TOKENS,
+	DEVICE_TERMINAL_ROLES,
+	INDEXABLE_DEVICE_TERMINAL_ROLES,
+	classifyDeviceTerminalRole,
+	isRoledDeviceKind,
+	resolveComponentTerminalRoles,
+} from "./model/device-terminal-roles";
+export type {
+	DeviceTerminalRole,
+	DeviceTerminalRoleVerdict,
+	RoledDeviceKind,
+} from "./model/device-terminal-roles";
 export type { InterchangeTopologyParseResult } from "./formats/interchange/parser";
 export {
 	parseInterchangeYaml,

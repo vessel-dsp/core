@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/core",
-	"version": "0.6.26",
+	"version": "0.6.27",
 	"description": "Headless VesselDSP circuit, device, format conversion, and layout model APIs.",
 	"keywords": [
 		"guitar-pedal",

@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.6.27
+
+- Add a canonical terminal-role vocabulary for the active devices whose electrodes are
+  asymmetric: `triode`, `pentode`, `tube-diode`, `bjt`, `jfet`, `mosfet`. Exchange a BJT's base
+  and collector, or a triode's plate and cathode, and the circuit still solves - so the wrong
+  answer is silent, and the role has to come from the document read against one declared
+  vocabulary. `classifyDeviceTerminalRole(kind, terminalName)` returns `canonical`, `ambiguous`,
+  `package-pin`, `unrecognized`, or `out-of-scope`.
+- Keyed by `ComponentKind`, not one flat table, because the same token is different electrodes on
+  different devices: `c` is a BJT collector and a tube cathode, `screen` exists on a pentode and
+  not a triode, `input`/`output` name a FET's channel ends and nothing on a tube.
+- **No alias table, deliberately.** A spelling outside the vocabulary is reported as
+  `unrecognized` rather than translated, so it becomes a document to correct instead of an
+  accommodation the vocabulary carries forever. Measured against a 142-document, 26,016-terminal
+  corpus, the whole cost of that stance is 10 declarations across 3 spellings (`input`/`control`/
+  `output` on two FETs, `body` on one MOSFET, `cathode_filament` on three rectifiers).
+- Electrodes that legitimately repeat carry an index instead: `plate_a`/`plate_b` resolve to one
+  `plate` role with `index`. This is forced by the format rather than a spelling preference - a
+  terminal name is the pin's identity in the `nodes` ledger, so a dual rectifier cannot name both
+  plates `plate`.
+- Under-specified tokens resolve to no role, following the potentiometer vocabulary's rule: there
+  is nothing to correct in `a`, it simply does not say which electrode it is. A bare `filament`
+  is in the same class, being indistinguishable from a heater tap.
+- A bare pin number (`pin7`, `terminal4`) reports as `package-pin` rather than `unrecognized`: it
+  names where a wire lands, not what the electrode does, and a consumer holding the package pinout
+  can still use it.
+- Coverage over the same corpus: 2,204 of 2,251 terminals on covered kinds resolve canonically
+  (97.9%), with `triode` and `pentode` at 100%. Of the 39 that do not, 29 are three components
+  that are not the device they declare - two multi-device shells holding four transistors and
+  five diodes between them, and a unijunction transistor declared `kind: bjt`.
+
 ## 0.6.26
 
 - Merge inline terminal `node` keys and the `nodes` ledger into one declared
