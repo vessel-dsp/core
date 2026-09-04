@@ -399,6 +399,30 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 	Record<string, readonly TerminalRole[]>
 > = {
 	resistor: TWO_TERMINAL,
+	/**
+	 * A fuse, thermal cutout or other one-shot protective conductor.
+	 *
+	 * **Why the format needs its own kind for this.** A fuse conducts until it opens once, and
+	 * nothing operates it. Before this kind existed the only available declaration was
+	 * `kind: switch`, and 27 components in `vessel-dsp/artifacts` are declared that way: a
+	 * consumer then offers each as a control a player can sweep, and a mains fuse arrives on the
+	 * panel as a knob.
+	 *
+	 * A consumer could not fix that on its own without reading authored text. The only signal a
+	 * `kind: switch` fuse carries is a property key, and that key is already spelled three ways
+	 * in one corpus -- `FuseRating` 36 times, `FuseRatings` twice, `ThermalFuse` once -- so
+	 * lowering off it would be a spelling table, which is what a typed kind exists to replace.
+	 *
+	 * **It also separates the case a consumer provably cannot.** Several packets declare one
+	 * component that is a power switch *and* a fuse in series: two terminals, one closed contact,
+	 * structurally identical to a bare fuse. With this kind the switch is a `switch` that carries
+	 * its fuse rating, and the fuse alone is a `fuse` -- a distinction the document can state and
+	 * no amount of structure can recover.
+	 *
+	 * Two ends and no polarity, like the resistor it behaves as while intact. `pin` is available
+	 * for a holder's mounting lug.
+	 */
+	fuse: [...TWO_TERMINAL, "pin"],
 	"variable-resistor": [...TWO_TERMINAL, "wiper"],
 	capacitor: TWO_TERMINAL,
 	inductor: TWO_TERMINAL,

@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.38
+
+- **`kind: fuse`.** A fuse, thermal cutout or other one-shot protective conductor is now a
+  component kind. Two ends and no polarity (`end`/`positive`/`negative`), plus `pin` for a
+  holder's mounting lug.
+- **Why the format had to carry this.** A fuse conducts until it opens once and nothing operates
+  it, but the nearest available declaration was `kind: switch` -- and 27 components in
+  `vessel-dsp/artifacts` are declared that way. A consumer then offers each as a control a player
+  can sweep, which puts a mains fuse on the panel as a knob.
+- **A consumer could not fix that without reading authored text.** The only signal a `kind: switch`
+  fuse carries is a property key, and that key is already spelled three ways in one corpus:
+  `FuseRating` 36 times, `FuseRatings` twice, `ThermalFuse` once. Lowering off it would be a
+  spelling table, which is what a typed kind replaces.
+- **It also separates a case structure cannot.** Several packets declare one component that is a
+  power switch *and* a fuse in series: two terminals, one closed contact, indistinguishable from a
+  bare fuse by any structural test. A power switch that carries a fuse rating stays a `switch`; a
+  fuse alone is a `fuse`. Only the document can draw that line, and now it can.
+- The parser refuses an undefined kind as before -- `fuze` is still an error, which is what makes
+  the union a vocabulary rather than a decoration -- and an electrode role belonging to another
+  kind is reported rather than carried: `role: cathode` on a fuse raises `terminal-role-illegal`.
+- Circuit JSON export maps a fuse to `simple_resistor` with a `fuse_horz` symbol, since that
+  format has no fuse ftype; the rating stays in the source document.
+
 ## 0.6.37
 
 - A winding carries its own **`voltage`** and its own **`impedances`**. Both optional; most

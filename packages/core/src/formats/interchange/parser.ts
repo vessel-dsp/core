@@ -3329,6 +3329,7 @@ function parseComponentKind(
 		case "potentiometer":
 		case "variable-resistor":
 		case "switch":
+		case "fuse":
 		case "optocoupler":
 		case "voltage-source":
 		case "current-source":

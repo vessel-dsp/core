@@ -33,6 +33,8 @@ const KIND_COLOR: Readonly<Record<ComponentKind, string>> = {
 	rail: "#f97316",
 	ground: "#64748b",
 	switch: "#eab308",
+	// A protective conductor, drawn with the passives it behaves as while intact.
+	fuse: "#3b82f6",
 	jack: "#ec4899",
 	label: "#64748b",
 	"named-wire": "#64748b",

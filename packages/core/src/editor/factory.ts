@@ -98,6 +98,7 @@ const ID_PREFIX: Readonly<Record<ComponentKind, string>> = {
 	potentiometer: "RV",
 	"variable-resistor": "VR",
 	switch: "SW",
+	fuse: "F",
 	optocoupler: "OPT",
 	"voltage-source": "V",
 	"current-source": "I",

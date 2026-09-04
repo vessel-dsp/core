@@ -52,7 +52,7 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/core": "0.6.37"
+		"@vessel-dsp/core": "0.6.38"
 	},
 	"publishConfig": {
 		"access": "public"

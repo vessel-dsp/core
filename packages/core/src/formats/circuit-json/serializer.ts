@@ -791,6 +791,10 @@ function sourceComponentElement(
 		}
 		case "switch":
 			return { ...base, ftype: "simple_switch" };
+		// A fuse is a closed conductor until it opens once, and Circuit JSON has no fuse ftype,
+		// so it exports as the resistance it behaves as. Its rating stays in the source document.
+		case "fuse":
+			return { ...base, ftype: "simple_resistor" };
 		case "voltage-source":
 		case "battery": {
 			const voltage = quantity(component, "voltage");
@@ -1156,6 +1160,8 @@ function schematicSymbolName(component: Component): string {
 			return "potentiometer2_right";
 		case "switch":
 			return "spst_switch_right";
+		case "fuse":
+			return "fuse_horz";
 		case "ground":
 			return "ground_down";
 		case "rail":

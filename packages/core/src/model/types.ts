@@ -27,6 +27,7 @@ export type ComponentKind =
 	| "potentiometer"
 	| "variable-resistor"
 	| "switch"
+	| "fuse"
 	| "optocoupler"
 	| "voltage-source"
 	| "current-source"
