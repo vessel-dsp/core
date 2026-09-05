@@ -57,7 +57,7 @@
     },
     "packages/core": {
       "name": "@vessel-dsp/core",
-      "version": "0.6.20",
+      "version": "0.6.39",
       "dependencies": {
         "circuit-json": "0.0.433",
         "zod": "3",
@@ -65,9 +65,9 @@
     },
     "packages/stompbox": {
       "name": "@vessel-dsp/stompbox",
-      "version": "0.6.16",
+      "version": "0.6.17",
       "dependencies": {
-        "@vessel-dsp/core": "0.6.20",
+        "@vessel-dsp/core": "0.6.39",
       },
     },
     "packages/visual-effects": {
