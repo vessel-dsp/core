@@ -41,6 +41,7 @@ export type ComponentKind =
 	| "regulator"
 	| "power-converter"
 	| "analog-switch"
+	| "inverter"
 	| "flipflop"
 	| "ic"
 	| "label"

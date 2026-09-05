@@ -870,6 +870,9 @@ function sourceComponentElement(
 		case "regulator":
 		case "power-converter":
 		case "analog-switch":
+		// Circuit JSON has no gate ftype, and `simple_chip` would claim a package this is
+		// one gate of. Skipped for the reason `flipflop` is.
+		case "inverter":
 		case "flipflop":
 		case "label":
 		case "named-wire":
@@ -1176,6 +1179,7 @@ function schematicSymbolName(component: Component): string {
 		case "jack":
 		case "display":
 		case "ic":
+		case "inverter":
 		case "ota":
 		case "triode":
 		case "pentode":

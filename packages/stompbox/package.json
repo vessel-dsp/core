@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/stompbox",
-	"version": "0.6.16",
+	"version": "0.6.17",
 	"description": "Headless stompbox drill-layout and preview manifests for VesselDSP .vdsp documents.",
 	"keywords": [
 		"guitar-pedal",

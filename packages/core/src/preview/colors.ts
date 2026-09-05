@@ -35,6 +35,8 @@ const KIND_COLOR: Readonly<Record<ComponentKind, string>> = {
 	switch: "#eab308",
 	// A protective conductor, drawn with the passives it behaves as while intact.
 	fuse: "#3b82f6",
+	// A logic gate, drawn with the active devices it is built from.
+	inverter: "#8b5cf6",
 	jack: "#ec4899",
 	label: "#64748b",
 	"named-wire": "#64748b",

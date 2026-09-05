@@ -318,6 +318,20 @@ export type TerminalRole =
 	// Amplifier signal and support pins.
 	| "nonInverting"
 	| "inverting"
+	/**
+	 * A single-ended signal input, and the partner `output` has never had.
+	 *
+	 * An amplifier's inputs are a differential pair, so `nonInverting`/`inverting` name them and
+	 * neither is "the input". A logic gate has no pair: one pin drives it and one is driven, and
+	 * until this existed the driven half could be named and the driving half could not. That
+	 * asymmetry is why a hex inverter's six gates could only be split by a registry entry keyed on
+	 * the part number.
+	 *
+	 * Deliberately not `nonInverting` for a gate whose output is the inverse of its input:
+	 * `inverting` names one leg of a differential pair, and reusing it for a single-ended pin
+	 * would say a gate has a pair it does not have.
+	 */
+	| "input"
 	| "output"
 	| "supplyPositive"
 	| "supplyNegative"
@@ -439,6 +453,17 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 	opamp: OPAMP,
 	ota: OPAMP,
 	comparator: OPAMP,
+	/**
+	 * A logic inverter: one pin in, one pin out, and the supply pair the gate runs from.
+	 *
+	 * **A device class, not a part.** The six gates in a 4069 are the same device six times, which
+	 * is what makes this a `ComponentKind` rather than a registry entry -- unlike a compandor,
+	 * whose `rect_cap` and `gain_cell_in` are one chip's internals and belong to the part.
+	 *
+	 * `pin` stays available because a package pin the gate does not use -- an unused input tied
+	 * off, a no-connect -- is still a terminal the document may name.
+	 */
+	inverter: ["input", "output", "supplyPositive", "supplyNegative", "pin"],
 	potentiometer: ["ccw", "wiper", "cw", "end"],
 	jack: [
 		"tip",

@@ -99,6 +99,7 @@ const ID_PREFIX: Readonly<Record<ComponentKind, string>> = {
 	"variable-resistor": "VR",
 	switch: "SW",
 	fuse: "F",
+	inverter: "U",
 	optocoupler: "OPT",
 	"voltage-source": "V",
 	"current-source": "I",

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.39
+
+- **`kind: inverter`.** A logic inverter is now a component kind, carrying `input`, `output` and
+  the supply pair it runs from, plus `pin` for a package pin the gate does not use.
+- **`input` is a new terminal role, and the partner `output` never had.** An amplifier's inputs
+  are a differential pair, so `nonInverting`/`inverting` name them and neither is "the input". A
+  gate has no pair: one pin drives it and one is driven, and until now the driven half could be
+  named and the driving half could not. Deliberately not reusing `inverting` for a gate, which
+  would say it has a pair it does not have.
+- **Why this is a kind rather than a registry entry.** The six gates in a 4069 are the same device
+  six times, which is what makes an inverter a device class. A compandor is not: its `rect_cap`
+  and `gain_cell_in` are one chip's internals, and naming them here would put the NE570 into the
+  interchange format. `bbd`, `flipflop` and `ic` carry only `pin` for that reason, and this
+  deliberately does not change them.
+- **What it unblocks.** A hex inverter is six devices in one package, and `devices` could not
+  split it while no kind named a gate, so the split had to come from a registry entry keyed on the
+  part number. Five components across four `vessel-dsp/artifacts` packets are in that position.
+- Circuit JSON export skips an inverter, as it skips `flipflop`: there is no gate ftype, and
+  `simple_chip` would claim the whole package a gate is one of.
+
 ## 0.6.38
 
 - **`kind: fuse`.** A fuse, thermal cutout or other one-shot protective conductor is now a
