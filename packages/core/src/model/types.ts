@@ -1193,11 +1193,25 @@ export type CircuitInterchangeSchema =
  * purpose. `"none"` is a claim someone made and can be checked; a missing field is indistinguishable
  * from an oversight. A consumer must be able to tell "nothing here" from "nobody said".
  */
+/**
+ * One port, or an ORDERED list of them for a multi-channel port.
+ *
+ * **Array order is channel order** -- left then right -- so this is a list and never a set. A
+ * consumer that wants a single port takes the first element and should say that it did.
+ *
+ * Widened in 0.7.1 because 0.7.0 could not describe a common pedal. `boss-ce-2b`, `boss-dd-2` and
+ * others declare `stereo-output-left`/`stereo-output-right`; under a single-id field every stereo
+ * pedal in a corpus refuses, and refusing every stereo pedal is not a policy -- it is the schema
+ * failing to describe the device. A stereo output is a fact to be declared, not an ambiguity to be
+ * resolved.
+ */
+export type CircuitAudioPortRef = string | readonly [string, ...string[]];
+
 export type CircuitAudioPorts = Readonly<{
-	/** Component id of the single audio input. */
-	input: string;
-	/** Component id of the single audio output. */
-	output: string;
+	/** The audio input, or the ordered channels of a multi-channel input. */
+	input: CircuitAudioPortRef;
+	/** The audio output, or the ordered channels of a multi-channel output. */
+	output: CircuitAudioPortRef;
 	/** The bypass switch and the position at which the effect is ENGAGED, or an explicit absence. */
 	bypass: "none" | Readonly<{ switch: string; engagedPosition: string | number }>;
 }>;

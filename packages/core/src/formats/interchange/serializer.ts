@@ -6,6 +6,7 @@ import {
 } from "../../model/connectivity";
 import { isParsedQuantity, isPropertyObject } from "../../model/properties";
 import type {
+	CircuitAudioPorts,
 	CircuitDocument,
 	CircuitDocumentDevice,
 	DocumentAppearance,
@@ -93,9 +94,14 @@ export function serializeInterchangeYaml(
 		source: sourceBlock(doc.source, options),
 	};
 	if (doc.audio !== undefined) {
+		// An array is emitted as an array and a single id as a single id: array order is channel
+		// order, and a multi-channel port that round-trips as its first element is precisely the
+		// collapse this field was widened to prevent.
+		const portRef = (ref: CircuitAudioPorts["input"]): YamlValue =>
+			typeof ref === "string" ? ref : [...ref];
 		root.audio = {
-			input: doc.audio.input,
-			output: doc.audio.output,
+			input: portRef(doc.audio.input),
+			output: portRef(doc.audio.output),
 			bypass:
 				doc.audio.bypass === "none"
 					? "none"

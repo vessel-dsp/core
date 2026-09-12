@@ -9,6 +9,7 @@ import { isParsedQuantity } from "../../model/properties";
 import { resolvePotentiometerTerminalRoles } from "../../model/terminal-roles";
 import { classifySourceTypeName } from "./source-type-names";
 import type {
+	CircuitAudioPortRef,
 	CircuitAudioPorts,
 	BoardApplicability,
 	BoardEdgeTerminal,
@@ -621,10 +622,50 @@ function parseAudio(
 		};
 	}
 	return {
-		input: expectString(audio.input, "audio.input"),
-		output: expectString(audio.output, "audio.output"),
+		input: parseAudioPortRef(audio.input, "audio.input"),
+		output: parseAudioPortRef(audio.output, "audio.output"),
 		bypass,
 	};
+}
+
+/**
+ * One component id, or a NON-EMPTY ORDERED array of them for a multi-channel port.
+ *
+ * Order is channel order -- left then right -- so duplicates are refused: the same jack twice is a
+ * defect, not a stereo pair. The error text names what this field accepts because a producer
+ * writing prose into a field a consumer parses strictly is how `AudioRole` ended up holding the
+ * sentence "wet-only when stereo output is used"; being told why is cheaper than being ignored.
+ */
+function parseAudioPortRef(
+	value: YamlValue | undefined,
+	path: string,
+): CircuitAudioPortRef {
+	if (Array.isArray(value)) {
+		if (value.length === 0) {
+			throw new Error(
+				`${path}: an array must name at least one component id; use a single id or omit the port`,
+			);
+		}
+		const ids = value.map((entry, index) =>
+			expectString(entry, `${path}[${index}]`),
+		);
+		const seen = new Set<string>();
+		for (const id of ids) {
+			if (seen.has(id)) {
+				throw new Error(
+					`${path}: duplicate component id "${id}". Array order is CHANNEL order, so the same jack twice is a defect rather than a stereo pair.`,
+				);
+			}
+			seen.add(id);
+		}
+		return ids as unknown as CircuitAudioPortRef;
+	}
+	if (typeof value !== "string") {
+		throw new Error(
+			`${path}: expected a component id, or an ordered array of component ids for a multi-channel port. This field holds component ids and nothing else -- not a description, not a role.`,
+		);
+	}
+	return value;
 }
 
 function rejectV3OnlyTopLevelFields(root: YamlObject): void {

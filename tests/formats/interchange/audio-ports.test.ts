@@ -121,6 +121,99 @@ describe("audio port declaration", () => {
 	});
 
 	/**
+	 * MULTI-CHANNEL PORTS. 0.7.0 said `audio.output` was exactly one component id, which meant a
+	 * stereo pedal could not declare itself -- `boss-ce-2b` and others carry
+	 * `stereo-output-left`/`stereo-output-right`. Refusing every stereo pedal is not a policy; it is
+	 * the schema failing to describe the device.
+	 */
+	test("a port accepts an ordered array, and order is channel order", () => {
+		const doc = parseInterchangeYaml(
+			withAudio(
+				"circuit-interchange/v4",
+				"audio:\n  input: IN\n  output:\n    - OUT_L\n    - OUT_R\n  bypass: none\n",
+			),
+		);
+		expect(doc.audio?.output).toEqual(["OUT_L", "OUT_R"]);
+		expect(doc.audio?.input).toBe("IN");
+	});
+
+	test("the same jack twice is a defect, not a stereo pair", () => {
+		expect(() =>
+			parseInterchangeYaml(
+				withAudio(
+					"circuit-interchange/v4",
+					"audio:\n  input: IN\n  output:\n    - OUT\n    - OUT\n  bypass: none\n",
+				),
+			),
+		).toThrow(/duplicate component id "OUT"/);
+	});
+
+	test("an empty array is refused", () => {
+		expect(() =>
+			parseInterchangeYaml(
+				withAudio(
+					"circuit-interchange/v4",
+					"audio:\n  input: IN\n  output: []\n  bypass: none\n",
+				),
+			),
+		).toThrow(/at least one component id/);
+	});
+
+	/**
+	 * The field holds component ids and nothing else. `AudioRole` on `boss-ch-1` holds the sentence
+	 * "wet-only when stereo output is used" -- a producer writing prose into a field a consumer
+	 * parses strictly -- so the error says what this field accepts rather than only that the value
+	 * was wrong.
+	 */
+	test("prose is refused with text that says what the field holds", () => {
+		expect(() =>
+			parseInterchangeYaml(
+				withAudio(
+					"circuit-interchange/v4",
+					"audio:\n  input: IN\n  output: 42\n  bypass: none\n",
+				),
+			),
+		).toThrow(/component ids and nothing else/);
+	});
+
+	/**
+	 * THE STRENGTHENED NULL. An array that survives the round trip as its FIRST ELEMENT, or with
+	 * its channels swapped, is exactly the failure this widening exists to prevent -- and a
+	 * round-trip test that cannot see either is not testing the thing it is named after.
+	 */
+	test("a multi-channel port must not collapse or reorder across a round trip", () => {
+		const text = withAudio(
+			"circuit-interchange/v4",
+			"audio:\n  input: IN\n  output:\n    - OUT_L\n    - OUT_R\n  bypass: none\n",
+		);
+		const once = serializeInterchangeYaml(parseInterchangeYaml(text));
+		expect(parseInterchangeYaml(once).audio?.output).toEqual([
+			"OUT_L",
+			"OUT_R",
+		]);
+
+		const collapsed = once.replace(
+			/output:\n\s+- OUT_L\n\s+- OUT_R/,
+			"output: OUT_L",
+		);
+		expect(collapsed).not.toBe(once);
+		expect(parseInterchangeYaml(collapsed).audio?.output).not.toEqual([
+			"OUT_L",
+			"OUT_R",
+		]);
+
+		const swapped = once.replace(
+			/(output:\n\s+- )OUT_L(\n\s+- )OUT_R/,
+			"$1OUT_R$2OUT_L",
+		);
+		expect(swapped).not.toBe(once);
+		expect(parseInterchangeYaml(swapped).audio?.output).not.toEqual([
+			"OUT_L",
+			"OUT_R",
+		]);
+	});
+
+	/**
 	 * THE NULL. A round-trip test that passes when the block is silently dropped is not a
 	 * round-trip test. This asserts the failure directly: strip `audio` from the serialized form
 	 * and the result must no longer parse as v4.
