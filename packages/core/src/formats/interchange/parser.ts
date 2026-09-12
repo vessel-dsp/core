@@ -9,6 +9,7 @@ import { isParsedQuantity } from "../../model/properties";
 import { resolvePotentiometerTerminalRoles } from "../../model/terminal-roles";
 import { classifySourceTypeName } from "./source-type-names";
 import type {
+	CircuitAudioPorts,
 	BoardApplicability,
 	BoardEdgeTerminal,
 	BoardFamily,
@@ -118,6 +119,7 @@ type ParsedPair = Readonly<{
 
 const INTERCHANGE_SCHEMA_V2 = "circuit-interchange/v2";
 const INTERCHANGE_SCHEMA_V3 = "circuit-interchange/v3";
+const INTERCHANGE_SCHEMA_V4 = "circuit-interchange/v4";
 const V3_ONLY_TOP_LEVEL_FIELDS = [
 	"mechanical",
 	"appearance",
@@ -142,13 +144,24 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 	const value = parseYamlSubset(source);
 	const root = expectObject(value, "root");
 	const schema = expectString(root.schema, "schema");
-	if (schema !== INTERCHANGE_SCHEMA_V2 && schema !== INTERCHANGE_SCHEMA_V3) {
+	if (
+		schema !== INTERCHANGE_SCHEMA_V2 &&
+		schema !== INTERCHANGE_SCHEMA_V3 &&
+		schema !== INTERCHANGE_SCHEMA_V4
+	) {
 		throw new Error(`unsupported interchange schema: ${schema}`);
 	}
-	const isV3 = schema === INTERCHANGE_SCHEMA_V3;
+	const isV4 = schema === INTERCHANGE_SCHEMA_V4;
+	// v4 is a superset of v3, so every v3-only field is legal in a v4 document.
+	const isV3 = schema === INTERCHANGE_SCHEMA_V3 || isV4;
 	if (!isV3) {
 		rejectV3OnlyTopLevelFields(root);
 	}
+	// **v4 REQUIRES the audio block; v3 accepts it and validates its shape when present.**
+	// Requiring it in v3 would invalidate every existing document the moment it shipped, so the
+	// field can be backfilled before it is enforced and a file announces its own readiness by its
+	// schema string.
+	const audio = parseAudio(root.audio, isV4, schema);
 
 	const panel = parsePanel(root.panel, isV3);
 	const appearance = isV3 ? parseAppearance(root.appearance) : undefined;
@@ -178,6 +191,8 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 	const power = isV3 ? parsePower(root.power) : undefined;
 
 	return {
+		interchangeSchema: schema,
+		...(audio === undefined ? {} : { audio }),
 		metadata: parseMetadata(root.metadata),
 		source: parseSource(root.source),
 		...(device === undefined ? {} : { device }),
@@ -549,6 +564,67 @@ function splitFlowFields(value: string, path: string): readonly string[] {
 		throw new Error(`${path}: unterminated quoted flow mapping`);
 	fields.push(value.slice(start).trim());
 	return fields.filter(Boolean);
+}
+
+/**
+ * The declared audio ports.
+ *
+ * `bypass` accepts the literal `"none"` or a `{ switch, engagedPosition }` pair, and the difference
+ * matters: `"none"` is a claim that the circuit HAS no bypass switch, which some pedals genuinely
+ * do not, and it is checkable. An absent field is indistinguishable from an oversight and is
+ * therefore refused outright under v4 rather than defaulted.
+ */
+function parseAudio(
+	value: YamlValue | undefined,
+	required: boolean,
+	schema: string,
+): CircuitAudioPorts | undefined {
+	if (value === undefined) {
+		if (required) {
+			throw new Error(
+				`audio: required by schema ${INTERCHANGE_SCHEMA_V4}. Declare audio.input, ` +
+					'audio.output and audio.bypass (a switch, or the literal "none" when the ' +
+					"circuit has no bypass switch -- an absent field cannot be told from an oversight).",
+			);
+		}
+		return undefined;
+	}
+	if (schema === INTERCHANGE_SCHEMA_V2) {
+		throw new Error(`audio: requires schema ${INTERCHANGE_SCHEMA_V3}`);
+	}
+	const audio = expectObject(value, "audio");
+	const bypassValue = audio.bypass;
+	if (bypassValue === undefined) {
+		throw new Error(
+			'audio.bypass: required. Use the literal "none" when the circuit has no bypass switch.',
+		);
+	}
+	let bypass: CircuitAudioPorts["bypass"];
+	if (typeof bypassValue === "string") {
+		if (bypassValue !== "none") {
+			throw new Error(
+				`audio.bypass: expected "none" or an object with switch and engagedPosition, got "${bypassValue}"`,
+			);
+		}
+		bypass = "none";
+	} else {
+		const object = expectObject(bypassValue, "audio.bypass");
+		const engaged = object.engagedPosition;
+		if (typeof engaged !== "string" && typeof engaged !== "number") {
+			throw new Error(
+				"audio.bypass.engagedPosition: expected a string or number naming the position at which the effect is ENGAGED",
+			);
+		}
+		bypass = {
+			switch: expectString(object.switch, "audio.bypass.switch"),
+			engagedPosition: engaged,
+		};
+	}
+	return {
+		input: expectString(audio.input, "audio.input"),
+		output: expectString(audio.output, "audio.output"),
+		bypass,
+	};
 }
 
 function rejectV3OnlyTopLevelFields(root: YamlObject): void {
