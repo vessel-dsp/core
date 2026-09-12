@@ -1,4 +1,4 @@
-export const VERSION = "0.7.0";
+export const VERSION = "0.7.1";
 
 export type {
 	CreateComponentArgs,
@@ -183,6 +183,7 @@ export {
 	validateTraceStructure,
 } from "./model/trace-plausibility";
 export type {
+	CircuitAudioPortRef,
 	CircuitAudioPorts,
 	CircuitInterchangeSchema,
 	BoardApplicability,

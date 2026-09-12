@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.1
+
+- `audio.input` and `audio.output` now accept **either a single component id or
+  a non-empty ordered array of them**. Array order is **channel order** — left
+  then right — so the value is a list and never a set, and a duplicate id is
+  refused: the same jack twice is a defect, not a stereo pair. A consumer that
+  wants one port takes the first element and should say that it did.
+- Parser errors on these fields now state what the field holds — component ids
+  and nothing else, not a description and not a role.
+
+**Why this is a correction and not a feature.** 0.7.0 said `audio.output` was
+exactly one component id. A stereo pedal cannot declare itself under that rule:
+the corpus carries `stereo-output-left`/`stereo-output-right`,
+`output-a-mono`/`stereo-output-b` and `direct-output` alongside a main output.
+Under a single-id field every stereo pedal refuses — and refusing every stereo
+pedal is not a policy, it is the schema failing to describe a common device. A
+stereo output is a fact to be declared, not an ambiguity to be resolved.
+
+This is a permissive widening: every document valid under 0.7.0 remains valid.
+
 ## 0.7.0
 
 - Add `circuit-interchange/v4`, which **requires** a top-level `audio` block
