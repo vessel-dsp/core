@@ -75,9 +75,14 @@ export function serializeInterchangeYaml(
 	options: SerializeInterchangeYamlOptions = {},
 ): string {
 	const connectivity = options.connectivity ?? resolveConnectivity(doc);
-	const schema = hasV3OnlyFields(doc)
-		? "circuit-interchange/v3"
-		: "circuit-interchange/v2";
+	// A document that was PARSED carries the schema it came from, so a v4 file round-trips as v4
+	// rather than being downgraded by content inspection. A document that was CONSTRUCTED has no
+	// schema to honour, so the existing inference stands -- unchanged for every caller that had one.
+	const schema =
+		doc.interchangeSchema ??
+		(doc.audio !== undefined || hasV3OnlyFields(doc)
+			? "circuit-interchange/v3"
+			: "circuit-interchange/v2");
 	const root: MutableYamlObject = {
 		schema,
 		metadata: {
@@ -87,6 +92,19 @@ export function serializeInterchangeYaml(
 		},
 		source: sourceBlock(doc.source, options),
 	};
+	if (doc.audio !== undefined) {
+		root.audio = {
+			input: doc.audio.input,
+			output: doc.audio.output,
+			bypass:
+				doc.audio.bypass === "none"
+					? "none"
+					: {
+							switch: doc.audio.bypass.switch,
+							engagedPosition: doc.audio.bypass.engagedPosition,
+						},
+		};
+	}
 	if (doc.device !== undefined) {
 		root.device = deviceBlock(doc.device);
 	}

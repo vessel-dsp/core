@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.7.0
+
+- Add `circuit-interchange/v4`, which **requires** a top-level `audio` block
+  declaring the circuit's audio ports: `audio.input` and `audio.output` (one
+  component id each) and `audio.bypass`, which is either
+  `{ switch, engagedPosition }` or the literal `"none"`.
+- `circuit-interchange/v3` **accepts** the same block as optional and validates
+  its shape when present. Requiring it in v3 would invalidate every existing
+  document the moment it shipped; this way the field can be backfilled before
+  it is enforced, and a file announces its own readiness by its schema string.
+  `circuit-interchange/v2` refuses the block outright.
+- `CircuitDocument` now carries `interchangeSchema`, the schema a document was
+  parsed from, so a v4 file round-trips as v4 instead of having its version
+  re-inferred from its contents on the way out. Constructed documents (no
+  parsed schema) keep the existing inference unchanged.
+
+**Why this is a first-class field rather than a jack property.** Consumers were
+choosing a circuit's output by inspecting jacks and guessing. `soldano-slo-100`
+declares four `Circuit.Speaker` jacks — three monitor taps and an effects send —
+and no speaker after its output transformer, so every tool that read it silently
+measured a preamp monitor point. Three independent instruments called that amp
+broken and not one could report which output it had chosen. A declared port is
+checkable; a guessed one is invisible when it is wrong.
+
+This is the same argument v0.6.36 made for transformer windings — "a reference
+tap is not an output tap", declared "because nothing a consumer can compute
+separates them" — applied to jacks instead of coils. That release split its
+corpus 40 reference taps against 15 output taps; this one addresses 29 packets
+that declare more than one `Circuit.Speaker`.
+
+**Why `bypass` may be `"none"` but may not be absent.** Some pedals have no
+bypass switch on purpose. `"none"` is a claim someone made and can be verified
+or argued with; a missing field is indistinguishable from an oversight. A
+consumer must be able to tell "nothing here" from "nobody said".
+
 ## 0.6.39
 
 - **`kind: inverter`.** A logic inverter is now a component kind, carrying `input`, `output` and

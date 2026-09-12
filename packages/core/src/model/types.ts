@@ -1171,7 +1171,42 @@ export type Warning = Readonly<{
  * should preserve the user-facing schematic/control semantics needed to audit
  * that mapping.
  */
+/**
+ * Which interchange schema a document was read from, so a file announces its own readiness by its
+ * schema string rather than having one inferred from its contents on the way out.
+ */
+export type CircuitInterchangeSchema =
+	| "circuit-interchange/v2"
+	| "circuit-interchange/v3"
+	| "circuit-interchange/v4";
+
+/**
+ * The declared audio ports of a circuit.
+ *
+ * **Why this is a first-class field and not a jack property.** Consumers were choosing an output by
+ * inspecting jacks and guessing: `soldano-slo-100` declares four `Circuit.Speaker` jacks -- three
+ * monitor taps and an effects send -- and no speaker after its output transformer, so every tool
+ * that read it silently measured a preamp monitor point. Three independent instruments called that
+ * amp broken and none could say why, because none of them could see which output it had chosen.
+ *
+ * **Why `bypass` may be `"none"` but may not be absent.** Some pedals have no bypass switch on
+ * purpose. `"none"` is a claim someone made and can be checked; a missing field is indistinguishable
+ * from an oversight. A consumer must be able to tell "nothing here" from "nobody said".
+ */
+export type CircuitAudioPorts = Readonly<{
+	/** Component id of the single audio input. */
+	input: string;
+	/** Component id of the single audio output. */
+	output: string;
+	/** The bypass switch and the position at which the effect is ENGAGED, or an explicit absence. */
+	bypass: "none" | Readonly<{ switch: string; engagedPosition: string | number }>;
+}>;
+
 export type CircuitDocument = Readonly<{
+	/** The schema this document was parsed from, when it was parsed rather than constructed. */
+	interchangeSchema?: CircuitInterchangeSchema;
+	/** Declared audio ports. Required by `circuit-interchange/v4`, optional and validated in v3. */
+	audio?: CircuitAudioPorts;
 	metadata: DocumentMetadata;
 	source?: DocumentSource;
 	device?: CircuitDocumentDevice;
