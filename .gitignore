@@ -9,3 +9,4 @@ docs/src/content/docs/reference/api/
 *.tsbuildinfo
 .playwright-cli/
 thoughts/
+tmp/
