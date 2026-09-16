@@ -1,5 +1,8 @@
+import { CabinetIrNode } from "./nodes/ir-node.js";
+import { GainNode } from "./nodes/gain-node.js";
 import { InputProfileNode } from "./nodes/input-profile-node.js";
 import { MasterNode } from "./nodes/master-node.js";
+import { NamNode } from "./nodes/nam-node.js";
 import type {
 	ChainNode,
 	ChainPreset,
@@ -34,6 +37,47 @@ export class SignalChain {
 		return this;
 	}
 
+	insertNode(node: ChainNode, index: number): this {
+		this.removeNode(node.id);
+		const targetIndex = Math.max(0, Math.min(this.nodes.length, index));
+		this.nodes.splice(targetIndex, 0, node);
+		node.prepare(this.sampleRate);
+		return this;
+	}
+
+	moveNode(id: string, targetIndex: number): boolean {
+		const currentIndex = this.nodes.findIndex((n) => n.id === id);
+		if (currentIndex < 0) return false;
+
+		const [node] = this.nodes.splice(currentIndex, 1);
+		if (!node) return false;
+
+		const clampedIndex = Math.max(0, Math.min(this.nodes.length, targetIndex));
+		this.nodes.splice(clampedIndex, 0, node);
+		return true;
+	}
+
+	reorderNodes(orderedIds: readonly string[]): boolean {
+		const newNodes: ChainNode[] = [];
+		const remaining = new Map(this.nodes.map((n) => [n.id, n]));
+
+		for (const id of orderedIds) {
+			const node = remaining.get(id);
+			if (node) {
+				newNodes.push(node);
+				remaining.delete(id);
+			}
+		}
+
+		// Append any nodes that were not explicitly listed
+		for (const node of remaining.values()) {
+			newNodes.push(node);
+		}
+
+		this.nodes = newNodes;
+		return true;
+	}
+
 	removeNode(id: string): boolean {
 		const index = this.nodes.findIndex((n) => n.id === id);
 		if (index >= 0) {
@@ -41,6 +85,11 @@ export class SignalChain {
 			return true;
 		}
 		return false;
+	}
+
+	clearNodes(): this {
+		this.nodes = [];
+		return this;
 	}
 
 	getNode(id: string): ChainNode | undefined {
@@ -55,6 +104,10 @@ export class SignalChain {
 
 	getEffectNodes(): readonly ChainNode[] {
 		return [...this.nodes];
+	}
+
+	get length(): number {
+		return this.nodes.length;
 	}
 
 	prepare(sampleRate: number): void {
@@ -103,7 +156,10 @@ export class SignalChain {
 		};
 	}
 
-	loadPreset(preset: ChainPreset): void {
+	loadPreset(
+		preset: ChainPreset,
+		nodeFactory?: (snap: NodeSnapshot) => ChainNode | undefined,
+	): void {
 		if (preset.inputProfile) {
 			this.inputProfile.setPickupType(preset.inputProfile.pickupType);
 			this.inputProfile.setImpedance(preset.inputProfile.impedanceOhms);
@@ -124,7 +180,14 @@ export class SignalChain {
 
 		if (preset.nodes) {
 			for (const snap of preset.nodes) {
-				const node = this.getNode(snap.id);
+				let node = this.getNode(snap.id);
+				if (!node && nodeFactory) {
+					node = nodeFactory(snap);
+					if (node) {
+						this.addNode(node);
+					}
+				}
+
 				if (node) {
 					node.bypassed = snap.bypassed;
 					node.mix = snap.mix;
@@ -134,5 +197,36 @@ export class SignalChain {
 				}
 			}
 		}
+	}
+
+	toJson(name = "Signal Chain"): string {
+		return JSON.stringify(this.getPreset(name), null, 2);
+	}
+
+	static fromJson(
+		jsonStr: string,
+		options?: {
+			sampleRate?: number;
+			nodeFactory?: (snap: NodeSnapshot) => ChainNode | undefined;
+		},
+	): SignalChain {
+		const preset = JSON.parse(jsonStr) as ChainPreset;
+		const chain = new SignalChain({ sampleRate: options?.sampleRate ?? 48000 });
+
+		const defaultFactory = (snap: NodeSnapshot): ChainNode | undefined => {
+			if (snap.kind === "nam") {
+				return new NamNode(snap.id, snap.name);
+			}
+			if (snap.kind === "cabinet-ir") {
+				return new CabinetIrNode(snap.id, snap.name);
+			}
+			if (snap.kind === "gain") {
+				return new GainNode(snap.id, snap.name);
+			}
+			return undefined;
+		};
+
+		chain.loadPreset(preset, options?.nodeFactory ?? defaultFactory);
+		return chain;
 	}
 }
