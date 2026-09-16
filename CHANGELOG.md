@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.2
+
+- Fix `parseYamlSubset` (the `.vdsp` reader) to strip single-quote delimiters
+  from scalar values and mapping keys. `id: '0'` previously parsed to the
+  three-character string `'0'` — quotes included — instead of `0`.
+- Added a fixture asserting that the same node declared as `node: '0'` in one
+  terminal and `node: 0` in another resolves to one node, not two.
+
+**Why this is a correctness fix, not a style nit.** A quoted and an unquoted
+spelling of the same scalar silently became two different keys. For a
+`terminal.node` id, that means two terminals meant to share a node instead
+land on separate, isolated nodes — no error, no warning, no refusal. Found by
+a cross-check in a consumer repo that compares node membership against a
+second, independent read of the same `.vdsp` file; confirmed against
+`boss-ce-2` in `vessel-dsp/artifacts`, where one component written with
+unquoted `node: 0` diverged from every other component's quoted `node: '0'`.
+Every consumer reads `.vdsp` through this same entry point, so the fix ships
+in core rather than being worked around downstream.
+
 ## 0.7.1
 
 - `audio.input` and `audio.output` now accept **either a single component id or

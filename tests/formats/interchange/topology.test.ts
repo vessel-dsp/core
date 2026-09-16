@@ -111,6 +111,34 @@ describe("parseInterchangeYamlWithTopology", () => {
 		expect(parsed.connectivity.groundNodeId).toBe(0);
 	});
 
+	test("resolves single-quoted and unquoted node ids to the same node", () => {
+		// A packet is free to spell the same node id as `node: '0'` in one
+		// component and `node: 0` in another (the serializer itself is
+		// inconsistent about quoting numeric scalars). Both spellings must
+		// resolve to one node, not two.
+		const mixedQuoting = declaredSource
+			.replace("      - name: a\n", "      - name: a\n        node: 7\n")
+			.replace("      - name: b\n", "      - name: b\n        node: '0'\n")
+			.replace(
+				"      - name: terminal\n",
+				"      - name: terminal\n        node: 0\n",
+			)
+			.replace(/nodes:\n[\s\S]*?wires: \[\]/, "nodes: []\nwires: []");
+		const parsed = parseInterchangeYamlWithTopology(mixedQuoting);
+		expect(parsed.connectivitySource).toBe("declared");
+		const quotedNode = getPinNode(parsed.connectivity, {
+			componentId: "R1",
+			terminalName: "b",
+		});
+		const unquotedNode = getPinNode(parsed.connectivity, {
+			componentId: "GND",
+			terminalName: "terminal",
+		});
+		expect(quotedNode).toBe(0);
+		expect(unquotedNode).toBe(0);
+		expect(parsed.connectivity.nodeCount).toBe(2);
+	});
+
 	test("rejects duplicate declared pin ownership", () => {
 		const duplicate = declaredSource.replace(
 			"      - { componentId: R1, terminalName: a }",

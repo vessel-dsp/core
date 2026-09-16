@@ -2622,6 +2622,10 @@ function findPairColon(text: string): number {
 		const end = findJsonStringEnd(text);
 		return end >= 0 && text[end + 1] === ":" ? end + 1 : -1;
 	}
+	if (text.startsWith("'")) {
+		const end = findSingleQuotedStringEnd(text);
+		return end >= 0 && text[end + 1] === ":" ? end + 1 : -1;
+	}
 	return text.indexOf(":");
 }
 
@@ -2644,19 +2648,57 @@ function findJsonStringEnd(text: string): number {
 	return -1;
 }
 
-function parseKey(text: string, lineNumber: number): string {
-	if (!text.startsWith('"')) {
-		return text;
-	}
-	try {
-		const parsed = JSON.parse(text);
-		if (typeof parsed === "string") {
-			return parsed;
+// A YAML single-quoted scalar has no backslash escapes; a doubled `''` is the
+// only escape and it represents one literal quote. Returns the index of the
+// closing quote, or -1 if the token never closes.
+function findSingleQuotedStringEnd(text: string): number {
+	let index = 1;
+	while (index < text.length) {
+		if (text[index] === "'") {
+			if (text[index + 1] === "'") {
+				index += 2;
+				continue;
+			}
+			return index;
 		}
-	} catch {
-		// Fall through to the consistent parser error below.
+		index += 1;
 	}
-	throw new Error(`line ${lineNumber}: invalid quoted key`);
+	return -1;
+}
+
+// Decodes a single-quoted YAML scalar. Unlike the double-quoted path (which
+// delegates to JSON.parse), this also requires the closing quote to be the
+// last character of `text` — parseInlineValue and parseKey both hand this the
+// entire remaining line/key text, so anything after the closing quote means
+// the token never actually closed where we thought it did.
+function parseSingleQuotedScalar(
+	text: string,
+	lineNumber: number,
+	message: string,
+): string {
+	const end = findSingleQuotedStringEnd(text);
+	if (end < 0 || end !== text.length - 1) {
+		throw new Error(`line ${lineNumber}: ${message}`);
+	}
+	return text.slice(1, end).replace(/''/g, "'");
+}
+
+function parseKey(text: string, lineNumber: number): string {
+	if (text.startsWith('"')) {
+		try {
+			const parsed = JSON.parse(text);
+			if (typeof parsed === "string") {
+				return parsed;
+			}
+		} catch {
+			// Fall through to the consistent parser error below.
+		}
+		throw new Error(`line ${lineNumber}: invalid quoted key`);
+	}
+	if (text.startsWith("'")) {
+		return parseSingleQuotedScalar(text, lineNumber, "invalid quoted key");
+	}
+	return text;
 }
 
 function parseInlineValue(text: string, lineNumber: number): YamlValue {
@@ -2685,6 +2727,9 @@ function parseInlineValue(text: string, lineNumber: number): YamlValue {
 			// Fall through to the consistent parser error below.
 		}
 		throw new Error(`line ${lineNumber}: invalid quoted scalar`);
+	}
+	if (text.startsWith("'")) {
+		return parseSingleQuotedScalar(text, lineNumber, "invalid quoted scalar");
 	}
 	if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) {
 		return Number(text);
