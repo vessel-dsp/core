@@ -14,7 +14,6 @@ const cabinet = await importDist("packages/cabinet/dist/index.js");
 const compiler = await importDist("packages/compiler/dist/index.js");
 const runtime = await importDist("packages/runtime/dist/index.js");
 const chain = await importDist("packages/chain/dist/index.js");
-const player = await importDist("packages/player/dist/index.js");
 
 if (typeof core.parseCircuitDocument !== "function") {
 	throw new Error(
@@ -162,16 +161,12 @@ if (typeof chain.CabinetIrNode !== "function") {
 	throw new Error("packages/chain/dist/index.js does not export CabinetIrNode");
 }
 
-if (typeof player.AudioEngine !== "function") {
-	throw new Error("packages/player/dist/index.js does not export AudioEngine");
+if (typeof chain.PowerSupplyNode !== "function") {
+	throw new Error("packages/chain/dist/index.js does not export PowerSupplyNode");
 }
 
-if (typeof player.SpectrumVisualizer !== "function") {
-	throw new Error("packages/player/dist/index.js does not export SpectrumVisualizer");
-}
-
-if (typeof player.VesselPlayerElement !== "function") {
-	throw new Error("packages/player/dist/index.js does not export VesselPlayerElement");
+if (typeof chain.estimateCircuitPowerDraw !== "function") {
+	throw new Error("packages/chain/dist/index.js does not export estimateCircuitPowerDraw");
 }
 
 console.log("dist entrypoints ok");

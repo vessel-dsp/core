@@ -1,14 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import {
 	CabinetIrNode,
+	estimateCircuitPowerDraw,
 	GainNode,
 	InputProfileNode,
 	NamNode,
+	PowerSupplyNode,
 	RuntimeNode,
 	SignalChain,
 } from "@vessel-dsp/chain";
 import { compile, emptyRegistry } from "@vessel-dsp/compiler";
-import { AudioEngine } from "@vessel-dsp/player";
+import { parseCircuitDocumentFile } from "@vessel-dsp/core";
 import { ReferenceRuntime } from "@vessel-dsp/runtime";
 
 const RC_LOW_PASS_VDSP = `schema: circuit-interchange/v3
@@ -177,13 +179,47 @@ describe("Simulation & Signal Chain Packages", () => {
 		expect(chain.inputProfile.getConfig().pickupType).toBe("humbucker");
 	});
 
-	test("audio engine initializes and provides meter data", () => {
-		const engine = new AudioEngine({ sampleRate: 48000 });
-		expect(engine.playing).toBe(false);
-		expect(engine.source).toBe("sample");
+	test("power supply node models dynamic rail sag, dying battery starvation, and AC ripple", () => {
+		const psu = new PowerSupplyNode("psu-1", "9V Battery");
+		psu.prepare(48000);
 
-		const meter = engine.getMeterData();
-		expect(meter.rmsDb).toBeLessThanOrEqual(0);
-		expect(typeof meter.clipping).toBe("boolean");
+		// Fresh alkaline 9V
+		expect(psu.getConfig().type).toBe("alkaline-9v");
+		expect(psu.getConfig().nominalVoltageV).toBe(9.0);
+
+		const input = new Float64Array(256).fill(0.8);
+		const outAlkaline = psu.process(input);
+		expect(outAlkaline.length).toBe(256);
+		expect(psu.getInstantaneousRailVoltage()).toBeGreaterThan(8.5);
+
+		// Switch to dying battery (6.8V with high internal resistance 180 ohms)
+		psu.setType("dying-battery");
+		expect(psu.getConfig().nominalVoltageV).toBe(6.8);
+		expect(psu.getConfig().internalResistanceOhms).toBe(180);
+
+		// Process heavy transient: rail sags under load
+		const heavyInput = new Float64Array(1024).fill(1.5);
+		const outDying = psu.process(heavyInput);
+		expect(outDying.length).toBe(1024);
+		// Sagged rail voltage should drop noticeably below 6.8V
+		expect(psu.getInstantaneousRailVoltage()).toBeLessThan(6.8);
+
+		// Unregulated AC-DC with 120Hz ripple
+		psu.setType("unregulated-ac-dc");
+		expect(psu.getConfig().rippleVoltageV).toBeGreaterThan(0);
+		const outRipple = psu.process(new Float64Array(512).fill(0.1));
+		expect(outRipple.length).toBe(512);
+	});
+
+	test("estimateCircuitPowerDraw estimates quiescent, peak, and dissipation from circuit document", () => {
+		const doc = parseCircuitDocumentFile(RC_LOW_PASS_VDSP, { filename: "rc_filter.vdsp" });
+		const estimate = estimateCircuitPowerDraw(doc, { supplyVoltageV: 9.0 });
+
+		expect(estimate.supplyVoltageV).toBe(9.0);
+		expect(estimate.quiescentCurrentMa).toBeGreaterThanOrEqual(0.1);
+		expect(estimate.peakCurrentMa).toBeGreaterThan(estimate.quiescentCurrentMa);
+		expect(estimate.powerDissipationMw).toBeGreaterThan(0);
+		expect(typeof estimate.breakdown).toBe("object");
 	});
 });
+

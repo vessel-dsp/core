@@ -3,6 +3,7 @@ import { GainNode } from "./nodes/gain-node.js";
 import { InputProfileNode } from "./nodes/input-profile-node.js";
 import { MasterNode } from "./nodes/master-node.js";
 import { NamNode } from "./nodes/nam-node.js";
+import { PowerSupplyNode } from "./nodes/power-supply-node.js";
 import type {
 	ChainNode,
 	ChainPreset,
@@ -222,6 +223,9 @@ export class SignalChain {
 			}
 			if (snap.kind === "gain") {
 				return new GainNode(snap.id, snap.name);
+			}
+			if (snap.kind === "power-supply") {
+				return new PowerSupplyNode(snap.id, snap.name);
 			}
 			return undefined;
 		};

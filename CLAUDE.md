@@ -37,7 +37,6 @@ workflows.
 - `packages/compiler/` -> npm package `@vessel-dsp/compiler`.
 - `packages/runtime/` -> npm package `@vessel-dsp/runtime`.
 - `packages/chain/` -> npm package `@vessel-dsp/chain`.
-- `packages/player/` -> npm package `@vessel-dsp/player`.
 
 The root package is private and only orchestrates workspace scripts.
 

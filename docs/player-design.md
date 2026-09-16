@@ -39,20 +39,23 @@ Inspired by CodePen and modern DSP IDEs, providing a 3-pane responsive grid:
 ├──────────────────────────┬─────────────────────────────┬───────────────────────────────┤
 │  PANE 1: SOURCE (.vdsp)  │  PANE 2: SIGNAL CHAIN       │  PANE 3: PANEL & ANALYZER     │
 ├──────────────────────────┼─────────────────────────────┼───────────────────────────────┤
-│ schema: circuit/v3       │ [1] GUITAR INPUT PROFILE    │ ┌───────────────────────────┐ │
-│ components:              │   Pickup: [ Humbucker   ▼ ] │ │   REAL-TIME FFT SPECTRUM  │ │
-│   - id: R_GAIN           │   Load:   [ 500 kΩ      ▼ ] │ │   & PEAK / RMS DB METER   │ │
-│     kind: potentiometer  │   Trim:   [ +2.0 dB   ──● ] │ └───────────────────────────┘ │
-│     properties:          │                             │                               │
-│       Resistance: 100k   │ [2] CIRCUIT RUNTIME         │ ┌───────────────────────────┐ │
-│       Taper: Audio       │   Bypass: [ OFF ] Mix: 100% │ │  INTERACTIVE PEDAL PANEL  │ │
-│                          │                             │ │  ( ) GAIN   ( ) TONE      │ │
-│                          │ [3] NAM AMP MODEL (v0.1)    │ │         [ BYPASS ]        │ │
-│                          │   Model:  [ JCM800 Lead ▼ ] │ └───────────────────────────┘ │
-│                          │   Gain:   [ ──●─────────  ] │                               │
-│                          │                             │ [4] MASTER OUTPUT             │
-│                          │ [4] CABINET IR (v0.1)       │   Volume: [ 0.0 dB  ──●─── ]  │
-│                          │   Cab:    [ 4x12 V30    ▼ ] │   Limiter: [ ACTIVE ]         │
+│ schema: circuit/v3       │ [1] GUITAR & INPUT CABLE    │ ┌───────────────────────────┐ │
+│ components:              │   Pickup: [ Single-Coil ▼ ] │ │   REAL-TIME FFT SPECTRUM  │ │
+│   - id: R_GAIN           │   Load:   [ 1 MΩ        ▼ ] │ │   & PEAK / RMS DB METER   │ │
+│     kind: potentiometer  │   Cable:  [ 3 m (10 ft) ▼ ] │ └───────────────────────────┘ │
+│     properties:          │   Trim:   [ 0.0 dB    ──● ] │                               │
+│       Resistance: 100k   │                             │ ┌───────────────────────────┐ │
+│       Taper: Audio       │ [2] CIRCUIT RUNTIME         │ │  INTERACTIVE PEDAL PANEL  │ │
+│                          │   Bypass: [ OFF ] Mix: 100% │ │  ( ) GAIN   ( ) TONE      │ │
+│                          │   Patch:  [ 15 cm       ▼ ] │ │         [ BYPASS ]        │ │
+│                          │                             │ └───────────────────────────┘ │
+│                          │ [3] AMP CABLE & NAM (v0.1)  │                               │
+│                          │   Cable:  [ 3 m (10 ft) ▼ ] │ [4] MASTER OUTPUT             │
+│                          │   Model:  [ JCM800 Lead ▼ ] │   Volume: [ 0.0 dB  ──●─── ]  │
+│                          │   Gain:   [ ──●─────────  ] │   Limiter: [ ACTIVE ]         │
+│                          │                             │                               │
+│                          │ [4] CABINET IR (v0.1)       │                               │
+│                          │   Cab:    [ 4x12 V30    ▼ ] │                               │
 ├──────────────────────────┴─────────────────────────────┴───────────────────────────────┤
 │  Audio Source: (•) DI Sample Loop [ Funk Riff ▼ ]  ( ) Live Guitar Input               │
 └────────────────────────────────────────────────────────────────────────────────────────┘
@@ -64,8 +67,14 @@ Inspired by CodePen and modern DSP IDEs, providing a 3-pane responsive grid:
    - On edit, compiles via `@vessel-dsp/compiler` on the fly.
    - Diagnostic errors/warnings are displayed inline.
    - Hot-swaps the runtime program in `@vessel-dsp/chain` without stopping audio!
-2. **Signal Chain Rack Customization**:
-   - Adjust input pickup resonance (Single Coil, Humbucker, Active, Piezo) and impedance.
+2. **Signal Chain Rack & Cable Customization**:
+   - Adjust input pickup resonance (Single Coil, Humbucker, Active, Piezo) and load impedance.
+   - **Configurable Interconnect Cables**:
+     - **Guitar to First Pedal / Buffer**: Default `3 m` (presets: `15 cm`, `30 cm`, `1 m`, `3 m`, `6 m`, `10 m`, or custom slider).
+     - **Pedal to Pedal (Patch Cable)**: Default `15 cm` (presets: `15 cm`, `30 cm`, `50 cm`, `1 m`).
+     - **Last Pedal to Amp**: Default `3 m` (presets: `1 m`, `3 m`, `6 m`, `10 m`).
+     - **Capacitance Modeling**: Default $100\text{ pF/m}$ ($60\text{--}150\text{ pF/m}$ adjustable). Simulates physical $LC$ resonant shift and high-frequency roll-off.
+     - **Buffer Isolation**: Toggling an active buffer or buffered pedal drives downstream cables at low impedance ($\approx 100\,\Omega$), isolating cable capacitance from the guitar pickup.
    - Enable/disable pedal slots, NAM amp models, and Cabinet IR convolution.
    - Save / load custom presets as JSON.
 3. **Real-time Diagnostics & Metering**:
@@ -85,6 +94,8 @@ Inspired by CodePen and modern DSP IDEs, providing a 3-pane responsive grid:
   src="/circuits/tube-screamer.vdsp"
   sample="/audio/clean-guitar.mp3"
   pickup="single-coil"
+  guitar-cable="3m"
+  amp-cable="3m"
   theme="dark"
   mode="compact"
 ></vessel-player>
@@ -105,6 +116,10 @@ Inspired by CodePen and modern DSP IDEs, providing a 3-pane responsive grid:
 | `mode` | `compact` \| `studio` \| `auto` | Visual layout mode (auto uses container queries) |
 | `theme` | `dark` \| `light` | Visual theme (follows VesselDSP brutalist style) |
 | `pickup` | `single-coil` \| `humbucker` \| `active` \| `piezo` | Default guitar pickup profile |
+| `guitar-cable` | `15cm` \| `30cm` \| `1m` \| `3m` \| `6m` \| `10m` \| number (meters) | Guitar to first pedal cable length (default: `3m`) |
+| `patch-cable` | `15cm` \| `30cm` \| `50cm` \| `1m` \| number (meters) | Inter-pedal patch cable length (default: `15cm`) |
+| `amp-cable` | `1m` \| `3m` \| `6m` \| `10m` \| number (meters) | Last pedal to amp cable length (default: `3m`) |
+| `cable-capacitance` | number (pF/m) | Cable capacitance per meter (default: `100`) |
 | `nam` | URL / model ID | Initial NAM amp model profile |
 | `ir` | URL / IR name | Initial cabinet impulse response file |
 | `editable` | boolean (`true` / `false`) | Allow/disallow `.vdsp` editing in Studio mode |
@@ -123,10 +138,13 @@ await player.play();
 await player.stop();
 player.setSource("mic"); // Switch to live guitar input
 
-// Parameter manipulation
+// Parameter & Signal Chain manipulation
 player.setParameter("GAIN", 0.75);
 player.setPickup("humbucker");
-player.setMode("studio"); // Expand to full grid
+player.setGuitarCable("6m");    // 15cm, 30cm, 1m, 3m, 6m, 10m, or meters as number
+player.setPatchCable("15cm");   // Inter-pedal patch cable
+player.setAmpCable("3m");       // Last pedal to amp cable
+player.setMode("studio");       // Expand to full grid
 
 // Events
 player.addEventListener("statechange", (e) => console.log(e.detail));

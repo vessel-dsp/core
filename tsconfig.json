@@ -24,9 +24,7 @@
 			"@vessel-dsp/runtime": ["packages/runtime/src/index.ts"],
 			"@vessel-dsp/runtime/*": ["packages/runtime/src/*"],
 			"@vessel-dsp/chain": ["packages/chain/src/index.ts"],
-			"@vessel-dsp/chain/*": ["packages/chain/src/*"],
-			"@vessel-dsp/player": ["packages/player/src/index.ts"],
-			"@vessel-dsp/player/*": ["packages/player/src/*"]
+			"@vessel-dsp/chain/*": ["packages/chain/src/*"]
 		}
 	},
 	"include": [
@@ -46,8 +44,6 @@
 		"tests/runtime/**/*",
 		"packages/chain/**/*",
 		"tests/chain/**/*",
-		"packages/player/**/*",
-		"tests/player/**/*",
 		"tests/simulation.test.ts"
 	]
 }

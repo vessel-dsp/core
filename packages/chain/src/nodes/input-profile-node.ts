@@ -1,35 +1,40 @@
 import type { ChainNode, InputProfileConfig, PickupType } from "../types.js";
 
-const DEFAULT_PICKUP_PROFILES: Record<
+const PICKUP_PHYSICAL_MODELS: Record<
 	PickupType,
-	{ resonantFreqHz: number; resonantQ: number; defaultGainDb: number; defaultImpedance: number }
+	{ inductanceH: number; internalCapacitancePf: number; resonantQ: number; defaultGainDb: number; defaultImpedance: number }
 > = {
 	"single-coil": {
-		resonantFreqHz: 3800,
+		inductanceH: 2.5,
+		internalCapacitancePf: 110,
 		resonantQ: 2.2,
 		defaultGainDb: 0,
 		defaultImpedance: 250000,
 	},
 	humbucker: {
-		resonantFreqHz: 2400,
+		inductanceH: 4.5,
+		internalCapacitancePf: 130,
 		resonantQ: 1.8,
 		defaultGainDb: 3.5,
 		defaultImpedance: 500000,
 	},
 	active: {
-		resonantFreqHz: 12000,
+		inductanceH: 0,
+		internalCapacitancePf: 0,
 		resonantQ: 0.7,
 		defaultGainDb: 0,
 		defaultImpedance: 1000000,
 	},
 	piezo: {
-		resonantFreqHz: 6500,
+		inductanceH: 0,
+		internalCapacitancePf: 500,
 		resonantQ: 1.2,
 		defaultGainDb: -2.0,
 		defaultImpedance: 10000000,
 	},
 	custom: {
-		resonantFreqHz: 3000,
+		inductanceH: 3.0,
+		internalCapacitancePf: 120,
 		resonantQ: 1.5,
 		defaultGainDb: 0,
 		defaultImpedance: 500000,
@@ -60,13 +65,26 @@ export class InputProfileNode implements ChainNode {
 
 	constructor(config?: Partial<InputProfileConfig>) {
 		const type: PickupType = config?.pickupType ?? "single-coil";
-		const defaults = DEFAULT_PICKUP_PROFILES[type];
+		const defaults = PICKUP_PHYSICAL_MODELS[type];
+
+		const guitarCable = config?.guitarCableLengthMeters ?? 3.0;
+		const patchCable = config?.patchCableLengthMeters ?? 0.15;
+		const ampCable = config?.ampCableLengthMeters ?? 3.0;
+		const cableCap = config?.cableCapacitancePfPerM ?? 100;
+
+		const resonantFreqHz =
+			config?.resonantFreqHz ??
+			this.calculateResonantFreqHzFor(type, guitarCable, cableCap);
 
 		this.config = {
 			pickupType: type,
 			impedanceOhms: config?.impedanceOhms ?? defaults.defaultImpedance,
 			inputGainDb: config?.inputGainDb ?? defaults.defaultGainDb,
-			resonantFreqHz: config?.resonantFreqHz ?? defaults.resonantFreqHz,
+			guitarCableLengthMeters: guitarCable,
+			patchCableLengthMeters: patchCable,
+			ampCableLengthMeters: ampCable,
+			cableCapacitancePfPerM: cableCap,
+			resonantFreqHz,
 			resonantQ: config?.resonantQ ?? defaults.resonantQ,
 		};
 
@@ -80,12 +98,58 @@ export class InputProfileNode implements ChainNode {
 
 	setPickupType(type: PickupType): void {
 		this.config.pickupType = type;
-		const defaults = DEFAULT_PICKUP_PROFILES[type];
-		this.config.resonantFreqHz = defaults.resonantFreqHz;
+		const defaults = PICKUP_PHYSICAL_MODELS[type];
 		this.config.resonantQ = defaults.resonantQ;
 		this.config.impedanceOhms = defaults.defaultImpedance;
+		this.config.resonantFreqHz = this.calculateResonantFreqHz();
 		this.updateGain();
 		this.updateFilter();
+	}
+
+	setGuitarCableLength(meters: number): void {
+		this.config.guitarCableLengthMeters = Math.max(0, meters);
+		this.config.resonantFreqHz = this.calculateResonantFreqHz();
+		this.updateFilter();
+	}
+
+	setPatchCableLength(meters: number): void {
+		this.config.patchCableLengthMeters = Math.max(0, meters);
+	}
+
+	setAmpCableLength(meters: number): void {
+		this.config.ampCableLengthMeters = Math.max(0, meters);
+	}
+
+	setCableCapacitancePfPerM(pfPerM: number): void {
+		this.config.cableCapacitancePfPerM = Math.max(20, Math.min(300, pfPerM));
+		this.config.resonantFreqHz = this.calculateResonantFreqHz();
+		this.updateFilter();
+	}
+
+	private calculateResonantFreqHz(): number {
+		return this.calculateResonantFreqHzFor(
+			this.config.pickupType,
+			this.config.guitarCableLengthMeters ?? 3.0,
+			this.config.cableCapacitancePfPerM ?? 100,
+		);
+	}
+
+	private calculateResonantFreqHzFor(
+		pickupType: PickupType,
+		guitarCableMeters: number,
+		pfPerM: number,
+	): number {
+		if (pickupType === "active") return 12000;
+		if (pickupType === "piezo") return 6500;
+
+		const model = PICKUP_PHYSICAL_MODELS[pickupType];
+		const totalCapPf = model.internalCapacitancePf + guitarCableMeters * pfPerM;
+		const totalCapF = totalCapPf * 1e-12;
+		const L = model.inductanceH;
+
+		if (L <= 0 || totalCapF <= 0) return 3500;
+		const f0 = 1 / (2 * Math.PI * Math.sqrt(L * totalCapF));
+		return Math.round(f0);
 	}
 
 	setImpedance(ohms: number): void {
@@ -117,6 +181,14 @@ export class InputProfileNode implements ChainNode {
 				return this.config.inputGainDb;
 			case "impedanceOhms":
 				return this.config.impedanceOhms;
+			case "guitarCableLengthMeters":
+				return this.config.guitarCableLengthMeters;
+			case "patchCableLengthMeters":
+				return this.config.patchCableLengthMeters;
+			case "ampCableLengthMeters":
+				return this.config.ampCableLengthMeters;
+			case "cableCapacitancePfPerM":
+				return this.config.cableCapacitancePfPerM;
 			case "resonantFreqHz":
 				return this.config.resonantFreqHz;
 			case "resonantQ":
@@ -134,6 +206,18 @@ export class InputProfileNode implements ChainNode {
 			case "impedanceOhms":
 				this.setImpedance(value);
 				break;
+			case "guitarCableLengthMeters":
+				this.setGuitarCableLength(value);
+				break;
+			case "patchCableLengthMeters":
+				this.setPatchCableLength(value);
+				break;
+			case "ampCableLengthMeters":
+				this.setAmpCableLength(value);
+				break;
+			case "cableCapacitancePfPerM":
+				this.setCableCapacitancePfPerM(value);
+				break;
 			case "resonantFreqHz":
 				this.config.resonantFreqHz = value;
 				this.updateFilter();
@@ -149,6 +233,10 @@ export class InputProfileNode implements ChainNode {
 		return {
 			inputGainDb: this.config.inputGainDb,
 			impedanceOhms: this.config.impedanceOhms,
+			guitarCableLengthMeters: this.config.guitarCableLengthMeters ?? 3.0,
+			patchCableLengthMeters: this.config.patchCableLengthMeters ?? 0.15,
+			ampCableLengthMeters: this.config.ampCableLengthMeters ?? 3.0,
+			cableCapacitancePfPerM: this.config.cableCapacitancePfPerM ?? 100,
 			resonantFreqHz: this.config.resonantFreqHz ?? 3000,
 			resonantQ: this.config.resonantQ ?? 1.5,
 		};

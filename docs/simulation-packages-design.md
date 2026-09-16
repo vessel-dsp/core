@@ -4,13 +4,13 @@
 
 The VesselDSP simulation and playback architecture is structured across three execution phases with strict package boundaries:
 
-- **Phase 1**: Core Circuit Compiler & Solver (`@vessel-dsp/compiler` & `@vessel-dsp/runtime`) — **v0.1 Pure MNA Analog Circuits**.
-- **Phase 2**: Headless Audio Signal Chain (`@vessel-dsp/chain`) — **Guitar Input Profile, Circuit Slots, NAM, and Cabinet IRs**.
-- **Phase 3**: Embeddable Player UI (`@vessel-dsp/player`) — **CodePen-Style Dual-Mode Web Component (`<vessel-player>`)**.
+- **Phase 1**: Core Circuit Compiler & Solver (`@vessel-dsp/compiler` & `@vessel-dsp/runtime` in `VesselDSP/core`) — **v0.1 Pure MNA Analog Circuits**.
+- **Phase 2**: Headless Audio Signal Chain (`@vessel-dsp/chain` in `VesselDSP/core`) — **Guitar Input Profile, Cable Modeling, Circuit Slots, NAM, and Cabinet IRs**.
+- **Phase 3**: Embeddable Player UI & Editor (`<vessel-player>` in `VesselDSP/website`) — **CodePen-Style Dual-Mode Embed & Full Editor sharing UI components with `vesseldsp.com/{user}/player/{id}` and `vesseldsp.com/{user}/editor/{id}`**.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│               PHASE 1: PURE MNA ANALOG SIMULATION (v0.1)               │
+│               PHASE 1: PURE MNA ANALOG SIMULATION (core repo)          │
 │                                                                        │
 │   .vdsp / CircuitDocument                                              │
 │     │                                                                  │
@@ -23,10 +23,10 @@ The VesselDSP simulation and playback architecture is structured across three ex
                                     │
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                   PHASE 2: HEADLESS SIGNAL CHAIN                       │
+│                   PHASE 2: HEADLESS SIGNAL CHAIN (core repo)           │
 │                                                                        │
 │   [@vessel-dsp/chain]     ──►  Audio Graph Orchestrator                │
-│                                ├── 1. Guitar Input Profile (Pickups)   │
+│                                ├── 1. Guitar Input Profile & Cables    │
 │                                ├── 2. MNA Pedal Circuits (RuntimeNode) │
 │                                ├── 3. Tube Amp Stages (v0.1 NAM)       │
 │                                ├── 4. Speaker Cabinet (v0.1 IR)        │
@@ -35,18 +35,18 @@ The VesselDSP simulation and playback architecture is structured across three ex
                                     │
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│                  PHASE 3: CODEPEN-STYLE PLAYER                         │
+│              PHASE 3: EMBED PLAYER & DSP IDE (website repo)            │
 │                                                                        │
-│   [@vessel-dsp/player]    ──►  Embeddable Web Component                │
-│                                ├── Compact Mode: Live Card / Analyzer  │
-│                                ├── Studio Mode: 3-Pane Grid (.vdsp IDE)│
-│                                └── Web Audio Engine (Sample / Mic DI)  │
+│   [VesselDSP/website]     ──►  Shared UI Components & Routing          │
+│                                ├── Embed: <vessel-player> Card / Embed │
+│                                ├── Standalone: /{user}/player/{id}     │
+│                                └── Full Studio: /{user}/editor/{id}    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 1: Pure MNA Analog Circuit Simulation (v0.1)
+## Phase 1: Pure MNA Analog Circuit Simulation (core repo)
 
 Phase 1 focuses strictly on **pure analog circuits** modeled via Modified Nodal Analysis (MNA), trapezoidal numerical integration, and damped Newton-Raphson nonlinear iteration:
 
@@ -84,14 +84,20 @@ Executes compiled `Program` ROMs per audio sample block:
 
 ---
 
-## Phase 2: Headless Signal Chain Engine (`@vessel-dsp/chain`)
+## Phase 2: Headless Signal Chain Engine (core repo)
 
 Composes multiple circuit instances, guitar pre-conditioning, amplifier models, and cabinet impulse responses into a unified audio processing graph:
 
 ### Node Architecture
 - **`InputProfileNode`**:
   - **Pickup Types**: `single-coil`, `humbucker`, `active`, `piezo`, `custom`.
-  - **Impedance & Loading**: Simulates pickup inductance, cable capacitance, and volume/tone pot load resistance (250kΩ, 500kΩ, 1MΩ) via resonant filtering.
+  - **Cable Capacitance & Routing**:
+    - **Guitar to First Pedal**: Default `3 m` (options: `15 cm`, `30 cm`, `1 m`, `3 m`, `6 m`, `10 m`).
+    - **Pedal to Pedal (Patch)**: Default `15 cm` (options: `15 cm`, `30 cm`, `50 cm`, `1 m`).
+    - **Last Pedal to Amp**: Default `3 m` (options: `1 m`, `3 m`, `6 m`, `10 m`).
+    - **Capacitance**: Default $100\text{ pF/m}$ ($60\text{--}150\text{ pF/m}$ configurable).
+    - **Buffer Isolation**: Dynamically isolates upstream pickup $LC$ resonance from downstream cable capacitance when an active buffer / buffered pedal is in the chain.
+  - **Impedance & Loading**: Simulates pickup inductance, cumulative unbuffered cable capacitance, and volume/tone pot load resistance (250kΩ, 500kΩ, 1MΩ) via resonant biquad filtering.
   - **Input Gain**: Trim volume from -24 dB to +24 dB.
 - **`RuntimeNode`**: Wraps Phase 1 `@vessel-dsp/runtime` instances for compiled `.vdsp` pedal circuits.
 - **`NamNode` (v0.1)**: Neural Amp Modeler profile runner / tube saturation wave-shaper.
@@ -100,28 +106,30 @@ Composes multiple circuit instances, guitar pre-conditioning, amplifier models, 
 
 ---
 
-## Phase 3: Embeddable CodePen-Style Player (`@vessel-dsp/player`)
+## Phase 3: Embeddable Player & DSP Studio (website repo)
 
-An embeddable HTML Custom Element (`<vessel-player>`) designed for documentation, pedal builders, showcase sites, and interactive web stores.
+The embeddable `<vessel-player>` and full-blown DSP Studio are maintained in `VesselDSP/website`, directly reusing shared UI components and routing:
 
-### Dual-Mode Architecture
-1. **Compact / Embed Mode (Default)**:
-   - Interactive playing panel & bypass controls.
-   - Real-time FFT frequency spectrum and peak/RMS dB meter on canvas.
-   - Audio transport (sample DI loops vs live guitar/mic input).
-   - Top-right **`[ ↗ STUDIO ]`** expansion toggle.
-2. **Studio Grid Mode (Expanded / Fullscreen)**:
-   - **Pane 1**: Live `.vdsp` source code editor with instant re-compilation and error reporting.
-   - **Pane 2**: Signal chain configuration rack (Pickups, Impedance, Pedal slots, NAM, IR).
-   - **Pane 3**: Real-time spectrum analyzer, level meters, and master output controls.
+### Unified Views in `website`:
+1. **`<vessel-player>` (Embed)**:
+   - Lightweight embed / card for documentation (Astro/Starlight), blog posts, and store pages.
+   - Real-time spectrum analyzer, level meters, and bypass controls.
+   - Declarative interface:
+     - `src="https://vesseldsp.com/{user}/pedal/{id}"`
+     - `src="https://vesseldsp.com/{user}/pedal/{id}?rev={hash}"`
+     - `entity="{id}"`
+2. **`vesseldsp.com/{user}/player/{id}` (Standalone Player)**:
+   - Dedicated public preview page with live playback and preset management.
+3. **`vesseldsp.com/{user}/editor/{id}` (DSP IDE & Circuit Studio)**:
+   - 3-pane CodePen-inspired DSP IDE with live `.vdsp` editor, real-time hot-recompilation via `@vessel-dsp/compiler`, full rack chain configuration, and analyzer.
 
 ---
 
 ## Workspace Package Matrix
 
-| Package | Phase | Status | Primary Role |
-| :--- | :--- | :--- | :--- |
-| `@vessel-dsp/compiler` | Phase 1 | v0.1 Ready | Headless `.vdsp` compiler lowering circuits to MNA Program ROMs |
-| `@vessel-dsp/runtime` | Phase 1 | v0.1 Ready | Headless MNA & Newton-Raphson real-time solver console |
-| `@vessel-dsp/chain` | Phase 2 | v0.1 Ready | Headless signal chain graph (Guitar Profile + Circuits + NAM + IR) |
-| `@vessel-dsp/player` | Phase 3 | v0.1 Ready | CodePen-style embeddable Web Component (`<vessel-player>`) |
+| Package / Target | Phase | Repository | Status | Primary Role |
+| :--- | :--- | :--- | :--- | :--- |
+| `@vessel-dsp/compiler` | Phase 1 | `VesselDSP/core` | v0.1 Ready | Headless `.vdsp` compiler lowering circuits to MNA Program ROMs |
+| `@vessel-dsp/runtime` | Phase 1 | `VesselDSP/core` | v0.1 Ready | Headless MNA & Newton-Raphson real-time solver |
+| `@vessel-dsp/chain` | Phase 2 | `VesselDSP/core` | v0.1 Ready | Headless signal chain graph (Guitar Profile + Cables + Circuits + NAM + IR) |
+| `<vessel-player>` | Phase 3 | `VesselDSP/website` | In Progress | Embeddable Web Component & Player/Editor UI sharing web components |
