@@ -99,6 +99,7 @@ const STYLES = `
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .entity-meta a {
@@ -109,6 +110,14 @@ const STYLES = `
 
 .entity-meta a:hover {
   text-decoration: underline;
+}
+
+.rev-tag {
+  font-size: 0.62rem;
+  padding: 1px 4px;
+  background: var(--player-fg);
+  color: var(--player-bg);
+  font-weight: 700;
 }
 
 .brand-dot {
@@ -374,16 +383,17 @@ const HTMLElementBase: { new (): HTMLElement; prototype: HTMLElement } =
 
 export function parseEntityUrl(
 	urlStr: string,
-): { username?: string; type?: string; id?: string } | null {
+): { username?: string; type?: string; id?: string; rev?: string } | null {
 	try {
 		const parsed = new URL(urlStr, "https://vesseldsp.com");
+		const rev = parsed.searchParams.get("rev") || undefined;
 		const parts = parsed.pathname.replace(/^\/+|\/+$/g, "").split("/");
 		if (parts.length >= 3) {
 			const [username, type, id] = parts;
-			return { username, type, id };
+			return { username, type, id, rev };
 		}
 		if (parts.length === 2 && (parts[0] === "pedal" || parts[0] === "amp" || parts[0] === "board")) {
-			return { type: parts[0], id: parts[1] };
+			return { type: parts[0], id: parts[1], rev };
 		}
 		return null;
 	} catch {
@@ -403,6 +413,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 	private onlineStatus: PlayerOnlineStatus = "idle";
 	private errorMessage = "";
 	private currentEntity: EntityPayload | null = null;
+	private lastEtag: string | null = null;
 
 	constructor() {
 		super();
@@ -426,6 +437,8 @@ export class VesselPlayerElement extends HTMLElementBase {
 			"entity-id",
 			"pedal-id",
 			"username",
+			"rev",
+			"revision",
 			"api-base",
 			"sample",
 			"pickup",
@@ -457,6 +470,8 @@ export class VesselPlayerElement extends HTMLElementBase {
 			name === "pedal-id" ||
 			name === "src" ||
 			name === "username" ||
+			name === "rev" ||
+			name === "revision" ||
 			name === "api-base"
 		) {
 			this.resolveAndFetchOnlineEntity().catch(console.error);
@@ -513,16 +528,18 @@ export class VesselPlayerElement extends HTMLElementBase {
 			this.getAttribute("entity-id") ||
 			this.getAttribute("pedal-id");
 		let username = this.getAttribute("username") || "";
+		let rev = this.getAttribute("rev") || this.getAttribute("revision") || "";
 		const src = this.getAttribute("src");
 		const apiBase = this.getAttribute("api-base") || DEFAULT_API_BASE;
 
-		// Parse URL from src if provided (e.g. https://vesseldsp.com/joseph/pedal/123)
+		// Parse URL from src if provided (e.g. https://vesseldsp.com/joseph/pedal/123?rev=abc)
 		if (src) {
 			const parsed = parseEntityUrl(src);
 			if (parsed) {
 				if (parsed.type) entityType = parsed.type as EntityType;
 				if (parsed.id) entityId = parsed.id;
 				if (parsed.username) username = parsed.username;
+				if (parsed.rev) rev = parsed.rev;
 			}
 		}
 
@@ -559,18 +576,29 @@ export class VesselPlayerElement extends HTMLElementBase {
 		this.render();
 
 		try {
+			const queryParams = rev ? `?rev=${encodeURIComponent(rev)}` : "";
 			const endpoint = username
-				? `${apiBase.replace(/\/+$/, "")}/api/v1/users/${encodeURIComponent(username)}/pedal/${encodeURIComponent(entityId)}`
-				: `${apiBase.replace(/\/+$/, "")}/api/v1/pedals/${encodeURIComponent(entityId)}`;
+				? `${apiBase.replace(/\/+$/, "")}/api/v1/users/${encodeURIComponent(username)}/pedal/${encodeURIComponent(entityId)}${queryParams}`
+				: `${apiBase.replace(/\/+$/, "")}/api/v1/pedals/${encodeURIComponent(entityId)}${queryParams}`;
 
-			const response = await fetch(endpoint, {
-				headers: { Accept: "application/json" },
-			});
+			const headers: Record<string, string> = { Accept: "application/json" };
+			if (this.lastEtag && !rev) {
+				headers["If-None-Match"] = this.lastEtag;
+			}
+
+			const response = await fetch(endpoint, { headers });
+
+			if (response.status === 304 && this.currentEntity) {
+				// Entity has not changed, retain compiled program
+				this.onlineStatus = "ready";
+				this.render();
+				return;
+			}
 
 			if (!response.ok) {
 				if (response.status === 404) {
 					throw new Error(
-						`Pedal '${entityId}' ${username ? `by @${username} ` : ""}was not found on VesselDSP.`,
+						`Pedal '${entityId}' ${username ? `by @${username} ` : ""}${rev ? `(rev ${rev}) ` : ""}was not found on VesselDSP.`,
 					);
 				}
 				throw new Error(
@@ -578,8 +606,16 @@ export class VesselPlayerElement extends HTMLElementBase {
 				);
 			}
 
-			const data = (await response.json()) as { entity?: EntityPayload } & EntityPayload;
-			const payload: EntityPayload = data.entity ?? data;
+			const etagHeader = response.headers.get("ETag");
+			if (etagHeader) {
+				this.lastEtag = etagHeader;
+			}
+
+			const data = (await response.json()) as {
+				entity?: EntityPayload;
+				data?: EntityPayload;
+			} & EntityPayload;
+			const payload: EntityPayload = data.data ?? data.entity ?? data;
 
 			if (!payload.vdspSource) {
 				throw new Error("Received entity record did not contain valid .vdsp source.");
@@ -662,10 +698,20 @@ export class VesselPlayerElement extends HTMLElementBase {
 
 		const entityName = this.currentEntity?.name ?? "PEDAL";
 		const entityAuthor = this.currentEntity?.username;
-		const entityId = this.currentEntity?.id || this.currentEntity?.slug || this.getAttribute("id") || "";
-		const entityUrl = entityAuthor && entityId
-			? `https://vesseldsp.com/${encodeURIComponent(entityAuthor)}/pedal/${encodeURIComponent(entityId)}`
-			: null;
+		const entityId =
+			this.currentEntity?.id ||
+			this.currentEntity?.slug ||
+			this.getAttribute("id") ||
+			"";
+		const revHash =
+			this.currentEntity?.revisionHash ||
+			this.getAttribute("rev") ||
+			this.getAttribute("revision");
+
+		const entityUrl =
+			entityAuthor && entityId
+				? `https://vesseldsp.com/${encodeURIComponent(entityAuthor)}/pedal/${encodeURIComponent(entityId)}${revHash ? `?rev=${encodeURIComponent(revHash)}` : ""}`
+				: null;
 
 		const isErrorState =
 			this.onlineStatus === "error" ||
@@ -705,6 +751,11 @@ export class VesselPlayerElement extends HTMLElementBase {
               BY <a href="${entityUrl}" target="_blank" rel="noopener noreferrer">@${entityAuthor}</a>
               <span>•</span>
               <span>PEDAL</span>
+              ${
+								revHash
+									? `<span>•</span><span class="rev-tag">REV: ${revHash.slice(0, 8)}</span>`
+									: ""
+							}
             </div>
           `
 							: `

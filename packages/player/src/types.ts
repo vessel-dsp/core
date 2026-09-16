@@ -13,6 +13,7 @@ export interface EntityPayload {
 	readonly description?: string;
 	readonly vdspSource: string;
 	readonly version?: string;
+	readonly revisionHash?: string;
 	readonly metadata?: Record<string, unknown>;
 	readonly createdAt?: number | string;
 	readonly updatedAt?: number | string;

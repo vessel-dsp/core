@@ -96,12 +96,21 @@ describe("Phase 3: Embeddable Player & Online Entity Mode", () => {
 		expect(meter.clipping).toBe(false);
 	});
 
-	test("parseEntityUrl extracts username, type, and id from VesselDSP entity URLs", () => {
+	test("parseEntityUrl extracts username, type, id, and revision from VesselDSP entity URLs", () => {
 		const parsed1 = parseEntityUrl("https://vesseldsp.com/joseph/pedal/ts9-overdrive");
 		expect(parsed1).toEqual({
 			username: "joseph",
 			type: "pedal",
 			id: "ts9-overdrive",
+			rev: undefined,
+		});
+
+		const parsedWithRev = parseEntityUrl("https://vesseldsp.com/joseph/pedal/ts9-overdrive?rev=a1b2c3d4e5f6");
+		expect(parsedWithRev).toEqual({
+			username: "joseph",
+			type: "pedal",
+			id: "ts9-overdrive",
+			rev: "a1b2c3d4e5f6",
 		});
 
 		const parsed2 = parseEntityUrl("https://vesseldsp.com/alex/amp/jcm800");
@@ -109,12 +118,14 @@ describe("Phase 3: Embeddable Player & Online Entity Mode", () => {
 			username: "alex",
 			type: "amp",
 			id: "jcm800",
+			rev: undefined,
 		});
 
-		const parsed3 = parseEntityUrl("/pedal/klon-centaur");
+		const parsed3 = parseEntityUrl("/pedal/klon-centaur?rev=998877");
 		expect(parsed3).toEqual({
 			type: "pedal",
 			id: "klon-centaur",
+			rev: "998877",
 		});
 
 		const parsedInvalid = parseEntityUrl("invalid-url-schema");
@@ -149,26 +160,31 @@ describe("Phase 3: Embeddable Player & Online Entity Mode", () => {
 
 		// 4. Valid pedal with mock fetch
 		const originalFetch = globalThis.fetch;
+		let requestedUrl = "";
 		globalThis.fetch = (async (url: string | URL | Request) => {
+			requestedUrl = String(url);
 			return {
 				ok: true,
 				status: 200,
+				headers: new Headers({ ETag: '"22d4b4052f4e"' }),
 				json: async () => ({
 					id: "ts-101",
 					username: "joseph",
 					type: "pedal",
 					name: "Tube Screamer",
+					revisionHash: "22d4b4052f4e",
 					vdspSource: SAMPLE_VDSP,
 				}),
 			} as Response;
 		}) as typeof fetch;
 
 		try {
-			attributes = { type: "pedal", id: "ts-101", username: "joseph" };
+			attributes = { type: "pedal", id: "ts-101", username: "joseph", rev: "22d4b4052f4e" };
 			await el.resolveAndFetchOnlineEntity();
 			expect(el.status).toBe("ready");
 			expect(el.entity?.name).toBe("Tube Screamer");
 			expect(el.vdspSource).toBe(SAMPLE_VDSP);
+			expect(requestedUrl).toContain("rev=22d4b4052f4e");
 		} finally {
 			globalThis.fetch = originalFetch;
 		}
