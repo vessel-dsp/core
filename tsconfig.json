@@ -47,6 +47,7 @@
 		"packages/chain/**/*",
 		"tests/chain/**/*",
 		"packages/player/**/*",
+		"tests/player/**/*",
 		"tests/simulation.test.ts"
 	]
 }
