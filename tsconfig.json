@@ -18,7 +18,15 @@
 			"@vessel-dsp/amp": ["packages/amp/src/index.ts"],
 			"@vessel-dsp/amp/*": ["packages/amp/src/*"],
 			"@vessel-dsp/cabinet": ["packages/cabinet/src/index.ts"],
-			"@vessel-dsp/cabinet/*": ["packages/cabinet/src/*"]
+			"@vessel-dsp/cabinet/*": ["packages/cabinet/src/*"],
+			"@vessel-dsp/compiler": ["packages/compiler/src/index.ts"],
+			"@vessel-dsp/compiler/*": ["packages/compiler/src/*"],
+			"@vessel-dsp/runtime": ["packages/runtime/src/index.ts"],
+			"@vessel-dsp/runtime/*": ["packages/runtime/src/*"],
+			"@vessel-dsp/chain": ["packages/chain/src/index.ts"],
+			"@vessel-dsp/chain/*": ["packages/chain/src/*"],
+			"@vessel-dsp/player": ["packages/player/src/index.ts"],
+			"@vessel-dsp/player/*": ["packages/player/src/*"]
 		}
 	},
 	"include": [
@@ -29,5 +37,16 @@
 		"scripts/generate-stompbox-doc-assets.ts",
 		"scripts/generate-symbol-content.ts"
 	],
-	"exclude": ["packages/control-ui/**/*", "tests/control-ui/**/*"]
+	"exclude": [
+		"packages/control-ui/**/*",
+		"tests/control-ui/**/*",
+		"packages/compiler/**/*",
+		"tests/compiler/**/*",
+		"packages/runtime/**/*",
+		"tests/runtime/**/*",
+		"packages/chain/**/*",
+		"tests/chain/**/*",
+		"packages/player/**/*",
+		"tests/simulation.test.ts"
+	]
 }

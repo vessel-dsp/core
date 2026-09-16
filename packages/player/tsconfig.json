@@ -1,0 +1,24 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"exactOptionalPropertyTypes": false,
+		"noUncheckedIndexedAccess": false,
+		"moduleResolution": "bundler",
+		"types": ["bun-types"],
+		"baseUrl": "../..",
+		"paths": {
+			"@vessel-dsp/core": ["packages/core/src/index.ts"],
+			"@vessel-dsp/core/*": ["packages/core/src/*"],
+			"@vessel-dsp/compiler": ["packages/compiler/src/index.ts"],
+			"@vessel-dsp/compiler/*": ["packages/compiler/src/*"],
+			"@vessel-dsp/runtime": ["packages/runtime/src/index.ts"],
+			"@vessel-dsp/runtime/*": ["packages/runtime/src/*"],
+			"@vessel-dsp/chain": ["packages/chain/src/index.ts"],
+			"@vessel-dsp/chain/*": ["packages/chain/src/*"],
+			"@vessel-dsp/player": ["packages/player/src/index.ts"],
+			"@vessel-dsp/player/*": ["packages/player/src/*"]
+		}
+	},
+	"include": ["src/**/*"]
+}

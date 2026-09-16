@@ -1,0 +1,56 @@
+{
+	"name": "@vessel-dsp/runtime",
+	"version": "0.1.0",
+	"description": "Real-time MNA simulation runtime and solver console for VesselDSP Program ROMs.",
+	"keywords": [
+		"guitar-pedal",
+		"electronics",
+		"simulation",
+		"dsp",
+		"runtime",
+		"solver",
+		"mna"
+	],
+	"homepage": "https://vessel-dsp.github.io/core/",
+	"bugs": {
+		"url": "https://github.com/vessel-dsp/core/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/vessel-dsp/core.git"
+	},
+	"license": "MIT",
+	"sideEffects": false,
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"bun": "./dist/index.js",
+			"import": "./dist/index.js"
+		},
+		"./package.json": {
+			"default": "./package.json"
+		}
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE.md"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"clean": "rm -rf dist",
+		"prepack": "bun run --cwd ../compiler build && bun run build",
+		"pack:dry-run": "npm pack --dry-run",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"dependencies": {
+		"@vessel-dsp/compiler": "0.1.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

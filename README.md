@@ -24,11 +24,16 @@ use tscircuit tooling to render or edit emitted Circuit JSON.
 | `@vessel-dsp/visual-effects` | Public npm package | Reusable Three.js toon, grain, and glitch preview effects for generated 3D viewers. |
 | `@vessel-dsp/amp` | Public npm package | Generated Three.js object graphs and GLB previews for amplifier profile visualization. |
 | `@vessel-dsp/cabinet` | Public npm package | Generated Three.js object graphs and GLB previews for speaker cabinet profile visualization. |
+| `@vessel-dsp/compiler` | Public npm package | Headless circuit compiler lowering `.vdsp` documents to executable simulation Program ROMs. |
+| `@vessel-dsp/runtime` | Public npm package | Headless real-time audio MNA solver console and Newton-Raphson simulation engine. |
+| `@vessel-dsp/chain` | Public npm package | Headless audio signal chain graph engine for guitar input profiling, pedalboards, NAM, and cabinet IRs. |
+| `@vessel-dsp/player` | Public npm package | Embeddable HTML Custom Element (`<vessel-player>`) and Web Audio player with real-time spectrum visualizer. |
 
 ## Install
 
 ```bash
 npm install @vessel-dsp/core
+npm install @vessel-dsp/compiler @vessel-dsp/runtime @vessel-dsp/chain @vessel-dsp/player
 npm install @vessel-dsp/control-ui react react-dom
 npm install @vessel-dsp/visual-effects three
 npm install @vessel-dsp/amp @vessel-dsp/cabinet three

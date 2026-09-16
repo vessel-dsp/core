@@ -77,16 +77,12 @@ strings against 42 quantities).
 | key | declarations | distinct | verdict |
 | --- | ---: | ---: | --- |
 | **`Taper` / `Sweep`** | 264 / 397 | 30 / 16 | **fixed in 0.6.31** |
-| `Type` / `Polarity` / `Channel` | 414 / 75 / 3 | 19 / 10 / 1 | three keys for device polarity |
+| **`Type` / `Polarity` / `Channel`** | 414 / 75 / 3 | 19 / 10 / 1 | **canonicalized in 0.6.32 (`Polarity`)** |
 | `SourceConfidence` | 2,184 | 4 | closed already: high/medium/low/estimated |
 | `SourceStatus` | 354 | 3 | closed already: keep/change/defer |
 | `SourceKind` | 287 | 12 | a second, drifting copy of `ComponentKind` |
 
-`Type`/`Polarity`/`Channel` is the next one worth doing. The three keys overlap (`NPN` appears
-under both `Type` and `Polarity`), carry case drift (`npn`/`NPN`) and quoting artifacts (`'N'`),
-and **`Polarity` conflates two concepts**: `electrolytic`(41) is capacitor polarity sitting under
-the same key as `NPN`(15) transistor polarity. The measured consequence downstream is 37 FETs
-whose channel does not resolve.
+`Type`/`Polarity`/`Channel` was canonicalized in **0.6.32** (`packages/core/src/model/polarity.ts`), resolving `Polarity` to `npn`, `pnp`, `n-channel`, or `p-channel`, distinguishing carrier polarity from dielectric and barrel jack polarity, and deprecating `Type`/`Channel`.
 
 ## Correctly prose — leave alone
 

@@ -1,0 +1,60 @@
+{
+	"name": "@vessel-dsp/compiler",
+	"version": "0.1.0",
+	"description": "Headless circuit compiler turning .vdsp documents into executable simulation Programs.",
+	"keywords": [
+		"guitar-pedal",
+		"electronics",
+		"simulation",
+		"dsp",
+		"compiler",
+		"mna",
+		"circuit"
+	],
+	"homepage": "https://vessel-dsp.github.io/core/",
+	"bugs": {
+		"url": "https://github.com/vessel-dsp/core/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/vessel-dsp/core.git"
+	},
+	"license": "MIT",
+	"sideEffects": false,
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"bun": "./dist/index.js",
+			"import": "./dist/index.js"
+		},
+		"./package.json": {
+			"default": "./package.json"
+		}
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE.md"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"clean": "rm -rf dist",
+		"prepack": "bun run --cwd ../core build && bun run build",
+		"pack:dry-run": "npm pack --dry-run",
+		"typecheck": "tsc --noEmit -p tsconfig.json"
+	},
+	"dependencies": {
+		"@vessel-dsp/core": "0.7.2",
+		"js-yaml": "^4.1.0"
+	},
+	"devDependencies": {
+		"@types/js-yaml": "^4.0.9"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

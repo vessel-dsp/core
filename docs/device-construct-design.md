@@ -1,6 +1,6 @@
 # The `devices` construct
 
-**Status:** design, not implemented. Written 2026-09-03 against the 26,016-terminal survey.
+**Status:** Implemented in `@vessel-dsp/core` (v0.6.30+). Designed against the 26,016-terminal survey.
 
 ## The problem in one sentence
 

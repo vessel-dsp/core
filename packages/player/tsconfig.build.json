@@ -1,0 +1,26 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"exactOptionalPropertyTypes": false,
+		"noUncheckedIndexedAccess": false,
+		"noEmit": false,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@vessel-dsp/core": ["packages/core/dist/index.d.ts"],
+			"@vessel-dsp/core/*": ["packages/core/dist/*"],
+			"@vessel-dsp/compiler": ["packages/compiler/dist/index.d.ts"],
+			"@vessel-dsp/compiler/*": ["packages/compiler/dist/*"],
+			"@vessel-dsp/runtime": ["packages/runtime/dist/index.d.ts"],
+			"@vessel-dsp/runtime/*": ["packages/runtime/dist/*"],
+			"@vessel-dsp/chain": ["packages/chain/dist/index.d.ts"],
+			"@vessel-dsp/chain/*": ["packages/chain/dist/*"]
+		}
+	},
+	"include": ["src/**/*"]
+}

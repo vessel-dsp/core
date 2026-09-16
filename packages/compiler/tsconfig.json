@@ -1,0 +1,18 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022"],
+		"exactOptionalPropertyTypes": false,
+		"noUncheckedIndexedAccess": false,
+		"moduleResolution": "bundler",
+		"types": ["bun-types"],
+		"baseUrl": "../..",
+		"paths": {
+			"@vessel-dsp/core": ["packages/core/src/index.ts"],
+			"@vessel-dsp/core/*": ["packages/core/src/*"],
+			"@vessel-dsp/compiler": ["packages/compiler/src/index.ts"],
+			"@vessel-dsp/compiler/*": ["packages/compiler/src/*"]
+		}
+	},
+	"include": ["src/**/*"]
+}

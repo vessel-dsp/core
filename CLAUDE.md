@@ -31,8 +31,13 @@ workflows.
 - `packages/core/` -> npm package `@vessel-dsp/core`.
 - `packages/stompbox/` -> npm package `@vessel-dsp/stompbox`.
 - `packages/control-ui/` -> npm package `@vessel-dsp/control-ui`.
-- `scripts/build-pages.ts` -> static GitHub Pages generator for the core
-  conversion API reference.
+- `packages/visual-effects/` -> npm package `@vessel-dsp/visual-effects`.
+- `packages/amp/` -> npm package `@vessel-dsp/amp`.
+- `packages/cabinet/` -> npm package `@vessel-dsp/cabinet`.
+- `packages/compiler/` -> npm package `@vessel-dsp/compiler`.
+- `packages/runtime/` -> npm package `@vessel-dsp/runtime`.
+- `packages/chain/` -> npm package `@vessel-dsp/chain`.
+- `packages/player/` -> npm package `@vessel-dsp/player`.
 
 The root package is private and only orchestrates workspace scripts.
 
