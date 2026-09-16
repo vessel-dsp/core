@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	AudioEngine,
+	parseEntityUrl,
 	registerVesselPlayer,
 	VesselPlayerElement,
 } from "@vessel-dsp/player";
@@ -83,7 +84,7 @@ components:
       Resistance: "10k"
 `;
 
-describe("Phase 3: Embeddable Player", () => {
+describe("Phase 3: Embeddable Player & Online Entity Mode", () => {
 	test("AudioEngine manages chain, sources, and metering buffers", () => {
 		const engine = new AudioEngine({ sampleRate: 48000, initialSource: "sample" });
 		expect(engine.playing).toBe(false);
@@ -95,12 +96,104 @@ describe("Phase 3: Embeddable Player", () => {
 		expect(meter.clipping).toBe(false);
 	});
 
-	test("VesselPlayerElement instantiates and compiles default vdsp source", () => {
-		const el = new VesselPlayerElement();
-		expect(el).toBeDefined();
+	test("parseEntityUrl extracts username, type, and id from VesselDSP entity URLs", () => {
+		const parsed1 = parseEntityUrl("https://vesseldsp.com/joseph/pedal/ts9-overdrive");
+		expect(parsed1).toEqual({
+			username: "joseph",
+			type: "pedal",
+			id: "ts9-overdrive",
+		});
 
-		const compileRes = el.compileAndLoadSource(SAMPLE_VDSP);
-		expect(compileRes.status).toBe("ok");
+		const parsed2 = parseEntityUrl("https://vesseldsp.com/alex/amp/jcm800");
+		expect(parsed2).toEqual({
+			username: "alex",
+			type: "amp",
+			id: "jcm800",
+		});
+
+		const parsed3 = parseEntityUrl("/pedal/klon-centaur");
+		expect(parsed3).toEqual({
+			type: "pedal",
+			id: "klon-centaur",
+		});
+
+		const parsedInvalid = parseEntityUrl("invalid-url-schema");
+		expect(parsedInvalid).toBeNull();
+	});
+
+	test("VesselPlayerElement validates online mode requirements", async () => {
+		const el = new VesselPlayerElement();
+
+		// Mock attribute getter for unit test environment
+		let attributes: Record<string, string> = {};
+		(el as unknown as { getAttribute: (k: string) => string | null }).getAttribute = (k: string) => attributes[k] ?? null;
+
+		// 1. Missing type
+		attributes = { id: "tube-screamer" };
+		await el.resolveAndFetchOnlineEntity();
+		expect(el.status).toBe("missing_type");
+
+		// 2. Unsupported type (e.g. amp or board in v0.1)
+		attributes = { type: "amp", id: "plexi-1959" };
+		await el.resolveAndFetchOnlineEntity();
+		expect(el.status).toBe("unsupported_type");
+
+		attributes = { type: "board", id: "rig-1" };
+		await el.resolveAndFetchOnlineEntity();
+		expect(el.status).toBe("unsupported_type");
+
+		// 3. Missing id
+		attributes = { type: "pedal" };
+		await el.resolveAndFetchOnlineEntity();
+		expect(el.status).toBe("missing_id");
+
+		// 4. Valid pedal with mock fetch
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async (url: string | URL | Request) => {
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ({
+					id: "ts-101",
+					username: "joseph",
+					type: "pedal",
+					name: "Tube Screamer",
+					vdspSource: SAMPLE_VDSP,
+				}),
+			} as Response;
+		}) as typeof fetch;
+
+		try {
+			attributes = { type: "pedal", id: "ts-101", username: "joseph" };
+			await el.resolveAndFetchOnlineEntity();
+			expect(el.status).toBe("ready");
+			expect(el.entity?.name).toBe("Tube Screamer");
+			expect(el.vdspSource).toBe(SAMPLE_VDSP);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	test("VesselPlayerElement handles 404 not found gracefully", async () => {
+		const el = new VesselPlayerElement();
+		const attributes: Record<string, string> = { type: "pedal", id: "unknown-pedal" };
+		(el as unknown as { getAttribute: (k: string) => string | null }).getAttribute = (k: string) => attributes[k] ?? null;
+
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = (async () => {
+			return {
+				ok: false,
+				status: 404,
+				statusText: "Not Found",
+			} as Response;
+		}) as typeof fetch;
+
+		try {
+			await el.resolveAndFetchOnlineEntity();
+			expect(el.status).toBe("error");
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	test("registerVesselPlayer helper runs without throwing", () => {
