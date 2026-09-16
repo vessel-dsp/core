@@ -2,140 +2,126 @@
 
 ## Overview
 
-The VesselDSP simulation and playback architecture separates circuit compilation, real-time circuit simulation, audio signal chain graph routing, and web UI embedding into four distinct packages with strict boundaries:
+The VesselDSP simulation and playback architecture is structured across three execution phases with strict package boundaries:
 
-- `@vessel-dsp/compiler`: Headless AST lowering of `.vdsp` / `CircuitDocument` to compiled Program ROM.
-- `@vessel-dsp/runtime`: Headless MNA & nonlinear solver engine.
-- `@vessel-dsp/chain`: Headless audio signal chain graph engine (Input Profile + Pedalboard + NAM + Cabinet IR + Master).
-- `@vessel-dsp/player`: Embeddable HTML Custom Element (`<vessel-player>`) with Web Audio runner, sample/live guitar input, real-time spectrum/dB visualizer, and interactive controls.
+- **Phase 1**: Core Circuit Compiler & Solver (`@vessel-dsp/compiler` & `@vessel-dsp/runtime`) — **v0.1 Pure MNA Analog Circuits**.
+- **Phase 2**: Headless Audio Signal Chain (`@vessel-dsp/chain`) — **Guitar Input Profile, Circuit Slots, NAM, and Cabinet IRs**.
+- **Phase 3**: Embeddable Player UI (`@vessel-dsp/player`) — **CodePen-Style Dual-Mode Web Component (`<vessel-player>`)**.
 
 ```text
-.vdsp / CircuitDocument
-  │
-  ▼
-[@vessel-dsp/compiler]  ──►  Program (compiled ROM: blocks, stamps, operators, state layout)
-  │
-  ▼
-[@vessel-dsp/runtime]   ──►  Real-time Audio Solver (MNA, Newton iterations, circuit simulation)
-  │
-  ▼
-[@vessel-dsp/chain]     ──►  Headless Signal Chain Graph
-                             ├── 1. Guitar Input Profile (Pickup type, impedance, input gain)
-                             ├── 2. Pedalboard / Circuit Runtimes (compiled .vdsp)
-                             ├── 3. Amp Modeling (v0.1: NAM neural model / profile inference)
-                             ├── 4. Cabinet Simulation (v0.1: Fast IR convolution)
-                             └── 5. Master Output (Master volume, limiter)
-  │
-  ▼
-[@vessel-dsp/player]    ──►  Embeddable HTML Web Component (<vessel-player>)
-                             ├── Audio Sources (DI audio samples or live guitar/mic input)
-                             ├── Web Audio Graph & Analyzer (FFT spectrum & dB meter)
-                             ├── Interactive Controls (Knobs, switches, pickup profile, bypass)
-                             └── Responsive Canvas Spectrum Visualizer
+┌────────────────────────────────────────────────────────────────────────┐
+│               PHASE 1: PURE MNA ANALOG SIMULATION (v0.1)               │
+│                                                                        │
+│   .vdsp / CircuitDocument                                              │
+│     │                                                                  │
+│     ▼                                                                  │
+│   [@vessel-dsp/compiler]  ──►  Program (MNA Matrices, Stamps, Tapers)   │
+│     │                                                                  │
+│     ▼                                                                  │
+│   [@vessel-dsp/runtime]   ──►  MNA Solver (Newton-Raphson, DC Settle)  │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   PHASE 2: HEADLESS SIGNAL CHAIN                       │
+│                                                                        │
+│   [@vessel-dsp/chain]     ──►  Audio Graph Orchestrator                │
+│                                ├── 1. Guitar Input Profile (Pickups)   │
+│                                ├── 2. MNA Pedal Circuits (RuntimeNode) │
+│                                ├── 3. Tube Amp Stages (v0.1 NAM)       │
+│                                ├── 4. Speaker Cabinet (v0.1 IR)        │
+│                                └── 5. Master Output & Limiter          │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                  PHASE 3: CODEPEN-STYLE PLAYER                         │
+│                                                                        │
+│   [@vessel-dsp/player]    ──►  Embeddable Web Component                │
+│                                ├── Compact Mode: Live Card / Analyzer  │
+│                                ├── Studio Mode: 3-Pane Grid (.vdsp IDE)│
+│                                └── Web Audio Engine (Sample / Mic DI)  │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Package Boundaries & Specifications
+---
+
+## Phase 1: Pure MNA Analog Circuit Simulation (v0.1)
+
+Phase 1 focuses strictly on **pure analog circuits** modeled via Modified Nodal Analysis (MNA), trapezoidal numerical integration, and damped Newton-Raphson nonlinear iteration:
 
 ### 1. `@vessel-dsp/compiler`
-Turns a parsed `.vdsp` / `CircuitDocument` into an immutable **`Program`** — a compiled execution plan containing:
-- **Block Partitions & Linear/Nonlinear Regions**: Subcircuits partitioned by topological coupling and operational complexity.
-- **MNA Stamps & Conductance Matrices**: Precomputed $G$, $C$, $B$, $D$ matrices for Modified Nodal Analysis.
-- **Nonlinear Operators**: Mathematical models for diodes, BJTs, JFETs, triodes, op-amps, and BBD clock drivers.
-- **Parameter Mappings & Controls**: Normalized control mapping with potentiometer taper laws (linear, audio, reverse audio).
-- **State Vector Layout**: Layout of dynamic capacitor voltages, inductor currents, and nonlinear state variables.
-
-*Constraints*: Pure TypeScript, deterministic, rate-independent, headless.
+Lowers parsed `.vdsp` / `CircuitDocument` schematics into an immutable **`Program` ROM**:
+- **Linear Passives**:
+  - Resistors (conductance stamps $G = 1/R$)
+  - Capacitors (companion model conductance $G_C = 2C/\Delta t$ and current source $I_C$)
+  - Inductors (companion model conductance $G_L = \Delta t/(2L)$ and current source $I_L$)
+  - Audio / Output Transformers (ideal & coupled inductor models)
+  - Rails & Voltage Sources (independent DC/AC sources, ground ties)
+  - Potentiometers & Rheostats (linear, audio/log, and reverse-audio taper mappings in $0.0..1.0$)
+- **Nonlinear Active Devices**:
+  - Diodes (Shockley exponential diode law, silicon, germanium, LEDs)
+  - Bipolar Junction Transistors (Ebers-Moll / Gummel-Poon BJT models)
+  - JFETs & MOSFETs (Shockley quadratic pinch-off and triode region equations)
+  - Operational Amplifiers (linear gain with rail clipping)
+  - Vacuum Tubes (Child-Langmuir & triode/pentode models)
+  - Operational Transconductance Amplifiers (OTA models: CA3080, LM13700)
+- **Topological Partitioning**:
+  - Partitions circuits into decoupled linear and nonlinear blocks.
+  - Computes dense MNA stamps ($G, C, B, D$ matrices) per block.
+  - Strips visual geometry and metadata, outputting pure deterministic simulation bytecode.
 
 ### 2. `@vessel-dsp/runtime`
-Executes a compiled `Program` on audio streams:
-- **Solver Core**: Solves MNA equations per time step using trapezoidal integration and damped Newton-Raphson iteration for nonlinear devices.
-- **Real-Time Admission & CPU Budgeting**: Evaluates whether a program fits within the CPU budget of an audio quantum (128 samples) before execution.
-- **Settling & DC Bias Policy**: Pre-settles operating points to avoid audible start-up pops and transient thumps.
-- **Oversampling & Anti-Aliasing**: Optional fractional or integer oversampling for high-gain nonlinear clipping stages.
+Executes compiled `Program` ROMs per audio sample block:
+- **Solver Core**:
+  - Direct LU / Gaussian elimination for linear MNA blocks.
+  - Dynamic Jacobian matrix assembly and damped Newton-Raphson iteration for nonlinear active circuits.
+- **Operating Point Pre-Settling**:
+  - Solves the DC steady-state operating point prior to audio rendering to prevent start-up clicks and pops.
+- **Real-Time Admission & Safety**:
+  - Enforces per-sample iteration limits and CPU budget checks.
+  - Fail-closed refusal if a required operator or singular matrix is encountered.
 
-*Constraints*: Stays strictly headless and audio-rate agnostic.
+---
 
-### 3. `@vessel-dsp/chain` (Headless Signal Chain Engine)
-Composes multiple circuit runtimes, guitar conditioning, amplifier models, and cabinet impulse responses into a unified audio processing graph:
+## Phase 2: Headless Signal Chain Engine (`@vessel-dsp/chain`)
 
-#### Node Architecture
+Composes multiple circuit instances, guitar pre-conditioning, amplifier models, and cabinet impulse responses into a unified audio processing graph:
+
+### Node Architecture
 - **`InputProfileNode`**:
   - **Pickup Types**: `single-coil`, `humbucker`, `active`, `piezo`, `custom`.
-  - **Impedance & Loading**: Simulates pickup coil inductance, resistance, and volume/tone pot load resistance (e.g., 250kΩ, 500kΩ, 1MΩ) with a resonant low-pass filter.
+  - **Impedance & Loading**: Simulates pickup inductance, cable capacitance, and volume/tone pot load resistance (250kΩ, 500kΩ, 1MΩ) via resonant filtering.
   - **Input Gain**: Trim volume from -24 dB to +24 dB.
-- **`RuntimeNode`**: Wraps `@vessel-dsp/runtime` instance for compiled `.vdsp` pedal circuits.
-- **`NamNode` (v0.1)**: Neural Amp Modeler profile runner / lightweight wave-shaper neural inference for tube amp emulation.
+- **`RuntimeNode`**: Wraps Phase 1 `@vessel-dsp/runtime` instances for compiled `.vdsp` pedal circuits.
+- **`NamNode` (v0.1)**: Neural Amp Modeler profile runner / tube saturation wave-shaper.
 - **`CabinetIrNode` (v0.1)**: Partitioned time-domain / FFT impulse response convolution for speaker cabinet and microphone captures.
 - **`MasterNode`**: Master volume control, mute, and soft-knee safety limiter.
 
-*Roadmap*: Next version incorporates full analog amp lane and cabinet simulation ported from the `workbench` repository.
+---
 
-#### API Contract
-```ts
-export interface ChainNode {
-  readonly id: string;
-  readonly name: string;
-  bypassed: boolean;
-  mix: number;
-  prepare(sampleRate: number): void;
-  process(input: Float64Array | Float32Array): Float64Array | Float32Array;
-  reset(): void;
-  getParam(id: string): number | undefined;
-  setParam(id: string, value: number): void;
-}
+## Phase 3: Embeddable CodePen-Style Player (`@vessel-dsp/player`)
 
-export class SignalChain {
-  readonly inputProfile: InputProfileNode;
-  readonly master: MasterNode;
-  addNode(node: ChainNode): this;
-  removeNode(id: string): boolean;
-  getNode(id: string): ChainNode | undefined;
-  getNodes(): readonly ChainNode[];
-  prepare(sampleRate: number): void;
-  process(input: Float64Array | Float32Array): Float64Array;
-  getPreset(): ChainPreset;
-  loadPreset(preset: ChainPreset): void;
-  reset(): void;
-}
-```
-
-### 4. `@vessel-dsp/player` (Embeddable HTML Component)
 An embeddable HTML Custom Element (`<vessel-player>`) designed for documentation, pedal builders, showcase sites, and interactive web stores.
 
-#### Feature Set
-1. **Audio Sources**:
-   - **Sample Player**: Bundled and custom DI track loops (clean guitar chord progressions, funk riffs, bass lines) with play, pause, seek, and loop controls.
-   - **Live Guitar / Audio Interface Input**: Low-latency `navigator.mediaDevices.getUserMedia` capture with raw studio settings (`echoCancellation: false`, `noiseSuppression: false`, `autoGainControl: false`).
-2. **Guitar Input Profile Controls**:
-   - Dropdown for pickup type (`single-coil`, `humbucker`, `active`, `piezo`).
-   - Knobs/sliders for input impedance (250kΩ, 500kΩ, 1MΩ) and input trim gain (dB).
-3. **v0.1 NAM & IR Support**:
-   - Toggle and load Neural Amp Modeler profiles and Cabinet IRs directly in the player.
-4. **Master Volume & Mute**:
-   - Master volume fader (dB scale) and global bypass/mute toggle.
-5. **Real-Time Spectrum & dB Graph**:
-   - Live canvas rendering of the FFT frequency spectrum (20 Hz - 20 kHz) with logarithmic frequency scale.
-   - Peak and RMS dB meters with clip indicators.
-6. **Custom Element `<vessel-player>` Attributes**:
-   - `src`: URL to a `.vdsp` circuit or `.chain.json` preset.
-   - `sample`: URL to initial dry DI audio sample.
-   - `nam`: Optional URL to a NAM model file.
-   - `ir`: Optional URL to a cabinet impulse response `.wav`.
-   - `pickup`: Default pickup type (`single-coil` | `humbucker` | `active` | `piezo`).
-   - `theme`: UI color theme (`dark` | `light`).
-   - `controls`: Enable/disable full UI controls.
+### Dual-Mode Architecture
+1. **Compact / Embed Mode (Default)**:
+   - Interactive playing panel & bypass controls.
+   - Real-time FFT frequency spectrum and peak/RMS dB meter on canvas.
+   - Audio transport (sample DI loops vs live guitar/mic input).
+   - Top-right **`[ ↗ STUDIO ]`** expansion toggle.
+2. **Studio Grid Mode (Expanded / Fullscreen)**:
+   - **Pane 1**: Live `.vdsp` source code editor with instant re-compilation and error reporting.
+   - **Pane 2**: Signal chain configuration rack (Pickups, Impedance, Pedal slots, NAM, IR).
+   - **Pane 3**: Real-time spectrum analyzer, level meters, and master output controls.
 
-```html
-<!-- Load player script -->
-<script type="module" src="https://unpkg.com/@vessel-dsp/player/dist/index.js"></script>
+---
 
-<!-- Drop-in custom element -->
-<vessel-player
-  src="/circuits/tube-screamer.vdsp"
-  sample="/audio/clean-strat-riff.wav"
-  ir="/cabs/4x12-greenback.wav"
-  pickup="single-coil"
-  theme="dark"
-  controls
-></vessel-player>
-```
+## Workspace Package Matrix
+
+| Package | Phase | Status | Primary Role |
+| :--- | :--- | :--- | :--- |
+| `@vessel-dsp/compiler` | Phase 1 | v0.1 Ready | Headless `.vdsp` compiler lowering circuits to MNA Program ROMs |
+| `@vessel-dsp/runtime` | Phase 1 | v0.1 Ready | Headless MNA & Newton-Raphson real-time solver console |
+| `@vessel-dsp/chain` | Phase 2 | v0.1 Ready | Headless signal chain graph (Guitar Profile + Circuits + NAM + IR) |
+| `@vessel-dsp/player` | Phase 3 | v0.1 Ready | CodePen-style embeddable Web Component (`<vessel-player>`) |
