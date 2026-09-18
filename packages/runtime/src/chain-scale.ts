@@ -97,22 +97,48 @@ export function outputDbfs(rmsVolts: number, fullScaleOutVolts: number | null): 
 
 /**
  * The number a level conversion divides an output by: the port's declared 0 dBFS
- * reference where it states one, the derived ceiling otherwise.
+ * reference where it states one, the derived ceiling for speaker-electrical outputs,
+ * or the instrument operating reference convention.
  *
  * These are different quantities -- `link.ts` says so and keeps them apart -- and a folding
  * consumer has to pick the one its question needs. A conversion into a level (a +/-1 file,
  * a DAC scale, a dBFS audibility judgement) wants the **reference** where a source states it:
- * it is what the source says full scale *means* rather than what the node can reach, and it
- * is the only number at all for a preamp monitor tap with no transformer between it and the
- * rail. `render-v2-audio.ts` used to inline this rule; one copy is load-bearing, because the
- * worklet's DAC scale and a report's dBFS floor have to read the same number the file any
- * listener hears is converted by.
+ * it is what the source says full scale *means* rather than what the node can reach.
+ *
+ * For `speaker-electrical` stage coverage (power amp secondary into speaker tap), the
+ * transformer-stepped ceiling (30 V to 500 V) is physically right to prevent DAC wrapping.
+ *
+ * For `instrument` stage coverage (stompboxes/pedals), the DC supply rail (e.g. 9 V) is an
+ * electrical clipping ceiling, never an operating reference level. Falling back to the rail
+ * caused pedals without an explicit output reference to play 19 dB quieter than input
+ * (0.3 V / 9 V = -29.5 dBFS). When no output reference is declared:
+ * 1. Read `portReferenceVolts.input` if declared (preserving the pedal's declared operating scale).
+ * 2. Fall back to 1.0 V, the convention matching digital full scale (1.0 digital = 1.0 V),
+ *    which makes digital and analogue domains numerically identical so a unity-gain
+ *    circuit is a unity-gain system.
  */
 export function outputConversionFullScale(
-	program: Pick<Program, "portFullScaleVolts" | "portReferenceVolts">,
+	program: Pick<Program, "portFullScaleVolts" | "portReferenceVolts"> & {
+		readonly stageCoverage?: Program["stageCoverage"];
+	},
 ): number | null {
 	const declared = program.portReferenceVolts.output;
-	return declared !== null && declared > 0
-		? declared
-		: program.portFullScaleVolts.output;
+	if (declared !== null && declared > 0) {
+		return declared;
+	}
+	if (program.stageCoverage === "speaker-electrical") {
+		return program.portFullScaleVolts.output;
+	}
+	if (program.stageCoverage === "instrument") {
+		const inputRef = program.portReferenceVolts.input;
+		if (inputRef !== null && inputRef > 0) {
+			return inputRef;
+		}
+		return 1.0;
+	}
+	const inputRef = program.portReferenceVolts.input;
+	if (inputRef !== null && inputRef > 0) {
+		return inputRef;
+	}
+	return program.portFullScaleVolts.output;
 }
