@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.8.0
+
+- A component may declare the **program it is running**: `component.program`, with `positions`
+  carrying op lists and, where the component has a mode switch, a `selector` naming the control
+  that chooses between them. Each program parameter carries its own `source` citing the document
+  its range is read from.
+
+**Why this belongs in the format rather than in a consumer's table.** A catalog entry holds one
+model per part, which is right for fixed-function silicon and wrong for a reprogrammable chip.
+Measured on the `vessel-dsp/artifacts` corpus: `TC25SC080AU-104` is a delay in `boss-dd-5`, a
+reverb in `boss-rv-3` and a pitch shifter in `boss-hr-2`; `TC220CCA0AF-B01` is five effects
+differing in kind, including a flanger and a bass synth, behind one mask revision. Both parts are
+already recorded as `reprogrammable` with that behavioural evidence as their basis. No part-keyed
+lookup can express it, and neither can a part-keyed proxy declaration — so the fact the source
+could not state gets a typed field here rather than a guessing rule downstream.
+
+**What this is not.** Not a firmware dump, and no consumer may read it as one. It is a bounded
+behavioural declaration whose numbers cite a document.
+
+**Why the citation sits on each parameter.** A parameter with no documented value cannot be set,
+so the citation has to travel with the number. Per parameter rather than per program because that
+is the only form that distinguishes an evidenced range from a bare one — a single pointer at the
+top of a declaration cannot show that one mode is documented and the next is a guess. This follows
+the convention the tube registries already use, where each coefficient carries its own `source`.
+Omitting `source` is therefore a statement: the parameter is not set and the program makes no
+claim on that axis.
+
+**Op vocabulary is deliberately not closed here.** An op is carried by name with its arguments
+verbatim, exactly as `modelId` already is: the vocabulary belongs to whichever runtime executes
+the program, and an op that runtime does not implement is its to refuse **by name**, never to drop
+silently. This format's job is to carry the declaration faithfully.
+
+Parser refusals are structural only, and each names the path: a program with no positions, several
+positions with no selector naming the control that chooses between them, a position with no ops,
+and an op with no name.
+
 ## 0.7.2
 
 - Fix `parseYamlSubset` (the `.vdsp` reader) to strip single-quote delimiters

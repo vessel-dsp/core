@@ -267,6 +267,106 @@ export type WindingImpedance = Readonly<{
 	impedance: ParsedQuantity;
 }>;
 
+/**
+ * A value a program op carries beside its name.
+ *
+ * Deliberately structural. The op vocabulary belongs to whichever runtime executes the program,
+ * not to this format -- the same reasoning `MacroModel.modelId` already records for staying a
+ * `string` rather than a union declared upstream. This format's job is to carry the declaration
+ * faithfully; refusing an op the executor does not implement is the executor's job, and it must
+ * refuse by name rather than drop it.
+ */
+export type ProgramOpValue =
+	| string
+	| number
+	| boolean
+	| readonly ProgramOpValue[]
+	| Readonly<{ readonly [key: string]: ProgramOpValue }>;
+
+/**
+ * One operation in a program, named by the executing runtime's own op vocabulary.
+ *
+ * Flat rather than nested under an `args` key, because that is the shape the runtime's compiled
+ * ops already have: `{ op: delay-tap-fractional, line: dl, length: { mode: parameter }, out: 1 }`.
+ * A declaration that had to be translated into that shape would be a second vocabulary, which is
+ * the thing the composition design refuses.
+ */
+export type ProgramOp = Readonly<
+	{ op: string } & { readonly [key: string]: ProgramOpValue }
+>;
+
+/**
+ * A number a program takes, and where that number came from.
+ *
+ * **`source` is the whole point of this type, not a comment on it.** A program parameter is a
+ * claim about a device -- that this delay spans 1 to 50 ms -- and the project's rule is that a
+ * parameter with no documented value cannot be set. So the citation travels with the number,
+ * per parameter, exactly as the triode registry carries a `source` on each Koren coefficient
+ * rather than one pointer for the part.
+ *
+ * Per parameter rather than per program because that is the only form that distinguishes an
+ * evidenced number from a bare one: a single citation at the top of a declaration cannot show
+ * that one mode range is documented and the next is a guess.
+ *
+ * **Omitting `source` is a statement, not an oversight.** It says this parameter is not set and
+ * the program makes no claim on that axis. That is what keeps an undocumented mode -- a HOLD or
+ * a REVERSE whose law nobody has recovered -- out of a program by construction, rather than by
+ * someone remembering to leave it out.
+ */
+export type ProgramParameter = Readonly<{
+	/** The panel control that sweeps this parameter, by control id. Omitted means fixed. */
+	control?: string;
+	min: number;
+	max: number;
+	/** The document this range is read from. See the type's own note on omitting it. */
+	source?: string;
+}>;
+
+/**
+ * One position of a program's selector: a complete composition, not a variant of another.
+ *
+ * A mode is not one algorithm with a wider knob. The DD-5's HOLD and REVERSE are different
+ * compositions from its four delay ranges, and a parameter range cannot express that, so the
+ * positions carry whole op lists. It also matches the hardware: MODE is a switch.
+ */
+export type ProgramPosition = Readonly<{
+	id: string;
+	/** The legend printed on the panel, where the document gives one. */
+	label?: string;
+	ops: readonly ProgramOp[];
+	/** Named delay lines the ops address, and the parameters that size them. */
+	lines?: Readonly<Record<string, Readonly<Record<string, ProgramParameter>>>>;
+}>;
+
+/**
+ * The program a reprogrammable chip is running **in this pedal**.
+ *
+ * **The fact this exists to state is instance-scoped, and nothing else in the format could say
+ * it.** A catalog entry holds one model per part, which is right for fixed-function silicon and
+ * wrong for a chip that is a delay in one pedal and a reverb in another. Measured on the corpus:
+ * `TC25SC080AU-104` is a delay in `boss-dd-5`, a reverb in `boss-rv-3` and a pitch shifter in
+ * `boss-hr-2`; `TC220CCA0AF-B01` is five effects including a flanger and a bass synth. Both
+ * registry entries already carry `firmwareClass: reprogrammable` and say so in their own cited
+ * basis. A part-keyed table cannot hold that, and neither can a part-keyed proxy.
+ *
+ * Omitted means the document states no program for this component, which is every document
+ * written before this construct and every fixed-function part, whose program keeps coming from
+ * the catalog.
+ *
+ * **This is not a firmware dump and must never be read as one.** It is a bounded behavioural
+ * declaration whose parameters cite a document, and the packets it describes carry their own
+ * negative scope saying exactly that.
+ */
+export type ComponentProgram = Readonly<{
+	/**
+	 * The panel control that selects between positions, by control id.
+	 *
+	 * Omitted when the program has exactly one position, which is a chip with no mode switch.
+	 */
+	selector?: string;
+	positions: readonly ProgramPosition[];
+}>;
+
 export type Component = Readonly<{
 	id: string;
 	/** What this package primarily is, and the default `kind` of every device inside it. */
@@ -296,6 +396,14 @@ export type Component = Readonly<{
 	 * written before this construct.
 	 */
 	windings?: readonly ComponentWinding[];
+	/**
+	 * The program this component is running, for a reprogrammable chip whose behaviour its part
+	 * number cannot determine. See `ComponentProgram`.
+	 *
+	 * The third optional structure on a component, and the same shape of statement as `devices`
+	 * and `windings`: omitted means the document does not state one.
+	 */
+	program?: ComponentProgram;
 	properties: Readonly<Record<string, PropertyValue>>;
 	sourceTypeName: string | null;
 }>;

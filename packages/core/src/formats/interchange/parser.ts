@@ -47,6 +47,8 @@ import type {
 	CircuitPowerSourceKind,
 	Component,
 	ComponentDevice,
+	ComponentProgram,
+	ProgramOp,
 	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -3160,6 +3162,7 @@ function parseComponents(
 			terminals: parseTerminals(component.terminals, `${path}.terminals`),
 			...parseComponentDevices(component.devices, `${path}.devices`),
 			...parseComponentWindings(component.windings, `${path}.windings`),
+			...parseComponentProgram(component.program, `${path}.program`),
 			properties: parseProperties(component.properties, `${path}.properties`),
 			sourceTypeName,
 		};
@@ -3225,6 +3228,106 @@ function collectSourceTypeNameWarnings(
 		message: `sourceTypeName "${sourceTypeName}" is not a supported source type.`,
 		componentId,
 	});
+}
+
+/**
+ * A component's declared program, or nothing when it declares none.
+ *
+ * Structural only. Which ops exist, and what arguments each one takes, belongs to the runtime
+ * that executes the program -- this reads the declaration faithfully and refuses only what is
+ * malformed as a declaration: a position with no id, an op with no name, a parameter whose
+ * range is not two numbers. An op this format has never heard of parses fine and is the
+ * executor's to refuse by name, which is the same division `modelId` already runs on.
+ */
+function parseComponentProgram(
+	value: YamlValue | undefined,
+	path: string,
+): { program?: ComponentProgram } {
+	if (value === undefined) return {};
+	const program = expectObject(value, path);
+	const rawPositions = optionalArray(program.positions, `${path}.positions`);
+	if (rawPositions.length === 0) {
+		throw new Error(`${path}.positions: a program declares at least one position`);
+	}
+	const selector =
+		typeof program.selector === "string" && program.selector.trim()
+			? program.selector.trim()
+			: undefined;
+	if (selector === undefined && rawPositions.length > 1) {
+		throw new Error(
+			`${path}: ${rawPositions.length} positions but no selector naming the control that chooses between them`,
+		);
+	}
+	const positions = rawPositions.map((item, index) => {
+		const positionPath = `${path}.positions[${index}]`;
+		const position = expectObject(item, positionPath);
+		const ops = optionalArray(position.ops, `${positionPath}.ops`).map(
+			(entry, opIndex) => {
+				const opPath = `${positionPath}.ops[${opIndex}]`;
+				const op = expectObject(entry, opPath);
+				expectString(op.op, `${opPath}.op`);
+				return op as unknown as ProgramOp;
+			},
+		);
+		if (ops.length === 0) {
+			throw new Error(`${positionPath}.ops: a position declares at least one op`);
+		}
+		const rawLines =
+			position.lines === undefined
+				? undefined
+				: expectObject(position.lines, `${positionPath}.lines`);
+		const lines =
+			rawLines === undefined
+				? undefined
+				: Object.fromEntries(
+						Object.entries(rawLines).map(([lineName, lineValue]) => {
+							const linePath = `${positionPath}.lines.${lineName}`;
+							const parameters = expectObject(lineValue, linePath);
+							return [
+								lineName,
+								Object.fromEntries(
+									Object.entries(parameters).map(([name, raw]) => {
+										const parameterPath = `${linePath}.${name}`;
+										const parameter = expectObject(raw, parameterPath);
+										const control =
+											typeof parameter.control === "string" && parameter.control.trim()
+												? parameter.control.trim()
+												: undefined;
+										const source =
+											typeof parameter.source === "string" && parameter.source.trim()
+												? parameter.source.trim()
+												: undefined;
+										return [
+											name,
+											{
+												...(control === undefined ? {} : { control }),
+												min: expectNumber(parameter.min, `${parameterPath}.min`),
+												max: expectNumber(parameter.max, `${parameterPath}.max`),
+												...(source === undefined ? {} : { source }),
+											},
+										];
+									}),
+								),
+							];
+						}),
+					);
+		const label =
+			typeof position.label === "string" && position.label.trim()
+				? position.label.trim()
+				: undefined;
+		return {
+			id: expectString(position.id, `${positionPath}.id`),
+			...(label === undefined ? {} : { label }),
+			ops,
+			...(lines === undefined ? {} : { lines }),
+		};
+	});
+	return {
+		program: {
+			...(selector === undefined ? {} : { selector }),
+			positions,
+		},
+	};
 }
 
 /**

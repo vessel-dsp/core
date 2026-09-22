@@ -1,4 +1,4 @@
-export const VERSION = "0.7.2";
+export const VERSION = "0.8.0";
 
 export type {
 	CreateComponentArgs,
@@ -240,7 +240,12 @@ export type {
 	CircuitPowerSourceKind,
 	Component,
 	ComponentDevice,
+	ComponentProgram,
 	ComponentWinding,
+	ProgramOp,
+	ProgramOpValue,
+	ProgramParameter,
+	ProgramPosition,
 	WindingImpedance,
 	ComponentKind,
 	ComponentTerminalRef,

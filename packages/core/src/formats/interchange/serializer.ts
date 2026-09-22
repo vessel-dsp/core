@@ -598,6 +598,46 @@ function componentBlock(
 						terminals: [...device.terminals],
 					})),
 				}),
+		// A component with no declared program, which is every fixed-function part and every
+		// document written before the construct existed.
+		...(component.program === undefined
+			? {}
+			: {
+					program: {
+						...(component.program.selector === undefined
+							? {}
+							: { selector: component.program.selector }),
+						positions: component.program.positions.map((position) => ({
+							id: position.id,
+							...(position.label === undefined ? {} : { label: position.label }),
+							ops: position.ops.map((op) => ({ ...op })),
+							...(position.lines === undefined
+								? {}
+								: {
+										lines: Object.fromEntries(
+											Object.entries(position.lines).map(([line, parameters]) => [
+												line,
+												Object.fromEntries(
+													Object.entries(parameters).map(([name, parameter]) => [
+														name,
+														{
+															...(parameter.control === undefined
+																? {}
+																: { control: parameter.control }),
+															min: parameter.min,
+															max: parameter.max,
+															...(parameter.source === undefined
+																? {}
+																: { source: parameter.source }),
+														},
+													]),
+												),
+											]),
+										),
+									}),
+						})),
+					},
+				}),
 		// Likewise a component with no coupled coils, which is everything but a transformer.
 		...(component.windings === undefined || component.windings.length === 0
 			? {}
