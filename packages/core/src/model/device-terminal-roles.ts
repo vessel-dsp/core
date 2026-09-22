@@ -487,11 +487,28 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 	battery: SUPPLY,
 	rail: SUPPLY,
 	ground: ["ground"],
-	// Opaque parts: pins are data, and which subset carries executable meaning is a separate
-	// declared interface rather than a role.
-	ic: ["pin"],
-	bbd: ["pin"],
-	"delay-ic": ["pin"],
+	/*
+	 * Opaque parts: pins are data, and which subset carries executable meaning is a separate
+	 * declared interface rather than a role -- `Component.program` for a chip that runs one.
+	 *
+	 * **`input` and `output` are the exception, and they are the analog audio boundary, not the
+	 * executable interface.** A program says what the chip computes; it does not say which two
+	 * pins the guitar signal enters and leaves by, and a consumer needs both. Until this row
+	 * admitted them, the only way to name those pins was a table keyed on the part number --
+	 * which is exactly the workaround the `input` role's own definition was written to remove,
+	 * and which cannot be right for reprogrammable silicon anyway: `TC25SC080AU-104` is a delay
+	 * in `boss-dd-5`, a reverb in `boss-rv-3` and a pitch shifter in `boss-hr-2`, so a part-keyed
+	 * table holds one answer where the corpus has three.
+	 *
+	 * `pin` stays legal and stays the default. A pin whose role is `pin` is making no claim, and
+	 * the overwhelming majority of an opaque chip's pins should keep making none: a supply pin, a
+	 * bus line and a mask-ROM address line are all `pin`, and inventing roles for them would be
+	 * the guess this vocabulary exists to prevent. What changed is only that the two pins a
+	 * design does know about can now say so.
+	 */
+	ic: ["pin", "input", "output"],
+	bbd: ["pin", "input", "output"],
+	"delay-ic": ["pin", "input", "output"],
 	regulator: ["pin", "positive", "negative", "ground"],
 	"power-converter": ["pin", "positive", "negative", "ground"],
 	"power-amp": ["pin", "nonInverting", "inverting", "output"],

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.1
+
+### An opaque chip can name its audio boundary
+
+`ic`, `bbd` and `delay-ic` terminals may now declare `role: input` and `role: output`. `pin` stays
+legal and stays the default.
+
+0.8.0 let a component declare the program it runs. That says what the chip computes; it does not say
+which two pins the guitar signal enters and leaves by, and a consumer needs both facts to place the
+chip in a signal chain. The only way to supply the second one was a table keyed on the part number,
+which is the workaround the `input` role was defined to remove, and which cannot be right for
+reprogrammable silicon: `TC25SC080AU-104` is a delay in `boss-dd-5`, a reverb in `boss-rv-3` and a
+pitch shifter in `boss-hr-2`, so a part-keyed table holds one answer where the corpus has three.
+
+The widening is those three kinds only. `flipflop` is the same shape of part and was left alone
+because nothing needs it, and no other role was admitted: an `ic` still cannot declare `wiper`,
+`gate` or `nonInverting`.
+
 ## 0.8.0
 
 - A component may declare the **program it is running**: `component.program`, with `positions`

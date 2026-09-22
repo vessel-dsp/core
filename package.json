@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/workspace",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"private": true,
 	"description": "Workspace for VesselDSP core and stompbox conversion tooling.",
 	"license": "MIT",

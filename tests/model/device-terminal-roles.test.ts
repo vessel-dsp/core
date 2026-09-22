@@ -179,7 +179,7 @@ describe("the terminal role field", () => {
 	it("covers every component kind, so a required field is satisfiable everywhere", () => {
 		// The point of `pin` and `end`: without them a required role would be impossible to
 		// declare on an opaque chip or an unordered two-terminal part.
-		expect(terminalRolesFor("ic")).toEqual(["pin"]);
+		expect(terminalRolesFor("ic")).toContain("pin");
 		expect(terminalRolesFor("resistor")).toContain("end");
 		for (const kind of ["ic", "switch", "transformer", "label", "port", "unsupported"]) {
 			expect(terminalRolesFor(kind).length).toBeGreaterThan(0);
