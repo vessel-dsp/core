@@ -49,6 +49,7 @@ import type {
 	ComponentDevice,
 	ComponentProgram,
 	ProgramOp,
+	ProgramRouter,
 	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -3239,6 +3240,61 @@ function collectSourceTypeNameWarnings(
  * range is not two numbers. An op this format has never heard of parses fine and is the
  * executor's to refuse by name, which is the same division `modelId` already runs on.
  */
+/**
+ * Parse the router that binds a control's positions to programs.
+ *
+ * Every refusal here is a declaration that cannot be executed. A router with no control names
+ * nothing; fewer than two positions is not a choice; a route outside the control's range, or a
+ * duplicate route, or a route naming a program that does not exist are all mappings a consumer
+ * would have to guess at. Guessing is what this format exists to prevent.
+ *
+ * A detent with no route is **not** an error. It is how an undocumented mode is declared absent.
+ */
+function parseProgramRouter(
+	value: YamlValue | undefined,
+	path: string,
+): ProgramRouter | undefined {
+	if (value === undefined) return undefined;
+	const router = expectObject(value, path);
+	const control = expectString(router.control, `${path}.control`).trim();
+	if (control.length === 0) {
+		throw new Error(`${path}.control: a router names the control that selects the program`);
+	}
+	const positions = expectNumber(router.positions, `${path}.positions`);
+	if (!Number.isInteger(positions) || positions < 2) {
+		throw new Error(
+			`${path}.positions: a router's control has at least 2 discrete positions, got ${positions}`,
+		);
+	}
+	const rawRoutes = optionalArray(router.routes, `${path}.routes`);
+	if (rawRoutes.length === 0) {
+		throw new Error(`${path}.routes: a router declares at least one route`);
+	}
+	const seen = new Set<number>();
+	const routes = rawRoutes.map((entry, index) => {
+		const routePath = `${path}.routes[${index}]`;
+		const route = expectObject(entry, routePath);
+		const position = expectNumber(route.position, `${routePath}.position`);
+		if (!Number.isInteger(position) || position < 0 || position >= positions) {
+			throw new Error(
+				`${routePath}.position: ${position} is outside the control's 0..${positions - 1} positions`,
+			);
+		}
+		if (seen.has(position)) {
+			throw new Error(
+				`${routePath}.position: position ${position} is routed more than once`,
+			);
+		}
+		seen.add(position);
+		const program = expectString(route.program, `${routePath}.program`).trim();
+		if (program.length === 0) {
+			throw new Error(`${routePath}.program: a route names the program it runs`);
+		}
+		return { position, program };
+	});
+	return { control, positions, routes };
+}
+
 function parseComponentProgram(
 	value: YamlValue | undefined,
 	path: string,
@@ -3249,13 +3305,10 @@ function parseComponentProgram(
 	if (rawPositions.length === 0) {
 		throw new Error(`${path}.positions: a program declares at least one position`);
 	}
-	const selector =
-		typeof program.selector === "string" && program.selector.trim()
-			? program.selector.trim()
-			: undefined;
-	if (selector === undefined && rawPositions.length > 1) {
+	const router = parseProgramRouter(program.router, `${path}.router`);
+	if (router === undefined && rawPositions.length > 1) {
 		throw new Error(
-			`${path}: ${rawPositions.length} positions but no selector naming the control that chooses between them`,
+			`${path}: ${rawPositions.length} positions but no router saying which control chooses between them`,
 		);
 	}
 	const positions = rawPositions.map((item, index) => {
@@ -3322,9 +3375,21 @@ function parseComponentProgram(
 			...(lines === undefined ? {} : { lines }),
 		};
 	});
+	// Every route must name a program that exists. A route pointing at nothing is a detent that
+	// silently runs whatever the consumer decides, which is the guess this format prevents.
+	if (router !== undefined) {
+		const declared = new Set(positions.map((position) => position.id));
+		for (const route of router.routes) {
+			if (!declared.has(route.program)) {
+				throw new Error(
+					`${path}.router: position ${route.position} routes to program "${route.program}", which this component does not declare`,
+				);
+			}
+		}
+	}
 	return {
 		program: {
-			...(selector === undefined ? {} : { selector }),
+			...(router === undefined ? {} : { router }),
 			positions,
 		},
 	};

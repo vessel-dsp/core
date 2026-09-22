@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.9.0
+
+### A program declares a router, not a selector
+
+**Breaking.** `ComponentProgram.selector` is removed and replaced by `ComponentProgram.router`,
+which names the control, its discrete position count, and the routes that bind positions to
+programs. A document using `selector` no longer parses.
+
+`selector` said which control chooses, and nothing more. That was too little to execute. A Boss
+DD-5's MODE knob is VR4, an 11-detent 50k pot whose wiper reaches the CPU's analog input; the CPU
+quantizes that voltage and tells the DSP which program to run. With only a control name, a consumer
+had to invent the mapping, and the obvious invention -- spread the declared programs evenly across
+the knob -- is wrong the moment a packet declares four of eleven modes, because the four would smear
+across the whole sweep and land where the undeclared ones live.
+
+A router says it exactly. Three things a per-position index could not buy: two detents may run the
+same program; a detent may run none, which is how an undocumented mode is declared absent rather
+than merely missing; and a variant that moves the same programs onto a different control changes
+only this block.
+
+`positions` restates the control's detent count deliberately, as the router's expectation. A
+consumer that also resolves the control can compare the two and refuse on disagreement, which is
+better than one unchecked number.
+
+Refusals: a router with no control, fewer than two positions, no routes, a route outside the
+control's range, a duplicate route, or a route naming a program the component does not declare. A
+detent with no route is legal and is the point.
+
 ## 0.8.1
 
 ### An opaque chip can name its audio boundary

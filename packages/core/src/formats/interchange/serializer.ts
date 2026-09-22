@@ -604,9 +604,18 @@ function componentBlock(
 			? {}
 			: {
 					program: {
-						...(component.program.selector === undefined
+						...(component.program.router === undefined
 							? {}
-							: { selector: component.program.selector }),
+							: {
+									router: {
+										control: component.program.router.control,
+										positions: component.program.router.positions,
+										routes: component.program.router.routes.map((route) => ({
+											position: route.position,
+											program: route.program,
+										})),
+									},
+								}),
 						positions: component.program.positions.map((position) => ({
 							id: position.id,
 							...(position.label === undefined ? {} : { label: position.label }),

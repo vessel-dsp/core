@@ -357,13 +357,49 @@ export type ProgramPosition = Readonly<{
  * declaration whose parameters cite a document, and the packets it describes carry their own
  * negative scope saying exactly that.
  */
+/**
+ * One entry in a program router: at this reading of the control, run this program.
+ *
+ * `position` is the control's discrete position counted from 0. `program` is the `id` of a
+ * declared position.
+ */
+export type ProgramRoute = Readonly<{
+	position: number;
+	program: string;
+}>;
+
+/**
+ * How a panel control chooses which program a chip runs.
+ *
+ * **This is a separate fact from what the chip computes, and the hardware says so.** On a Boss
+ * DD-5 the MODE knob is VR4, an 11-detent 50k pot whose wiper reaches the CPU's analog input;
+ * the CPU quantizes that voltage and tells the DSP which program to run. The CPU *is* a router,
+ * and modelling it as one names the thing that exists rather than pretending the DSP reads the
+ * knob.
+ *
+ * Keeping this separate from `positions` buys three things a per-position index cannot. Two
+ * detents may run the same program. A detent may run none, which is a statement rather than a
+ * gap, because an undocumented mode is simply absent from `routes`. And a variant that moves the
+ * same programs onto a different control changes only this block.
+ *
+ * `positions` is the control's detent count, declared here as the router's expectation. It
+ * restates a property of the control deliberately: a consumer that also resolves the control can
+ * compare the two and refuse on disagreement, which is strictly better than one unchecked number.
+ */
+export type ProgramRouter = Readonly<{
+	/** Panel control id whose position selects the program. */
+	control: string;
+	/** How many discrete positions that control has. At least 2. */
+	positions: number;
+	routes: readonly ProgramRoute[];
+}>;
+
 export type ComponentProgram = Readonly<{
 	/**
-	 * The panel control that selects between positions, by control id.
-	 *
-	 * Omitted when the program has exactly one position, which is a chip with no mode switch.
+	 * How the panel chooses between positions, or absent for a chip with one program and no
+	 * mode control.
 	 */
-	selector?: string;
+	router?: ProgramRouter;
 	positions: readonly ProgramPosition[];
 }>;
 

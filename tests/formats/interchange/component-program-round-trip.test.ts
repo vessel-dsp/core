@@ -45,7 +45,14 @@ components:
           x: 10
           y: 0
     program:
-      selector: "MODE"
+      router:
+        control: "MODE"
+        positions: 4
+        routes:
+          - position: 0
+            program: delay-1
+          - position: 2
+            program: delay-2
       positions:
         - id: delay-1
           label: "DELAY 1"
@@ -92,7 +99,14 @@ describe("a component's program survives the format", () => {
 		expect(program).toBeDefined();
 		if (program === undefined) return;
 
-		expect(program.selector).toBe("MODE");
+		expect(program.router?.control).toBe("MODE");
+		expect(program.router?.positions).toBe(4);
+		// Two detents routed out of four. The unrouted ones are not a gap: they are how an
+		// undocumented mode is declared absent.
+		expect(program.router?.routes).toEqual([
+			{ position: 0, program: "delay-1" },
+			{ position: 2, program: "delay-2" },
+		]);
 		expect(program.positions.map((position) => position.id)).toEqual([
 			"delay-1",
 			"delay-2",
@@ -141,12 +155,40 @@ describe("a component's program survives the format", () => {
 		expect(document.components[0]?.program).toBeUndefined();
 	});
 
-	test("refuses several positions with no selector naming the control", () => {
+	test("refuses several positions with no router", () => {
 		// The negative control. Two positions and nothing saying which control chooses between
 		// them is a declaration that cannot be executed, and silently taking the first would be
 		// the guess this format exists to prevent.
-		const ambiguous = source.replace('      selector: "MODE"\n', "");
-		expect(() => parseInterchangeYaml(ambiguous)).toThrow(/selector/);
+		const ambiguous = source.replace(
+			/      router:\n(?:.*\n)*?      positions:/,
+			"      positions:",
+		);
+		expect(() => parseInterchangeYaml(ambiguous)).toThrow(/router/);
+	});
+
+	test("refuses a router that cannot be executed", () => {
+		// Each of these is a mapping a consumer would have to guess at.
+		const cases: [string, string][] = [
+			["        positions: 4\n", "        positions: 1\n"],
+			["            program: delay-1\n", "            program: nonexistent\n"],
+			["          - position: 2\n", "          - position: 9\n"],
+			["          - position: 2\n", "          - position: 0\n"],
+		];
+		for (const [from, to] of cases) {
+			expect(() => parseInterchangeYaml(source.replace(from, to))).toThrow();
+		}
+	});
+
+	test("a detent with no route is legal, and is the mechanism for an undocumented mode", () => {
+		// The positive control in the other direction: the router must be able to say yes to a
+		// partial mapping, or nothing could ever declare a subset of a panel's modes.
+		const document = parseInterchangeYaml(source);
+		const routed = new Set(
+			(document.components[0]?.program?.router?.routes ?? []).map((r) => r.position),
+		);
+		expect(routed.has(1)).toBe(false);
+		expect(routed.has(3)).toBe(false);
+		expect(routed.size).toBe(2);
 	});
 
 	test("refuses an op with no name and a position with no ops", () => {
