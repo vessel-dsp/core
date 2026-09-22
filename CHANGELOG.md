@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.10.0
+
+### A router says how it reaches its control
+
+`ProgramRouter` gains `read`, either `node` (the default, unchanged behaviour) or `scanned`, and
+`scanned` requires `scannedBy` naming a component this document has.
+
+`node` is the stronger claim: the control's wiper drives a node a consumer can solve, so the
+selection is read from the circuit like any other voltage. It stays the default and nothing that
+uses it changes.
+
+`scanned` exists because that path is sometimes untraceable from any available source. A Boss
+DD-5's MODE pot runs through a connector whose far side no obtainable sheet resolves, while the
+panel fact -- eleven detents, and which one is which mode -- is fully documented on the drawing and
+in the packet's own contract, which already names the CPU as the control's owner with the role of
+mode scanning. Refusing a documented fact to protect a transport nobody can see is precision about
+the wrong thing, and modelling the transport buys nothing anyway: firmware quantizes that voltage by
+rules no dump exists for.
+
+**It is not an escape hatch for an unwired knob**, and that is what `scannedBy` is for. The claim
+has to name a chip that is on the board, so it is checkable and specific rather than a way to make
+any dangling control appear alive. Refusals: `read` outside the two values, `scanned` with no
+`scannedBy`, `scannedBy` naming a component the document does not have, and `scannedBy` on a `node`
+router.
+
 ## 0.9.0
 
 ### A program declares a router, not a selector

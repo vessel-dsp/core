@@ -166,6 +166,55 @@ describe("a component's program survives the format", () => {
 		expect(() => parseInterchangeYaml(ambiguous)).toThrow(/router/);
 	});
 
+	test("a router reads a node by default", () => {
+		const document = parseInterchangeYaml(source);
+		expect(document.components[0]?.program?.router?.read).toBe("node");
+		expect(document.components[0]?.program?.router?.scannedBy).toBeUndefined();
+	});
+
+	test("a scanned router names the chip that reads the control", () => {
+		// The case this exists for: a control whose path to the chip no source resolves, while
+		// the panel fact is fully documented. Naming the reader keeps it a checkable claim
+		// about a specific chip rather than a way to make any dangling control look alive.
+		const scanned = source.replace(
+			'        control: "MODE"\n',
+			'        control: "MODE"\n        read: scanned\n        scannedBy: U1\n',
+		);
+		const document = parseInterchangeYaml(scanned);
+		const router = document.components[0]?.program?.router;
+		expect(router?.read).toBe("scanned");
+		expect(router?.scannedBy).toBe("U1");
+		// And it survives the format, like every other declaration here.
+		const twice = parseInterchangeYaml(serializeInterchangeYaml(document));
+		expect(twice.components[0]?.program?.router).toEqual(router);
+	});
+
+	test("refuses a scanned router that names nothing, or nothing real", () => {
+		const noReader = source.replace(
+			'        control: "MODE"\n',
+			'        control: "MODE"\n        read: scanned\n',
+		);
+		expect(() => parseInterchangeYaml(noReader)).toThrow(/scannedBy/);
+
+		const ghost = source.replace(
+			'        control: "MODE"\n',
+			'        control: "MODE"\n        read: scanned\n        scannedBy: NOT_A_COMPONENT\n',
+		);
+		expect(() => parseInterchangeYaml(ghost)).toThrow(/not a component in this document/);
+
+		const wrongMode = source.replace(
+			'        control: "MODE"\n',
+			'        control: "MODE"\n        read: node\n        scannedBy: U1\n',
+		);
+		expect(() => parseInterchangeYaml(wrongMode)).toThrow(/scannedBy/);
+
+		const unknownRead = source.replace(
+			'        control: "MODE"\n',
+			'        control: "MODE"\n        read: telepathy\n',
+		);
+		expect(() => parseInterchangeYaml(unknownRead)).toThrow(/node.*scanned|scanned.*node/);
+	});
+
 	test("refuses a router that cannot be executed", () => {
 		// Each of these is a mapping a consumer would have to guess at.
 		const cases: [string, string][] = [

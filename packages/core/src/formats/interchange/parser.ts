@@ -180,6 +180,7 @@ export function parseInterchangeYaml(source: string): CircuitDocument {
 	// depend on object-key evaluation order.
 	const componentWarnings: Warning[] = [];
 	const components = parseComponents(root.components, componentWarnings);
+	assertScannedRoutersNameRealComponents(components);
 	const mechanical = isV3 ? parseMechanical(root.mechanical) : undefined;
 	const build = isV3 ? parseBuild(root.build) : undefined;
 	const bom = isV3 ? parseBom(root.bom) : undefined;
@@ -3250,6 +3251,28 @@ function collectSourceTypeNameWarnings(
  *
  * A detent with no route is **not** an error. It is how an undocumented mode is declared absent.
  */
+/**
+ * A scanned router must name a component this document actually has.
+ *
+ * Checked here rather than in the router parser because only the document knows its own
+ * component ids. Without it `scanned` would be a claim about nothing, and a dangling control
+ * could be made to look alive by naming a chip that is not on the board.
+ */
+function assertScannedRoutersNameRealComponents(
+	components: readonly Component[],
+): void {
+	const ids = new Set(components.map((component) => component.id));
+	for (const component of components) {
+		const router = component.program?.router;
+		if (router?.read !== "scanned") continue;
+		const reader = router.scannedBy;
+		if (reader === undefined || ids.has(reader)) continue;
+		throw new Error(
+			`components.${component.id}.program.router.scannedBy: "${reader}" is not a component in this document`,
+		);
+	}
+}
+
 function parseProgramRouter(
 	value: YamlValue | undefined,
 	path: string,
@@ -3259,6 +3282,31 @@ function parseProgramRouter(
 	const control = expectString(router.control, `${path}.control`).trim();
 	if (control.length === 0) {
 		throw new Error(`${path}.control: a router names the control that selects the program`);
+	}
+	const readRaw = router.read;
+	const read =
+		readRaw === undefined ? "node" : expectString(readRaw, `${path}.read`).trim();
+	if (read !== "node" && read !== "scanned") {
+		throw new Error(
+			`${path}.read: expected "node" or "scanned", got ${JSON.stringify(read)}`,
+		);
+	}
+	const scannedByRaw = router.scannedBy;
+	const scannedBy =
+		scannedByRaw === undefined
+			? undefined
+			: expectString(scannedByRaw, `${path}.scannedBy`).trim();
+	if (read === "scanned" && (scannedBy === undefined || scannedBy.length === 0)) {
+		// The claim has to name a chip that exists, or `scanned` becomes a way to make any
+		// dangling control appear to work -- which is the opposite of what it is for.
+		throw new Error(
+			`${path}.scannedBy: a scanned router names the component that reads the control`,
+		);
+	}
+	if (read === "node" && scannedBy !== undefined) {
+		throw new Error(
+			`${path}.scannedBy: only a scanned router names a reader; this one reads a node`,
+		);
 	}
 	const positions = expectNumber(router.positions, `${path}.positions`);
 	if (!Number.isInteger(positions) || positions < 2) {
@@ -3292,7 +3340,13 @@ function parseProgramRouter(
 		}
 		return { position, program };
 	});
-	return { control, positions, routes };
+	return {
+		control,
+		read,
+		...(scannedBy === undefined ? {} : { scannedBy }),
+		positions,
+		routes,
+	};
 }
 
 function parseComponentProgram(

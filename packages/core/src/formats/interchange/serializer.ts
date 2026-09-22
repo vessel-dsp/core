@@ -609,6 +609,12 @@ function componentBlock(
 							: {
 									router: {
 										control: component.program.router.control,
+										...(component.program.router.read === undefined
+											? {}
+											: { read: component.program.router.read }),
+										...(component.program.router.scannedBy === undefined
+											? {}
+											: { scannedBy: component.program.router.scannedBy }),
 										positions: component.program.router.positions,
 										routes: component.program.router.routes.map((route) => ({
 											position: route.position,

@@ -386,9 +386,32 @@ export type ProgramRoute = Readonly<{
  * restates a property of the control deliberately: a consumer that also resolves the control can
  * compare the two and refuse on disagreement, which is strictly better than one unchecked number.
  */
+/**
+ * How a router reaches its control.
+ *
+ * `node` is the default and the stronger claim: the control's wiper drives a node the
+ * consumer can solve, so the selection is read from the circuit like any other voltage.
+ *
+ * `scanned` says a chip reads the control and tells the program what it found, and that the
+ * path between them is not modelled. It exists because that path is sometimes untraceable
+ * from any source: a Boss DD-5's MODE pot runs through a connector whose far side no
+ * available sheet resolves, while the panel fact -- eleven detents, and which one is which
+ * mode -- is fully documented. Refusing the documented fact to protect a transport nobody can
+ * see is precision about the wrong thing.
+ *
+ * **It is not an escape hatch for an unwired knob.** `scanned` requires `scannedBy` to name a
+ * component that exists in the document, so the claim is about a specific chip on the board
+ * and can be checked, rather than a way to make any dangling control appear to work.
+ */
+export type ProgramRouterRead = "node" | "scanned";
+
 export type ProgramRouter = Readonly<{
 	/** Panel control id whose position selects the program. */
 	control: string;
+	/** How the router reaches that control. Defaults to `node`. */
+	read?: ProgramRouterRead;
+	/** Required by `scanned`, forbidden otherwise: the component that reads the control. */
+	scannedBy?: string;
 	/** How many discrete positions that control has. At least 2. */
 	positions: number;
 	routes: readonly ProgramRoute[];
