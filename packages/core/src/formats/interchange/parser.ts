@@ -50,6 +50,7 @@ import type {
 	ComponentProgram,
 	ProgramOp,
 	ProgramRouter,
+	ProgramRouterRead,
 	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -3262,15 +3263,70 @@ function assertScannedRoutersNameRealComponents(
 	components: readonly Component[],
 ): void {
 	const ids = new Set(components.map((component) => component.id));
+	const check = (reader: string | undefined, path: string): void => {
+		if (reader === undefined || ids.has(reader)) return;
+		throw new Error(`${path}.scannedBy: "${reader}" is not a component in this document`);
+	};
 	for (const component of components) {
-		const router = component.program?.router;
-		if (router?.read !== "scanned") continue;
-		const reader = router.scannedBy;
-		if (reader === undefined || ids.has(reader)) continue;
+		const program = component.program;
+		if (program === undefined) continue;
+		const router = program.router;
+		if (router?.read === "scanned") {
+			check(router.scannedBy, `components.${component.id}.program.router`);
+		}
+		// A scanned parameter makes the same claim about a chip on the board, and is held to it.
+		program.positions.forEach((position, index) => {
+			for (const [line, parameters] of Object.entries(position.lines ?? {})) {
+				for (const [name, parameter] of Object.entries(parameters)) {
+					if (parameter.read !== "scanned") continue;
+					check(
+						parameter.scannedBy,
+						`components.${component.id}.program.positions[${index}].lines.${line}.${name}`,
+					);
+				}
+			}
+		});
+	}
+}
+
+/**
+ * How a router or a program parameter reaches its control: `node` (the default) or `scanned`,
+ * with `scannedBy` required by the one and forbidden by the other.
+ *
+ * One reader for both, because they are one fact. A second copy of these four refusals is how the
+ * two would come to disagree about what `scanned` means.
+ */
+function parseScannedRead(
+	value: Readonly<Record<string, YamlValue>>,
+	path: string,
+	what: "router" | "parameter",
+): { read: ProgramRouterRead; scannedBy?: string } {
+	const readRaw = value.read;
+	const read =
+		readRaw === undefined ? "node" : expectString(readRaw, `${path}.read`).trim();
+	if (read !== "node" && read !== "scanned") {
 		throw new Error(
-			`components.${component.id}.program.router.scannedBy: "${reader}" is not a component in this document`,
+			`${path}.read: expected "node" or "scanned", got ${JSON.stringify(read)}`,
 		);
 	}
+	const scannedByRaw = value.scannedBy;
+	const scannedBy =
+		scannedByRaw === undefined
+			? undefined
+			: expectString(scannedByRaw, `${path}.scannedBy`).trim();
+	if (read === "scanned" && (scannedBy === undefined || scannedBy.length === 0)) {
+		// The claim has to name a chip that exists, or `scanned` becomes a way to make any
+		// dangling control appear to work -- which is the opposite of what it is for.
+		throw new Error(
+			`${path}.scannedBy: a scanned ${what} names the component that reads the control`,
+		);
+	}
+	if (read === "node" && scannedBy !== undefined) {
+		throw new Error(
+			`${path}.scannedBy: only a scanned ${what} names a reader; this one reads a node`,
+		);
+	}
+	return scannedBy === undefined ? { read } : { read, scannedBy };
 }
 
 function parseProgramRouter(
@@ -3283,31 +3339,7 @@ function parseProgramRouter(
 	if (control.length === 0) {
 		throw new Error(`${path}.control: a router names the control that selects the program`);
 	}
-	const readRaw = router.read;
-	const read =
-		readRaw === undefined ? "node" : expectString(readRaw, `${path}.read`).trim();
-	if (read !== "node" && read !== "scanned") {
-		throw new Error(
-			`${path}.read: expected "node" or "scanned", got ${JSON.stringify(read)}`,
-		);
-	}
-	const scannedByRaw = router.scannedBy;
-	const scannedBy =
-		scannedByRaw === undefined
-			? undefined
-			: expectString(scannedByRaw, `${path}.scannedBy`).trim();
-	if (read === "scanned" && (scannedBy === undefined || scannedBy.length === 0)) {
-		// The claim has to name a chip that exists, or `scanned` becomes a way to make any
-		// dangling control appear to work -- which is the opposite of what it is for.
-		throw new Error(
-			`${path}.scannedBy: a scanned router names the component that reads the control`,
-		);
-	}
-	if (read === "node" && scannedBy !== undefined) {
-		throw new Error(
-			`${path}.scannedBy: only a scanned router names a reader; this one reads a node`,
-		);
-	}
+	const { read, scannedBy } = parseScannedRead(router, path, "router");
 	const positions = expectNumber(router.positions, `${path}.positions`);
 	if (!Number.isInteger(positions) || positions < 2) {
 		throw new Error(
@@ -3404,10 +3436,24 @@ function parseComponentProgram(
 											typeof parameter.source === "string" && parameter.source.trim()
 												? parameter.source.trim()
 												: undefined;
+										const reading = parseScannedRead(
+											parameter,
+											parameterPath,
+											"parameter",
+										);
+										if (reading.read === "scanned" && control === undefined) {
+											throw new Error(
+												`${parameterPath}.read: a scanned parameter names the control it reads`,
+											);
+										}
 										return [
 											name,
 											{
 												...(control === undefined ? {} : { control }),
+												...(parameter.read === undefined ? {} : { read: reading.read }),
+												...(reading.scannedBy === undefined
+													? {}
+													: { scannedBy: reading.scannedBy }),
 												min: expectNumber(parameter.min, `${parameterPath}.min`),
 												max: expectNumber(parameter.max, `${parameterPath}.max`),
 												...(source === undefined ? {} : { source }),

@@ -639,6 +639,12 @@ function componentBlock(
 															...(parameter.control === undefined
 																? {}
 																: { control: parameter.control }),
+															...(parameter.read === undefined
+																? {}
+																: { read: parameter.read }),
+															...(parameter.scannedBy === undefined
+																? {}
+																: { scannedBy: parameter.scannedBy }),
 															min: parameter.min,
 															max: parameter.max,
 															...(parameter.source === undefined

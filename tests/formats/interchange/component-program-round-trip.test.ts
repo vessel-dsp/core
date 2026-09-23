@@ -215,6 +215,66 @@ describe("a component's program survives the format", () => {
 		expect(() => parseInterchangeYaml(unknownRead)).toThrow(/node.*scanned|scanned.*node/);
 	});
 
+	test("a parameter declares no read unless it says so", () => {
+		// Existing documents must round-trip byte-identically: a default is not written back.
+		const document = parseInterchangeYaml(source);
+		const delay = document.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds;
+		expect(delay?.read).toBeUndefined();
+		expect(delay?.scannedBy).toBeUndefined();
+		expect(serializeInterchangeYaml(document)).not.toContain("scannedBy");
+	});
+
+	test("a scanned parameter names the chip that reads its control, and survives the format", () => {
+		// The DD-5 case: D.TIME's wiper reaches the CPU's ADC through the same untraceable
+		// connector as MODE, so the parameter says what the router already could.
+		const scanned = source.replace(
+			'                control: "D.TIME"\n',
+			'                control: "D.TIME"\n                read: scanned\n                scannedBy: U1\n',
+		);
+		const document = parseInterchangeYaml(scanned);
+		const delay = document.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds;
+		expect(delay).toEqual({
+			control: "D.TIME",
+			read: "scanned",
+			scannedBy: "U1",
+			min: 0.001,
+			max: 0.05,
+			source: "Service notes, MODE table",
+		});
+		const twice = parseInterchangeYaml(serializeInterchangeYaml(document));
+		expect(twice.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds).toEqual(delay);
+	});
+
+	test("refuses a scanned parameter that names no reader, nothing real, or no control", () => {
+		const withRead = (lines: string) =>
+			source.replace('                control: "D.TIME"\n', lines);
+		expect(() =>
+			parseInterchangeYaml(
+				withRead('                control: "D.TIME"\n                read: scanned\n'),
+			),
+		).toThrow(/scannedBy/);
+		expect(() =>
+			parseInterchangeYaml(
+				withRead(
+					'                control: "D.TIME"\n                read: scanned\n                scannedBy: NOT_A_COMPONENT\n',
+				),
+			),
+		).toThrow(/not a component in this document/);
+		expect(() =>
+			parseInterchangeYaml(
+				withRead(
+					'                control: "D.TIME"\n                read: node\n                scannedBy: U1\n',
+				),
+			),
+		).toThrow(/scannedBy/);
+		// Scanning nothing is not a reading.
+		expect(() =>
+			parseInterchangeYaml(
+				withRead('                read: scanned\n                scannedBy: U1\n'),
+			),
+		).toThrow(/names the control/);
+	});
+
 	test("refuses a router that cannot be executed", () => {
 		// Each of these is a mapping a consumer would have to guess at.
 		const cases: [string, string][] = [

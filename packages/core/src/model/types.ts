@@ -316,6 +316,24 @@ export type ProgramOp = Readonly<
 export type ProgramParameter = Readonly<{
 	/** The panel control that sweeps this parameter, by control id. Omitted means fixed. */
 	control?: string;
+	/**
+	 * How the parameter reaches its control. Defaults to `node`: the control's wiper drives a
+	 * node the consumer solves. `scanned` says a chip reads the control and hands the program
+	 * the reading, over a path that is not modelled -- the same fact, with the same meaning and
+	 * the same guard, as `ProgramRouter.read`.
+	 *
+	 * **It exists for the same pedal the router's did.** A Boss DD-5's D.TIME pot sits on the VR
+	 * board beside MODE, and its wiper leaves through the same connector to the same CPU ADC bank;
+	 * no available sheet resolves that connector's far side. The router could already say MODE is
+	 * scanned. A parameter could not say the same thing about D.TIME, so the one knob whose ranges
+	 * the source cites for every mode had no way to be read.
+	 */
+	read?: ProgramRouterRead;
+	/**
+	 * Required by `scanned`, forbidden otherwise: the component that reads the control. It must
+	 * exist in the document, exactly as for a router.
+	 */
+	scannedBy?: string;
 	min: number;
 	max: number;
 	/** The document this range is read from. See the type's own note on omitting it. */

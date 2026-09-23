@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.11.0
+
+### A program parameter says how it reaches its control
+
+`ProgramParameter` gains the same `read` / `scannedBy` pair `ProgramRouter` gained in 0.10.0, with
+the same meaning and the same refusals, read by one shared parser so the two cannot come to
+disagree about what `scanned` means. A scanned parameter must also name the `control` it reads:
+scanning nothing is not a reading.
+
+It exists for the same pedal. A Boss DD-5's D.TIME pot sits on the VR board beside MODE, and its
+wiper leaves through the same connector to the same CPU ADC bank that no available sheet resolves.
+The router could already say MODE is scanned; a parameter could not say the same of D.TIME, so the
+one knob whose range the source cites for every mode had no typed way to be read, and a consumer
+could only leave it dead or guess a wire.
+
+Both fields are optional and are written back only when declared, so every existing document
+round-trips byte-identically.
+
 ## 0.10.0
 
 ### A router says how it reaches its control
