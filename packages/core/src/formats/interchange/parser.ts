@@ -47,7 +47,10 @@ import type {
 	CircuitPowerSourceKind,
 	Component,
 	ComponentDevice,
+	ComponentController,
 	ComponentProgram,
+	ControllerLatch,
+	ControllerPin,
 	ProgramOp,
 	ProgramRouter,
 	ProgramRouterRead,
@@ -3168,6 +3171,7 @@ function parseComponents(
 			...parseComponentDevices(component.devices, `${path}.devices`),
 			...parseComponentWindings(component.windings, `${path}.windings`),
 			...parseComponentProgram(component.program, `${path}.program`),
+			...parseComponentController(component.controller, component.terminals, `${path}.controller`),
 			properties: parseProperties(component.properties, `${path}.properties`),
 			sourceTypeName,
 		};
@@ -3531,6 +3535,89 @@ function parseComponentProgram(
 			positions,
 		},
 	};
+}
+
+/**
+ * A microcontroller's declared firmware rule, checked against the component it sits on.
+ *
+ * Refuses rather than repairs: a latch nothing toggles, a pin following a latch that does not
+ * exist, or a pin on a terminal the chip does not have is a declaration no consumer can execute,
+ * and a document that silently loses half of one is the defect this format exists to prevent.
+ */
+function parseComponentController(
+	value: YamlValue | undefined,
+	rawTerminals: YamlValue | undefined,
+	path: string,
+): { controller?: ComponentController } {
+	if (value === undefined) return {};
+	const controller = expectObject(value, path);
+	const latches: ControllerLatch[] = optionalArray(controller.latches, `${path}.latches`).map(
+		(item, index) => {
+			const latchPath = `${path}.latches[${index}]`;
+			const latch = expectObject(item, latchPath);
+			const initial = expectNumber(latch.initial, `${latchPath}.initial`);
+			if (initial !== 0 && initial !== 1) {
+				throw new Error(`${latchPath}.initial: a latch starts at 0 or 1, got ${initial}`);
+			}
+			return {
+				id: expectString(latch.id, `${latchPath}.id`),
+				toggledBy: expectString(latch.toggledBy, `${latchPath}.toggledBy`),
+				initial,
+				source: expectCitation(latch.source, `${latchPath}.source`),
+			};
+		},
+	);
+	if (latches.length === 0) {
+		throw new Error(`${path}.latches: a controller declares at least one latch`);
+	}
+	const latchIds = new Set<string>();
+	for (const latch of latches) {
+		if (latchIds.has(latch.id)) {
+			throw new Error(`${path}.latches: latch "${latch.id}" is declared twice`);
+		}
+		latchIds.add(latch.id);
+	}
+	const terminals = optionalArray(rawTerminals, `${path}.terminals`).map((item) =>
+		expectObject(item, `${path}.terminals`),
+	);
+	const terminalNames = new Set(terminals.map((terminal) => terminal.name));
+	const pins: ControllerPin[] = optionalArray(controller.pins, `${path}.pins`).map((item, index) => {
+		const pinPath = `${path}.pins[${index}]`;
+		const pin = expectObject(item, pinPath);
+		const terminal = expectString(pin.terminal, `${pinPath}.terminal`);
+		if (!terminalNames.has(terminal)) {
+			throw new Error(`${pinPath}.terminal: "${terminal}" is not a terminal of this component`);
+		}
+		const follows = expectString(pin.follows, `${pinPath}.follows`);
+		if (!latchIds.has(follows)) {
+			throw new Error(`${pinPath}.follows: "${follows}" is not a latch this controller declares`);
+		}
+		return {
+			terminal,
+			follows,
+			...(pin.invert === undefined ? {} : { invert: expectBoolean(pin.invert, `${pinPath}.invert`) }),
+			source: expectCitation(pin.source, `${pinPath}.source`),
+		};
+	});
+	if (pins.length > 0) {
+		const roles = new Set(terminals.map((terminal) => terminal.role));
+		for (const role of ["supplyPositive", "supplyNegative"]) {
+			if (!roles.has(role)) {
+				throw new Error(
+					`${path}.pins: a controller that drives pins needs its component to declare a ${role} terminal, which sets the pin levels`,
+				);
+			}
+		}
+	}
+	return { controller: { latches, ...(pins.length === 0 ? {} : { pins }) } };
+}
+
+function expectCitation(value: YamlValue | undefined, path: string): string {
+	const text = expectString(value, path).trim();
+	if (text.length === 0) {
+		throw new Error(`${path}: a firmware rule is only as good as its source; cite one`);
+	}
+	return text;
 }
 
 /**

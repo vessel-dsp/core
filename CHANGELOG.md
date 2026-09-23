@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.14.0
+
+### A microcontroller declares its firmware rule: latches and the pins that follow them
+
+`Component.controller` carries what a CPU's firmware does with the panel, for a chip whose
+firmware cannot be read: `latches` (an `id`, the panel control whose press `toggledBy` flips it,
+an `initial` state, a required `source`) and `pins` (one of the component's own terminals that
+`follows` a latch, optionally `invert`ed, with a `source`). A latch's `id` is a control id, so a
+program reads it the way it reads a knob. `ic` gains the opt-in `supplyPositive` and
+`supplyNegative` roles, and a controller that drives pins must declare both: a pin's levels are
+the chip's own supply, never a number typed into the document. The parser refuses no latches, an
+initial other than 0 or 1, an empty citation, a duplicate latch, a pin on a terminal the chip
+does not have, a pin following an undeclared latch, and pins on a chip with no declared supply.
+
+It exists for CPU-switched pedals. A Boss DD-5's footswitch is a momentary contact its CPU reads;
+"effect on" is a latch the firmware keeps, and the CHECK LED and the dry-mute transistor follow
+CPU pins. Which pin the switch reaches and what a pin drives are the circuit's and are never
+declared here; only the firmware's rule is.
+
 ## 0.13.0
 
 ### A program parameter can be tapped

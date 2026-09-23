@@ -506,7 +506,11 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 	 * the guess this vocabulary exists to prevent. What changed is only that the two pins a
 	 * design does know about can now say so.
 	 */
-	ic: ["pin", "input", "output"],
+	//
+	// `supplyPositive` and `supplyNegative` are opt-in on the same terms: a chip whose outputs a
+	// design models (a `controller` driving pins) knows its supply, and its pin levels are that
+	// supply rather than a number the document would otherwise have to state.
+	ic: ["pin", "input", "output", "supplyPositive", "supplyNegative"],
 	bbd: ["pin", "input", "output"],
 	"delay-ic": ["pin", "input", "output"],
 	regulator: ["pin", "positive", "negative", "ground"],

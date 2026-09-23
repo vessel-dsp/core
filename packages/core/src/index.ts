@@ -1,4 +1,4 @@
-export const VERSION = "0.13.0";
+export const VERSION = "0.14.0";
 
 export type {
 	CreateComponentArgs,
@@ -241,6 +241,9 @@ export type {
 	Component,
 	ComponentDevice,
 	ComponentProgram,
+	ComponentController,
+	ControllerLatch,
+	ControllerPin,
 	ComponentWinding,
 	ProgramOp,
 	ProgramOpValue,

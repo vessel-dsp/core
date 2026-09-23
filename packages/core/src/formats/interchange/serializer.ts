@@ -655,6 +655,28 @@ function componentBlock(
 						})),
 					},
 				}),
+		...(component.controller === undefined
+			? {}
+			: {
+					controller: {
+						latches: component.controller.latches.map((latch) => ({
+							id: latch.id,
+							toggledBy: latch.toggledBy,
+							initial: latch.initial,
+							source: latch.source,
+						})),
+						...(component.controller.pins === undefined
+							? {}
+							: {
+									pins: component.controller.pins.map((pin) => ({
+										terminal: pin.terminal,
+										follows: pin.follows,
+										...(pin.invert === undefined ? {} : { invert: pin.invert }),
+										source: pin.source,
+									})),
+								}),
+					},
+				}),
 		// Likewise a component with no coupled coils, which is everything but a transformer.
 		...(component.windings === undefined || component.windings.length === 0
 			? {}

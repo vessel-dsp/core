@@ -471,6 +471,56 @@ export type ComponentProgram = Readonly<{
 	positions: readonly ProgramPosition[];
 }>;
 
+/**
+ * A latch a controller's firmware keeps, and the panel control whose press toggles it.
+ *
+ * **The latch is a control.** Its `id` is read by programs exactly as a panel control's is, so a
+ * DSP program's wet term can take its gain from it and an output pin can follow it. That is the
+ * whole mechanism: a footswitch that the chip reads is a momentary contact, and what the pedal
+ * calls "on" is the latch the firmware keeps, not the contact.
+ *
+ * `source` is required for the same reason a program parameter's is: that a press toggles, rather
+ * than holds or triggers, is a statement about firmware nobody can read, so it is only as good
+ * as the document that says so.
+ */
+export type ControllerLatch = Readonly<{
+	/** The latch's control id. Must not collide with a panel control. */
+	id: string;
+	/** The panel control whose press, a rising edge, flips the latch. */
+	toggledBy: string;
+	/** The latch's state at power-on. */
+	initial: 0 | 1;
+	source: string;
+}>;
+
+/**
+ * An output pin a controller drives from a latch: at its declared supply when the latch is 1,
+ * at its declared ground when 0, or the reverse with `invert`.
+ */
+export type ControllerPin = Readonly<{
+	/** This component's own terminal, by name. */
+	terminal: string;
+	/** The latch this pin follows. */
+	follows: string;
+	invert?: boolean;
+	source: string;
+}>;
+
+/**
+ * What a microcontroller's firmware does with the panel, for a chip whose firmware cannot be
+ * read. The sibling of `ComponentProgram`: a program says what a DSP computes, a controller
+ * says how a CPU turns presses into state and state into pin levels.
+ *
+ * **Wiring is never declared here.** Which pin a footswitch reaches and what an output pin drives
+ * are the circuit's; a controller states only the firmware's rule. A component that drives pins
+ * must declare its own `supplyPositive` and `supplyNegative` terminals, so a pin's levels are
+ * the chip's own supply rather than a number typed into the document.
+ */
+export type ComponentController = Readonly<{
+	latches: readonly ControllerLatch[];
+	pins?: readonly ControllerPin[];
+}>;
+
 export type Component = Readonly<{
 	id: string;
 	/** What this package primarily is, and the default `kind` of every device inside it. */
@@ -508,6 +558,11 @@ export type Component = Readonly<{
 	 * and `windings`: omitted means the document does not state one.
 	 */
 	program?: ComponentProgram;
+	/**
+	 * The firmware rule this component runs on its panel, for a microcontroller. See
+	 * `ComponentController`. Omitted means the document does not state one.
+	 */
+	controller?: ComponentController;
 	properties: Readonly<Record<string, PropertyValue>>;
 	sourceTypeName: string | null;
 }>;
