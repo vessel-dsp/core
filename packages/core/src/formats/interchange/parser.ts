@@ -51,6 +51,7 @@ import type {
 	ProgramOp,
 	ProgramRouter,
 	ProgramRouterRead,
+	ProgramParameterRead,
 	ProgramParameter,
 	ComponentWinding,
 	ComponentKind,
@@ -3278,7 +3279,7 @@ function assertScannedRoutersNameRealComponents(
 		// A scanned parameter makes the same claim about a chip on the board, and is held to it.
 		program.positions.forEach((position, index) => {
 			for (const [name, parameter] of Object.entries(position.parameters ?? {})) {
-				if (parameter.read !== "scanned") continue;
+				if (parameter.read !== "scanned" && parameter.read !== "tapped") continue;
 				check(
 					parameter.scannedBy,
 					`components.${component.id}.program.positions[${index}].parameters.${name}`,
@@ -3286,7 +3287,7 @@ function assertScannedRoutersNameRealComponents(
 			}
 			for (const [line, parameters] of Object.entries(position.lines ?? {})) {
 				for (const [name, parameter] of Object.entries(parameters)) {
-					if (parameter.read !== "scanned") continue;
+					if (parameter.read !== "scanned" && parameter.read !== "tapped") continue;
 					check(
 						parameter.scannedBy,
 						`components.${component.id}.program.positions[${index}].lines.${line}.${name}`,
@@ -3308,13 +3309,15 @@ function parseScannedRead(
 	value: Readonly<Record<string, YamlValue>>,
 	path: string,
 	what: "router" | "parameter",
-): { read: ProgramRouterRead; scannedBy?: string } {
+): { read: ProgramParameterRead; scannedBy?: string } {
 	const readRaw = value.read;
 	const read =
 		readRaw === undefined ? "node" : expectString(readRaw, `${path}.read`).trim();
-	if (read !== "node" && read !== "scanned") {
+	const allowed: readonly string[] =
+		what === "parameter" ? ["node", "scanned", "tapped"] : ["node", "scanned"];
+	if (!allowed.includes(read)) {
 		throw new Error(
-			`${path}.read: expected "node" or "scanned", got ${JSON.stringify(read)}`,
+			`${path}.read: expected ${allowed.map((v) => JSON.stringify(v)).join(" or ")}, got ${JSON.stringify(read)}`,
 		);
 	}
 	const scannedByRaw = value.scannedBy;
@@ -3322,11 +3325,11 @@ function parseScannedRead(
 		scannedByRaw === undefined
 			? undefined
 			: expectString(scannedByRaw, `${path}.scannedBy`).trim();
-	if (read === "scanned" && (scannedBy === undefined || scannedBy.length === 0)) {
+	if (read !== "node" && (scannedBy === undefined || scannedBy.length === 0)) {
 		// The claim has to name a chip that exists, or `scanned` becomes a way to make any
 		// dangling control appear to work -- which is the opposite of what it is for.
 		throw new Error(
-			`${path}.scannedBy: a scanned ${what} names the component that reads the control`,
+			`${path}.scannedBy: a ${read} ${what} names the component that reads the control`,
 		);
 	}
 	if (read === "node" && scannedBy !== undefined) {
@@ -3334,7 +3337,9 @@ function parseScannedRead(
 			`${path}.scannedBy: only a scanned ${what} names a reader; this one reads a node`,
 		);
 	}
-	return scannedBy === undefined ? { read } : { read, scannedBy };
+	return scannedBy === undefined
+		? { read: read as ProgramParameterRead }
+		: { read: read as ProgramParameterRead, scannedBy };
 }
 
 function parseProgramRouter(
@@ -3347,7 +3352,9 @@ function parseProgramRouter(
 	if (control.length === 0) {
 		throw new Error(`${path}.control: a router names the control that selects the program`);
 	}
-	const { read, scannedBy } = parseScannedRead(router, path, "router");
+	const parsedRead = parseScannedRead(router, path, "router");
+	const read = parsedRead.read as ProgramRouterRead;
+	const scannedBy = parsedRead.scannedBy;
 	const positions = expectNumber(router.positions, `${path}.positions`);
 	if (!Number.isInteger(positions) || positions < 2) {
 		throw new Error(
@@ -3405,13 +3412,24 @@ function parseProgramParameter(raw: YamlValue, path: string): ProgramParameter {
 			? parameter.source.trim()
 			: undefined;
 	const reading = parseScannedRead(parameter, path, "parameter");
-	if (reading.read === "scanned" && control === undefined) {
-		throw new Error(`${path}.read: a scanned parameter names the control it reads`);
+	if (reading.read !== "node" && control === undefined) {
+		throw new Error(`${path}.read: a ${reading.read} parameter names the control it reads`);
+	}
+	let ratio: number | undefined;
+	if (parameter.ratio !== undefined) {
+		if (reading.read !== "tapped") {
+			throw new Error(`${path}.ratio: only a tapped parameter scales its interval`);
+		}
+		ratio = expectNumber(parameter.ratio, `${path}.ratio`);
+		if (!(Number.isFinite(ratio) && ratio > 0)) {
+			throw new Error(`${path}.ratio: a tap ratio is a positive number, got ${ratio}`);
+		}
 	}
 	return {
 		...(control === undefined ? {} : { control }),
 		...(parameter.read === undefined ? {} : { read: reading.read }),
 		...(reading.scannedBy === undefined ? {} : { scannedBy: reading.scannedBy }),
+		...(ratio === undefined ? {} : { ratio }),
 		min: expectNumber(parameter.min, `${path}.min`),
 		max: expectNumber(parameter.max, `${path}.max`),
 		...(source === undefined ? {} : { source }),

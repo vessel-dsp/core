@@ -328,12 +328,17 @@ export type ProgramParameter = Readonly<{
 	 * scanned. A parameter could not say the same thing about D.TIME, so the one knob whose ranges
 	 * the source cites for every mode had no way to be read.
 	 */
-	read?: ProgramRouterRead;
+	read?: ProgramParameterRead;
 	/**
-	 * Required by `scanned`, forbidden otherwise: the component that reads the control. It must
-	 * exist in the document, exactly as for a router.
+	 * Required by `scanned` and `tapped`, forbidden otherwise: the component that reads the
+	 * control. It must exist in the document, exactly as for a router.
 	 */
 	scannedBy?: string;
+	/**
+	 * `tapped` only: the parameter is the tapped interval times this, clamped to `min..max`.
+	 * Omitted means 1 (one tap interval). A DD-5's dotted-eighth TEMPO position is `0.75`.
+	 */
+	ratio?: number;
 	min: number;
 	max: number;
 	/** The document this range is read from. See the type's own note on omitting it. */
@@ -434,6 +439,16 @@ export type ProgramRoute = Readonly<{
  * and can be checked, rather than a way to make any dangling control appear to work.
  */
 export type ProgramRouterRead = "node" | "scanned";
+/**
+ * How a program *parameter* reaches its control: a router's two readings, plus `tapped`.
+ *
+ * `tapped` says the chip named by `scannedBy` measures the **time between presses** of the
+ * control and hands the program that interval. It exists for tap tempo: a Boss DD-5's four
+ * TEMPO positions set the delay to a subdivision of the beat tapped on its TEMPO jack, which the
+ * panel legend names (quarter, dotted eighth, eighth, quarter triplet). A router cannot be
+ * tapped: choosing a program by an interval is not a thing a panel does.
+ */
+export type ProgramParameterRead = ProgramRouterRead | "tapped";
 
 export type ProgramRouter = Readonly<{
 	/** Panel control id whose position selects the program. */

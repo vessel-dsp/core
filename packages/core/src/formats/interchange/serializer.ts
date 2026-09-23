@@ -956,6 +956,7 @@ function serializeProgramParameter(parameter: ProgramParameter): { readonly [key
 		...(parameter.control === undefined ? {} : { control: parameter.control }),
 		...(parameter.read === undefined ? {} : { read: parameter.read }),
 		...(parameter.scannedBy === undefined ? {} : { scannedBy: parameter.scannedBy }),
+		...(parameter.ratio === undefined ? {} : { ratio: parameter.ratio }),
 		min: parameter.min,
 		max: parameter.max,
 		...(parameter.source === undefined ? {} : { source: parameter.source }),

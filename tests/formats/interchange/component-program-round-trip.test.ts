@@ -313,6 +313,50 @@ describe("a component's program survives the format", () => {
 		expect(() => parseInterchangeYaml(ghost)).toThrow(/parameters\.feedback\.scannedBy.*not a component/);
 	});
 
+	test("a tapped parameter scales the tapped interval, and survives the format", () => {
+		// A DD-5 TEMPO position: the delay is a subdivision of the beat tapped on its TEMPO jack.
+		const tapped = source.replace(
+			'                control: "D.TIME"\n',
+			'                control: "TEMPO"\n                read: tapped\n                scannedBy: U1\n                ratio: 0.75\n',
+		);
+		const document = parseInterchangeYaml(tapped);
+		const delay = document.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds;
+		expect(delay).toEqual({
+			control: "TEMPO",
+			read: "tapped",
+			scannedBy: "U1",
+			ratio: 0.75,
+			min: 0.001,
+			max: 0.05,
+			source: "Service notes, MODE table",
+		});
+		const twice = parseInterchangeYaml(serializeInterchangeYaml(document));
+		expect(twice.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds).toEqual(delay);
+	});
+
+	test("refuses a tapped read with no reader, a ratio off a tapped read, a bad ratio, and a tapped router", () => {
+		const line = (body: string) =>
+			source.replace('                control: "D.TIME"\n', body);
+		expect(() =>
+			parseInterchangeYaml(line('                control: "TEMPO"\n                read: tapped\n')),
+		).toThrow(/scannedBy/);
+		expect(() =>
+			parseInterchangeYaml(
+				line('                control: "D.TIME"\n                read: scanned\n                scannedBy: U1\n                ratio: 0.5\n'),
+			),
+		).toThrow(/only a tapped parameter/);
+		expect(() =>
+			parseInterchangeYaml(
+				line('                control: "TEMPO"\n                read: tapped\n                scannedBy: U1\n                ratio: 0\n'),
+			),
+		).toThrow(/positive/);
+		const tappedRouter = source.replace(
+			'        control: "MODE"\n',
+			'        control: "MODE"\n        read: tapped\n        scannedBy: U1\n',
+		);
+		expect(() => parseInterchangeYaml(tappedRouter)).toThrow(/read/);
+	});
+
 	test("refuses a router that cannot be executed", () => {
 		// Each of these is a mapping a consumer would have to guess at.
 		const cases: [string, string][] = [

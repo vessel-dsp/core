@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.13.0
+
+### A program parameter can be tapped
+
+`ProgramParameter.read` gains `tapped`: the chip named by `scannedBy` measures the time between
+presses of the control and hands the program that interval, times an optional `ratio`, clamped to
+`min..max`. `scannedBy` and `control` are required as for `scanned`; `ratio` is refused on any
+other read and must be positive; a router cannot be tapped.
+
+It exists for tap tempo. A Boss DD-5's four TEMPO positions set the delay to a subdivision of the
+beat tapped on its TEMPO jack, and the panel legend names them: quarter, dotted eighth, eighth,
+quarter triplet -- ratios 1, 0.75, 0.5 and 1/3 of the tapped interval. The circuit shows a contact
+reaching the CPU; only the legend says the CPU is timing it, so this is the one fact about the jack
+that has to be declared.
+
 ## 0.12.0
 
 ### A program position declares the parameters its ops refer to
