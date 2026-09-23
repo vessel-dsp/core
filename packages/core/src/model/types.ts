@@ -354,6 +354,18 @@ export type ProgramPosition = Readonly<{
 	ops: readonly ProgramOp[];
 	/** Named delay lines the ops address, and the parameters that size them. */
 	lines?: Readonly<Record<string, Readonly<Record<string, ProgramParameter>>>>;
+	/**
+	 * Named parameters the ops refer to by name -- a gain a knob sweeps, such as a delay's
+	 * feedback or its wet level -- each cited exactly like a line's.
+	 *
+	 * **Lines could already carry a swept number; ops could not.** A DD-5's F.BACK and E.LEVEL
+	 * are gains on the program's mix, not properties of its delay line, and the only way to state
+	 * them was to misfile them as line parameters. An op names one here by `{ parameter: <name> }`
+	 * where it would otherwise take a number. Which op arguments accept a reference is the
+	 * executing runtime's vocabulary, as op names are; this reads the declarations and refuses
+	 * only what is malformed.
+	 */
+	parameters?: Readonly<Record<string, ProgramParameter>>;
 }>;
 
 /**

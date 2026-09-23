@@ -51,6 +51,7 @@ import type {
 	ProgramOp,
 	ProgramRouter,
 	ProgramRouterRead,
+	ProgramParameter,
 	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -3276,6 +3277,13 @@ function assertScannedRoutersNameRealComponents(
 		}
 		// A scanned parameter makes the same claim about a chip on the board, and is held to it.
 		program.positions.forEach((position, index) => {
+			for (const [name, parameter] of Object.entries(position.parameters ?? {})) {
+				if (parameter.read !== "scanned") continue;
+				check(
+					parameter.scannedBy,
+					`components.${component.id}.program.positions[${index}].parameters.${name}`,
+				);
+			}
 			for (const [line, parameters] of Object.entries(position.lines ?? {})) {
 				for (const [name, parameter] of Object.entries(parameters)) {
 					if (parameter.read !== "scanned") continue;
@@ -3381,6 +3389,35 @@ function parseProgramRouter(
 	};
 }
 
+/**
+ * One cited program parameter: a range, the control that sweeps it, how that control is read,
+ * and where the numbers come from. Used for a line's parameters and a position's alike, so the
+ * two cannot come to disagree about what a parameter is.
+ */
+function parseProgramParameter(raw: YamlValue, path: string): ProgramParameter {
+	const parameter = expectObject(raw, path);
+	const control =
+		typeof parameter.control === "string" && parameter.control.trim()
+			? parameter.control.trim()
+			: undefined;
+	const source =
+		typeof parameter.source === "string" && parameter.source.trim()
+			? parameter.source.trim()
+			: undefined;
+	const reading = parseScannedRead(parameter, path, "parameter");
+	if (reading.read === "scanned" && control === undefined) {
+		throw new Error(`${path}.read: a scanned parameter names the control it reads`);
+	}
+	return {
+		...(control === undefined ? {} : { control }),
+		...(parameter.read === undefined ? {} : { read: reading.read }),
+		...(reading.scannedBy === undefined ? {} : { scannedBy: reading.scannedBy }),
+		min: expectNumber(parameter.min, `${path}.min`),
+		max: expectNumber(parameter.max, `${path}.max`),
+		...(source === undefined ? {} : { source }),
+	};
+}
+
 function parseComponentProgram(
 	value: YamlValue | undefined,
 	path: string,
@@ -3425,44 +3462,26 @@ function parseComponentProgram(
 							return [
 								lineName,
 								Object.fromEntries(
-									Object.entries(parameters).map(([name, raw]) => {
-										const parameterPath = `${linePath}.${name}`;
-										const parameter = expectObject(raw, parameterPath);
-										const control =
-											typeof parameter.control === "string" && parameter.control.trim()
-												? parameter.control.trim()
-												: undefined;
-										const source =
-											typeof parameter.source === "string" && parameter.source.trim()
-												? parameter.source.trim()
-												: undefined;
-										const reading = parseScannedRead(
-											parameter,
-											parameterPath,
-											"parameter",
-										);
-										if (reading.read === "scanned" && control === undefined) {
-											throw new Error(
-												`${parameterPath}.read: a scanned parameter names the control it reads`,
-											);
-										}
-										return [
-											name,
-											{
-												...(control === undefined ? {} : { control }),
-												...(parameter.read === undefined ? {} : { read: reading.read }),
-												...(reading.scannedBy === undefined
-													? {}
-													: { scannedBy: reading.scannedBy }),
-												min: expectNumber(parameter.min, `${parameterPath}.min`),
-												max: expectNumber(parameter.max, `${parameterPath}.max`),
-												...(source === undefined ? {} : { source }),
-											},
-										];
-									}),
+									Object.entries(parameters).map(([name, raw]) => [
+										name,
+										parseProgramParameter(raw, `${linePath}.${name}`),
+									]),
 								),
 							];
 						}),
+					);
+		const rawParameters =
+			position.parameters === undefined
+				? undefined
+				: expectObject(position.parameters, `${positionPath}.parameters`);
+		const parameters =
+			rawParameters === undefined
+				? undefined
+				: Object.fromEntries(
+						Object.entries(rawParameters).map(([name, raw]) => [
+							name,
+							parseProgramParameter(raw, `${positionPath}.parameters.${name}`),
+						]),
 					);
 		const label =
 			typeof position.label === "string" && position.label.trim()
@@ -3473,6 +3492,7 @@ function parseComponentProgram(
 			...(label === undefined ? {} : { label }),
 			ops,
 			...(lines === undefined ? {} : { lines }),
+			...(parameters === undefined ? {} : { parameters }),
 		};
 	});
 	// Every route must name a program that exists. A route pointing at nothing is a detent that

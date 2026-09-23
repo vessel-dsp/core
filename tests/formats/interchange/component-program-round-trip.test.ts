@@ -275,6 +275,44 @@ describe("a component's program survives the format", () => {
 		).toThrow(/names the control/);
 	});
 
+	test("a position declares named parameters an op refers to, and both survive the format", () => {
+		// F.BACK on a DD-5 is a gain on the program's mix, not a property of its delay line.
+		const withParameters = source
+			.replace(
+				'            - op: filter-dcblock\n',
+				'            - op: mix\n              terms:\n                - source:\n                    kind: input\n                  gain:\n                    parameter: feedback\n              out: 2\n            - op: filter-dcblock\n',
+			)
+			.replace(
+				'                source: "Service notes, MODE table"\n',
+				'                source: "Service notes, MODE table"\n          parameters:\n            feedback:\n              control: "FBack"\n              read: scanned\n              scannedBy: U1\n              min: 0\n              max: 0.9\n              source: "stated approximation"\n',
+			);
+		const document = parseInterchangeYaml(withParameters);
+		const position = document.components[0]?.program?.positions[0];
+		expect(position?.parameters?.feedback).toEqual({
+			control: "FBack",
+			read: "scanned",
+			scannedBy: "U1",
+			min: 0,
+			max: 0.9,
+			source: "stated approximation",
+		});
+		expect(position?.ops[0]).toEqual({
+			op: "mix",
+			terms: [{ source: { kind: "input" }, gain: { parameter: "feedback" } }],
+			out: 2,
+		});
+		const twice = parseInterchangeYaml(serializeInterchangeYaml(document));
+		expect(twice.components[0]?.program?.positions[0]).toEqual(position);
+	});
+
+	test("a position's scanned parameter is held to the same reader check", () => {
+		const ghost = source.replace(
+			'                source: "Service notes, MODE table"\n',
+			'                source: "Service notes, MODE table"\n          parameters:\n            feedback:\n              control: "FBack"\n              read: scanned\n              scannedBy: NOT_A_COMPONENT\n              min: 0\n              max: 0.9\n',
+		);
+		expect(() => parseInterchangeYaml(ghost)).toThrow(/parameters\.feedback\.scannedBy.*not a component/);
+	});
+
 	test("refuses a router that cannot be executed", () => {
 		// Each of these is a mapping a consumer would have to guess at.
 		const cases: [string, string][] = [

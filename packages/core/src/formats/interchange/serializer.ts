@@ -39,6 +39,7 @@ import type {
 	VdspBuildDataValue,
 	Warning,
 	Wire,
+	ProgramParameter,
 } from "../../model/types";
 
 export type InterchangeSourceFormat = string;
@@ -635,24 +636,19 @@ function componentBlock(
 												Object.fromEntries(
 													Object.entries(parameters).map(([name, parameter]) => [
 														name,
-														{
-															...(parameter.control === undefined
-																? {}
-																: { control: parameter.control }),
-															...(parameter.read === undefined
-																? {}
-																: { read: parameter.read }),
-															...(parameter.scannedBy === undefined
-																? {}
-																: { scannedBy: parameter.scannedBy }),
-															min: parameter.min,
-															max: parameter.max,
-															...(parameter.source === undefined
-																? {}
-																: { source: parameter.source }),
-														},
+														serializeProgramParameter(parameter),
 													]),
 												),
+											]),
+										),
+									}),
+							...(position.parameters === undefined
+								? {}
+								: {
+										parameters: Object.fromEntries(
+											Object.entries(position.parameters).map(([name, parameter]) => [
+												name,
+												serializeProgramParameter(parameter),
 											]),
 										),
 									}),
@@ -952,4 +948,16 @@ function looksLikeNumber(value: string): boolean {
 
 function spaces(count: number): string {
 	return " ".repeat(count);
+}
+
+/** One program parameter, in the same key order wherever it appears. */
+function serializeProgramParameter(parameter: ProgramParameter): { readonly [key: string]: YamlValue } {
+	return {
+		...(parameter.control === undefined ? {} : { control: parameter.control }),
+		...(parameter.read === undefined ? {} : { read: parameter.read }),
+		...(parameter.scannedBy === undefined ? {} : { scannedBy: parameter.scannedBy }),
+		min: parameter.min,
+		max: parameter.max,
+		...(parameter.source === undefined ? {} : { source: parameter.source }),
+	};
 }

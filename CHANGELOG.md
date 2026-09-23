@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.12.0
+
+### A program position declares the parameters its ops refer to
+
+`ProgramPosition` gains `parameters`: named, cited `ProgramParameter`s (range, sweeping control,
+`read` / `scannedBy`, `source`) that ops refer to by `{ parameter: <name> }` wherever they would take
+a number. Parsed by the same function as a line's parameters, and held to the same scanned-reader
+check.
+
+Lines could already carry a swept number; ops could not. A Boss DD-5's F.BACK and E.LEVEL are gains
+on the program's mix -- feedback into the line, and the wet level out of it -- not properties of the
+delay line, and the only way to state them was to misfile them as line parameters. Which op
+arguments accept a reference stays the executing runtime's vocabulary, as op names already are.
+
+Optional and written back only when declared, so every existing document round-trips
+byte-identically.
+
 ## 0.11.0
 
 ### A program parameter says how it reaches its control
