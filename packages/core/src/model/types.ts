@@ -494,16 +494,30 @@ export type ControllerLatch = Readonly<{
 }>;
 
 /**
- * An output pin a controller drives from a latch: at its declared supply when the latch is 1,
- * at its declared ground when 0, or the reverse with `invert`.
+ * An output pin a controller drives: at its declared supply or its declared ground, by exactly
+ * one rule, reversed with `invert`.
+ *
+ * - `follows` a latch: supply when the latch is 1.
+ * - `highAt` a panel control's detents: supply at the listed positions, ground at every other.
+ *   A Boss DD-5's CPU raises P10 in MODE 7 (E/D), which mutes the dry path to OUTPUT; the
+ *   firmware's per-mode table is the fact, and the mute itself is the circuit's.
  */
-export type ControllerPin = Readonly<{
-	/** This component's own terminal, by name. */
-	terminal: string;
-	/** The latch this pin follows. */
-	follows: string;
-	invert?: boolean;
-	source: string;
+export type ControllerPin = Readonly<
+	{
+		/** This component's own terminal, by name. */
+		terminal: string;
+		invert?: boolean;
+		source: string;
+	} & (
+		| { follows: string; highAt?: undefined }
+		| { highAt: ControllerPinPositions; follows?: undefined }
+	)
+>;
+
+/** A control's detents, zero-based, at which a pin is high. */
+export type ControllerPinPositions = Readonly<{
+	control: string;
+	positions: readonly number[];
 }>;
 
 /**

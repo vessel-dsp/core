@@ -3588,16 +3588,32 @@ function parseComponentController(
 		if (!terminalNames.has(terminal)) {
 			throw new Error(`${pinPath}.terminal: "${terminal}" is not a terminal of this component`);
 		}
+		const common = {
+			terminal,
+			...(pin.invert === undefined ? {} : { invert: expectBoolean(pin.invert, `${pinPath}.invert`) }),
+			source: expectCitation(pin.source, `${pinPath}.source`),
+		};
+		if ((pin.follows === undefined) === (pin.highAt === undefined)) {
+			throw new Error(`${pinPath}: a pin is driven by exactly one rule, "follows" or "highAt"`);
+		}
+		if (pin.highAt !== undefined) {
+			const highAt = expectObject(pin.highAt, `${pinPath}.highAt`);
+			const positions = optionalArray(highAt.positions, `${pinPath}.highAt.positions`).map(
+				(value, index) => expectNonNegativeInteger(value, `${pinPath}.highAt.positions[${index}]`),
+			);
+			if (positions.length === 0 || new Set(positions).size !== positions.length) {
+				throw new Error(`${pinPath}.highAt.positions: at least one detent, none repeated`);
+			}
+			return {
+				...common,
+				highAt: { control: expectString(highAt.control, `${pinPath}.highAt.control`), positions },
+			};
+		}
 		const follows = expectString(pin.follows, `${pinPath}.follows`);
 		if (!latchIds.has(follows)) {
 			throw new Error(`${pinPath}.follows: "${follows}" is not a latch this controller declares`);
 		}
-		return {
-			terminal,
-			follows,
-			...(pin.invert === undefined ? {} : { invert: expectBoolean(pin.invert, `${pinPath}.invert`) }),
-			source: expectCitation(pin.source, `${pinPath}.source`),
-		};
+		return { ...common, follows };
 	});
 	if (pins.length > 0) {
 		const roles = new Set(terminals.map((terminal) => terminal.role));

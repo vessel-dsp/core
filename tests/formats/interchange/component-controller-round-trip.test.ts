@@ -122,6 +122,41 @@ ${extra}`;
 		expect(() => parseInterchangeYaml(shell(good, false))).toThrow(/supplyPositive/);
 	});
 
+	test("a pin can be high at a control's detents instead of following a latch", () => {
+		const modes = `    controller:
+      latches:
+        - id: EFFECT
+          toggledBy: SW1
+          initial: 0
+          source: "test"
+      pins:
+        - terminal: p10
+          highAt:
+            control: MODE
+            positions:
+              - 6
+          source: "Owner's manual p.7: in Mode 7 only effect sound is output through the Output Jack"
+`;
+		const once = parseInterchangeYaml(shell(modes));
+		expect(once.components[0]!.controller?.pins?.[0]?.highAt).toEqual({ control: "MODE", positions: [6] });
+		const twice = parseInterchangeYaml(serializeInterchangeYaml(once));
+		expect(twice.components[0]!.controller).toEqual(once.components[0]!.controller);
+		const pin = (body: string) => `    controller:
+      latches:
+        - id: EFFECT
+          toggledBy: SW1
+          initial: 0
+          source: "test"
+      pins:
+        - terminal: p10
+${body}          source: "test"
+`;
+		expect(() => parseInterchangeYaml(shell(pin("")))).toThrow(/exactly one rule/);
+		expect(() => parseInterchangeYaml(shell(pin("          follows: EFFECT\n          highAt:\n            control: MODE\n            positions:\n              - 6\n")))).toThrow(/exactly one rule/);
+		expect(() => parseInterchangeYaml(shell(pin("          highAt:\n            control: MODE\n            positions: []\n")))).toThrow(/at least one detent|expected array/);
+		expect(() => parseInterchangeYaml(shell(pin("          highAt:\n            control: MODE\n            positions:\n              - 6\n              - 6\n")))).toThrow(/none repeated/);
+	});
+
 	test("an ic may declare its supply pins", () => {
 		const cpu = parseInterchangeYaml(shell(good)).components[0]!;
 		expect(cpu.terminals.map((terminal) => terminal.role)).toEqual(["pin", "pin", "supplyPositive", "supplyNegative"]);

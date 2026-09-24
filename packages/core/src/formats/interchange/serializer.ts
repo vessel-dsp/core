@@ -670,7 +670,9 @@ function componentBlock(
 							: {
 									pins: component.controller.pins.map((pin) => ({
 										terminal: pin.terminal,
-										follows: pin.follows,
+										...(pin.highAt === undefined
+											? { follows: pin.follows }
+											: { highAt: { control: pin.highAt.control, positions: [...pin.highAt.positions] } }),
 										...(pin.invert === undefined ? {} : { invert: pin.invert }),
 										source: pin.source,
 									})),

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.15.0
+
+### A controller pin can be high at a control's detents
+
+`ControllerPin` takes exactly one rule: `follows` a latch, as in 0.14.0, or `highAt: { control,
+positions }`, which holds the pin at the chip's supply at the listed zero-based detents and at its
+ground everywhere else (`invert` reverses either). The parser refuses a pin with neither rule or
+both, and an empty or repeated position list.
+
+It exists for per-mode firmware outputs. A Boss DD-5's CPU raises P10 in MODE 7 (E/D), which through
+the traced Q6 and Q4 mutes the dry path to OUTPUT, so that jack carries effect only, as the owner's
+manual states. The per-mode table is firmware and is declared; the mute is the circuit's.
+
 ## 0.14.0
 
 ### A microcontroller declares its firmware rule: latches and the pins that follow them
