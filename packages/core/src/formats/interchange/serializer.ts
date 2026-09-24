@@ -981,6 +981,15 @@ function serializeProgramParameter(parameter: ProgramParameter): { readonly [key
 		...(parameter.read === undefined ? {} : { read: parameter.read }),
 		...(parameter.scannedBy === undefined ? {} : { scannedBy: parameter.scannedBy }),
 		...(parameter.ratio === undefined ? {} : { ratio: parameter.ratio }),
+		...(parameter.tap === undefined
+			? {}
+			: {
+					tap: {
+						presses: parameter.tap.presses,
+						timeoutSeconds: parameter.tap.timeoutSeconds,
+						...(parameter.tap.defaultSeconds === undefined ? {} : { defaultSeconds: parameter.tap.defaultSeconds }),
+					},
+				}),
 		min: parameter.min,
 		max: parameter.max,
 		...(parameter.source === undefined ? {} : { source: parameter.source }),

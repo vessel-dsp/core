@@ -339,6 +339,11 @@ export type ProgramParameter = Readonly<{
 	 * Omitted means 1 (one tap interval). A DD-5's dotted-eighth TEMPO position is `0.75`.
 	 */
 	ratio?: number;
+	/**
+	 * `tapped` only: the firmware's tap law, where a source states one. Omitted means the
+	 * interval between the last two presses, and the line's maximum until there are two.
+	 */
+	tap?: ProgramTapLaw;
 	min: number;
 	max: number;
 	/** The document this range is read from. See the type's own note on omitting it. */
@@ -449,6 +454,21 @@ export type ProgramRouterRead = "node" | "scanned";
  * tapped: choosing a program by an interval is not a thing a panel does.
  */
 export type ProgramParameterRead = ProgramRouterRead | "tapped";
+
+/**
+ * How a chip turns presses into a tempo. A Boss DD-5's manual: "Pressing the Footswitch more than
+ * four times will automatically set the basic tempo"; "If the interval of pressing the Footswitch
+ * is longer than 2 seconds, the basic tempo will remain until it is pressed again more than four
+ * times"; and untapped, the quarter note is 300 ms.
+ */
+export type ProgramTapLaw = Readonly<{
+	/** Presses in one run, each within `timeoutSeconds` of the last, before a tempo is set. */
+	presses: number;
+	/** A gap longer than this ends the run; the tempo already set stays. */
+	timeoutSeconds: number;
+	/** The interval before any tempo is set, which the parameter then scales by its `ratio`. */
+	defaultSeconds?: number;
+}>;
 
 export type ProgramRouter = Readonly<{
 	/** Panel control id whose position selects the program. */

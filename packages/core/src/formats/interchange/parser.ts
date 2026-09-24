@@ -56,6 +56,7 @@ import type {
 	ProgramRouterRead,
 	ProgramParameterRead,
 	ProgramParameter,
+	ProgramTapLaw,
 	ComponentWinding,
 	ComponentKind,
 	ComponentTerminalRef,
@@ -3429,11 +3430,35 @@ function parseProgramParameter(raw: YamlValue, path: string): ProgramParameter {
 			throw new Error(`${path}.ratio: a tap ratio is a positive number, got ${ratio}`);
 		}
 	}
+	let tap: ProgramTapLaw | undefined;
+	if (parameter.tap !== undefined) {
+		if (reading.read !== "tapped") {
+			throw new Error(`${path}.tap: only a tapped parameter has a tap law`);
+		}
+		const law = expectObject(parameter.tap, `${path}.tap`);
+		const presses = expectPositiveInteger(law.presses, `${path}.tap.presses`);
+		if (presses < 2) {
+			throw new Error(`${path}.tap.presses: a tempo needs at least two presses, got ${presses}`);
+		}
+		const timeoutSeconds = expectNumber(law.timeoutSeconds, `${path}.tap.timeoutSeconds`);
+		if (!(timeoutSeconds > 0)) {
+			throw new Error(`${path}.tap.timeoutSeconds: a positive time, got ${timeoutSeconds}`);
+		}
+		let defaultSeconds: number | undefined;
+		if (law.defaultSeconds !== undefined) {
+			defaultSeconds = expectNumber(law.defaultSeconds, `${path}.tap.defaultSeconds`);
+			if (!(defaultSeconds > 0)) {
+				throw new Error(`${path}.tap.defaultSeconds: a positive time, got ${defaultSeconds}`);
+			}
+		}
+		tap = { presses, timeoutSeconds, ...(defaultSeconds === undefined ? {} : { defaultSeconds }) };
+	}
 	return {
 		...(control === undefined ? {} : { control }),
 		...(parameter.read === undefined ? {} : { read: reading.read }),
 		...(reading.scannedBy === undefined ? {} : { scannedBy: reading.scannedBy }),
 		...(ratio === undefined ? {} : { ratio }),
+		...(tap === undefined ? {} : { tap }),
 		min: expectNumber(parameter.min, `${path}.min`),
 		max: expectNumber(parameter.max, `${path}.max`),
 		...(source === undefined ? {} : { source }),

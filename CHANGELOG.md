@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.16.0
+
+### A tapped parameter can carry the firmware's tap law
+
+`ProgramParameter.tap` (`ProgramTapLaw`, on a `tapped` read only): `presses`, the run length before a
+tempo is set (at least 2); `timeoutSeconds`, the gap that ends a run and keeps the tempo; and
+optional `defaultSeconds`, the interval before any tempo is set, which the parameter scales by its
+`ratio`. Omitted, a tapped read is the interval between the last two presses, as in 0.13.0. The
+parser refuses a tap law off a tapped read, fewer than two presses, and a non-positive time.
+
+It exists for the Boss DD-5, whose owner's manual states all three: "Pressing the Footswitch more
+than four times will automatically set the basic tempo", "If the interval of pressing the
+Footswitch is longer than 2 seconds, the basic tempo will remain", and the untapped quarter note is
+300 ms.
+
 ## 0.15.0
 
 ### A controller pin can be high at a control's detents

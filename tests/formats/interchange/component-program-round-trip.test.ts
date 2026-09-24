@@ -357,6 +357,32 @@ describe("a component's program survives the format", () => {
 		expect(() => parseInterchangeYaml(tappedRouter)).toThrow(/read/);
 	});
 
+	test("a tapped parameter can carry the firmware's tap law, and it survives the format", () => {
+		const law = source.replace(
+			'                control: "D.TIME"\n',
+			'                control: "TEMPO"\n                read: tapped\n                scannedBy: U1\n                tap:\n                  presses: 5\n                  timeoutSeconds: 2\n                  defaultSeconds: 0.3\n',
+		);
+		const document = parseInterchangeYaml(law);
+		const delay = document.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds;
+		expect(delay?.tap).toEqual({ presses: 5, timeoutSeconds: 2, defaultSeconds: 0.3 });
+		const twice = parseInterchangeYaml(serializeInterchangeYaml(document));
+		expect(twice.components[0]?.program?.positions[0]?.lines?.dl?.delaySeconds).toEqual(delay);
+	});
+
+	test("refuses a tap law off a tapped read, too few presses, and a non-positive time", () => {
+		const line = (body: string) => source.replace('                control: "D.TIME"\n', body);
+		const tapped = (law: string) =>
+			line(`                control: "TEMPO"\n                read: tapped\n                scannedBy: U1\n                tap:\n${law}`);
+		expect(() =>
+			parseInterchangeYaml(line('                control: "D.TIME"\n                read: scanned\n                scannedBy: U1\n                tap:\n                  presses: 5\n                  timeoutSeconds: 2\n')),
+		).toThrow(/only a tapped parameter has a tap law/);
+		expect(() => parseInterchangeYaml(tapped("                  presses: 1\n                  timeoutSeconds: 2\n"))).toThrow(/at least two presses/);
+		expect(() => parseInterchangeYaml(tapped("                  presses: 5\n                  timeoutSeconds: 0\n"))).toThrow(/positive time/);
+		expect(() =>
+			parseInterchangeYaml(tapped("                  presses: 5\n                  timeoutSeconds: 2\n                  defaultSeconds: -1\n")),
+		).toThrow(/positive time/);
+	});
+
 	test("refuses a router that cannot be executed", () => {
 		// Each of these is a mapping a consumer would have to guess at.
 		const cases: [string, string][] = [
