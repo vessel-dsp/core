@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## chain 0.1.0
 
 New package `@vessel-dsp/chain` 0.1.0: headless signal chain graph
 (`SignalChain` with `InputProfileNode`, `RuntimeNode`, `AmpShaperNode`,

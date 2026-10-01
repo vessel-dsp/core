@@ -921,7 +921,7 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlSurface");
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
-		expect(changelog).toStartWith("# Changelog\n\n## 0.16.0\n\n");
+		expect(changelog).toStartWith("# Changelog\n\n## chain 0.1.0\n\n");
 		expect(changelog).toContain("@vessel-dsp/control-ui");
 	});
 });
