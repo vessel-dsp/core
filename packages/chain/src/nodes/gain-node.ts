@@ -55,6 +55,6 @@ export class GainNode implements ChainNode {
 	}
 
 	private updateGain(): void {
-		this.linearGain = Math.pow(10, this.gainDb / 20);
+		this.linearGain = 10 ** (this.gainDb / 20);
 	}
 }

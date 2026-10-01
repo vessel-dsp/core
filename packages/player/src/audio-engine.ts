@@ -1,7 +1,7 @@
 import {
 	CabinetIrNode,
 	InputProfileNode,
-	NamNode,
+	AmpShaperNode,
 	type PickupType,
 	SignalChain,
 } from "@vessel-dsp/chain";

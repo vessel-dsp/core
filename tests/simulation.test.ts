@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+	AmpShaperNode,
 	CabinetIrNode,
 	GainNode,
 	InputProfileNode,
-	NamNode,
 	RuntimeNode,
 	SignalChain,
 } from "@vessel-dsp/chain";
@@ -150,12 +150,19 @@ describe("Simulation & Signal Chain Packages", () => {
 		chain.inputProfile.setImpedance(500000);
 		chain.inputProfile.setInputGainDb(2.0);
 
-		const pedalNode = new RuntimeNode("rc-pedal", "RC Filter Pedal", compiled.program);
-		const namNode = new NamNode("nam-lead", "Lead Amp", { gain: 2.0, master: 0.8 });
+		const pedalNode = new RuntimeNode(
+			"rc-pedal",
+			"RC Filter Pedal",
+			compiled.program,
+		);
+		const ampNode = new AmpShaperNode("amp-lead", "Lead Amp", {
+			gain: 2.0,
+			master: 0.8,
+		});
 		const cabNode = new CabinetIrNode("cab-4x12", "Vintage 30 4x12");
 
 		chain.addNode(pedalNode);
-		chain.addNode(namNode);
+		chain.addNode(ampNode);
 		chain.addNode(cabNode);
 
 		const input = new Float64Array(128).fill(0.2);

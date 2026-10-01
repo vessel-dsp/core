@@ -1,4 +1,9 @@
-export type PickupType = "single-coil" | "humbucker" | "active" | "piezo" | "custom";
+export type PickupType =
+	| "single-coil"
+	| "humbucker"
+	| "active"
+	| "piezo"
+	| "custom";
 
 export interface InputProfileConfig {
 	pickupType: PickupType;
@@ -6,6 +11,10 @@ export interface InputProfileConfig {
 	impedanceOhms: number;
 	/** Input trim gain in dB (-24 to +24 dB) */
 	inputGainDb: number;
+	/** Guitar to first pedal cable length in meters (default: 3m) */
+	guitarCableLengthMeters?: number;
+	/** Cable capacitance in pF/meter (default: 100 pF/m) */
+	cableCapacitancePfPerM?: number;
 	/** Resonant peak frequency in Hz (calculated from pickup inductance & cable capacitance) */
 	resonantFreqHz?: number;
 	/** Resonant peak Q factor */
@@ -33,6 +42,12 @@ export interface ChainNode {
 	getParam(id: string): number | undefined;
 	setParam(id: string, value: number): void;
 	getParams(): Record<string, number>;
+	/**
+	 * Release resources the node holds outside the chain -- a WASM instance, a file handle.
+	 * Called on the node a chain drops: `removeNode`, `clearNodes`, and the replace-by-id path
+	 * in `addNode`. Optional because most nodes hold nothing that outlives them.
+	 */
+	dispose?(): void;
 }
 
 export interface NodeSnapshot {
@@ -56,4 +71,37 @@ export interface SignalChainOptions {
 	sampleRate?: number;
 	inputProfile?: Partial<InputProfileConfig>;
 	master?: Partial<MasterConfig>;
+}
+
+export type CableLengthPreset =
+	| "15cm"
+	| "30cm"
+	| "50cm"
+	| "1m"
+	| "3m"
+	| "6m"
+	| "10m"
+	| number;
+
+export function parseCableLengthMeters(
+	value: CableLengthPreset | string | number | undefined,
+	fallbackMeters = 3.0,
+): number {
+	if (value === undefined || value === null) return fallbackMeters;
+	if (typeof value === "number") return Math.max(0, value);
+	const str = String(value).trim().toLowerCase();
+	if (str.endsWith("cm")) {
+		const val = parseFloat(str.slice(0, -2));
+		return Number.isFinite(val) ? val / 100 : fallbackMeters;
+	}
+	if (str.endsWith("m")) {
+		const val = parseFloat(str.slice(0, -1));
+		return Number.isFinite(val) ? val : fallbackMeters;
+	}
+	if (str.endsWith("ft")) {
+		const val = parseFloat(str.slice(0, -2));
+		return Number.isFinite(val) ? val * 0.3048 : fallbackMeters;
+	}
+	const num = parseFloat(str);
+	return Number.isFinite(num) ? num : fallbackMeters;
 }

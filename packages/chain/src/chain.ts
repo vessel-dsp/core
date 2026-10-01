@@ -1,4 +1,7 @@
+import { AmpShaperNode } from "./nodes/amp-shaper-node.js";
+import { GainNode } from "./nodes/gain-node.js";
 import { InputProfileNode } from "./nodes/input-profile-node.js";
+import { CabinetIrNode } from "./nodes/ir-node.js";
 import { MasterNode } from "./nodes/master-node.js";
 import type {
 	ChainNode,
@@ -26,6 +29,9 @@ export class SignalChain {
 	addNode(node: ChainNode): this {
 		const existingIndex = this.nodes.findIndex((n) => n.id === node.id);
 		if (existingIndex >= 0) {
+			// The node being replaced is dropped here, so it is disposed here: a NAM node holds
+			// a WASM instance, and leaving it alive would leak one per replace.
+			this.nodes[existingIndex]?.dispose?.();
 			this.nodes[existingIndex] = node;
 		} else {
 			this.nodes.push(node);
@@ -34,13 +40,63 @@ export class SignalChain {
 		return this;
 	}
 
+	insertNode(node: ChainNode, index: number): this {
+		this.removeNode(node.id);
+		const targetIndex = Math.max(0, Math.min(this.nodes.length, index));
+		this.nodes.splice(targetIndex, 0, node);
+		node.prepare(this.sampleRate);
+		return this;
+	}
+
+	moveNode(id: string, targetIndex: number): boolean {
+		const currentIndex = this.nodes.findIndex((n) => n.id === id);
+		if (currentIndex < 0) return false;
+
+		const [node] = this.nodes.splice(currentIndex, 1);
+		if (!node) return false;
+
+		const clampedIndex = Math.max(0, Math.min(this.nodes.length, targetIndex));
+		this.nodes.splice(clampedIndex, 0, node);
+		return true;
+	}
+
+	reorderNodes(orderedIds: readonly string[]): boolean {
+		const newNodes: ChainNode[] = [];
+		const remaining = new Map(this.nodes.map((n) => [n.id, n]));
+
+		for (const id of orderedIds) {
+			const node = remaining.get(id);
+			if (node) {
+				newNodes.push(node);
+				remaining.delete(id);
+			}
+		}
+
+		// Append any nodes that were not explicitly listed
+		for (const node of remaining.values()) {
+			newNodes.push(node);
+		}
+
+		this.nodes = newNodes;
+		return true;
+	}
+
 	removeNode(id: string): boolean {
 		const index = this.nodes.findIndex((n) => n.id === id);
 		if (index >= 0) {
-			this.nodes.splice(index, 1);
+			const [node] = this.nodes.splice(index, 1);
+			node?.dispose?.();
 			return true;
 		}
 		return false;
+	}
+
+	clearNodes(): this {
+		for (const node of this.nodes) {
+			node.dispose?.();
+		}
+		this.nodes = [];
+		return this;
 	}
 
 	getNode(id: string): ChainNode | undefined {
@@ -55,6 +111,10 @@ export class SignalChain {
 
 	getEffectNodes(): readonly ChainNode[] {
 		return [...this.nodes];
+	}
+
+	get length(): number {
+		return this.nodes.length;
 	}
 
 	prepare(sampleRate: number): void {
@@ -103,13 +163,29 @@ export class SignalChain {
 		};
 	}
 
-	loadPreset(preset: ChainPreset): void {
+	loadPreset(
+		preset: ChainPreset,
+		nodeFactory?: (snap: NodeSnapshot) => ChainNode | undefined,
+	): void {
 		if (preset.inputProfile) {
 			this.inputProfile.setPickupType(preset.inputProfile.pickupType);
 			this.inputProfile.setImpedance(preset.inputProfile.impedanceOhms);
 			this.inputProfile.setInputGainDb(preset.inputProfile.inputGainDb);
+			if (preset.inputProfile.guitarCableLengthMeters !== undefined) {
+				this.inputProfile.setGuitarCableLength(
+					preset.inputProfile.guitarCableLengthMeters,
+				);
+			}
+			if (preset.inputProfile.cableCapacitancePfPerM !== undefined) {
+				this.inputProfile.setCableCapacitancePfPerM(
+					preset.inputProfile.cableCapacitancePfPerM,
+				);
+			}
 			if (preset.inputProfile.resonantFreqHz !== undefined) {
-				this.inputProfile.setParam("resonantFreqHz", preset.inputProfile.resonantFreqHz);
+				this.inputProfile.setParam(
+					"resonantFreqHz",
+					preset.inputProfile.resonantFreqHz,
+				);
 			}
 			if (preset.inputProfile.resonantQ !== undefined) {
 				this.inputProfile.setParam("resonantQ", preset.inputProfile.resonantQ);
@@ -124,7 +200,14 @@ export class SignalChain {
 
 		if (preset.nodes) {
 			for (const snap of preset.nodes) {
-				const node = this.getNode(snap.id);
+				let node = this.getNode(snap.id);
+				if (!node && nodeFactory) {
+					node = nodeFactory(snap);
+					if (node) {
+						this.addNode(node);
+					}
+				}
+
 				if (node) {
 					node.bypassed = snap.bypassed;
 					node.mix = snap.mix;
@@ -134,5 +217,41 @@ export class SignalChain {
 				}
 			}
 		}
+	}
+
+	toJson(name = "Signal Chain"): string {
+		return JSON.stringify(this.getPreset(name), null, 2);
+	}
+
+	static fromJson(
+		jsonStr: string,
+		options?: {
+			sampleRate?: number;
+			nodeFactory?: (snap: NodeSnapshot) => ChainNode | undefined;
+		},
+	): SignalChain {
+		const preset = JSON.parse(jsonStr) as ChainPreset;
+		const chain = new SignalChain({ sampleRate: options?.sampleRate ?? 48000 });
+
+		const defaultFactory = (snap: NodeSnapshot): ChainNode | undefined => {
+			if (snap.kind === "amp-shaper") {
+				return new AmpShaperNode(snap.id, snap.name);
+			}
+			if (snap.kind === "cabinet-ir") {
+				return new CabinetIrNode(snap.id, snap.name);
+			}
+			if (snap.kind === "gain") {
+				return new GainNode(snap.id, snap.name);
+			}
+			// A `nam` snapshot is deliberately NOT recreated here. A NamNode needs an instantiated
+			// engine and the model's JSON text, and a preset carries neither -- the model file is
+			// the user's, not the preset's. A host that can supply both passes its own
+			// `nodeFactory`; the snapshot's params are still applied to any NamNode the host
+			// already has under that id.
+			return undefined;
+		};
+
+		chain.loadPreset(preset, options?.nodeFactory ?? defaultFactory);
+		return chain;
 	}
 }

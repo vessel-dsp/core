@@ -60,7 +60,8 @@ export class RuntimeNode implements ChainNode {
 
 	process(input: Float64Array | Float32Array): Float64Array {
 		const length = input.length;
-		const input64 = input instanceof Float64Array ? input : new Float64Array(input);
+		const input64 =
+			input instanceof Float64Array ? input : new Float64Array(input);
 
 		if (this.bypassed) {
 			return new Float64Array(input64);

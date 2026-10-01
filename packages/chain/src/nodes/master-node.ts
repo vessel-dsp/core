@@ -107,6 +107,6 @@ export class MasterNode implements ChainNode {
 	}
 
 	private updateGain(): void {
-		this.linearGain = Math.pow(10, this.config.volumeDb / 20);
+		this.linearGain = 10 ** (this.config.volumeDb / 20);
 	}
 }

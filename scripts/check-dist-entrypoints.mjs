@@ -151,7 +151,13 @@ if (typeof chain.SignalChain !== "function") {
 }
 
 if (typeof chain.InputProfileNode !== "function") {
-	throw new Error("packages/chain/dist/index.js does not export InputProfileNode");
+	throw new Error(
+		"packages/chain/dist/index.js does not export InputProfileNode",
+	);
+}
+
+if (typeof chain.AmpShaperNode !== "function") {
+	throw new Error("packages/chain/dist/index.js does not export AmpShaperNode");
 }
 
 if (typeof chain.NamNode !== "function") {
@@ -167,11 +173,15 @@ if (typeof player.AudioEngine !== "function") {
 }
 
 if (typeof player.SpectrumVisualizer !== "function") {
-	throw new Error("packages/player/dist/index.js does not export SpectrumVisualizer");
+	throw new Error(
+		"packages/player/dist/index.js does not export SpectrumVisualizer",
+	);
 }
 
 if (typeof player.VesselPlayerElement !== "function") {
-	throw new Error("packages/player/dist/index.js does not export VesselPlayerElement");
+	throw new Error(
+		"packages/player/dist/index.js does not export VesselPlayerElement",
+	);
 }
 
 console.log("dist entrypoints ok");

@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+New package `@vessel-dsp/chain` 0.1.0: headless signal chain graph
+(`SignalChain` with `InputProfileNode`, `RuntimeNode`, `AmpShaperNode`,
+`CabinetIrNode`, `GainNode`, `MasterNode`). Cabinet IR is zero-latency
+uniform-partitioned FFT convolution with wet-path Butterworth low/high cuts
+and `irSampleRate` resampling. `AmpShaperNode` is a tanh waveshaper with
+dry/wet mix; power-supply sag is out of scope.
+
+`NamNode` (`kind: "nam"`) plays Neural Amp Modeler `.nam` captures through
+NeuralAmpModelerCore v0.5.4 compiled to plain WebAssembly, vendored in the
+package as `nam-engine/nam-engine.wasm` with its glue and MIT notices. The
+engine is instantiated by the host from wasm bytes the caller supplies (a
+worklet scope has no `fetch`); the node takes the model's JSON text and runs
+whatever architectures the pinned engine supports (`Linear`, `WaveNet`,
+`LSTM`, A2/slimmable). A model whose stated sample rate differs from the
+chain rate by more than 0.5 Hz is refused by name -- both rates and the model
+are in the error -- and a model stating no rate is accepted; nothing resamples
+a model to fit the chain. Loudness normalisation (NAM's `Normalized` mode,
+target -18 dB) is applied by `nam_process` itself, so the node applies no
+loudness gain; `getInfo().loudness` reports what the engine did. There is no
+A/B calibration mode. Model files are NOT bundled: `.nam` captures are
+third-party artefacts and licensing them is the user's responsibility.
+`SignalChain.fromJson`/`loadPreset` cannot recreate a `NamNode` -- a preset
+carries neither an engine nor a model -- so the default node factory returns
+`undefined` for `kind: "nam"`; a host that can supply both passes its own
+`nodeFactory`. `ChainNode` gains an optional `dispose()`, which
+`removeNode`, `clearNodes` and the replace-by-id path in `addNode` call on
+the node they drop.
+
 ## 0.16.0
 
 ### A tapped parameter can carry the firmware's tap law

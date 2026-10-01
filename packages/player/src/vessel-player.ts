@@ -1,6 +1,6 @@
 import {
 	CabinetIrNode,
-	NamNode,
+	AmpShaperNode,
 	type PickupType,
 	RuntimeNode,
 } from "@vessel-dsp/chain";
@@ -232,7 +232,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 	private engine: AudioEngine;
 	private visualizer: SpectrumVisualizer | null = null;
 	private animFrameId: number | null = null;
-	private namNode: NamNode;
+	private ampShaperNode: AmpShaperNode;
 	private irNode: CabinetIrNode;
 
 	constructor() {
@@ -242,10 +242,10 @@ export class VesselPlayerElement extends HTMLElementBase {
 		}
 		this.engine = new AudioEngine();
 
-		this.namNode = new NamNode("nam-amp", "NAM Tube Amp");
+		this.ampShaperNode = new AmpShaperNode("amp-shaper", "Amp Shaper");
 		this.irNode = new CabinetIrNode("cab-ir", "Cabinet IR");
 
-		this.engine.chain.addNode(this.namNode);
+		this.engine.chain.addNode(this.ampShaperNode);
 		this.engine.chain.addNode(this.irNode);
 	}
 
@@ -352,10 +352,10 @@ export class VesselPlayerElement extends HTMLElementBase {
 
       <!-- Amp & Cab Processing -->
       <div class="section">
-        <div class="section-title">2. STAGES (v0.1 NAM & IR)</div>
+        <div class="section-title">2. STAGES (v0.1 AMP SHAPER & IR)</div>
         <div class="row">
-          <button id="btn-nam" class="${this.namNode.bypassed ? "" : "active"}">
-            NAM AMP: ${this.namNode.bypassed ? "OFF" : "ON"}
+          <button id="btn-nam" class="${this.ampShaperNode.bypassed ? "" : "active"}">
+            AMP SHAPER: ${this.ampShaperNode.bypassed ? "OFF" : "ON"}
           </button>
           <button id="btn-ir" class="${this.irNode.bypassed ? "" : "active"}">
             CABINET IR: ${this.irNode.bypassed ? "OFF" : "ON"}
@@ -452,9 +452,9 @@ export class VesselPlayerElement extends HTMLElementBase {
 
 		const btnNam = this.shadowRoot.querySelector("#btn-nam") as HTMLButtonElement;
 		btnNam?.addEventListener("click", () => {
-			this.namNode.bypassed = !this.namNode.bypassed;
-			btnNam.classList.toggle("active", !this.namNode.bypassed);
-			btnNam.textContent = `NAM AMP: ${this.namNode.bypassed ? "OFF" : "ON"}`;
+			this.ampShaperNode.bypassed = !this.ampShaperNode.bypassed;
+			btnNam.classList.toggle("active", !this.ampShaperNode.bypassed);
+			btnNam.textContent = `AMP SHAPER: ${this.ampShaperNode.bypassed ? "OFF" : "ON"}`;
 		});
 
 		const btnIr = this.shadowRoot.querySelector("#btn-ir") as HTMLButtonElement;

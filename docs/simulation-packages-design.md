@@ -6,7 +6,7 @@ The VesselDSP simulation and playback architecture separates circuit compilation
 
 - `@vessel-dsp/compiler`: Headless AST lowering of `.vdsp` / `CircuitDocument` to compiled Program ROM.
 - `@vessel-dsp/runtime`: Headless MNA & nonlinear solver engine.
-- `@vessel-dsp/chain`: Headless audio signal chain graph engine (Input Profile + Pedalboard + NAM + Cabinet IR + Master).
+- `@vessel-dsp/chain`: Headless audio signal chain graph engine (Input Profile + Pedalboard + Amp Shaper + NAM + Cabinet IR + Master).
 - `@vessel-dsp/player`: Embeddable HTML Custom Element (`<vessel-player>`) with Web Audio runner, sample/live guitar input, real-time spectrum/dB visualizer, and interactive controls.
 
 ```text
@@ -22,8 +22,8 @@ The VesselDSP simulation and playback architecture separates circuit compilation
 [@vessel-dsp/chain]     ──►  Headless Signal Chain Graph
                              ├── 1. Guitar Input Profile (Pickup type, impedance, input gain)
                              ├── 2. Pedalboard / Circuit Runtimes (compiled .vdsp)
-                             ├── 3. Amp Modeling (v0.1: NAM neural model / profile inference)
-                             ├── 4. Cabinet Simulation (v0.1: Fast IR convolution)
+                              ├── 3. Amp Shaping (tanh waveshaper + tone stack) and NAM (.nam) playback via the vendored WASM engine
+                             ├── 4. Cabinet Simulation (v0.1: zero-latency partitioned FFT IR convolution)
                              └── 5. Master Output (Master volume, limiter)
   │
   ▼
@@ -64,9 +64,11 @@ Composes multiple circuit runtimes, guitar conditioning, amplifier models, and c
   - **Impedance & Loading**: Simulates pickup coil inductance, resistance, and volume/tone pot load resistance (e.g., 250kΩ, 500kΩ, 1MΩ) with a resonant low-pass filter.
   - **Input Gain**: Trim volume from -24 dB to +24 dB.
 - **`RuntimeNode`**: Wraps `@vessel-dsp/runtime` instance for compiled `.vdsp` pedal circuits.
-- **`NamNode` (v0.1)**: Neural Amp Modeler profile runner / lightweight wave-shaper neural inference for tube amp emulation.
-- **`CabinetIrNode` (v0.1)**: Partitioned time-domain / FFT impulse response convolution for speaker cabinet and microphone captures.
+- **`AmpShaperNode`** (`amp-shaper`): tanh waveshaper plus tone stack with dry/wet `mix`. It cannot load `.nam` models and must not be called NAM.
+- **`NamNode`** (`nam`): plays `.nam` captures through the NeuralAmpModelerCore engine compiled to plain WebAssembly, vendored in the package as `nam-engine/nam-engine.wasm` with its glue. The host instantiates the engine and passes the wasm bytes (a worklet scope has no `fetch`); the node takes the model's JSON text. Architectures are whatever the pinned engine supports (`Linear`, `WaveNet`, `LSTM`, A2/slimmable). A model whose stated sample rate differs from the chain rate by more than 0.5 Hz is refused by name, never run silently; a model stating no rate is accepted and nothing resamples it. Loudness normalisation (NAM's `Normalized` mode, target -18 dB) is applied by the engine itself, so the node applies no loudness gain; `getInfo().loudness` reports what the engine did. There is no A/B calibration mode. Model files are NOT bundled -- `.nam` captures are third-party artefacts and licensing the model is the user's responsibility. `SignalChain.fromJson`/`loadPreset` cannot recreate a `NamNode` (a preset carries neither engine nor model); the default node factory returns `undefined` for kind `nam` and a host that can supply both passes its own `nodeFactory`.
+- **`CabinetIrNode`**: zero-latency uniform-partitioned FFT convolution (direct first 128 taps plus FFT tail, 256-point in-house radix-2 FFT). `lowCutHz`/`highCutHz` are 2nd-order Butterworth biquads on the wet signal (defaults 20 Hz / 20000 Hz, transparent at the extremes). Optional `irSampleRate` resamples the IR at `prepare()` with a windowed sinc (Hann, 16 zero crossings). The bundled 128-tap synthetic IR is a placeholder, not a 4x12 capture.
 - **`MasterNode`**: Master volume control, mute, and soft-knee safety limiter.
+- Power-supply rail sag is out of scope for 0.1.0: there is no supply-voltage or source-resistance control.
 
 *Roadmap*: Next version incorporates full analog amp lane and cabinet simulation ported from the `workbench` repository.
 
@@ -109,8 +111,8 @@ An embeddable HTML Custom Element (`<vessel-player>`) designed for documentation
 2. **Guitar Input Profile Controls**:
    - Dropdown for pickup type (`single-coil`, `humbucker`, `active`, `piezo`).
    - Knobs/sliders for input impedance (250kΩ, 500kΩ, 1MΩ) and input trim gain (dB).
-3. **v0.1 NAM & IR Support**:
-   - Toggle and load Neural Amp Modeler profiles and Cabinet IRs directly in the player.
+3. **v0.1 Amp & IR Support**:
+   - Toggle amp shaping (tanh waveshaper, no `.nam` loading) and Cabinet IRs directly in the player. Real NAM playback lives in `@vessel-dsp/chain`'s `NamNode`, which needs an instantiated engine and a model file the player does not carry.
 4. **Master Volume & Mute**:
    - Master volume fader (dB scale) and global bypass/mute toggle.
 5. **Real-Time Spectrum & dB Graph**:
@@ -119,7 +121,6 @@ An embeddable HTML Custom Element (`<vessel-player>`) designed for documentation
 6. **Custom Element `<vessel-player>` Attributes**:
    - `src`: URL to a `.vdsp` circuit or `.chain.json` preset.
    - `sample`: URL to initial dry DI audio sample.
-   - `nam`: Optional URL to a NAM model file.
    - `ir`: Optional URL to a cabinet impulse response `.wav`.
    - `pickup`: Default pickup type (`single-coil` | `humbucker` | `active` | `piezo`).
    - `theme`: UI color theme (`dark` | `light`).

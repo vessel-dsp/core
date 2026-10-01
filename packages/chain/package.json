@@ -1,13 +1,12 @@
 {
 	"name": "@vessel-dsp/chain",
 	"version": "0.1.0",
-	"description": "Headless audio signal chain graph engine for VesselDSP circuits, guitar profiling, NAM, and cabinet IRs.",
+	"description": "Headless audio signal chain graph engine for VesselDSP circuits, guitar profiling, amp shaping, and cabinet IRs.",
 	"keywords": [
 		"dsp",
 		"audio",
 		"signal-chain",
 		"guitar",
-		"nam",
 		"ir",
 		"impulse-response",
 		"vessel-dsp"
@@ -29,6 +28,9 @@
 			"bun": "./dist/index.js",
 			"import": "./dist/index.js"
 		},
+		"./nam-engine.wasm": "./nam-engine/nam-engine.wasm",
+		"./nam-engine.js": "./nam-engine/nam-engine.js",
+		"./nam-engine.NOTICE.md": "./nam-engine/NOTICE.md",
 		"./package.json": {
 			"default": "./package.json"
 		}
@@ -38,11 +40,12 @@
 	"types": "./dist/index.d.ts",
 	"files": [
 		"dist",
+		"nam-engine",
 		"README.md",
 		"LICENSE.md"
 	],
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"build": "rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
 		"clean": "rm -rf dist",
 		"prepack": "bun run build",
 		"pack:dry-run": "npm pack --dry-run",
