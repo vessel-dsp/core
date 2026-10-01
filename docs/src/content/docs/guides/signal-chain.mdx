@@ -1,0 +1,314 @@
+---
+title: Signal Chain
+description: Build a headless guitar signal chain with input profiling, amp shaping, cabinet IR convolution, and NAM playback.
+---
+
+`@vessel-dsp/chain` is the headless audio signal chain engine. A `SignalChain`
+holds an `InputProfileNode` first, user nodes in the middle, and a `MasterNode`
+last. It does not open an `AudioContext`, touch the DOM, or own a device; the
+host drives it block by block.
+
+It composes the other simulation packages: `RuntimeNode` wraps a compiled
+`.vdsp` pedal `Program` from `@vessel-dsp/compiler` running on
+`@vessel-dsp/runtime`, and `NamNode` plays `.nam` captures through a vendored
+WebAssembly engine.
+
+## Install
+
+`@vessel-dsp/chain` 0.1.0 is not yet on npm, and neither are its
+`@vessel-dsp/compiler` and `@vessel-dsp/runtime` 0.1.0 dependencies. Until those
+releases are published, use the package from this repository's workspace rather
+than an install command that will 404.
+
+## Node order
+
+```text
+input-profile -> [user nodes] -> master
+```
+
+`getNodes()` returns `[inputProfile, ...userNodes, master]`. User nodes run in
+the order they were added or reordered. The chain-level edit API is:
+
+- `addNode(node)` appends, or replaces a node with the same id (and calls
+  `dispose()` on the node it drops);
+- `insertNode(node, index)`, `moveNode(id, targetIndex)`,
+  `reorderNodes(orderedIds)`, `removeNode(id)`, `clearNodes()`;
+- `getNode(id)`, `getNodes()`, `getEffectNodes()`, and `length`;
+- `prepare(sampleRate)`, `reset()`, `process(input)`;
+- `getPreset(name)`, `loadPreset(preset, nodeFactory?)`, `toJson(name)`, and
+  `SignalChain.fromJson(json, options?)`.
+
+Nodes may implement `dispose()` to release resources that outlive a block, such
+as a WASM instance. The chain calls it when it drops the node.
+
+## Minimal example
+
+```ts
+import {
+	AmpShaperNode,
+	CabinetIrNode,
+	SignalChain,
+} from "@vessel-dsp/chain";
+
+const chain = new SignalChain({
+	sampleRate: 48000,
+	inputProfile: { pickupType: "single-coil", guitarCableLengthMeters: 3 },
+});
+chain.addNode(new AmpShaperNode("amp", "Amp", { gain: 1.5 }));
+chain.addNode(new CabinetIrNode("cab", "Cabinet"));
+chain.master.setVolumeDb(-12);
+
+const block = new Float64Array(128);
+for (let i = 0; i < block.length; i++) {
+	block[i] = 0.2 * Math.sin((2 * Math.PI * 220 * i) / 48000);
+}
+const output = chain.process(block);
+
+let peak = 0;
+for (const sample of output) peak = Math.max(peak, Math.abs(sample));
+console.log("nodes:", chain.getNodes().map((n) => n.kind).join(" -> "));
+console.log("block length:", output.length);
+console.log("output peak:", peak.toFixed(4));
+console.log(
+	"first three samples:",
+	Array.from(output.slice(0, 3)).map((v) => v.toFixed(6)).join(", "),
+);
+```
+
+```text
+nodes: input-profile -> amp-shaper -> cabinet-ir -> master
+block length: 128
+output peak: 0.7515
+first three samples: 0.000000, 0.000000, 0.000070
+```
+
+`process()` accepts any block length and returns a `Float64Array`. The default
+`MasterNode` has a soft-knee limiter enabled; it is a safety limiter, not a
+loudness maximizer. `MasterNode` also has `setMuted()` and `setVolumeDb()`.
+`GainNode` (`gain`) is a flat trim.
+
+## Input profile and the cable model
+
+`InputProfileNode` (`input-profile`) is always first. It models the guitar, the
+cable, and the input load, nothing else.
+
+- Pickup types: `single-coil`, `humbucker`, `active`, `piezo`, `custom`.
+- Input impedance, clamped to 10 kOhm to 10 MOhm.
+- Input trim gain, clamped to -24 dB to +24 dB.
+- A guitar-to-first-pedal cable model: `guitarCableLengthMeters` (default 3) and
+  `cableCapacitancePfPerM` (default 100, clamped to 20 to 300) set the pickup and
+  cable resonance `f0 = 1 / (2 * pi * sqrt(L * C))`, where `C` is the pickup's
+  internal capacitance plus the cable capacitance. Patch-cable and amp-cable
+  lengths are not modelled.
+
+```ts
+import { InputProfileNode } from "@vessel-dsp/chain";
+
+for (const meters of [0, 1, 3, 6, 10]) {
+	const node = new InputProfileNode({ pickupType: "single-coil" });
+	node.setGuitarCableLength(meters);
+	node.prepare(48000);
+	console.log(`${meters} m -> ${node.getParam("resonantFreqHz")} Hz`);
+}
+```
+
+```text
+0 m -> 9597 Hz
+1 m -> 6946 Hz
+3 m -> 4971 Hz
+6 m -> 3778 Hz
+10 m -> 3021 Hz
+```
+
+For a single-coil, 3 m of cable lands at about 5.0 kHz and 10 m at about
+3.0 kHz. Active pickups bypass the resonant filter, and piezos use a fixed
+resonance.
+
+## Cabinet IR node
+
+`CabinetIrNode` (`cabinet-ir`) is a zero-latency uniform-partitioned FFT
+convolution: a direct time-domain head for the first 128 taps plus FFT
+partitions for the tail. Output is sample-aligned with the input.
+
+- `lowCutHz` and `highCutHz` are 2nd-order Butterworth filters on the wet
+  signal. The defaults, 20 Hz and 20 kHz, are transparent; the filters engage
+  only when the cutoffs move inward.
+- Optional `irSampleRate` resamples the IR at `prepare()` with a windowed sinc
+  when it differs from the prepared rate.
+- The built-in default IR is a 128-tap synthetic placeholder, not a real
+  cabinet capture. Pass `ir` to use your own mono `Float64Array`.
+
+```ts
+import { CabinetIrNode } from "@vessel-dsp/chain";
+
+const ir = [1, 0.5, 0.25, 0.125];
+const impulse = new Float64Array(4);
+impulse[0] = 1;
+
+const transparent = new CabinetIrNode("cab", "Cabinet", { ir });
+transparent.prepare(48000);
+console.log(
+	"default (transparent):",
+	Array.from(transparent.process(impulse)).map((v) => v.toFixed(4)).join(", "),
+);
+
+const shaped = new CabinetIrNode("cab-eq", "Cabinet EQ", {
+	ir,
+	lowCutHz: 80,
+	highCutHz: 8000,
+});
+shaped.prepare(48000);
+console.log(
+	"lowCut 80 Hz / highCut 8 kHz:",
+	Array.from(shaped.process(impulse)).map((v) => v.toFixed(4)).join(", "),
+);
+```
+
+```text
+default (transparent): 1.0000, 0.5000, 0.2500, 0.1250
+lowCut 80 Hz / highCut 8 kHz: 0.1539, 0.4779, 0.5978, 0.4159
+```
+
+The direct head starts at sample 0, so an impulse comes out as the IR with no
+leading delay. A 48000-tap IR in 128-sample blocks runs at about 27x real time
+under Bun in the package's test harness.
+
+## NAM node
+
+`NamNode` (`nam`) plays Neural Amp Modeler `.nam` captures through
+NeuralAmpModelerCore compiled to plain WebAssembly. The engine ships in the
+package under `nam-engine/` and is exposed as the subpaths
+`@vessel-dsp/chain/nam-engine.wasm`, `@vessel-dsp/chain/nam-engine.js`, and
+`@vessel-dsp/chain/nam-engine.NOTICE.md`.
+
+The host passes the wasm bytes to `instantiateNamEngine` because an
+`AudioWorkletGlobalScope` has no `fetch`. Instantiation is asynchronous and
+belongs to the caller; the node itself is synchronous.
+
+- The engine owns loudness normalisation. It applies NAM's `Normalized` output
+  mode with a target of -18 dB inside `nam_process`; the node adds no loudness
+  gain of its own. `getInfo().loudness` reports what the engine did.
+- A model whose stated sample rate differs from the chain rate by more than
+  0.5 Hz is refused with both rates in the error. A model that states no rate is
+  accepted. Nothing resamples a model to fit the chain.
+- Model files are not bundled. `.nam` captures are third-party artifacts, and
+  the caller supplies the model's JSON text.
+
+```ts
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { instantiateNamEngine, NamNode } from "@vessel-dsp/chain";
+
+const model = JSON.stringify({
+	version: "0.5.0",
+	architecture: "Linear",
+	config: {
+		receptive_field: 4,
+		bias: false,
+		in_channels: 1,
+		out_channels: 1,
+		implementation: "direct",
+	},
+	weights: [0.5, -0.25, 0.125, 0.0625],
+	metadata: { loudness: -14.0 },
+	sample_rate: 48000,
+});
+
+const factory = (await import("@vessel-dsp/chain/nam-engine.js")).default;
+const wasmUrl = import.meta.resolve("@vessel-dsp/chain/nam-engine.wasm");
+const engine = await instantiateNamEngine(
+	readFileSync(fileURLToPath(wasmUrl)),
+	factory,
+);
+
+const node = new NamNode("nam-amp", "NAM Amp", { engine, model });
+node.prepare(48000);
+
+const info = node.getInfo();
+console.log("expectedSampleRate:", info.expectedSampleRate);
+console.log("modelLoudnessDb:", info.loudness.modelLoudnessDb);
+console.log("appliedGain:", info.loudness.appliedGain.toFixed(4));
+
+const impulse = new Float64Array(16);
+impulse[0] = 1;
+const out = node.process(impulse);
+console.log(
+	"first six outputs:",
+	Array.from(out.slice(0, 6)).map((v) => v.toFixed(6)).join(", "),
+);
+```
+
+```text
+expectedSampleRate: 48000
+modelLoudnessDb: -14
+appliedGain: 0.6310
+first six outputs: 0.315479, -0.158152, 0.078664, 0.039126, -0.000360, -0.000360
+```
+
+Measured under Bun on a desktop CPU, not in a browser, with 128-sample blocks:
+a 90 KB WaveNet capture ran at about 18x real time and a 420 KB capture at about
+3.9x. Cost depends on the model, so measure the capture you intend to ship.
+
+`AmpShaperNode` (`amp-shaper`) is a separate node: a tanh waveshaper plus a tone
+stack. It is not a NAM model loader and must not be called NAM.
+
+`RuntimeNode` (`circuit-runtime`) is the only node that solves a circuit. It
+wraps a `@vessel-dsp/compiler` `Program` running on `@vessel-dsp/runtime`. It
+needs an already-compiled program and cannot compile `.vdsp` by itself.
+
+## Presets
+
+`getPreset()` captures the input profile, each user node's params, and the
+master config. `toJson()` serialises it, and `SignalChain.fromJson()` restores
+it. A `nam` snapshot is deliberately not recreated by the default factory,
+because a preset carries neither the engine nor the model; pass a `nodeFactory`
+when the host can supply both.
+
+```ts
+import {
+	AmpShaperNode,
+	CabinetIrNode,
+	SignalChain,
+} from "@vessel-dsp/chain";
+
+const chain = new SignalChain({ sampleRate: 48000 });
+chain.inputProfile.setGuitarCableLength(6);
+chain.addNode(new AmpShaperNode("amp", "Amp", { gain: 2 }));
+chain.addNode(new CabinetIrNode("cab", "Cabinet", { highCutHz: 8000 }));
+chain.master.setVolumeDb(-3);
+
+const preset = chain.getPreset("My Rig");
+console.log("preset nodes:", preset.nodes.map((n) => n.id).join(", "));
+console.log("preset cable length:", preset.inputProfile.guitarCableLengthMeters);
+
+const json = chain.toJson("My Rig");
+const restored = SignalChain.fromJson(json, { sampleRate: 48000 });
+console.log(
+	"restored nodes:",
+	restored.getNodes().map((n) => n.kind).join(" -> "),
+);
+console.log(
+	"restored cable length:",
+	restored.inputProfile.getParam("guitarCableLengthMeters"),
+);
+```
+
+```text
+preset nodes: amp, cab
+preset cable length: 6
+restored nodes: input-profile -> amp-shaper -> cabinet-ir -> master
+restored cable length: 6
+```
+
+## Limits and what is not included
+
+- Power-supply rail sag is not implemented. The runtime solves each program
+  against its own rails and has no supply-voltage control, so sag needs a
+  runtime feature, not a chain node.
+- NAM calibrated mode is not implemented. It needs an input calibration level
+  that `.nam` models do not carry.
+- NAM models are not resampled. A rate mismatch is refused instead.
+- Patch-cable and amp-cable lengths are not modelled. Only the guitar-to-first-
+  pedal cable is.
+- `AmpShaperNode` is a single static waveshaper with no oversampling.
+- The built-in cabinet IR is a synthetic placeholder, not a real cabinet.

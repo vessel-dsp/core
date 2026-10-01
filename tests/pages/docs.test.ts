@@ -64,6 +64,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('"packages/visual-effects/src/index.ts"');
 		expect(astroConfig).toContain('"packages/amp/src/index.ts"');
 		expect(astroConfig).toContain('"packages/cabinet/src/index.ts"');
+		expect(astroConfig).toContain('"packages/chain/src/index.ts"');
 		expect(astroConfig).toContain('tsconfig: "tsconfig.docs.json"');
 		expect(astroConfig).toContain('label: "Generated 3D Previews"');
 		expect(astroConfig).toContain('link: "/guides/generated-3d-previews/"');
@@ -71,6 +72,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('link: "/guides/controls/"');
 		expect(astroConfig).toContain('label: "Control UI"');
 		expect(astroConfig).toContain('link: "/guides/control-ui/"');
+		expect(astroConfig).toContain('label: "Signal Chain"');
+		expect(astroConfig).toContain('link: "/guides/signal-chain/"');
 
 		const stompboxPackage = JSON.parse(
 			readRepoFile("packages/stompbox/package.json"),
@@ -405,6 +408,22 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlUiPage).toContain("theme");
 		expect(controlUiPage).toContain("PanelMessage");
 		expect(controlUiPage).not.toMatch(/playground|workbench/i);
+
+		const signalChainPage = readRepoFile(
+			"docs/src/content/docs/guides/signal-chain.mdx",
+		);
+		expect(signalChainPage).toContain("title: Signal Chain");
+		expect(signalChainPage).toContain("@vessel-dsp/chain");
+		expect(signalChainPage).toContain("input-profile -> [user nodes] -> master");
+		expect(signalChainPage).toContain("SignalChain");
+		expect(signalChainPage).toContain("InputProfileNode");
+		expect(signalChainPage).toContain("guitarCableLengthMeters");
+		expect(signalChainPage).toContain("CabinetIrNode");
+		expect(signalChainPage).toContain("instantiateNamEngine");
+		expect(signalChainPage).toContain("nam-engine.wasm");
+		expect(signalChainPage).toContain("not yet on npm");
+		expect(signalChainPage).toContain("Power-supply rail sag is not implemented");
+		expect(signalChainPage).not.toMatch(/playground|workbench|custom editor/i);
 
 		const controlUiExample = readRepoFile(
 			"docs/src/components/ControlUiRenderedExample.astro",

@@ -37,7 +37,7 @@ The VesselDSP simulation and playback architecture separates circuit compilation
 ## Package Boundaries & Specifications
 
 ### 1. `@vessel-dsp/compiler`
-Turns a parsed `.vdsp` / `CircuitDocument` into an immutable **`Program`** — a compiled execution plan containing:
+Turns a parsed `.vdsp` / `CircuitDocument` into an immutable **`Program`**, a compiled execution plan containing:
 - **Block Partitions & Linear/Nonlinear Regions**: Subcircuits partitioned by topological coupling and operational complexity.
 - **MNA Stamps & Conductance Matrices**: Precomputed $G$, $C$, $B$, $D$ matrices for Modified Nodal Analysis.
 - **Nonlinear Operators**: Mathematical models for diodes, BJTs, JFETs, triodes, op-amps, and BBD clock drivers.
@@ -51,7 +51,7 @@ Executes a compiled `Program` on audio streams:
 - **Solver Core**: Solves MNA equations per time step using trapezoidal integration and damped Newton-Raphson iteration for nonlinear devices.
 - **Real-Time Admission & CPU Budgeting**: Evaluates whether a program fits within the CPU budget of an audio quantum (128 samples) before execution.
 - **Settling & DC Bias Policy**: Pre-settles operating points to avoid audible start-up pops and transient thumps.
-- **Oversampling & Anti-Aliasing**: Optional fractional or integer oversampling for high-gain nonlinear clipping stages.
+- **Oversampling & Anti-Aliasing**: Optional integer oversampling for high-gain nonlinear clipping stages.
 
 *Constraints*: Stays strictly headless and audio-rate agnostic.
 
@@ -61,7 +61,7 @@ Composes multiple circuit runtimes, guitar conditioning, amplifier models, and c
 #### Node Architecture
 - **`InputProfileNode`**:
   - **Pickup Types**: `single-coil`, `humbucker`, `active`, `piezo`, `custom`.
-  - **Impedance & Loading**: Simulates pickup coil inductance, resistance, and volume/tone pot load resistance (e.g., 250kΩ, 500kΩ, 1MΩ) with a resonant low-pass filter.
+  - **Impedance & Loading**: Models pickup coil inductance and internal capacitance plus the input impedance load (e.g., 250kΩ, 500kΩ, 1MΩ) with a resonant low-pass filter.
   - **Input Gain**: Trim volume from -24 dB to +24 dB.
 - **`RuntimeNode`**: Wraps `@vessel-dsp/runtime` instance for compiled `.vdsp` pedal circuits.
 - **`AmpShaperNode`** (`amp-shaper`): tanh waveshaper plus tone stack with dry/wet `mix`. It cannot load `.nam` models and must not be called NAM.
@@ -70,33 +70,47 @@ Composes multiple circuit runtimes, guitar conditioning, amplifier models, and c
 - **`MasterNode`**: Master volume control, mute, and soft-knee safety limiter.
 - Power-supply rail sag is out of scope for 0.1.0: there is no supply-voltage or source-resistance control.
 
-*Roadmap*: Next version incorporates full analog amp lane and cabinet simulation ported from the `workbench` repository.
-
 #### API Contract
 ```ts
 export interface ChainNode {
   readonly id: string;
   readonly name: string;
+  readonly kind: string;
   bypassed: boolean;
   mix: number;
   prepare(sampleRate: number): void;
-  process(input: Float64Array | Float32Array): Float64Array | Float32Array;
+  process(input: Float64Array | Float32Array): Float64Array;
   reset(): void;
   getParam(id: string): number | undefined;
   setParam(id: string, value: number): void;
+  getParams(): Record<string, number>;
+  dispose?(): void;
 }
 
 export class SignalChain {
   readonly inputProfile: InputProfileNode;
   readonly master: MasterNode;
   addNode(node: ChainNode): this;
+  insertNode(node: ChainNode, index: number): this;
+  moveNode(id: string, targetIndex: number): boolean;
+  reorderNodes(orderedIds: readonly string[]): boolean;
   removeNode(id: string): boolean;
+  clearNodes(): this;
   getNode(id: string): ChainNode | undefined;
   getNodes(): readonly ChainNode[];
+  getEffectNodes(): readonly ChainNode[];
   prepare(sampleRate: number): void;
   process(input: Float64Array | Float32Array): Float64Array;
-  getPreset(): ChainPreset;
-  loadPreset(preset: ChainPreset): void;
+  getPreset(name?: string): ChainPreset;
+  loadPreset(
+    preset: ChainPreset,
+    nodeFactory?: (snapshot: NodeSnapshot) => ChainNode | undefined,
+  ): void;
+  toJson(name?: string): string;
+  static fromJson(
+    json: string,
+    options?: { sampleRate?: number; nodeFactory?: (snapshot: NodeSnapshot) => ChainNode | undefined },
+  ): SignalChain;
   reset(): void;
 }
 ```

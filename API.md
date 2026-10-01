@@ -9,6 +9,10 @@ preview state patches, including validation for LED lens and footswitch actuator
 targets in user-provided GLB assets. See `packages/stompbox/README.md` for the
 stompbox helper map and interactive preview examples.
 
+`@vessel-dsp/chain` is the headless signal chain engine. See the
+[Signal Chain guide](https://vessel-dsp.github.io/core/guides/signal-chain/) for
+node order, the cable model, cabinet IR convolution, and NAM playback.
+
 ## Import
 
 ```ts

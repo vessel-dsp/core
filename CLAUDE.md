@@ -88,6 +88,17 @@ not a second in-memory model and not a required bridge for source-format
 conversion. Cross-format conversion should go through `CircuitDocument` and a
 target-specific serializer.
 
+## Chain Boundary
+
+`packages/chain` must stay headless: no `AudioContext`, no DOM, no browser
+rendering APIs. It imports only `@vessel-dsp/compiler`, `@vessel-dsp/runtime`,
+and `@vessel-dsp/core`.
+
+It ships the vendored NAM inference engine under `packages/chain/nam-engine/`
+(the `.wasm`, its glue `.js`, and `NOTICE.md`). That directory is a build output:
+rebuild it with `packages/chain/scripts/build-nam-engine.sh` and never hand-edit
+it. Chain tests live in `tests/chain`.
+
 ## Important Core Paths
 
 - `packages/core/src/formats/document.ts` - file detection, parse/serialize
@@ -158,4 +169,6 @@ Pick the smallest check that covers the change:
   `bun run build:pages`.
 - Stompbox changes: `bun test tests/stompbox` and
   `bun run --cwd packages/stompbox typecheck`.
+- Chain changes: `bun test tests/chain` and
+  `bun run --cwd packages/chain typecheck`.
 - Final full check: `bun test && bun run typecheck && bun run build && bun run build:pages`.

@@ -26,8 +26,10 @@ use tscircuit tooling to render or edit emitted Circuit JSON.
 | `@vessel-dsp/cabinet` | Public npm package | Generated Three.js object graphs and GLB previews for speaker cabinet profile visualization. |
 | `@vessel-dsp/compiler` | Public npm package | Headless circuit compiler lowering `.vdsp` documents to executable simulation Program ROMs. |
 | `@vessel-dsp/runtime` | Public npm package | Headless real-time audio MNA solver console and Newton-Raphson simulation engine. |
-| `@vessel-dsp/chain` | Public npm package | Headless audio signal chain graph engine for guitar input profiling, pedalboards, NAM, and cabinet IRs. |
+| `@vessel-dsp/chain` | Not yet published (0.1.0) | Headless audio signal chain graph engine: guitar input profiling, compiled circuit runtimes, amp shaping, cabinet IR convolution, and real NAM playback. |
 | `@vessel-dsp/player` | Public npm package | Embeddable HTML Custom Element (`<vessel-player>`) and Web Audio player with real-time spectrum visualizer. |
+
+See the [Signal Chain guide](https://vessel-dsp.github.io/core/guides/signal-chain/) for node order, the guitar cable model, cabinet IR convolution, and NAM playback; `@vessel-dsp/chain` 0.1.0 and its `@vessel-dsp/compiler` and `@vessel-dsp/runtime` 0.1.0 dependencies are not yet published on npm.
 
 ## Install
 

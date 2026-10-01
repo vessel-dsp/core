@@ -19,7 +19,9 @@
 			"@vessel-dsp/amp": ["packages/amp/src/index.ts"],
 			"@vessel-dsp/amp/*": ["packages/amp/src/*"],
 			"@vessel-dsp/cabinet": ["packages/cabinet/src/index.ts"],
-			"@vessel-dsp/cabinet/*": ["packages/cabinet/src/*"]
+			"@vessel-dsp/cabinet/*": ["packages/cabinet/src/*"],
+			"@vessel-dsp/chain": ["packages/chain/src/index.ts"],
+			"@vessel-dsp/chain/*": ["packages/chain/src/*"]
 		}
 	},
 	"include": [
@@ -28,6 +30,7 @@
 		"packages/control-ui/src/index.ts",
 		"packages/visual-effects/src/index.ts",
 		"packages/amp/src/index.ts",
-		"packages/cabinet/src/index.ts"
+		"packages/cabinet/src/index.ts",
+		"packages/chain/src/index.ts"
 	]
 }
