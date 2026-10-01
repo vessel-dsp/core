@@ -4,6 +4,7 @@ on:
     push:
         tags:
             - 'v*'
+            - 'chain-v*'
     workflow_dispatch:
         inputs:
             package:
@@ -19,6 +20,7 @@ on:
                     - visual-effects
                     - amp
                     - cabinet
+                    - chain
 
 permissions:
     contents: read
@@ -51,7 +53,7 @@ jobs:
               run: bun run pack:dry-run
 
             - name: Verify core package
-              if: github.event_name == 'push' || inputs.package == 'core'
+              if: startsWith(github.ref, 'refs/tags/v') || inputs.package == 'core'
               run: bun run --cwd packages/core pack:dry-run
 
             - name: Verify control-ui package
@@ -74,8 +76,28 @@ jobs:
               if: github.event_name == 'workflow_dispatch' && inputs.package == 'cabinet'
               run: bun run --cwd packages/cabinet pack:dry-run
 
+            - name: Verify chain tag matches the package version
+              if: startsWith(github.ref, 'refs/tags/chain-v')
+              run: |
+                  expected="chain-v$(node -p "require('./packages/chain/package.json').version")"
+                  test "$expected" = "${{ github.ref_name }}" || { echo "Tag ${{ github.ref_name }} does not match packages/chain/package.json ($expected)"; exit 1; }
+
+            - name: Verify chain's @vessel-dsp dependencies are published
+              if: startsWith(github.ref, 'refs/tags/chain-v') || inputs.package == 'chain'
+              run: |
+                  # chain pins its @vessel-dsp dependencies exactly. Publishing it while one is
+                  # missing from npm ships a package nobody can install, and a published version
+                  # cannot be reused. Remove this step only on purpose.
+                  node -e "const d=require('./packages/chain/package.json').dependencies;for(const [n,v] of Object.entries(d))if(n.startsWith('@vessel-dsp/'))console.log(n+'@'+v)" | while read dep; do
+                      npm view "$dep" version >/dev/null 2>&1 || { echo "::error::$dep is not published on npm; refusing to publish chain"; exit 1; }
+                  done
+
+            - name: Verify chain package
+              if: startsWith(github.ref, 'refs/tags/chain-v') || inputs.package == 'chain'
+              run: bun run --cwd packages/chain pack:dry-run
+
             - name: Publish core package
-              if: github.event_name == 'push' || inputs.package == 'all' || inputs.package == 'core'
+              if: startsWith(github.ref, 'refs/tags/v') || inputs.package == 'all' || inputs.package == 'core'
               run: npm publish --workspace @vessel-dsp/core --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -107,5 +129,11 @@ jobs:
             - name: Publish cabinet package
               if: inputs.package == 'all' || inputs.package == 'cabinet'
               run: npm publish --workspace @vessel-dsp/cabinet --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Publish chain package
+              if: startsWith(github.ref, 'refs/tags/chain-v') || inputs.package == 'chain'
+              run: npm publish --workspace @vessel-dsp/chain --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
