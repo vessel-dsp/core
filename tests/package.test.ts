@@ -724,9 +724,11 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("- visual-effects");
 		expect(workflow).toContain("- amp");
 		expect(workflow).toContain("- cabinet");
+		expect(workflow).toContain("- chain");
 		expect(workflow).toContain("push:");
 		expect(workflow).toContain("tags:");
 		expect(workflow).toContain("- 'v*'");
+		expect(workflow).toContain("- 'chain-v*'");
 		expect(workflow).not.toContain("release:");
 		expect(workflow).toContain("id-token: write");
 		expect(workflow).toContain("oven-sh/setup-bun@v2");
@@ -734,7 +736,9 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("registry-url: https://registry.npmjs.org");
 		expect(workflow).toContain("scope: '@vessel-dsp'");
 		expect(workflow).toContain("bun install --frozen-lockfile");
-		expect(workflow).toContain("github.event_name == 'push'");
+		expect(workflow).toContain("startsWith(github.ref, 'refs/tags/v')");
+		// A core tag must never run the chain steps, and a chain tag must never run core's.
+		expect(workflow).not.toContain("github.event_name == 'push'");
 		expect(workflow).toContain("inputs.package == 'all'");
 		expect(workflow).toContain("inputs.package == 'core'");
 		expect(workflow).toContain("inputs.package == 'control-ui'");
@@ -742,6 +746,8 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("inputs.package == 'visual-effects'");
 		expect(workflow).toContain("inputs.package == 'amp'");
 		expect(workflow).toContain("inputs.package == 'cabinet'");
+		expect(workflow).toContain("inputs.package == 'chain'");
+		expect(workflow).toContain("startsWith(github.ref, 'refs/tags/chain-v')");
 		expect(workflow).toContain("name: Verify all packages");
 		expect(workflow).toContain(
 			"github.event_name == 'workflow_dispatch' && inputs.package == 'all'",
@@ -785,6 +791,15 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain(
 			"npm publish --workspace @vessel-dsp/cabinet --access public --provenance",
 		);
+		expect(workflow).toContain(
+			"npm publish --workspace @vessel-dsp/chain --access public --provenance",
+		);
+		// chain pins @vessel-dsp dependencies exactly; the workflow refuses to publish it
+		// while one of them is missing from npm.
+		expect(workflow).toContain(
+			"Verify chain's @vessel-dsp dependencies are published",
+		);
+		expect(workflow).toContain("name: Verify chain tag matches the package version");
 		expect(workflow.indexOf("@vessel-dsp/core")).toBeLessThan(
 			workflow.indexOf("@vessel-dsp/control-ui"),
 		);
