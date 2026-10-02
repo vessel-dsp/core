@@ -1,0 +1,229 @@
+---
+// Static diagram of the @vessel-dsp/chain node order, drawn top to bottom so it fits the docs
+// column on a phone. Colors come from Starlight's theme variables, so it follows light and dark
+// mode. Keep it in step with the "Node order" section of guides/signal-chain.mdx and with
+// packages/chain/src/index.ts.
+type Row = { title: string; kind: string; fixed: boolean; lines: string[] };
+const rows: Row[] = [
+	{
+		title: "Input profile",
+		kind: "input-profile",
+		fixed: true,
+		lines: [
+			"pickup type, input impedance, input trim",
+			"guitar cable length and capacitance set the resonance",
+		],
+	},
+	{
+		title: "Pedal",
+		kind: "circuit-runtime",
+		fixed: false,
+		lines: ["RuntimeNode: a compiled .vdsp pedal", "the compiler's Program, solved by the runtime"],
+	},
+	{
+		title: "Amp",
+		kind: "amp-shaper or nam",
+		fixed: false,
+		lines: [
+			"AmpShaperNode: tanh waveshaper + tone stack",
+			"NamNode: a .nam capture on the WASM engine",
+			"the host passes the engine bytes",
+		],
+	},
+	{
+		title: "Cabinet",
+		kind: "cabinet-ir",
+		fixed: false,
+		lines: ["CabinetIrNode: zero-latency FFT convolution", "low/high cut, optional IR resampling"],
+	},
+	{
+		title: "Master",
+		kind: "master",
+		fixed: true,
+		lines: ["MasterNode: volume, mute, soft limiter"],
+	},
+];
+const boxX = 24;
+const boxW = 190;
+const boxH = 58;
+const pitch = 80;
+const endH = 44;
+const firstY = 76;
+const centerX = boxX + boxW / 2;
+const rowY = (i: number) => firstY + i * pitch;
+const lastBottom = rowY(rows.length - 1) + boxH;
+const outputY = lastBottom + 24;
+const totalH = outputY + endH + 62;
+---
+
+<figure class="signal-chain-diagram">
+	<svg
+		viewBox={`0 0 660 ${totalH}`}
+		role="img"
+		aria-labelledby="sc-title sc-desc"
+		xmlns="http://www.w3.org/2000/svg"
+	>
+		<title id="sc-title">SignalChain node order</title>
+		<desc id="sc-desc">
+			An input block passes through the input profile node, then the user nodes (pedal, amp,
+			cabinet), then the master node, and comes out as an output block. The input profile is always
+			first and the master is always last.
+		</desc>
+		<defs>
+			<marker
+				id="sc-arrow"
+				viewBox="0 0 10 10"
+				refX="8"
+				refY="5"
+				markerWidth="7"
+				markerHeight="7"
+				orient="auto"
+			>
+				<path d="M0,0 L10,5 L0,10 z" class="arrowhead"></path>
+			</marker>
+		</defs>
+
+		<!-- input block -->
+		<rect x={boxX} y="10" width={boxW} height={endH} rx="8" class="end"></rect>
+		<text x={centerX} y="30" class="title">Input block</text>
+		<text x={centerX} y="46" class="kind">Float64Array</text>
+		<line x1={centerX} y1={10 + endH} x2={centerX} y2={firstY} class="arrow" marker-end="url(#sc-arrow)"></line>
+
+		<!-- nodes -->
+		{
+			rows.map((r, i) => (
+				<g>
+					<rect
+						x={boxX}
+						y={rowY(i)}
+						width={boxW}
+						height={boxH}
+						rx="8"
+						class={r.fixed ? "node fixed" : "node"}
+					/>
+					<text x={centerX} y={rowY(i) + 25} class="title">{r.title}</text>
+					<text x={centerX} y={rowY(i) + 43} class="kind">{r.kind}</text>
+					{r.lines.map((line, j) => (
+						<text
+							x={boxX + boxW + 24}
+							y={rowY(i) + boxH / 2 + (j - (r.lines.length - 1) / 2) * 17 + 4}
+							class="detail"
+						>
+							{line}
+						</text>
+					))}
+					<line
+						x1={centerX}
+						y1={rowY(i) + boxH}
+						x2={centerX}
+						y2={i === rows.length - 1 ? outputY : rowY(i + 1)}
+						class="arrow"
+						marker-end="url(#sc-arrow)"
+					/>
+				</g>
+			))
+		}
+
+		<!-- user node bracket -->
+		<path
+			d={`M606,${rowY(1)} h8 V${rowY(3) + boxH} h-8`}
+			class="bracket"
+		></path>
+		<text
+			transform={`translate(636 ${(rowY(1) + rowY(3) + boxH) / 2}) rotate(90)`}
+			class="note"
+		>
+			user nodes
+		</text>
+
+		<!-- output block -->
+		<rect x={boxX} y={outputY} width={boxW} height={endH} rx="8" class="end"></rect>
+		<text x={centerX} y={outputY + 20} class="title">Output block</text>
+		<text x={centerX} y={outputY + 36} class="kind">Float64Array</text>
+
+		<text x="330" y={outputY + endH + 26} class="foot">
+			SignalChain.process(block) takes and returns a Float64Array.
+		</text>
+		<text x="330" y={outputY + endH + 46} class="foot">
+			The host drives it block by block; there is no AudioContext and no DOM.
+		</text>
+	</svg>
+	<figcaption>
+		Node order in a <code>SignalChain</code>. The highlighted nodes are fixed: the input profile is
+		always first and the master is always last. The nodes between them are the ones you add, insert,
+		move, or remove.
+	</figcaption>
+</figure>
+
+<style>
+	.signal-chain-diagram {
+		margin: 1.5rem 0;
+	}
+	svg {
+		display: block;
+		width: 100%;
+		max-width: 660px;
+		height: auto;
+		margin-inline: auto;
+		font-family: var(--sl-font-system, system-ui, sans-serif);
+	}
+	.node {
+		fill: var(--sl-color-gray-6);
+		stroke: var(--sl-color-gray-4);
+		stroke-width: 1.5;
+	}
+	.node.fixed {
+		fill: var(--sl-color-accent-low);
+		stroke: var(--sl-color-accent);
+	}
+	.end {
+		fill: none;
+		stroke: var(--sl-color-gray-3);
+		stroke-width: 1.5;
+		stroke-dasharray: 5 4;
+	}
+	.title {
+		fill: var(--sl-color-white);
+		font-size: 15px;
+		font-weight: 600;
+		text-anchor: middle;
+	}
+	.kind {
+		fill: var(--sl-color-gray-2);
+		font-family: var(--sl-font-mono, monospace);
+		font-size: 11px;
+		text-anchor: middle;
+	}
+	.detail {
+		fill: var(--sl-color-gray-1);
+		font-size: 13px;
+	}
+	.note {
+		fill: var(--sl-color-gray-2);
+		font-size: 12px;
+		font-style: italic;
+		text-anchor: middle;
+	}
+	.foot {
+		fill: var(--sl-color-gray-2);
+		font-size: 13px;
+		text-anchor: middle;
+	}
+	.arrow {
+		stroke: var(--sl-color-gray-3);
+		stroke-width: 1.8;
+	}
+	.arrowhead {
+		fill: var(--sl-color-gray-3);
+	}
+	.bracket {
+		fill: none;
+		stroke: var(--sl-color-gray-3);
+		stroke-width: 1.5;
+	}
+	figcaption {
+		margin-top: 0.5rem;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-sm);
+	}
+</style>
