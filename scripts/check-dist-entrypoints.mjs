@@ -168,14 +168,20 @@ if (typeof chain.CabinetIrNode !== "function") {
 	throw new Error("packages/chain/dist/index.js does not export CabinetIrNode");
 }
 
-if (typeof player.AudioEngine !== "function") {
-	throw new Error("packages/player/dist/index.js does not export AudioEngine");
+if (typeof player.PlayerController !== "function") {
+	throw new Error("packages/player/dist/index.js does not export PlayerController");
 }
 
-if (typeof player.SpectrumVisualizer !== "function") {
-	throw new Error(
-		"packages/player/dist/index.js does not export SpectrumVisualizer",
-	);
+if (typeof player.parseSourceList !== "function") {
+	throw new Error("packages/player/dist/index.js does not export parseSourceList");
+}
+
+if (typeof player.setEngineFactory !== "function") {
+	throw new Error("packages/player/dist/index.js does not export setEngineFactory");
+}
+
+if (typeof player.PlayerError !== "function") {
+	throw new Error("packages/player/dist/index.js does not export PlayerError");
 }
 
 if (typeof player.VesselPlayerElement !== "function") {

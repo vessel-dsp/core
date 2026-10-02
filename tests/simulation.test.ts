@@ -8,7 +8,6 @@ import {
 	SignalChain,
 } from "@vessel-dsp/chain";
 import { compile, emptyRegistry } from "@vessel-dsp/compiler";
-import { AudioEngine } from "@vessel-dsp/player";
 import { ReferenceRuntime } from "@vessel-dsp/runtime";
 
 const RC_LOW_PASS_VDSP = `schema: circuit-interchange/v3
@@ -182,15 +181,5 @@ describe("Simulation & Signal Chain Packages", () => {
 		expect(chain.inputProfile.getConfig().pickupType).toBe("single-coil");
 		chain.loadPreset(preset);
 		expect(chain.inputProfile.getConfig().pickupType).toBe("humbucker");
-	});
-
-	test("audio engine initializes and provides meter data", () => {
-		const engine = new AudioEngine({ sampleRate: 48000 });
-		expect(engine.playing).toBe(false);
-		expect(engine.source).toBe("sample");
-
-		const meter = engine.getMeterData();
-		expect(meter.rmsDb).toBeLessThanOrEqual(0);
-		expect(typeof meter.clipping).toBe("boolean");
 	});
 });
