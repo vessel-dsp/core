@@ -837,3 +837,35 @@ level-independent but the magnitude is not. (g) Workbench C++ line numbers (`Eng
 `Program.h` 147, `ProgramJson.cpp` 432) came from one `rg` run, not from
 executed code; re-grep before building row 7 of section 8 in case the
 workbench tree moved.
+
+## 10. Implementation status (work items 1, 2 and 3; branch `indiejoseph/supply-runtime-setter`)
+
+Landed: `ReferenceRuntime.getSupplies()`, `setSupply(addresses, volts,
+sourceOhms)`, and a read-only `supplyRebuilds` counter
+(`packages/runtime/src/reference-runtime.ts`, types in new
+`packages/runtime/src/supply.ts`, exported from
+`packages/runtime/src/index.ts`); tests in
+`tests/runtime/supply-control.test.ts` (9 tests, all passing). `setSupply`
+validates all addresses before touching any state, replaces the touched
+`dc-source` stamp objects on the runtime's own program copies (copy on write),
+rebuilds each affected block's base matrix through the same helper `prepare()`
+uses, and bumps `controlGeneration` so the eliminated-path factorisation
+rebuilds. Re-applying identical values rebuilds nothing. The C++-console
+setter is a `setSupply` code comment only (cross-repo, gated by section 7);
+`packages/runtime/src/v2-wasm-engine.ts` untouched.
+
+Differs from the design above (brief wins over note):
+
+- The method is `setSupply(addresses, volts, sourceOhms)` with `SupplyAddress =
+  { blockIndex, sourceIndex }` (`blockIndex` into `program.blocks`), not the
+  note's `setSupplyVoltsAndOhms(selector)` with `(blockId, sourceIndex)` pairs
+  or predicates: a parallel worker owns the document-to-stamp map against this
+  exact shape, and the two join later.
+- Test probes return the resistive load to the input jack instead of ground.
+  The note's section 3b shape leaves the supply in a block pruned from
+  `program.order` (verified: `order: ["analog:1"]`, rail block solved once at
+  the operating point and never re-rendered), so no mid-stream setter could
+  move its rail. On silence the input source is an ideal 0 V, so the divider
+  `E*9000/(9000+R)` is unchanged and the supply sits in the executed block.
+- Pre-`prepare()` `setSupply` calls only replace stamps; the base-matrix
+  rebuild waits for `prepare()`, which builds from the replaced stamps.

@@ -30,6 +30,7 @@ import type {
 	Stamp,
 } from "@vessel-dsp/compiler";
 import { admissionVerdict, type RealtimeBudget } from "./admission";
+import type { SupplyAddress, SupplyInfo } from "./supply";
 import { taperFraction } from "./taper";
 
 /**
@@ -1038,6 +1039,12 @@ export class ReferenceRuntime {
 	 * whether a control was ever explicitly set.
 	 */
 	private controlGeneration = 0;
+	/**
+	 * Block base-matrix rebuilds performed by `setSupply`, one per affected block
+	 * per call. A call whose values already match, an empty address list, or a call
+	 * before `prepare()` rebuilds nothing and leaves this unchanged.
+	 */
+	private supplyRebuildCount = 0;
 	private readonly capacitorState = new Map<string, number[]>();
 	private readonly nodeVoltages = new Map<string, number[]>();
 	/**
@@ -1528,13 +1535,26 @@ export class ReferenceRuntime {
 		program: Program,
 		options: { readonly eliminateBlocks?: ReadonlySet<string> } = {},
 	) {
-		this.program = program;
+		// Copy-on-write ownership of the supply-editable half of the program. The
+		// blocks array and every MNA block's stamps array are fresh copies owned by
+		// this runtime, so `setSupply` can replace a `dc-source` stamp object
+		// without writing into the caller's structures. The stamp objects themselves
+		// stay shared until the first `setSupply` touching them, and no other stamp
+		// kind is ever replaced. A deep-frozen caller program therefore never throws
+		// here or in `setSupply`, and two runtimes built from one program never
+		// interact.
+		this.program = {
+			...program,
+			blocks: program.blocks.map((block) =>
+				block.kind !== "mna" ? block : { ...block, stamps: [...block.stamps] },
+			),
+		};
 		this.eliminateBlocks = options.eliminateBlocks ?? new Set();
 		for (const control of program.controls) {
 			this.positions.set(control.id, control.defaultPosition);
 			this.controlsById.set(control.id, control);
 		}
-		for (const [index, block] of program.blocks.entries()) {
+		for (const [index, block] of this.program.blocks.entries()) {
 			this.blocksById.set(block.id, block);
 			this.blockIndexById.set(block.id, index);
 		}
@@ -1851,51 +1871,7 @@ export class ReferenceRuntime {
 				);
 			}
 
-			const constantIndices = new Set(block.stampPartition.constantStampIndices);
-			const constantStamps = block.stampPartition.constantStampIndices.map(
-				(i) => block.stamps[i] as Stamp,
-			);
-			const nonConstantStamps = block.stamps.filter(
-				(_, i) => !constantIndices.has(i),
-			);
-			const nonConstantLinearStamps = block.stampPartition.linearStampIndices
-				.filter((i) => !constantIndices.has(i))
-				.map((i) => block.stamps[i] as Stamp);
-
-			const baseMatrix = zeros(size);
-			const baseRhs = new Array<number>(size).fill(0);
-			const blockIndex = this.blockIndexById.get(block.id) ?? 0;
-			const dt = 1 / (this.sampleRate as number);
-			for (const stamp of constantStamps) {
-				this.applyStamp(
-					stamp,
-					baseMatrix,
-					baseRhs,
-					block,
-					dt,
-					EMPTY_STATE,
-					EMPTY_SOLUTION,
-					0,
-					false,
-					1,
-					blockIndex,
-				);
-			}
-			for (let node = 1; node < block.nodeCount; node += 1) {
-				(baseMatrix[node] as number[])[node] += GMIN_SIEMENS;
-			}
-			for (let col = 0; col < size; col += 1) {
-				(baseMatrix[0] as number[])[col] = 0;
-			}
-			(baseMatrix[0] as number[])[0] = 1;
-			baseRhs[0] = 0;
-
-			this.baseMatrices.set(block.id, {
-				matrix: baseMatrix,
-				rhs: baseRhs,
-				nonConstantStamps,
-				nonConstantLinearStamps,
-			});
+			this.rebuildBaseMatrix(block);
 
 			if (block.eliminate || this.eliminateBlocks.has(block.id)) {
 				if (!block.stampPartition) {
@@ -2154,6 +2130,263 @@ export class ReferenceRuntime {
 		// factorisation is derived from -- so this counter exists specifically to make that
 		// mistake impossible rather than merely unlikely.
 		this.controlGeneration += 1;
+	}
+
+	/**
+	 * Block base-matrix rebuilds performed by `setSupply` so far. Read-only:
+	 * re-applying the values a stamp already has rebuilds nothing and leaves this
+	 * unchanged.
+	 */
+	get supplyRebuilds(): number {
+		return this.supplyRebuildCount;
+	}
+
+	/**
+	 * Every addressable `dc-source` stamp in `program.blocks` order, then stamp
+	 * order within each block. `blockIndex` is the index into `program.blocks`;
+	 * pass `infos.map((info) => info.address)` straight to `setSupply`.
+	 */
+	getSupplies(): readonly SupplyInfo[] {
+		const infos: SupplyInfo[] = [];
+		for (const [blockIndex, block] of this.program.blocks.entries()) {
+			if (block.kind !== "mna") {
+				continue;
+			}
+			for (const stamp of block.stamps) {
+				if (stamp.kind !== "dc-source") {
+					continue;
+				}
+				infos.push({
+					address: { blockIndex, sourceIndex: stamp.sourceIndex },
+					positive: stamp.positive,
+					negative: stamp.negative,
+					volts: stamp.volts,
+					sourceOhms: stamp.sourceOhms,
+				});
+			}
+		}
+		return infos;
+	}
+
+	/**
+	 * Retarget one or more supply stamps between `process()` calls: every named
+	 * `dc-source` stamp solves `V(positive) - V(negative) - sourceOhms * i =
+	 * volts` with the new values from the next sample on.
+	 *
+	 * Call between `process()` calls, never concurrently with one -- the same
+	 * contract as `setControl`. Effect starts at the next sample: the affected
+	 * blocks' cached base matrices are rebuilt exactly the way `prepare()`
+	 * builds them, and `controlGeneration` is bumped so the eliminated-path
+	 * factorisation, Z, and K_reduced rebuild on next use. The sparse schedule is
+	 * untouched: its pattern is value-independent.
+	 *
+	 * Reactive state (capacitor and op-amp pole memory) carries over, which is
+	 * the physically honest response to hot-swapping a battery, and the DC
+	 * operating point is deliberately NOT re-solved -- same transient-following
+	 * rule as `setControl`'s `operatingPointPending` comment.
+	 *
+	 * Validation mirrors `setControl` and is atomic: `volts` must be finite,
+	 * `sourceOhms` must be finite and non-negative (a negative resistance is
+	 * gain, not sag), and every address must name an existing `dc-source` stamp
+	 * (unknown block index, non-MNA block, or a `sourceIndex` with no
+	 * `dc-source` all throw `RuntimeError`). All addresses are validated before
+	 * any state is touched, so a bad address leaves even the valid ones in the
+	 * same call unchanged. An empty address list changes nothing, and a call
+	 * whose values already match the stamps rebuilds nothing (`supplyRebuilds`
+	 * unchanged).
+	 *
+	 * Never mutates the caller's `Program`: the touched stamp objects are
+	 * replaced on this runtime's own copies (copy on write), so two runtimes
+	 * built from one program, or a frozen program, never interact.
+	 *
+	 * NOTE (cross-repo, gated by the extraction plan): the C++ console needs the
+	 * same setter -- update its loaded program's supply fields and re-derive
+	 * whatever it caches from them, with parity rows in the workbench harness.
+	 * This method changes no `Program` or `Stamp` shape, so it triggers no
+	 * format bump.
+	 */
+	setSupply(
+		addresses: readonly SupplyAddress[],
+		volts: number,
+		sourceOhms: number,
+	): void {
+		if (!Number.isFinite(volts)) {
+			throw new RuntimeError(`supply volts ${String(volts)} is not finite`);
+		}
+		if (!Number.isFinite(sourceOhms) || sourceOhms < 0) {
+			throw new RuntimeError(
+				`supply sourceOhms ${String(sourceOhms)} is not a finite non-negative resistance`,
+			);
+		}
+		type Target = {
+			block: Extract<Block, { kind: "mna" }>;
+			stampIndex: number;
+			stamp: Extract<Stamp, { kind: "dc-source" }>;
+		};
+		const targets: Target[] = [];
+		for (const address of addresses) {
+			const block =
+				Number.isInteger(address.blockIndex) &&
+				address.blockIndex >= 0 &&
+				address.blockIndex < this.program.blocks.length
+					? (this.program.blocks[address.blockIndex] as Block)
+					: undefined;
+			if (block === undefined) {
+				throw new RuntimeError(
+					`setSupply: unknown block index ${String(address.blockIndex)}`,
+				);
+			}
+			if (block.kind !== "mna") {
+				throw new RuntimeError(
+					`setSupply: block index ${address.blockIndex} ("${block.id}") is not an MNA block`,
+				);
+			}
+			let matched = false;
+			for (const [stampIndex, stamp] of block.stamps.entries()) {
+				if (
+					stamp.kind === "dc-source" &&
+					stamp.sourceIndex === address.sourceIndex
+				) {
+					targets.push({ block, stampIndex, stamp });
+					matched = true;
+				}
+			}
+			if (!matched) {
+				throw new RuntimeError(
+					`setSupply: block index ${address.blockIndex} ("${block.id}") has no dc-source with sourceIndex ${String(address.sourceIndex)}`,
+				);
+			}
+		}
+		if (targets.length === 0) {
+			return;
+		}
+		// Group by block, dropping stamps that already carry the values (and
+		// deduplicating an address listed twice): only a real change rebuilds.
+		const byBlock = new Map<string, { block: Target["block"]; indices: number[] }>();
+		const seenStamps = new Set<string>();
+		for (const target of targets) {
+			const key = `${target.block.id}:${target.stampIndex}`;
+			if (seenStamps.has(key)) {
+				continue;
+			}
+			seenStamps.add(key);
+			if (
+				target.stamp.volts === volts &&
+				target.stamp.sourceOhms === sourceOhms
+			) {
+				continue;
+			}
+			let entry = byBlock.get(target.block.id);
+			if (entry === undefined) {
+				entry = { block: target.block, indices: [] };
+				byBlock.set(target.block.id, entry);
+			}
+			entry.indices.push(target.stampIndex);
+		}
+		if (byBlock.size === 0) {
+			return;
+		}
+		let rebuilt = 0;
+		for (const { block, indices } of byBlock.values()) {
+			// Copy on write: replace the stamp objects on this runtime's own stamps
+			// array -- the caller's program keeps its objects.
+			const stamps = block.stamps as Stamp[];
+			const replaced = new Map<Stamp, Stamp>();
+			for (const stampIndex of indices) {
+				const oldStamp = stamps[stampIndex] as Extract<
+					Stamp,
+					{ kind: "dc-source" }
+				>;
+				const newStamp = { ...oldStamp, volts, sourceOhms };
+				stamps[stampIndex] = newStamp;
+				replaced.set(oldStamp, newStamp);
+			}
+			if (this.sampleRate !== null) {
+				this.rebuildBaseMatrix(block);
+				// The eliminated path holds stamp object references, not indices --
+				// refresh them to the replacements. Port rows are structural and
+				// unchanged.
+				const ports = this.eliminationPorts.get(block.id);
+				if (ports !== undefined) {
+					this.eliminationPorts.set(block.id, {
+						...ports,
+						linearStamps: ports.linearStamps.map(
+							(stamp) => replaced.get(stamp) ?? stamp,
+						),
+						nonlinearStamps: ports.nonlinearStamps.map(
+							(stamp) => replaced.get(stamp) ?? stamp,
+						),
+					});
+				}
+				this.supplyRebuildCount += 1;
+				rebuilt += 1;
+			}
+		}
+		// Invalidate the eliminated-path factorisation cache only when a rebuild
+		// happened: a stale reuse is a stale rail that looks fine, and a spare bump
+		// would rebuild a cache that is still valid.
+		if (rebuilt > 0) {
+			this.controlGeneration += 1;
+		}
+	}
+
+	/**
+	 * Fold one block's constant stamps into its cached base matrix and RHS, with
+	 * the standard GMIN and ground-row pinning. This is the `prepare()` build,
+	 * factored so `setSupply` rebuilds exactly what `prepare()` built.
+	 */
+	private rebuildBaseMatrix(block: Extract<Block, { kind: "mna" }>): void {
+		if (!block.stampPartition) {
+			throw new RuntimeError(
+				`block "${block.id}" is missing required stampPartition`,
+			);
+		}
+		const constantIndices = new Set(block.stampPartition.constantStampIndices);
+		const constantStamps = block.stampPartition.constantStampIndices.map(
+			(i) => block.stamps[i] as Stamp,
+		);
+		const nonConstantStamps = block.stamps.filter(
+			(_, i) => !constantIndices.has(i),
+		);
+		const nonConstantLinearStamps = block.stampPartition.linearStampIndices
+			.filter((i) => !constantIndices.has(i))
+			.map((i) => block.stamps[i] as Stamp);
+
+		const size = block.nodeCount + block.auxCount;
+		const baseMatrix = zeros(size);
+		const baseRhs = new Array<number>(size).fill(0);
+		const blockIndex = this.blockIndexById.get(block.id) ?? 0;
+		const dt = 1 / (this.sampleRate as number);
+		for (const stamp of constantStamps) {
+			this.applyStamp(
+				stamp,
+				baseMatrix,
+				baseRhs,
+				block,
+				dt,
+				EMPTY_STATE,
+				EMPTY_SOLUTION,
+				0,
+				false,
+				1,
+				blockIndex,
+			);
+		}
+		for (let node = 1; node < block.nodeCount; node += 1) {
+			(baseMatrix[node] as number[])[node] += GMIN_SIEMENS;
+		}
+		for (let col = 0; col < size; col += 1) {
+			(baseMatrix[0] as number[])[col] = 0;
+		}
+		(baseMatrix[0] as number[])[0] = 1;
+		baseRhs[0] = 0;
+
+		this.baseMatrices.set(block.id, {
+			matrix: baseMatrix,
+			rhs: baseRhs,
+			nonConstantStamps,
+			nonConstantLinearStamps,
+		});
 	}
 
 	/**
