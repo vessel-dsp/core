@@ -85,7 +85,7 @@ const totalH = outputY + endH + 62;
 
 		<!-- input block -->
 		<rect x={boxX} y="10" width={boxW} height={endH} rx="8" class="end"></rect>
-		<text x={centerX} y="30" class="title">Input block</text>
+		<text x={centerX} y="30" class="title">Input</text>
 		<text x={centerX} y="46" class="kind">Float64Array</text>
 		<line x1={centerX} y1={10 + endH} x2={centerX} y2={firstY} class="arrow" marker-end="url(#sc-arrow)"></line>
 
@@ -133,12 +133,12 @@ const totalH = outputY + endH + 62;
 			transform={`translate(636 ${(rowY(1) + rowY(3) + boxH) / 2}) rotate(90)`}
 			class="note"
 		>
-			user nodes
+			user nodes (example)
 		</text>
 
 		<!-- output block -->
 		<rect x={boxX} y={outputY} width={boxW} height={endH} rx="8" class="end"></rect>
-		<text x={centerX} y={outputY + 20} class="title">Output block</text>
+		<text x={centerX} y={outputY + 20} class="title">Output</text>
 		<text x={centerX} y={outputY + 36} class="kind">Float64Array</text>
 
 		<text x="330" y={outputY + endH + 26} class="foot">
@@ -150,8 +150,8 @@ const totalH = outputY + endH + 62;
 	</svg>
 	<figcaption>
 		Node order in a <code>SignalChain</code>. The highlighted nodes are fixed: the input profile is
-		always first and the master is always last. The nodes between them are the ones you add, insert,
-		move, or remove.
+		always first and the master is always last. The pedal, amp and cabinet between them are an
+		example: you add, insert, move, or remove user nodes, and they run in the order you set.
 	</figcaption>
 </figure>
 
