@@ -7,7 +7,11 @@ New package `@vessel-dsp/chain` 0.1.0: headless signal chain graph
 `CabinetIrNode`, `GainNode`, `MasterNode`). Cabinet IR is zero-latency
 uniform-partitioned FFT convolution with wet-path Butterworth low/high cuts
 and `irSampleRate` resampling. `AmpShaperNode` is a tanh waveshaper with
-dry/wet mix; power-supply sag is out of scope.
+dry/wet mix; supply profiles (`SupplyProfile`, `SUPPLY_PROFILES`,
+`profileFromMeasurement`, `customSupplyProfile`, `RuntimeNode.setSupplyProfile`
+with `getSupplyResolution`/`getSupplyProfile` and the preset pair
+`supplyOpenCircuitVolts`/`supplyInternalResistanceOhms`) move the external
+rail inside the solver with no audio-domain processing.
 
 `NamNode` (`kind: "nam"`) plays Neural Amp Modeler `.nam` captures through
 NeuralAmpModelerCore v0.5.4 compiled to plain WebAssembly, vendored in the

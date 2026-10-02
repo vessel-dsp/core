@@ -926,3 +926,27 @@ battery profile must never be applied downstream of a rectifier;
 a 2 V source, genuinely unnameable). Ambiguity is injected at the program
 level in tests because lowering collapses twin same-volt supplies and refuses
 contradictory ones, so YAML cannot author two same-node sources.
+
+## 12. Implementation status: chain profiles (work items 5 and 6)
+
+Landed: `SupplyProfile` and `SUPPLY_PROFILES` with the five built-ins in
+`packages/chain/src/supply-profile.ts` (`ideal`, `alkaline-fresh` 5.405 ohm,
+`zinc-carbon-fresh` 25.925 ohm, `alkaline-depleted-specimen` 7.73 V 195.00
+ohm, `zinc-carbon-used-specimen` 9.02 V 78.47 ohm, all from Orman 2015 as
+cited on each entry), plus `profileFromMeasurement` (Orman method
+`Rint = (Vopen - Vloaded) / (Vloaded / Rload)`) and `customSupplyProfile`
+(source `caller-supplied`); `RuntimeNode.setSupplyProfile`,
+`getSupplyResolution`, `getSupplyProfile`, and the preset pair
+`supplyOpenCircuitVolts` / `supplyInternalResistanceOhms` in
+`packages/chain/src/nodes/runtime-node.ts`; tests in
+`tests/chain/supply-profile.test.ts` (9 tests, all passing). The node takes
+the `.vdsp` text as an optional fourth constructor argument, resolves once
+with `resolveSupplyStamps`, applies each resolved stamp with the runtime
+`setSupply` (null volts keeps each stamp compiled magnitude, sign follows
+the stamp own volts from `getSupplies`), throws with refusal reason codes
+when nothing resolves, keeps derived rails untouched, stays applicable
+before and after `prepare` and between `process` calls, and keeps the
+profile across `reset` and `prepare`. No audio-domain processing was added:
+the old waveshaper node stays rejected. Adapter profiles are absent because
+no source was found for them. The five limits in the chain README and the
+signal-chain guide apply unchanged.

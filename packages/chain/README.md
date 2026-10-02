@@ -104,8 +104,127 @@ capacitance plus cable capacitance. Single-coil at 3 m lands around 5.0 kHz;
 longer cables lower the resonance. Active pickups bypass the resonant filter
 and piezos use a fixed resonance.
 
+## Power supply
+
+`RuntimeNode` can apply a `SupplyProfile` to the circuit external supply.
+Pass the `.vdsp` text as the fourth constructor argument, then call
+`setSupplyProfile`. The node resolves once with `resolveSupplyStamps` from
+`@vessel-dsp/compiler` and retargets each resolved `dc-source` stamp through
+`ReferenceRuntime.setSupply`. There is no audio-domain supply processing: the
+old audio-domain waveshaper node was rejected and is not present. Sag is the
+circuit own current draw through the profile series resistance.
+
+A profile is an open-circuit EMF magnitude plus a series resistance. A null
+`openCircuitVolts` keeps the pedal own declared supply voltage. The sign
+always follows the stamp own compiled volts sign read from `getSupplies`,
+so a positive-ground germanium rail stays negative.
+
+Built-in profiles in `SUPPLY_PROFILES` (values from Jack Orman, 9v Battery
+Impedance, AMZ-FX Lab Notebook, 2015, http://www.muzique.com/lab/batteryz.htm,
+method: unloaded reading, then loaded with a 560 ohm resistor, Rint by Ohm
+law):
+
+- `ideal`: null volts, 0 ohm, source `definition`.
+- `alkaline-fresh`: null volts, 5.405 ohm. Source: Orman 2015 fresh table,
+  AC-Delco alkaline 5.99 and 4.82 ohm; the value is their mean.
+- `zinc-carbon-fresh`: null volts, 25.925 ohm. Source: Orman 2015 fresh
+  table, Sunbeam Heavy Duty 25.28 and 26.57 ohm; the value is their mean.
+- `alkaline-depleted-specimen`: 7.73 V, 195.00 ohm. Source: Orman 2015 used
+  table, Duracell alkaline 6, unloaded 7.73 V, loaded 6.43 V, 195.00 ohm.
+  A single specimen, not a type rating.
+- `zinc-carbon-used-specimen`: 9.02 V, 78.47 ohm. Source: Orman 2015 used
+  table, Golden Power Heavy Duty 7, unloaded 9.02 V, loaded 7.91 V,
+  78.47 ohm. A single specimen.
+
+Adapter profiles are deliberately absent. No source was found for regulated
+9 V, regulated 18 V, or unregulated AC/DC resistance or voltage.
+
+A measured profile follows the same method:
+
+```ts
+import { profileFromMeasurement } from "@vessel-dsp/chain";
+
+const cell = profileFromMeasurement({
+  openCircuitVolts: 9.0,
+  loadedVolts: 8.0,
+  loadOhms: 560,
+});
+console.log(cell.internalResistanceOhms);
+```
+
+```text
+70
+```
+
+`Rint = (Vopen - Vloaded) / (Vloaded / Rload)`. Here `(9 - 8) / (8 / 560)`
+is `560 / 8`, which is 70 ohm.
+
+`customSupplyProfile` builds a profile from caller-supplied numbers with
+source `caller-supplied`. `getParams` adds `supplyOpenCircuitVolts` and
+`supplyInternalResistanceOhms` once a profile has been applied, and
+`setParam` on either re-applies the pair as a custom profile, so a chain
+preset round-trips the supply setting. `reset` and `prepare` keep the
+applied profile in force. `getSupplyResolution` returns the cached
+resolution or null until resolved. A program with refused derived rails but
+one resolved external rail applies to the resolved one and keeps the
+refusals visible. Missing source text or zero resolved supplies throws with
+the refusal reason codes and rail ids.
+
+Example with `big-muff-pi.vdsp` from the corpus, compiled with
+`pedalPartCatalog` (read-only, not a committed test):
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { RuntimeNode, SUPPLY_PROFILES } from "@vessel-dsp/chain";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const program = (() => {
+  const result = compile(source, { registry: pedalPartCatalog });
+  if (result.status !== "ok") throw new Error("compile failed");
+  return result.program;
+})();
+
+function rms(values: Float64Array): number {
+  let sum = 0;
+  for (const v of values) sum += v * v;
+  return Math.sqrt(sum / values.length);
+}
+
+const input = new Float64Array(4800);
+for (let i = 0; i < input.length; i++) {
+  input[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000);
+}
+
+for (const id of ["ideal", "alkaline-depleted-specimen"] as const) {
+  const profile = SUPPLY_PROFILES.find((p) => p.id === id)!;
+  const node = new RuntimeNode("muff", "Big Muff", program, { source });
+  node.prepare(48000);
+  node.setSupplyProfile(profile);
+  node.process(input);
+  console.log(`${id} rms: ${rms(node.process(input)).toFixed(5)}`);
+}
+```
+
+```text
+ideal rms: 0.20087
+alkaline-depleted-specimen rms: 0.19471
+```
+
+Limits, stated plainly:
+
+- It uses the TypeScript reference runtime. The WebAssembly console the
+  workbench product runs needs the same setter in the workbench repo and is
+  not done.
+- Op-amp stages draw almost no supply current in the model, so sag on
+  op-amp-heavy pedals is under-reported.
+- The model source can absorb current a real cell cannot, so a hard clipper
+  can push the rail up.
+- A single series resistance is a DC approximation (Orman own AC table shows
+  impedance falls with frequency).
+- Mains-fed amps are refused by design.
+
 ## Out of scope for 0.1.0
 
-- Power-supply rail sag: out of this release. There is no `PowerSupplyNode`
-  and no power-draw bookkeeping; sag needs runtime supply-voltage support
-  that does not exist yet.
+- The old audio-domain waveshaper supply node was rejected and is not
+  present. There is no audio-domain supply processing.

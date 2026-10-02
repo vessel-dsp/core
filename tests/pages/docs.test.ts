@@ -438,7 +438,13 @@ describe("GitHub Pages documentation site", () => {
 		expect(signalChainPage).toContain("nam-engine.wasm");
 		expect(signalChainPage).toContain("not yet on npm");
 		expect(signalChainPage).toContain("ConvNet");
-		expect(signalChainPage).toContain("Power-supply rail sag is not implemented");
+		expect(signalChainPage).toContain("## Power supply");
+		expect(signalChainPage).toContain("SUPPLY_PROFILES");
+		expect(signalChainPage).toContain("profileFromMeasurement");
+		expect(signalChainPage).toContain("alkaline-depleted-specimen");
+		expect(signalChainPage).toContain("ideal rms: 0.20087");
+		expect(signalChainPage).toContain("Mains-fed amps are refused by design");
+		expect(signalChainPage).not.toContain("Power-supply rail sag is not implemented");
 		expect(signalChainPage).not.toMatch(/playground|workbench|custom editor/i);
 
 		const controlUiExample = readRepoFile(
