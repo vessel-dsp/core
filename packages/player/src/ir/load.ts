@@ -1,4 +1,4 @@
-import { resampleImpulseResponse } from "@vessel-dsp/chain";
+import { resampleImpulseResponse } from "@vessel-dsp/chain/ir-resample";
 import { checkIrTaps } from "./check.js";
 import type {
 	IrDecodedAudio,

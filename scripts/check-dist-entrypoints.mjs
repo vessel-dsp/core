@@ -146,6 +146,13 @@ if (typeof runtime.ReferenceRuntime !== "function") {
 	);
 }
 
+const chainIrResample = await importDist("packages/chain/dist/ir-resample.js");
+if (typeof chainIrResample.resampleImpulseResponse !== "function") {
+	throw new Error(
+		"packages/chain/dist/ir-resample.js does not export resampleImpulseResponse (the player imports it through the @vessel-dsp/chain/ir-resample subpath)",
+	);
+}
+
 if (typeof chain.SignalChain !== "function") {
 	throw new Error("packages/chain/dist/index.js does not export SignalChain");
 }

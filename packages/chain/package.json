@@ -28,6 +28,11 @@
 			"bun": "./dist/index.js",
 			"import": "./dist/index.js"
 		},
+		"./ir-resample": {
+			"types": "./dist/ir-resample.d.ts",
+			"bun": "./dist/ir-resample.js",
+			"import": "./dist/ir-resample.js"
+		},
 		"./nam-engine.wasm": "./nam-engine/nam-engine.wasm",
 		"./nam-engine.js": "./nam-engine/nam-engine.js",
 		"./nam-engine.NOTICE.md": "./nam-engine/NOTICE.md",
