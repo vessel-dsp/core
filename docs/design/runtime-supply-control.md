@@ -837,3 +837,40 @@ level-independent but the magnitude is not. (g) Workbench C++ line numbers (`Eng
 `Program.h` 147, `ProgramJson.cpp` 432) came from one `rg` run, not from
 executed code; re-grep before building row 7 of section 8 in case the
 workbench tree moved.
+
+## 10. Implementation status
+
+Row 4 of section 8 (document-to-stamp map) is implemented: `resolveSupplyStamps`
+in `packages/compiler/src/supply-stamps.ts`, with `SupplyAddress`,
+`ResolvedSupply`, `RefusedSupply`, `SupplyResolution`, and the closed
+`SupplyRefusalReason` union exported from `packages/compiler/src/index.ts`.
+Gated by `tests/compiler/supply-stamps.test.ts` (8 tests, all passing).
+
+Departures from this note, where the task brief wins:
+
+- The note's section 2 step 2 says the join resolves "railComponentId to node
+  label to stamp row via block.nodeIds". `CircuitDocument` carries no declared
+  node ledger (the parser drops terminal `node:` keys and `Terminal` has no
+  node field), so the document side reads geometric connectivity through the
+  already-exported `resolveConnectivity` / `getPinNode` from
+  `@vessel-dsp/core`. For purely geometric documents both sides agree
+  (ground 0, document order after); a declared-only topology with no matching
+  geometry refuses as `no-stamp-for-rail` rather than guessing.
+- The note lists five refusal causes; the union carries seven. Added
+  `rail-not-main-supply` (external-dc, direct, but a non-main role) and
+  `unknown-source-kind` (domain declares no `sourceKind`, so external versus
+  derived cannot be shown from typed evidence). No core readers were missing,
+  so `packages/core` was not touched.
+- Ambiguity (`ambiguous-stamp`) is injected at the program level in tests,
+  not authored in YAML: lowering collapses twin same-volt supplies on one node
+  to one stamp and refuses contradictory ones, so two same-node sources are
+  unrepresentable from source.
+- Fixture status: `voltage-divider-power-topology.vdsp` and
+  `charge-pump-derived-rails-valid.vdsp` do not compile as filed (no jacks;
+  compile refuses with "document declares no connected jack"). Tests use
+  compilable geometric derivatives (jacks, stub wires, typed `Voltage`,
+  derived rails as `kind: rail` so they stamp) and keep the fixtures' domain
+  and rail declarations; the charge-pump converter component is omitted
+  (emptyRegistry has no model; the rails stay declared separately).
+- Positive-ground resolution (germanium PNP style, rail on the stamp's
+  negative terminal) is implemented and tested, not left open.
