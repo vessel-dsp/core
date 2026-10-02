@@ -220,7 +220,7 @@ Limits, stated plainly:
   op-amp-heavy pedals is under-reported.
 - The model source can absorb current a real cell cannot, so a hard clipper
   can push the rail up.
-- A single series resistance is a DC approximation (Orman own AC table shows
+- A single series resistance is a DC approximation (Orman's own AC table shows
   impedance falls with frequency).
 - Mains-fed amps are refused by design.
 
