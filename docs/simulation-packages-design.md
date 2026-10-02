@@ -39,19 +39,19 @@ The VesselDSP simulation and playback architecture separates circuit compilation
 ### 1. `@vessel-dsp/compiler`
 Turns a parsed `.vdsp` / `CircuitDocument` into an immutable **`Program`**, a compiled execution plan containing:
 - **Block Partitions & Linear/Nonlinear Regions**: Subcircuits partitioned by topological coupling and operational complexity.
-- **MNA Stamps & Conductance Matrices**: Precomputed $G$, $C$, $B$, $D$ matrices for Modified Nodal Analysis.
-- **Nonlinear Operators**: Mathematical models for diodes, BJTs, JFETs, triodes, op-amps, and BBD clock drivers.
-- **Parameter Mappings & Controls**: Normalized control mapping with potentiometer taper laws (linear, audio, reverse audio).
+- **MNA Stamps, Not Matrices**: the Program holds a list of stamp operators per block plus compile time partition and schedule metadata. It holds no G, C, B, or D matrix. The runtime folds constant stamps into per block base matrices once per `prepare()` and applies the rest per sample.
+- **Nonlinear Operators**: Mathematical models for diodes, BJTs, JFETs, MOSFETs, triodes, pentodes, tube diodes, op-amps, OTAs, optocouplers, comparators, BBD and digital delay macros, compandors, transformers, switches, clock drivers, and logic gates. Part identity beyond device class comes from the injected registry (`emptyRegistry` versus `pedalPartCatalog`).
+- **Parameter Mappings & Controls**: Normalized control mapping with potentiometer taper laws (`linear`, `logarithmic`, `reverse-logarithmic`, `reverse-linear`).
 - **State Vector Layout**: Layout of dynamic capacitor voltages, inductor currents, and nonlinear state variables.
 
 *Constraints*: Pure TypeScript, deterministic, rate-independent, headless.
 
 ### 2. `@vessel-dsp/runtime`
 Executes a compiled `Program` on audio streams:
-- **Solver Core**: Solves MNA equations per time step using trapezoidal integration and damped Newton-Raphson iteration for nonlinear devices.
-- **Real-Time Admission & CPU Budgeting**: Evaluates whether a program fits within the CPU budget of an audio quantum (128 samples) before execution.
+- **Solver Core**: Solves MNA equations per time step using trapezoidal integration (capacitors and inductors) and damped Newton-Raphson iteration for nonlinear devices.
+- **Real-Time Admission & CPU Budgeting**: Opt in per sample budget check at `prepare()`. The host supplies measured solve costs and a sustained iteration allowance; a program that cannot be shown to fit is refused by name. There is no default budget and no 128 sample quantum in the gate.
 - **Settling & DC Bias Policy**: Pre-settles operating points to avoid audible start-up pops and transient thumps.
-- **Oversampling & Anti-Aliasing**: Optional integer oversampling for high-gain nonlinear clipping stages.
+- **Oversampling**: Optional integer oversampling per `prepare()` call for stiff nonlinear stages. Decimation is zero order hold (last sub sample wins); no band limiting decimator is implemented.
 
 *Constraints*: Stays strictly headless and audio-rate agnostic.
 

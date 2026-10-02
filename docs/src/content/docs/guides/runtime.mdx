@@ -1,0 +1,405 @@
+---
+title: Runtime
+description: Run compiled Program ROMs with @vessel-dsp/runtime.
+---
+
+`@vessel-dsp/runtime` executes a `@vessel-dsp/compiler` program on audio streams. It builds the MNA matrices at `prepare()` from the program's stamp operators, then solves per sample with trapezoidal integration and damped Newton Raphson iteration. It is headless TypeScript with no audio backend; the host drives it block by block.
+
+## Install
+
+`@vessel-dsp/runtime` 0.1.0 is not yet on npm, and neither is its `@vessel-dsp/compiler` 0.1.0 dependency. Until those releases are published, use the package from this repository's workspace rather than an install command that will 404.
+
+## Construct and prepare
+
+The constructor takes the program and optional block elimination only. The sample rate goes to `prepare()`, which has no default. `process()` takes a `Float64Array` and returns a new `Float64Array`.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+runtime.prepare(44100);
+const output = runtime.process(new Float64Array(128));
+console.log("length:", output.length);
+console.log("is Float64Array:", output instanceof Float64Array);
+```
+
+```text
+length: 128
+is Float64Array: true
+```
+
+Every `prepare()` option, with what it does:
+
+- `maxNewtonIterations`: CPU versus accuracy knob. Samples that exhaust it are held and counted in telemetry, never silently interpolated.
+- `realtimeBudget`: opt in admission gate. Omitted means no gating.
+- `inputSourceOhms` (default 0): series impedance driving the input jack. A console setting, not a program one.
+- `oversample` (default 1): integer sub samples per host sample. Zero order hold output; no band limiting decimator is implemented.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+runtime.prepare(48000, { maxNewtonIterations: 64, inputSourceOhms: 0, oversample: 1 });
+const input = new Float64Array(128);
+for (let i = 0; i < input.length; i++) {
+  input[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000);
+}
+const output = runtime.process(input);
+let peak = 0;
+for (const v of output) peak = Math.max(peak, Math.abs(v));
+console.log("peak:", peak.toFixed(4));
+console.log("samples:", runtime.telemetry().samples);
+```
+
+```text
+peak: 0.2579
+samples: 128
+```
+
+Oversampling at 2 costs more solver work per host sample. On this packet at this drive the answer is unchanged to four decimals:
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+runtime.prepare(48000, { oversample: 2 });
+const input = new Float64Array(128);
+for (let i = 0; i < input.length; i++) {
+  input[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000);
+}
+let peak = 0;
+for (const v of runtime.process(input)) peak = Math.max(peak, Math.abs(v));
+console.log("oversample 2 peak:", peak.toFixed(4));
+```
+
+```text
+oversample 2 peak: 0.2579
+```
+
+## SetControl and positions
+
+`setControl(id, position)` takes 0..1 and applies the program's own taper. Moving a knob re stamps conductances; it never re lowers. `big-muff-pi` declares `IN`, `OUT`, `SUSTAIN`, `TONE`, and `VOLUME`.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+runtime.prepare(48000);
+runtime.setControl("SUSTAIN", 0.8);
+const input = new Float64Array(128);
+for (let i = 0; i < input.length; i++) {
+  input[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000);
+}
+let peak = 0;
+for (const v of runtime.process(input)) peak = Math.max(peak, Math.abs(v));
+console.log("sustain 0.8 peak:", peak.toFixed(4));
+```
+
+```text
+sustain 0.8 peak: 0.2622
+```
+
+A position is a fraction of the track, not volts or ohms. The taper curve turns it into a fraction of the parameter range; see the Compiler guide for the four taper shapes. Call `setControl` between `process()` calls, never concurrently with one.
+
+## Process
+
+`process(input)` renders one block of any length and returns a fresh array. State carries across calls: capacitors, inductor currents, and op-amp pole memory persist, which is what makes a second block a continuation and not a restart.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+runtime.prepare(48000);
+const first = runtime.process(new Float64Array(128));
+const second = runtime.process(new Float64Array(128));
+console.log("first[0]:", first[0].toFixed(6));
+console.log("second[0]:", second[0].toFixed(6));
+console.log("telemetry samples:", runtime.telemetry().samples);
+```
+
+```text
+first[0]: 0.000024
+second[0]: 0.000162
+telemetry samples: 256
+```
+
+`reset()` clears reactive state. `telemetry()` reports the solver census, including `nonConvergedSamples`, `peakIterations`, `operatingPointSupplyAmps`, and `renderedSupplyPeakAmps` (null until a sample renders).
+
+## Supply control
+
+`getSupplies()` lists every addressable `dc-source` stamp. `setSupply` retargets them between buffers with effect from the next sample.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+runtime.prepare(48000);
+console.log("supplies:", JSON.stringify(runtime.getSupplies()));
+console.log("rebuilds before:", runtime.supplyRebuilds);
+runtime.setSupply(runtime.getSupplies().map((s) => s.address), 9, 30);
+console.log("rebuilds after change:", runtime.supplyRebuilds);
+runtime.setSupply(runtime.getSupplies().map((s) => s.address), 9, 30);
+console.log("rebuilds after same value:", runtime.supplyRebuilds);
+```
+
+```text
+supplies: [{"address":{"blockIndex":0,"sourceIndex":0},"positive":25,"negative":0,"volts":9,"sourceOhms":1}]
+rebuilds before: 0
+rebuilds after change: 1
+rebuilds after same value: 1
+```
+
+What it does and does not do:
+
+- It never mutates the caller `Program`. The touched stamps are replaced on the runtime's own copies, so two runtimes from one program never interact, and a frozen program never throws. After the calls above, the caller program still reads 9 V and 1 ohm.
+- The operating point is not re solved mid stream. Reactive state carries over, which is the honest response to hot swapping a battery.
+- TypeScript reference runtime only. The C++ console needs the same setter in its own repo and does not have it here.
+
+## Admission
+
+`admissionVerdict(chain, sampleRate, budget)` asks whether an ordered list of programs fits inside a host CPU budget. Costs add across slots. A single program is a one element chain.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { admissionVerdict } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+console.log(JSON.stringify(admissionVerdict(compiled.program ? [compiled.program] : [], 48000, {
+  nsPerSolve: () => 1,
+  nsPerMacroSample: () => 0,
+})));
+```
+
+```text
+{"fits":true}
+```
+
+A budget that prices every solve at 1e12 ns refuses by name with the worst offender:
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { admissionVerdict } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const verdict = admissionVerdict([compiled.program], 48000, {
+  nsPerSolve: () => 1e12,
+  nsPerMacroSample: () => 0,
+});
+console.log(verdict.fits ? "fits" : verdict.reason.slice(0, 220));
+```
+
+```text
+chain of 1 program(s) cannot be shown to fit inside 20833 ns/sample at 48000 Hz (cpuBudgetFraction=1): worst case is 64000000000000 ns/sample across 1 costed block(s), worst offender slot 0 block "analog:0" (30 unknowns,
+```
+
+`budgetedIterationsPerSample` (default 64) is a sustained policy allowance, not the solver cap. `predictedWorstCaseNs` returns the same sum as a number for harnesses.
+
+## Settling and measurement
+
+These render until the output level stops moving, so startup transients are not measured as the circuit.
+
+- `findSettled(windowRms)`: first window where the level holds still, or null.
+- `measureSettled(program, sampleRate, sampleAt)`: render until still and report level, peak, and settle time.
+- `settledLevel`: the settled level as a bare number, throwing when it cannot settle.
+- `settledRender`, `settledSweep`, `settledSweepVerified`, `measureSettledSignal`, `measureSharedWindow`, `measureInputAttributable`: shared window and sweep variants that keep one measurement window per comparison.
+
+```ts
+import { findSettled } from "@vessel-dsp/runtime";
+
+console.log(JSON.stringify(findSettled([1, 1.001, 1.0005, 1.0001])));
+console.log(JSON.stringify(findSettled([1, 2, 4, 8])));
+```
+
+```text
+{"rms":1.0005,"seconds":1.5}
+null
+```
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { measureSettled } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+console.log(JSON.stringify(measureSettled(compiled.program, 48000, (i) => 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000))));
+```
+
+```text
+{"rms":0.20095076138728354,"peak":0.2490678855071576,"settleSeconds":1.5,"renderedSeconds":1.5,"flatAtZero":false}
+```
+
+Levels below `FLAT_AT_ZERO_RMS` (1e-6) are noise, not measurement; `isFlatAtZero` makes that check.
+
+## Chain runtime and advisories
+
+`ChainRuntime` runs ordered slots where each slot output feeds the next. `programSlot` wraps a compiled circuit; `processorSlot` wraps a host supplied processor (NAM, IR). `slotContract` exposes what the seam arithmetic needs.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ChainRuntime, programSlot } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const chain = new ChainRuntime([programSlot(compiled.program), programSlot(compiled.program)]);
+chain.prepare(48000);
+const input = new Float64Array(128);
+input[0] = 1;
+console.log("length:", chain.process(input).length);
+console.log("slots:", chain.telemetry().map((t) => t.slot).join(","));
+```
+
+```text
+length: 128
+slots: 0,1
+```
+
+Advisories are carried alongside a successful load, never thrown. `supplyGroundConflicts` names slot pairs that cannot share one supply; `chainAdvisories` reports `unscalable-seam`, `speaker-signal-into-input`, `cab-after-miked`, `undividable-seam`, and `instrument-into-speaker-stage`.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { supplyGroundConflicts } from "@vessel-dsp/runtime";
+
+const muffSource = readFileSync("big-muff-pi.vdsp", "utf8");
+const rangeSource = readFileSync("dallas-rangemaster-original-treble-booster.vdsp", "utf8");
+const muff = compile(muffSource, { registry: pedalPartCatalog });
+const range = compile(rangeSource, { registry: pedalPartCatalog });
+if (muff.status !== "ok" || range.status !== "ok") throw new Error("compile failed");
+console.log(JSON.stringify(supplyGroundConflicts([muff.program, range.program]), null, 2));
+```
+
+```text
+[
+  {
+    "slots": [
+      0,
+      1
+    ],
+    "message": "slot(s) 1 reference the supply's positive terminal to ground and slot(s) 0 carry a positive rail, so one shared supply would tie its two terminals together through the pedals' grounds and short it: on a real board these need a battery or an isolated supply output. The chain renders correctly here regardless -- each program is solved against its own rails"
+  }
+]
+```
+
+Level helpers at the seam: `chainScaleFactor` is the ratio of adjacent full scales (null is unity), `seamScale` and `seamDivider` apply it with the resistive divider, `dacScaleFactor` normalises the last slot for the DAC, and `outputDbfs` reports dBFS after that scale. On two muff slots the seam is unity (input full scale is null), `outputDbfs(1, 9)` is -19.084850188786497, and the conversion full scale is the declared 1 V reference.
+
+## Error behaviour
+
+Misuse throws `RuntimeError` with a message that names the problem:
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { ReferenceRuntime } from "@vessel-dsp/runtime";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const compiled = compile(source, { registry: pedalPartCatalog });
+if (compiled.status !== "ok") throw new Error("compile failed");
+
+const runtime = new ReferenceRuntime(compiled.program);
+try {
+  runtime.process(new Float64Array(8));
+} catch (e) {
+  console.log("no prepare:", (e as Error).message);
+}
+try {
+  runtime.prepare(5);
+} catch (e) {
+  console.log("bad rate:", (e as Error).message);
+}
+runtime.prepare(48000);
+try {
+  runtime.setControl("NOPE" as never, 0.5);
+} catch (e) {
+  console.log("bad control:", (e as Error).message);
+}
+try {
+  runtime.setControl(compiled.program.controls[0].id, 2);
+} catch (e) {
+  console.log("bad position:", (e as Error).message);
+}
+try {
+  runtime.setSupply([{ blockIndex: 99, sourceIndex: 0 }], 9, 1);
+} catch (e) {
+  console.log("bad supply:", (e as Error).message);
+}
+try {
+  runtime.setSupply(runtime.getSupplies().map((s) => s.address), Number.NaN, 1);
+} catch (e) {
+  console.log("bad volts:", (e as Error).message);
+}
+try {
+  runtime.setSupply(runtime.getSupplies().map((s) => s.address), 9, -1);
+} catch (e) {
+  console.log("bad supply ohms:", (e as Error).message);
+}
+```
+
+```text
+no prepare: prepare(sampleRate) was never called
+bad rate: sample rate 5 is not usable; a program has no default rate
+bad control: program has no control "NOPE"
+bad position: control position 2 is outside 0..1
+bad supply: setSupply: unknown block index 99
+bad volts: supply volts NaN is not finite
+bad supply ohms: supply sourceOhms -1 is not a finite non-negative resistance
+```
+
+`prepare()` also refuses programs needing operators or DSP models it does not implement, naming each missing one, and refuses chains that fail the opt in admission gate.
+
+## Limits
+
+- TypeScript reference runtime only. `V2WasmEngine` is exported but needs a build artifact the npm package does not ship; it cannot run from an installed package today.
+- The operating point is not re solved mid stream after `setSupply` or `setControl`; reactive state carries over.
+- Oversampling is zero order hold with no band limiting decimator.
+- Admission needs host measured costs; without a budget there is no gate, and without a price for a DSP model the chain is refused by model name.
+- Op-amp stages draw almost no supply current in the model, so sag on op-amp heavy pedals is under reported. A hard clipper can push current back into the rail, which a real cell cannot absorb.

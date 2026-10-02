@@ -1,0 +1,233 @@
+---
+title: Compiler
+description: Compile .vdsp schematics into simulation Program ROMs with @vessel-dsp/compiler.
+---
+
+`@vessel-dsp/compiler` lowers `.vdsp` source text into a `Program`: blocks of MNA stamps plus controls, ports, and cost metadata. It is pure TypeScript, deterministic, rate independent, and headless. It never opens audio, and a program it emits carries no sample rate.
+
+## Install
+
+`@vessel-dsp/compiler` 0.1.0 is not yet on npm, and neither is its `@vessel-dsp/core` dependency at the workspace version. Until those releases are published, use the package from this repository's workspace rather than an install command that will 404.
+
+## What compile does and refuses
+
+`compile(source, options?)` takes `.vdsp` source text and returns a result. A document it cannot use becomes a result, never a throw. Only a compiler bug throws, because a bug reported as an unsupported pedal would be a wrong answer about someone's circuit.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const result = compile(source, { registry: pedalPartCatalog });
+
+if (result.status === "ok") {
+  console.log("blocks:", result.program.blocks.length);
+  console.log("warnings:", result.warnings.length);
+} else {
+  console.log("refused:", JSON.stringify(result.reasons, null, 2));
+}
+```
+
+```text
+blocks: 1
+warnings: 0
+```
+
+The failure shape is `{ status: "unsupported", reasons }`. Each reason carries `stage` (`netlist`, `device-laws`, `partition`, `lower`, or `link`), `device` (the component id, or null for document level refusals), and a human readable `reason`. A `device-laws` stage means a part could not be modelled; any other stage means the document itself does not support a program.
+
+One real refusal, `boss-dd-3t.vdsp` with `pedalPartCatalog`:
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+
+const source = readFileSync("boss-dd-3t.vdsp", "utf8");
+const result = compile(source, { registry: pedalPartCatalog });
+console.log(JSON.stringify(result, null, 2));
+```
+
+```text
+{
+  "status": "unsupported",
+  "reasons": [
+    {
+      "stage": "device-laws",
+      "device": "U1",
+      "reason": "integrated circuit has no model: its part number \"undisclosed-roland-boss-dsp\" matched no registry entry, and a declared class may not supply a macro for a part whose identity is unresolved"
+    }
+  ]
+}
+```
+
+Options are `{ registry, inputJack, outputJack }`. The jack overrides pick which jacks are the audio ports; the default is the document's declared input and output.
+
+## Registries
+
+The registry is a parameter, not an import, so the compiler holds no knowledge of any specific part. `emptyRegistry` models only device class laws. `pedalPartCatalog` is the corpus facing catalog.
+
+Measured over the 121 top level packets of the artifacts corpus (read only):
+
+```ts
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  compile,
+  emptyRegistry,
+  pedalPartCatalog,
+} from "@vessel-dsp/compiler";
+
+const dir = "vessel-dsp";
+const files = readdirSync(dir).filter((f) => f.endsWith(".vdsp"));
+let emptyOk = 0;
+let pedalOk = 0;
+for (const f of files) {
+  const src = readFileSync(join(dir, f), "utf8");
+  if (compile(src, { registry: emptyRegistry }).status === "ok") emptyOk++;
+  if (compile(src, { registry: pedalPartCatalog }).status === "ok") pedalOk++;
+}
+console.log(`emptyRegistry: ${emptyOk}/${files.length}`);
+console.log(`pedalPartCatalog: ${pedalOk}/${files.length}`);
+```
+
+```text
+emptyRegistry: 74/121
+pedalPartCatalog: 119/121
+```
+
+The two `pedalPartCatalog` refusals are `boss-dd-3t.vdsp` and `boss-dd-5.vdsp`, both undisclosed DSP parts. Use `pedalPartCatalog` for real packets. Use `emptyRegistry` to measure what device class laws alone cover.
+
+## The Program
+
+A program is rate independent: there is no sample rate field. Top level keys are `formatVersion`, `requiredOperators`, `requiredModels`, `costPredictors`, `blocks`, `order`, `controls`, `ports`, `supplyReference`, `portReferenceVolts`, `portFullScaleVolts`, `stageCoverage`, and `portImpedanceOhms`.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const result = compile(source, { registry: pedalPartCatalog });
+if (result.status !== "ok") throw new Error("compile failed");
+const program = result.program;
+console.log("keys:", Object.keys(program).sort().join(", "));
+console.log("formatVersion:", program.formatVersion);
+console.log("order:", JSON.stringify(program.order));
+console.log("requiredOperators:", JSON.stringify(program.requiredOperators));
+console.log("supplyReference:", program.supplyReference);
+console.log("stageCoverage:", program.stageCoverage);
+```
+
+```text
+keys: blocks, controls, costPredictors, formatVersion, order, portFullScaleVolts, portImpedanceOhms, portReferenceVolts, ports, requiredModels, requiredOperators, stageCoverage, supplyReference
+formatVersion: 1
+order: ["analog:0"]
+requiredOperators: ["bjt","capacitor","conductance","controlled-conductance","dc-source","diode","input-source"]
+supplyReference: negative-ground
+stageCoverage: instrument
+```
+
+Stamp kinds per block for the same program: `dc-source` 1, `bjt` 4, `conductance` 22, `capacitor` 13, `controlled-conductance` 6, `diode` 4, `input-source` 1. `requiredOperators` is exactly that set, sorted, so a runtime can refuse by name at load. `supplyReference` derives from `dc-source` signs; `stageCoverage` here is `instrument`.
+
+## Warnings
+
+Warnings never block a program. `boss-bd-2-blues-driver.vdsp` compiles with one:
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+
+const source = readFileSync("boss-bd-2-blues-driver.vdsp", "utf8");
+const result = compile(source, { registry: pedalPartCatalog });
+if (result.status !== "ok") throw new Error("compile failed");
+console.log("warnings:", result.warnings.length);
+console.log(JSON.stringify(result.warnings[0], null, 2));
+```
+
+```text
+warnings: 1
+{
+  "code": "throw-or-winding-unwired",
+  "device": "VR1B",
+  "detail": "VR1B.b (role end) is alone on node 27: a potentiometer terminal joined to nothing, so the track cannot divide."
+}
+```
+
+Each warning carries a closed `code` callers can switch on, plus human readable `detail`. A floating wiper that disconnects the circuit is a structural defect and refuses at the `link` stage instead of warning.
+
+## Controls
+
+Controls are 0..1 positions; the taper maps the position to a fraction of the track at run time. `big-muff-pi` declares `IN`, `OUT`, `SUSTAIN`, `TONE`, and `VOLUME`, each defaulting to 0.5.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const result = compile(source, { registry: pedalPartCatalog });
+if (result.status !== "ok") throw new Error("compile failed");
+console.log(JSON.stringify(result.program.controls));
+```
+
+```text
+[{"id":"IN","taper":"linear","defaultPosition":0.5,"role":"input","label":"In"},{"id":"OUT","taper":"linear","defaultPosition":0.5,"role":"output","label":"Out"},{"id":"SUSTAIN","taper":"linear","defaultPosition":0.5,"role":"control","label":"Sustain"},{"id":"TONE","taper":"linear","defaultPosition":0.5,"role":"tone","label":"Tone"},{"id":"VOLUME","taper":"linear","defaultPosition":0.5,"role":"output-level","label":"Volume"}]
+```
+
+Taper fractions at 0, 0.5, and 1, from the runtime's own curve:
+
+```ts
+import { taperFraction } from "@vessel-dsp/runtime";
+
+for (const t of ["linear", "logarithmic", "reverse-logarithmic", "reverse-linear"] as const) {
+  console.log(t, [0, 0.5, 1].map((p) => taperFraction(t, p).toFixed(4)).join(" "));
+}
+```
+
+```text
+linear 0.0000 0.5000 1.0000
+logarithmic 0.0000 0.1000 1.0000
+reverse-logarithmic 0.0000 0.9000 1.0000
+reverse-linear 1.0000 0.5000 0.0000
+```
+
+## Supply stamps
+
+`resolveSupplyStamps(source, program)` joins the document's power domains to the compiled `dc-source` stamps. Pass the same source text the program was compiled from. Only rails in an external DC domain with `derivation: direct` and `role: main-supply` are candidates; derived rails keep their compiled values.
+
+```ts
+import { readFileSync } from "node:fs";
+import { compile, pedalPartCatalog, resolveSupplyStamps } from "@vessel-dsp/compiler";
+
+const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const result = compile(source, { registry: pedalPartCatalog });
+if (result.status !== "ok") throw new Error("compile failed");
+console.log(JSON.stringify(resolveSupplyStamps(source, result.program), null, 2));
+```
+
+```text
+{
+  "supplies": [
+    {
+      "address": {
+        "blockIndex": 0,
+        "sourceIndex": 0
+      },
+      "railComponentId": "VPLUS_RAIL",
+      "role": "main-supply",
+      "nominalVolts": null
+    }
+  ],
+  "refused": []
+}
+```
+
+The eight closed refusal reasons are `no-power-section`, `mains-ac-source`, `unknown-source-kind`, `source-kind-conflict`, `derived-rail`, `rail-not-main-supply`, `no-stamp-for-rail`, and `ambiguous-stamp`. Over the same 121 packets with `pedalPartCatalog`, 54 packets resolve at least one supply; refusals by entry are `derived-rail` 60, `no-power-section` 42, `no-stamp-for-rail` 17, `mains-ac-source` 7, and `unknown-source-kind` 4, with 2 packets not compiling at all. Mains fed amp B+ rails are refused by design: a battery profile must never be applied downstream of a rectifier.
+
+## Artifacts and netlists
+
+`compileToArtifact(source, options)` returns `{ result, artifact }`, where the artifact is null unless compilation succeeded. `readNetlist(source, options?)` runs the first stage only and is what `resolveSupplyStamps` uses internally so rail nodes resolve exactly as they did at compile time.
+
+## Limits
+
+- No part knowledge is built in. Without a registry entry, an IC refuses with its part number named.
+- A program states its operators and models, but playability is program times machine times rate times block size. The program carries only its honest half (`costPredictors`); the host supplies the other half at admission.
+- Mains fed supplies are refused by the supply join, not modelled as batteries.
+- Oversampling, admission, and solving are runtime concerns. See the Runtime guide.

@@ -950,3 +950,7 @@ profile across `reset` and `prepare`. No audio-domain processing was added:
 the old waveshaper node stays rejected. Adapter profiles are absent because
 no source was found for them. The five limits in the chain README and the
 signal-chain guide apply unchanged.
+
+## 13. Follow up: compiler and runtime guides (2026-10-02)
+
+The compiler and runtime now have user guides at `docs/src/content/docs/guides/compiler.mdx` and `docs/src/content/docs/guides/runtime.mdx`, with matching package READMEs. Nothing in sections 1 to 12 changed: `setSupply(addresses, volts, sourceOhms)`, the eight supply refusal reasons, and the profile table all read the same. One denominator note: section 11 counts 156 files (121 top level packets plus amps and examples) with 59 resolving, while the compiler guide counts the 121 top level packets only with 54 resolving. Both counts were measured with `pedalPartCatalog`.

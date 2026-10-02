@@ -1183,4 +1183,41 @@ describe("GitHub Pages documentation site", () => {
 		const chainReadme = readRepoFile("packages/chain/README.md");
 		expect(chainReadme).toContain("ConvNet");
 	});
+
+	test("documents the compiler and runtime guides", () => {
+		const astroConfig = readRepoFile("astro.config.mjs");
+		expect(astroConfig).toContain('"packages/compiler/src/index.ts"');
+		expect(astroConfig).toContain('"packages/runtime/src/index.ts"');
+		expect(astroConfig).toContain('label: "Compiler"');
+		expect(astroConfig).toContain('link: "/guides/compiler/"');
+		expect(astroConfig).toContain('label: "Runtime"');
+		expect(astroConfig).toContain('link: "/guides/runtime/"');
+
+		const compilerPage = readRepoFile(
+			"docs/src/content/docs/guides/compiler.mdx",
+		);
+		expect(compilerPage).toContain("title: Compiler");
+		expect(compilerPage).toContain("## Supply stamps");
+		expect(compilerPage).toContain("resolveSupplyStamps");
+		expect(compilerPage).toContain("pedalPartCatalog");
+		expect(compilerPage).toContain("emptyRegistry: 74/121");
+		expect(compilerPage).toContain("ambiguous-stamp");
+		expect(compilerPage).not.toMatch(/playground|workbench|custom editor/i);
+
+		const runtimePage = readRepoFile(
+			"docs/src/content/docs/guides/runtime.mdx",
+		);
+		expect(runtimePage).toContain("title: Runtime");
+		expect(runtimePage).toContain("## Supply control");
+		expect(runtimePage).toContain("ReferenceRuntime");
+		expect(runtimePage).toContain("supplyRebuilds");
+		expect(runtimePage).toContain("admissionVerdict");
+		expect(runtimePage).toContain("supplyGroundConflicts");
+		expect(runtimePage).toContain("prepare(sampleRate) was never called");
+		expect(runtimePage).not.toMatch(/playground|workbench|custom editor/i);
+
+		const landingPage = readRepoFile("docs/src/content/docs/index.mdx");
+		expect(landingPage).toContain("/core/guides/compiler/");
+		expect(landingPage).toContain("/core/guides/runtime/");
+	});
 });
