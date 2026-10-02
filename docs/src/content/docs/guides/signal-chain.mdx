@@ -3,6 +3,8 @@ title: Signal Chain
 description: Build a headless guitar signal chain with input profiling, amp shaping, cabinet IR convolution, and NAM playback.
 ---
 
+import SignalChainDiagram from "../../../components/SignalChainDiagram.astro";
+
 `@vessel-dsp/chain` is the headless audio signal chain engine. A `SignalChain`
 holds an `InputProfileNode` first, user nodes in the middle, and a `MasterNode`
 last. It does not open an `AudioContext`, touch the DOM, or own a device; the
@@ -25,6 +27,8 @@ than an install command that will 404.
 ```text
 input-profile -> [user nodes] -> master
 ```
+
+<SignalChainDiagram />
 
 `getNodes()` returns `[inputProfile, ...userNodes, master]`. User nodes run in
 the order they were added or reordered. The chain-level edit API is:
