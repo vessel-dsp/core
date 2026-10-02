@@ -838,7 +838,7 @@ level-independent but the magnitude is not. (g) Workbench C++ line numbers (`Eng
 executed code; re-grep before building row 7 of section 8 in case the
 workbench tree moved.
 
-## 10. Implementation status (work items 1, 2 and 3; branch `indiejoseph/supply-runtime-setter`)
+## 10. Implementation status: runtime setter (work items 1, 2 and 3)
 
 Landed: `ReferenceRuntime.getSupplies()`, `setSupply(addresses, volts,
 sourceOhms)`, and a read-only `supplyRebuilds` counter
@@ -869,3 +869,60 @@ Differs from the design above (brief wins over note):
   `E*9000/(9000+R)` is unchanged and the supply sits in the executed block.
 - Pre-`prepare()` `setSupply` calls only replace stamps; the base-matrix
   rebuild waits for `prepare()`, which builds from the replaced stamps.
+
+## 11. Implementation status: document-to-stamp map (work item 4)
+
+Row 4 of section 8 (document-to-stamp map) is implemented: `resolveSupplyStamps`
+in `packages/compiler/src/supply-stamps.ts`, with `SupplyAddress`,
+`ResolvedSupply`, `RefusedSupply`, `SupplyResolution`, and the closed
+`SupplyRefusalReason` union exported from `packages/compiler/src/index.ts`.
+Gated by `tests/compiler/supply-stamps.test.ts` (10 tests, all passing). No
+compiler internal had to be exposed: the join reuses the already-exported
+`readNetlist` and `Device` types, so `packages/core` was not touched.
+
+Two defects in this note's original design were found by running the map over
+the real corpus and fixed (the first cut resolved almost nothing there):
+
+- The note's section 2 step 1 required `sourceKind: external-dc`, but only 3
+  of 121 top-level packets declare `sourceKind` at all. When it is absent the
+  domain's `sourceComponentIds` are now classified by the same typed
+  discriminator the device laws use: a `voltage-source` device with a positive
+  finite `frequency` lowers to `ac-source`, anything else in that kind lowers
+  to `dc-source`; a `rail` with finite `volts` lowers to `voltage-source`;
+  a `transformer` is mains-side magnetics. Any mains evidence makes the domain
+  mains (a boundary touching the wall socket is mains-fed even when it names
+  DC rails downstream of its rectifier). Explicit `sourceKind` still wins; a
+  clean contradiction is refused as `source-kind-conflict`.
+- The note's join (railComponentId to node label via geometry) cannot see
+  declared-node packets, which are most of the corpus. The map now takes the
+  source text and the program, reads the rail's device from the compiler
+  netlist (declared `node:` keys and the `nodes:` ledger resolve exactly as at
+  compile time), and matches its nodes to `dc-source` stamps through
+  `block.nodeIds`. Either terminal may identify the rail -- battery-style
+  supplies hang it off either end, single-ended rails assert on positive with
+  the sign in volts -- except ground on the negative side, which never names a
+  rail. The refusal union therefore carries eight reasons (the note's five
+  plus `rail-not-main-supply`, `unknown-source-kind`, `source-kind-conflict`).
+
+Real-corpus numbers (one-off script under /tmp, `pedalPartCatalog` registry,
+156 files: 121 top-level + 23 amps + 12 examples): 137 declare a power
+section; 152 compile (4 refuse: `boss-dd-3t`, `boss-dd-5`, two examples); 94
+declare a direct main-supply rail; 59 packets resolve at least one supply,
+including `big-muff-pi` (VPLUS_RAIL), `ibanez-ts9` (VPLUS_9V, with VBIAS_4V5
+correctly derived-rail), `mxr-phase-90`, and the positive-ground germanium
+set (`dallas-arbiter-fuzz-face-ac128` and both tone benders resolve through
+the negative terminal). Refusals by entry: mains-ac-source 153, derived-rail
+60, no-power-section 47, no-stamp-for-rail 18, unknown-source-kind 4,
+ambiguous-stamp 1, rail-not-main-supply 2.
+
+Still unresolved, by name: ten amp B+ rails (`soldano-slo-100` x6,
+`fender-super-reverb` and its `aa1069` x2 each, all mains-ac-source) plus
+`bk-butler-tube-driver` (mains-ac-source) are refused BY DESIGN -- their
+domains are mains-fed (inlet + transformer + rectifier in sources) and a
+battery profile must never be applied downstream of a rectifier;
+`boss-nf-1-noise-gate` (unknown-source-kind) whose only source is BT1, a jack
+(a DC inlet carries no typed DC-vs-AC evidence, so nothing can be shown);
+`examples/op-amp-model` (ambiguous-stamp: node 7 is driven by both a 15 V and
+a 2 V source, genuinely unnameable). Ambiguity is injected at the program
+level in tests because lowering collapses twin same-volt supplies and refuses
+contradictory ones, so YAML cannot author two same-node sources.

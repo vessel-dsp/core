@@ -17,6 +17,14 @@ export * from "./supply-short";
 export * from "./unbounded-operating-point";
 export * from "./unreachable-output";
 export * from "./power-domain-control";
+export { resolveSupplyStamps } from "./supply-stamps";
+export type {
+	RefusedSupply,
+	ResolvedSupply,
+	SupplyAddress,
+	SupplyRefusalReason,
+	SupplyResolution,
+} from "./supply-stamps";
 export * from "./inert-controls";
 export * from "./grounded-clock-supply";
 export * from "./unexecuted-region";
