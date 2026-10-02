@@ -15,7 +15,8 @@ controls.
 
 Current target formats:
 
-- project-native `.vdsp` Source documents (`circuit-interchange/v2` YAML);
+- project-native `.vdsp` Source documents (`circuit-interchange/v2`,
+  `circuit-interchange/v3`, and `circuit-interchange/v4` YAML);
 - LTspice `.asc`;
 - LiveSPICE `.schx`;
 - tscircuit `.circuit.json`;

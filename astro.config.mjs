@@ -62,7 +62,13 @@ export default defineConfig({
 				},
 				{
 					label: "Formats",
-					items: [{ label: "Supported Formats", link: "/formats/" }],
+					items: [
+						{ label: "Supported Formats", link: "/formats/" },
+						{
+							label: "Programs and Firmware",
+							link: "/formats/programs-and-firmware/",
+						},
+					],
 				},
 				{
 					label: "Examples",

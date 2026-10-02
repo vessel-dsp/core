@@ -7,13 +7,185 @@ description: File formats supported by @vessel-dsp/core and their conversion bou
 
 | Format | Extension | Support |
 | --- | --- | --- |
-| VesselDSP Source | `.vdsp`, `.yaml` | Project-native `circuit-interchange/v2` and `circuit-interchange/v3` YAML documents for source-visible, simulatable CircuitDocument graphs. |
+| VesselDSP Source | `.vdsp`, `.yaml` | Project-native `circuit-interchange/v2`, `circuit-interchange/v3`, and `circuit-interchange/v4` YAML documents for source-visible, simulatable CircuitDocument graphs. |
 | LTspice | `.asc` | Parsed and serialized as schematic data. |
 | LiveSPICE | `.schx` | Parsed and serialized as schematic data. |
 | tscircuit Circuit JSON | `.circuit.json` | Imported and exported using official `circuit-json` schema validation. |
 | Legacy SPICE netlist | `.cir`, `.net`, `.spice` | Connectivity parser and serializer support outside the v1 bidirectional Circuit JSON contract. |
 
 `.vsdp` and `.asr` are treated as typos, not aliases.
+
+## Interchange versions (v2, v3, v4)
+
+`.vdsp` files declare their schema in the top-level `schema` field. The parser
+accepts `circuit-interchange/v2`, `circuit-interchange/v3`, and
+`circuit-interchange/v4`; anything else, including `circuit-interchange/v1`, is
+refused with `unsupported interchange schema: <schema>`.
+
+| Schema | `audio` block | Notes |
+| --- | --- | --- |
+| v2 | Refused (`audio: requires schema circuit-interchange/v3`) | v3-only top-level fields such as `mechanical` are refused the same way (`mechanical: requires schema circuit-interchange/v3`). |
+| v3 | Optional, validated when present | Inside the block, `audio.bypass` is required: the literal `"none"` or an object with `switch` and `engagedPosition`. |
+| v4 | Required (missing block: `audio: required by schema circuit-interchange/v4. Declare audio.input, audio.output and audio.bypass ...`) | v4 is a superset of v3: every v3 field is legal in a v4 document. |
+
+`audio.input` and `audio.output` each hold a component id, or a non-empty
+ordered array of component ids for a multi-channel port (array order is channel
+order; duplicates are refused). `audio.bypass` is the literal `"none"` when the
+circuit has no bypass switch, or an object naming the switch component and the
+position at which the effect is engaged:
+
+```yaml
+audio:
+  input: R1
+  output: R2
+  bypass: none
+```
+
+```yaml
+audio:
+  input: R1
+  output: R2
+  bypass:
+    switch: SW1
+    engagedPosition: on
+```
+
+A parsed document carries its schema in `CircuitDocument.interchangeSchema`,
+so it reserializes with the same schema string: v2 stays v2, v3 stays v3, v4
+stays v4. A constructed document has no parsed schema, so the serializer
+infers one: `circuit-interchange/v3` when the document has an `audio` block or
+v3-only fields (`mechanical`, `appearance`, `build`, `bom`, `partProfiles`,
+`simulationProfiles`, `footprints`, `offBoardWiring`, `boards`, `power`, or v3
+panel fields), otherwise `circuit-interchange/v2`. The serializer never writes
+v4 for a constructed document; v4 output comes from parsing a v4 file.
+
+Minimal valid v4 document (a voltage divider with the required `audio` block):
+
+```yaml
+schema: circuit-interchange/v4
+metadata:
+  name: Minimal v4
+  description: Smallest valid v4 document with the required audio block.
+  partNumber: ""
+audio:
+  input: R1
+  output: R2
+  bypass: none
+source:
+  format: interchange
+  filename: minimal-v4.vdsp
+components:
+  - id: R1
+    kind: resistor
+    name: R1
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: 0
+          y: -10
+      - name: b
+        node: 2
+        position:
+          x: 0
+          y: 10
+    properties:
+      Resistance:
+        raw: "10k"
+        value: 10000
+        unit: ""
+  - id: R2
+    kind: resistor
+    name: R2
+    origin:
+      x: 0
+      y: 30
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 2
+        position:
+          x: 0
+          y: 20
+      - name: b
+        node: 0
+        position:
+          x: 0
+          y: 40
+    properties:
+      Resistance:
+        raw: "10k"
+        value: 10000
+        unit: ""
+  - id: GND1
+    kind: ground
+    name: GND1
+    origin:
+      x: 0
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: t
+        node: 0
+        position:
+          x: 0
+          y: 50
+    properties: {}
+nodes:
+  - id: 0
+    name: GND
+    isGround: true
+    members:
+      - componentId: R2
+        terminalName: b
+      - componentId: GND1
+        terminalName: t
+  - id: 1
+    name: VIN
+    isGround: false
+    members:
+      - componentId: R1
+        terminalName: a
+  - id: 2
+    name: VOUT
+    isGround: false
+    members:
+      - componentId: R1
+        terminalName: b
+      - componentId: R2
+        terminalName: a
+wires: []
+directives: []
+diagnostics: []
+rawAttributes:
+  format: interchange
+```
+
+Parsing that file with `parseCircuitDocumentFile` and serializing it back with
+`serializeVdspCircuitDocument` returns a `circuit-interchange/v4` document with
+the same `audio` block:
+
+```yaml
+schema: circuit-interchange/v4
+metadata:
+  name: "Minimal v4"
+  description: "Smallest valid v4 document with the required audio block."
+  partNumber: ""
+source:
+  format: interchange
+  filename: minimal-v4.vdsp
+audio:
+  input: R1
+  output: R2
+  bypass: none
+```
 
 ## VDSP source-visible role
 
@@ -39,9 +211,12 @@ compiler roles use `ControlRole` on source component properties and
 
 `ControlRole` is optional so uploaded schematics can remain source/read-only
 documents. When present, core validates it against the canonical lower-kebab
-role registry exported as `CONTROL_ROLE_VALUES`. Unknown roles are warnings for
-source/read-only validation, and errors when callers validate with
-`validateDocument(document, { playbackClaim: true })`.
+role registry exported as `CONTROL_ROLE_VALUES`. An unknown role (for example
+`ControlRole: turbo-boost` on a component) is reported with the diagnostic code
+`invalid-control-role`: severity `warning` from plain `validateDocument()`,
+promoted to severity `error` when callers validate with
+`validateDocument(document, { playbackClaim: true })`. The same code and
+promotion apply to unknown `controlInterfaces[].controlRole` values.
 
 Use `deviceInterface.controls[].role` for UI/control grouping tokens, not
 compiler semantic roles. That field continues to use lower-kebab open tokens
@@ -102,3 +277,10 @@ appearance:
 stompbox-only and amp-only appearance data.
 
 Converting v3 documents to formats that cannot preserve these fields errors by default. Use `convertCircuitDocumentFileWithReport()` with `lossPolicy: "drop-with-diagnostics"` only when lossy export is intentional.
+
+## Further reading
+
+[Programs and Firmware](/core/formats/programs-and-firmware/) documents the
+`.vdsp` declarations for DSP programs, routers, scanned and tapped
+parameters, microcontroller firmware rules, terminal roles, and power
+topology.

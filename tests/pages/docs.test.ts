@@ -74,6 +74,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(astroConfig).toContain('link: "/guides/control-ui/"');
 		expect(astroConfig).toContain('label: "Signal Chain"');
 		expect(astroConfig).toContain('link: "/guides/signal-chain/"');
+		expect(astroConfig).toContain('label: "Programs and Firmware"');
+		expect(astroConfig).toContain('link: "/formats/programs-and-firmware/"');
 
 		const stompboxPackage = JSON.parse(
 			readRepoFile("packages/stompbox/package.json"),
@@ -98,6 +100,12 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("@vessel-dsp/visual-effects");
 		expect(landingPage).toContain("@vessel-dsp/amp");
 		expect(landingPage).toContain("@vessel-dsp/cabinet");
+		expect(landingPage).toContain("@vessel-dsp/compiler");
+		expect(landingPage).toContain("@vessel-dsp/runtime");
+		expect(landingPage).toContain("@vessel-dsp/chain");
+		expect(landingPage).toContain("@vessel-dsp/player");
+		expect(landingPage).toContain("not yet published to npm");
+		expect(landingPage).toContain("/core/guides/signal-chain/");
 		expect(landingPage).toContain("CircuitDocument");
 		expect(landingPage).toContain("class hooks");
 		expect(landingPage).toContain("theme provider");
@@ -121,6 +129,10 @@ describe("GitHub Pages documentation site", () => {
 		expect(formatsPage).toContain("drop-with-diagnostics");
 		expect(formatsPage).toContain("CONTROL_ROLE_VALUES");
 		expect(formatsPage).toContain("playbackClaim: true");
+		expect(formatsPage).toContain("invalid-control-role");
+		expect(formatsPage).toContain("circuit-interchange/v4");
+		expect(formatsPage).toContain("interchangeSchema");
+		expect(formatsPage).toContain("/core/formats/programs-and-firmware/");
 		expect(formatsPage).toContain("deviceInterface.controls[].role");
 
 		const stompboxPage = readRepoFile(
@@ -378,6 +390,9 @@ describe("GitHub Pages documentation site", () => {
 		expect(controlsPage).toContain("defaultControlState");
 		expect(controlsPage).toContain("@vessel-dsp/control-ui");
 		expect(controlsPage).toContain("@vessel-dsp/stompbox");
+		expect(controlsPage).toContain("displays?: readonly DisplayIndicator[]");
+		expect(controlsPage).toContain("Display indicators");
+		expect(controlsPage).toContain("DisplayKind");
 		expect(controlsPage).not.toMatch(/playground|workbench|custom editor/i);
 
 		const controlUiPage = readRepoFile(
@@ -422,6 +437,7 @@ describe("GitHub Pages documentation site", () => {
 		expect(signalChainPage).toContain("instantiateNamEngine");
 		expect(signalChainPage).toContain("nam-engine.wasm");
 		expect(signalChainPage).toContain("not yet on npm");
+		expect(signalChainPage).toContain("ConvNet");
 		expect(signalChainPage).toContain("Power-supply rail sag is not implemented");
 		expect(signalChainPage).not.toMatch(/playground|workbench|custom editor/i);
 
@@ -1131,5 +1147,34 @@ describe("GitHub Pages documentation site", () => {
 		expect(svg).toContain("LM308");
 		expect(svg).toContain("1N914");
 		expect(svg).toContain("Tone / Filter");
+	});
+
+	test("documents programs, firmware rules, terminal roles, and power topology", () => {
+		const programsPage = readRepoFile(
+			"docs/src/content/docs/formats/programs-and-firmware.mdx",
+		);
+		expect(programsPage).toContain("title: Programs and Firmware");
+		expect(programsPage).toContain("ComponentProgram");
+		expect(programsPage).toContain("ProgramRouter");
+		expect(programsPage).toContain("ProgramParameter");
+		expect(programsPage).toContain("ProgramTapLaw");
+		expect(programsPage).toContain("ComponentController");
+		expect(programsPage).toContain("ControllerPin");
+		expect(programsPage).toContain("scannedBy");
+		expect(programsPage).toContain("read: tapped");
+		expect(programsPage).toContain("highAt");
+		expect(programsPage).toContain("toggledBy");
+		expect(programsPage).toContain("parameter: feedback");
+		expect(programsPage).toContain("terminal-role-illegal");
+		expect(programsPage).toContain("classifyDeviceTerminalRole");
+		expect(programsPage).toContain("isLegalTerminalRole");
+		expect(programsPage).toContain("resolveComponentTerminalRoles");
+		expect(programsPage).toContain("CircuitPowerDomain");
+		expect(programsPage).toContain("CircuitPowerRailBinding");
+		expect(programsPage).toContain("circuit-power/v1");
+		expect(programsPage).not.toMatch(/playground|workbench|custom editor/i);
+
+		const chainReadme = readRepoFile("packages/chain/README.md");
+		expect(chainReadme).toContain("ConvNet");
 	});
 });

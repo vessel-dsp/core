@@ -1,0 +1,618 @@
+---
+title: Programs and Firmware
+description: Declared DSP programs, routers, scanned and tapped parameters, microcontroller firmware rules, terminal roles, and power topology in .vdsp.
+---
+
+Core 0.8.0 through 0.16.0 added `.vdsp` declarations for the program a
+reprogrammable chip runs, how that program reaches its controls, and what a
+microcontroller's firmware does with the panel. Core only parses, validates,
+and serializes these declarations. It does not execute programs, solve
+circuits, or simulate firmware. Execution belongs to `@vessel-dsp/compiler`
+and `@vessel-dsp/runtime`: the op vocabulary, which op arguments accept a
+`{ parameter: <name> }` reference, and what a tap interval does downstream are
+the executing runtime's vocabulary, not this format's. Every example below was
+parsed with `parseCircuitDocumentFile`, and every error shown is the real
+parser message.
+
+## The program a component runs
+
+`component.program` (`ComponentProgram`) declares the program a
+reprogrammable chip runs in this pedal. Any component kind may carry it;
+omitted means the document states no program. `positions` carries one or more
+`ProgramPosition` entries, each with a required `id`, a required non-empty
+`ops` list, and optional `label`, `lines`, and `parameters`. Each op is an
+object with a required `op` name plus verbatim arguments. `router` is optional
+and is required when there is more than one position.
+
+The parser refuses a program with no positions, several positions with no
+router naming the control that chooses between them, a position with no ops,
+and an op with no name.
+
+```yaml
+schema: circuit-interchange/v2
+metadata:
+  name: "Programmed shell"
+  description: "A reprogrammable DSP shell carrying a two-position delay program."
+  partNumber: ""
+source:
+  format: interchange
+  filename: component-program-round-trip.vdsp
+components:
+  - id: U1
+    kind: ic
+    name: U1
+    sourceTypeName: null
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: in
+        role: pin
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: out
+        role: pin
+        node: 1
+        position:
+          x: 10
+          y: 0
+    program:
+      router:
+        control: "MODE"
+        positions: 4
+        routes:
+          - position: 0
+            program: delay-1
+          - position: 2
+            program: delay-2
+      positions:
+        - id: delay-1
+          label: "DELAY 1"
+          ops:
+            - op: filter-dcblock
+              input:
+                kind: input
+              out: 0
+          lines:
+            dl:
+              delaySeconds:
+                control: "D.TIME"
+                min: 0.001
+                max: 0.05
+                source: "Service notes, MODE table"
+        - id: delay-2
+          label: "DELAY 2"
+          ops:
+            - op: delay-tap-fractional
+              line: dl
+              length:
+                mode: parameter
+              out: 0
+          lines:
+            dl:
+              delaySeconds:
+                min: 0.05
+                max: 0.2
+    properties: {}
+wires: []
+```
+
+Parsing that file gives `program.positions` ids `["delay-1", "delay-2"]` and
+this router:
+
+```json
+{
+  "control": "MODE",
+  "read": "node",
+  "positions": 4,
+  "routes": [
+    {
+      "position": 0,
+      "program": "delay-1"
+    },
+    {
+      "position": 2,
+      "program": "delay-2"
+    }
+  ]
+}
+```
+
+Removing the `router` block while keeping both positions is refused:
+
+```text
+components[0].program: 2 positions but no router saying which control chooses between them
+```
+
+## Routers: how a program reaches its control
+
+`program.router` (`ProgramRouter`) names the panel control whose position
+selects the program, its discrete position count, and the routes that bind
+positions to programs. `control` is required, `positions` is a required
+integer of at least 2, and `routes` is a required non-empty list of
+`{ position, program }` entries. A detent with no route is legal and declares
+an undocumented mode absent rather than missing. The parser refuses a router
+with no control, fewer than two positions, no routes, a route outside the
+control's `0..positions - 1` range, a duplicate route, or a route naming a
+program the component does not declare.
+
+`read` is `node` (the default) or `scanned`. `node` means the control's wiper
+drives a node the consumer solves. `scanned` means a chip reads the control
+over a path that is not modelled, and requires `scannedBy` naming a component
+in the same document. `scannedBy` on a `node` router is refused, as is any
+other `read` value.
+
+Starting from the document above, this router says the MODE control is scanned
+by U1:
+
+```yaml
+    program:
+      router:
+        control: "MODE"
+        read: scanned
+        scannedBy: U1
+        positions: 4
+        routes:
+          - position: 0
+            program: delay-1
+          - position: 2
+            program: delay-2
+```
+
+Parsing gives:
+
+```json
+{
+  "control": "MODE",
+  "read": "scanned",
+  "scannedBy": "U1",
+  "positions": 4,
+  "routes": [
+    {
+      "position": 0,
+      "program": "delay-1"
+    },
+    {
+      "position": 2,
+      "program": "delay-2"
+    }
+  ]
+}
+```
+
+A `scanned` router without `scannedBy` is refused:
+
+```text
+components[0].program.router.scannedBy: a scanned router names the component that reads the control
+```
+
+## Program parameters: how a parameter reaches its control
+
+`ProgramParameter` is a number a program takes plus where the number came
+from: `min` and `max` (both required numbers), optional `control` naming the
+panel control that sweeps it (omitted means fixed), optional `read` and
+`scannedBy` with the same meaning and refusals as a router, and optional
+`source` citing the document the range is read from. Omitting `source` states
+the parameter is not set. A `scanned` or `tapped` parameter must also name
+the `control` it reads.
+
+In the document above, the `delaySeconds` line parameter reads `node` by
+default. Declaring it scanned:
+
+```yaml
+              delaySeconds:
+                control: "D.TIME"
+                read: scanned
+                scannedBy: U1
+                min: 0.001
+                max: 0.05
+                source: "Service notes, MODE table"
+```
+
+parses to:
+
+```json
+{
+  "control": "D.TIME",
+  "read": "scanned",
+  "scannedBy": "U1",
+  "min": 0.001,
+  "max": 0.05,
+  "source": "Service notes, MODE table"
+}
+```
+
+A scanned parameter with no control is refused:
+
+```text
+components[0].program.positions[0].lines.dl.delaySeconds.read: a scanned parameter names the control it reads
+```
+
+## Programs and positions: named parameters ops refer to
+
+`ProgramPosition.parameters` holds named, cited `ProgramParameter` entries
+(range, sweeping control, `read` / `scannedBy`, `source`), parsed the same way
+as a line's parameters and held to the same scanned-reader check. Ops refer to
+one by `{ parameter: <name> }` wherever they would take a number.
+
+Adding a feedback gain to the first position of the document above:
+
+```yaml
+          ops:
+            - op: mix
+              terms:
+                - source:
+                    kind: input
+                  gain:
+                    parameter: feedback
+              out: 2
+            - op: filter-dcblock
+              input:
+                kind: input
+              out: 0
+          parameters:
+            feedback:
+              control: "FBack"
+              read: scanned
+              scannedBy: U1
+              min: 0
+              max: 0.9
+              source: "stated approximation"
+```
+
+parses to this `position.parameters` value, with the op carrying the
+reference verbatim:
+
+```json
+{
+  "feedback": {
+    "control": "FBack",
+    "read": "scanned",
+    "scannedBy": "U1",
+    "min": 0,
+    "max": 0.9,
+    "source": "stated approximation"
+  }
+}
+```
+
+```json
+{
+  "op": "mix",
+  "terms": [
+    {
+      "source": {
+        "kind": "input"
+      },
+      "gain": {
+        "parameter": "feedback"
+      }
+    }
+  ],
+  "out": 2
+}
+```
+
+A position parameter whose `scannedBy` names no component is refused:
+
+```text
+components.U1.program.positions[0].parameters.feedback.scannedBy: "NOT_A_COMPONENT" is not a component in this document
+```
+
+## Tapped parameters and the firmware tap law
+
+`ProgramParameter.read` also accepts `tapped`: the chip named by `scannedBy`
+measures the time between presses of the control and hands the program that
+interval. `scannedBy` and `control` are required as for `scanned`; a router
+cannot be tapped. `ratio` is allowed only on a tapped parameter, must be a
+positive number, and scales the tapped interval, clamped to `min..max`.
+
+`tap` (`ProgramTapLaw`) is allowed only on a tapped parameter and carries the
+firmware's tap law: `presses` (required integer, at least 2), the run length
+before a tempo is set; `timeoutSeconds` (required positive number), the gap
+that ends a run while keeping the tempo; and optional `defaultSeconds`
+(positive when present), the interval before any tempo is set, which the
+parameter scales by its `ratio`. Without `tap`, a tapped read is the interval
+between the last two presses.
+
+```yaml
+              delaySeconds:
+                control: "TEMPO"
+                read: tapped
+                scannedBy: U1
+                ratio: 0.75
+                tap:
+                  presses: 5
+                  timeoutSeconds: 2
+                  defaultSeconds: 0.3
+                min: 0.001
+                max: 0.05
+                source: "Service notes, MODE table"
+```
+
+parses to:
+
+```json
+{
+  "control": "TEMPO",
+  "read": "tapped",
+  "scannedBy": "U1",
+  "ratio": 0.75,
+  "tap": {
+    "presses": 5,
+    "timeoutSeconds": 2,
+    "defaultSeconds": 0.3
+  },
+  "min": 0.001,
+  "max": 0.05,
+  "source": "Service notes, MODE table"
+}
+```
+
+A tap law with one press is refused:
+
+```text
+components[0].program.positions[0].lines.dl.delaySeconds.tap.presses: a tempo needs at least two presses, got 1
+```
+
+The parser also refuses a tap law off a tapped read, a `ratio` off a tapped
+read, and a non-positive tap time.
+
+## A microcontroller's firmware rule
+
+`component.controller` (`ComponentController`) carries what a
+microcontroller's firmware does with the panel, for a chip whose firmware
+cannot be read. Wiring is never declared here: which pin a switch reaches and
+what an output pin drives are the circuit's. Only the firmware's rule is.
+`latches` is required and non-empty. Each latch has a required `id` (a control
+id a program reads like a knob), a required `toggledBy` naming the panel
+control whose press flips it, a required `initial` of `0` or `1`, and a
+required non-empty `source`. The parser refuses no latches, an `initial`
+other than 0 or 1, an empty citation, and a duplicate latch.
+
+`pins` is optional. Each pin names a `terminal` the component has, carries a
+required `source`, takes exactly one rule (`follows` a declared latch, or
+`highAt`, covered next), and accepts optional `invert`. A component that
+drives pins must declare `supplyPositive` and `supplyNegative` terminals: a
+pin's levels are the chip's own supply. (`ic` accepts those roles opt-in.)
+
+```yaml
+components:
+  - id: CPU
+    kind: ic
+    name: CPU
+    sourceTypeName: null
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: p10
+        role: pin
+        node: 1
+        position:
+          x: 0
+          y: 0
+      - name: p12
+        role: pin
+        node: 2
+        position:
+          x: 10
+          y: 0
+      - name: vcc
+        role: supplyPositive
+        node: 3
+        position:
+          x: 20
+          y: 0
+      - name: vss
+        role: supplyNegative
+        node: 0
+        position:
+          x: 30
+          y: 0
+    controller:
+      latches:
+        - id: EFFECT
+          toggledBy: SW1
+          initial: 0
+          source: "Owner's manual p.6"
+      pins:
+        - terminal: p12
+          follows: EFFECT
+          source: "Service notes p.3"
+        - terminal: p10
+          follows: EFFECT
+          invert: true
+          source: "test"
+    properties: {}
+```
+
+Parsing gives:
+
+```json
+{
+  "latches": [
+    {
+      "id": "EFFECT",
+      "toggledBy": "SW1",
+      "initial": 0,
+      "source": "Owner's manual p.6"
+    }
+  ],
+  "pins": [
+    {
+      "terminal": "p12",
+      "source": "Service notes p.3",
+      "follows": "EFFECT"
+    },
+    {
+      "terminal": "p10",
+      "invert": true,
+      "source": "test",
+      "follows": "EFFECT"
+    }
+  ]
+}
+```
+
+A pin following a latch the controller does not declare is refused:
+
+```text
+components[0].controller.pins[0].follows: "HOLD" is not a latch this controller declares
+```
+
+The parser also refuses a pin on a terminal the chip does not have, and pins
+on a chip with no declared supply.
+
+## A pin held high at a control's detents
+
+A `ControllerPin` takes exactly one rule: `follows` a latch, or `highAt:
+{ control, positions }`, which holds the pin at the chip's supply at the
+listed zero-based detents and at its ground everywhere else. `invert` reverses
+either rule. The parser refuses a pin with neither rule or both, and an empty
+or repeated position list.
+
+```yaml
+      pins:
+        - terminal: p10
+          highAt:
+            control: MODE
+            positions:
+              - 6
+          source: "Owner's manual p.7"
+```
+
+parses to:
+
+```json
+[
+  {
+    "terminal": "p10",
+    "source": "Owner's manual p.7",
+    "highAt": {
+      "control": "MODE",
+      "positions": [
+        6
+      ]
+    }
+  }
+]
+```
+
+A pin declaring both rules is refused:
+
+```text
+components[0].controller.pins[0]: a pin is driven by exactly one rule, "follows" or "highAt"
+```
+
+## Terminal roles
+
+Every terminal carries its electrode role in a typed `role` field, checked
+against the vocabulary its component kind accepts. `classifyDeviceTerminalRole`
+classifies one terminal name against a device kind's vocabulary (tubes and
+transistors), returning `canonical`, `ambiguous`, `package-pin`,
+`unrecognized`, or `out-of-scope` for a kind the module does not cover.
+`isLegalTerminalRole` reports whether a role is a legal declaration for a
+kind, and `resolveComponentTerminalRoles` resolves every canonical role in a
+terminal name list. `ic`, `bbd`, and `delay-ic` terminals may declare `input`
+and `output` for an opaque chip's audio boundary; `pin` stays legal and stays
+the default. `ic` additionally accepts opt-in `supplyPositive` and
+`supplyNegative` for controllers that drive pins. An electrode role belonging
+to another kind is reported with the code `terminal-role-illegal`.
+
+```ts
+import {
+  classifyDeviceTerminalRole,
+  isLegalTerminalRole,
+  resolveComponentTerminalRoles,
+  collectTerminalRoleWarnings,
+} from "@vessel-dsp/core";
+
+classifyDeviceTerminalRole("bjt", "base");
+// { status: "canonical", role: "base" }
+
+classifyDeviceTerminalRole("bjt", "plate");
+// { status: "unrecognized" }
+
+classifyDeviceTerminalRole("resistor", "base");
+// { status: "out-of-scope" }
+
+[...resolveComponentTerminalRoles("bjt", ["base", "collector", "emitter"])];
+// [["base", "base"], ["collector", "collector"], ["emitter", "emitter"]]
+
+isLegalTerminalRole("ic", "input"); // true
+isLegalTerminalRole("ic", "wiper"); // false
+
+collectTerminalRoleWarnings([
+  { id: "F1", kind: "fuse", terminals: [{ name: "a", role: "cathode" }] },
+]);
+// [{ code: "terminal-role-illegal", message: "terminal \"a\" declares role \"cathode\", which a fuse cannot carry; legal roles: end, positive, negative, pin", componentId: "F1" }]
+```
+
+## Power domains
+
+`circuit-interchange/v3` carries an optional typed `circuit-power/v1` power
+topology block (`CircuitPower`): supply `domains`, ground polarity, and rail
+role and derivation, without a new document schema version. Each
+`CircuitPowerDomain` has a required `id`, required `sourceComponentIds`,
+required `groundPolarity` (`negative-ground`, `positive-ground`, or
+`bipolar`), optional `ratedVoltage` and `sourceKind` (`mains-ac` or
+`external-dc`), and a `rails` list. Each `CircuitPowerRailBinding` names a
+required `railComponentId`, a required `role` (`main-supply`,
+`bias-reference`, `regulated-output`, `charge-pump-output`, or
+`negative-supply`), a required `derivation` (`direct`, `divider`, `regulator`,
+`inverter`, `doubler`, `isolated`, or `unspecified`), and optional
+`parentRailComponentId`, `converterComponentId`, and `nominalVoltage`.
+Validation reports unresolved source, rail, parent-rail, and converter
+component references, duplicate domain ids, duplicate rail ownership across
+domains, `parentRailComponentId` cycles, and `coverage`/`domains`
+consistency.
+
+Parsing the `voltage-divider-power-topology` fixture gives this `power`
+value:
+
+```json
+{
+  "schema": "circuit-power/v1",
+  "coverage": "explicit-topology",
+  "domains": [
+    {
+      "id": "main",
+      "sourceComponentIds": [
+        "BATT1"
+      ],
+      "ratedVoltage": {
+        "raw": "9V",
+        "value": 9,
+        "unit": "V"
+      },
+      "groundPolarity": "negative-ground",
+      "rails": [
+        {
+          "railComponentId": "RAIL_MAIN",
+          "role": "main-supply",
+          "derivation": "direct"
+        },
+        {
+          "railComponentId": "RAIL_BIAS",
+          "role": "bias-reference",
+          "derivation": "divider",
+          "parentRailComponentId": "RAIL_MAIN",
+          "nominalVoltage": {
+            "raw": "4.5V",
+            "value": 4.5,
+            "unit": "V"
+          }
+        }
+      ],
+      "sourceKind": "external-dc"
+    }
+  ]
+}
+```

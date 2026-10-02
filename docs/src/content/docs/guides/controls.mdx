@@ -33,6 +33,7 @@ type Panel = {
 	sliders?: readonly SliderControl[];
 	switches: readonly SwitchControl[];
 	leds: readonly LedIndicator[];
+	displays?: readonly DisplayIndicator[];
 	jacks: readonly JackPort[];
 };
 ```
@@ -133,6 +134,82 @@ Jacks prefer semantic metadata over source type fallback:
 If semantic metadata is missing, source type names such as `Circuit.Input`,
 `Circuit.Speaker`, `ltspice:InputJack`, and `ltspice:OutputJack` provide the
 basic jack role.
+
+## Display indicators
+
+Components with `kind: "display"` become `DisplayIndicator` entries in
+`panel.displays`. A display carries visible panel metadata only: its display
+kind, bus, grid dimensions, driver component link, and default text. Core adds
+no display runtime values, framebuffer or matrix protocol, or runtime-driven
+display updates.
+
+```ts
+type DisplayIndicator = {
+	id: string;
+	name: string;
+	displayKind: DisplayKind;
+	bus?: DisplayBusKind;
+	grid?: DisplayGrid;
+	driverComponentId?: string;
+	sourceComponentId?: string;
+	partNumber?: string;
+	description?: string;
+	defaultText?: readonly string[];
+};
+```
+
+`DisplayKind` is one of `lcd-character`, `lcd-graphic`, `oled`,
+`seven-segment`, `led-matrix`, `custom`, or `unknown`. `DisplayBusKind` is one
+of `i2c`, `spi`, `parallel`, `gpio`, `serial`, `module-internal`, or `unknown`.
+`DisplayGrid` holds `rows` and `columns`. The extractor reads the kind from the
+`DisplayKind`, `Kind`, `DisplayType`, or `Type` property (falling back to
+`PartNumber` or `Model`, then `unknown`), the bus from the `Bus` property, the
+grid from a `CharacterGrid` value such as `"16x2"` or from numeric `Rows` and
+`Columns` properties, the driver link from `DriverComponentId`, and default
+text from `DefaultText`.
+
+Parsing a `.vdsp` file with this component:
+
+```yaml
+components:
+  - id: DISP1
+    kind: display
+    name: Screen
+    origin:
+      x: 40
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals: []
+    properties:
+      DisplayKind: oled
+      Bus: i2c
+      CharacterGrid: "16x2"
+      DriverComponentId: U1
+      PartNumber: SSD1306
+      Description: Status screen
+```
+
+and running `extractPanel(document)` returns this `panel.displays` value:
+
+```json
+[
+  {
+    "id": "DISP1",
+    "name": "Screen",
+    "displayKind": "oled",
+    "bus": "i2c",
+    "grid": {
+      "rows": 2,
+      "columns": 16
+    },
+    "driverComponentId": "U1",
+    "sourceComponentId": "DISP1",
+    "partNumber": "SSD1306",
+    "description": "Status screen"
+  }
+]
+```
 
 ## Semantic control roles
 

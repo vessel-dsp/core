@@ -73,8 +73,8 @@ const lossyCircuitJson = convertCircuitDocumentFileWithReport(vdsp, {
 
 ## Supported Conversion Inputs
 
-- Project-native `.vdsp` Source documents (`circuit-interchange/v2` and
-  `circuit-interchange/v3` YAML)
+- Project-native `.vdsp` Source documents (`circuit-interchange/v2`,
+  `circuit-interchange/v3`, and `circuit-interchange/v4` YAML)
 - LTspice `.asc`
 - LiveSPICE `.schx`
 - tscircuit `.circuit.json`
@@ -89,6 +89,11 @@ reported by validation as `appearance-invalid` when mixed. Conversion from v3
 `.vdsp` to formats that cannot preserve those fields errors by default; use
 `convertCircuitDocumentFileWithReport()` with `lossPolicy:
 'drop-with-diagnostics'` only when that loss is intentional.
+
+`.vdsp` v4 is a superset of v3 that additionally requires a top-level `audio`
+block declaring `audio.input`, `audio.output`, and `audio.bypass` (`{ switch,
+engagedPosition }` or the literal `"none"` when the circuit has no bypass
+switch).
 
 `.vdsp` is also the portable source-visible circuit document for simulation
 hosts. It can carry schematic layout, source component identity, reference

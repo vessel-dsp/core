@@ -61,7 +61,12 @@ const lossyReport = convertCircuitDocumentFileWithReport(vdsp, {
 
 V1 bidirectional source parsing covers:
 
-- `.vdsp` strict `circuit-interchange/v2` and `circuit-interchange/v3` YAML
+- `.vdsp` strict `circuit-interchange/v2`, `circuit-interchange/v3`, and
+  `circuit-interchange/v4` YAML (`circuit-interchange/v1` is refused). v4
+  requires a top-level `audio` block declaring `audio.input`, `audio.output`,
+  and `audio.bypass` (`{ switch, engagedPosition }` or the literal `"none"`);
+  v3 accepts the same block optionally and validates it when present, while v2
+  refuses it.
 - LTspice `.asc`
 - LiveSPICE `.schx`
 

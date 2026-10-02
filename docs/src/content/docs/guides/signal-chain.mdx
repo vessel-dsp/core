@@ -185,6 +185,12 @@ The host passes the wasm bytes to `instantiateNamEngine` because an
 `AudioWorkletGlobalScope` has no `fetch`. Instantiation is asynchronous and
 belongs to the caller; the node itself is synchronous.
 
+Supported architectures are whatever the pinned engine parses: `Linear`,
+`ConvNet`, `WaveNet`, `LSTM`, and the A2/slimmable variants. A synthetic
+`ConvNet` model (one channel, dilations `[1]`, no batchnorm, ReLU activation)
+loads through `NamNode` and processes audio; the node does not inspect the
+model beyond the sample rate and loudness the engine reports.
+
 - The engine owns loudness normalisation. It applies NAM's `Normalized` output
   mode with a target of -18 dB inside `nam_process`; the node adds no loudness
   gain of its own. `getInfo().loudness` reports what the engine did.

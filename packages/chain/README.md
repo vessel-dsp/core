@@ -42,8 +42,8 @@ access.
 plain WebAssembly, which ships in this package as `nam-engine/nam-engine.wasm`
 with its glue `nam-engine/nam-engine.js` (MIT; see `nam-engine/NOTICE.md`).
 
-- **Architectures:** whatever the pinned engine supports -- `Linear`, `WaveNet`,
-  `LSTM`, and the A2/slimmable variants. The engine parses the model; the node
+- **Architectures:** whatever the pinned engine supports -- `Linear`,
+  `ConvNet`, `WaveNet`, `LSTM`, and the A2/slimmable variants. The engine parses the model; the node
   does not inspect it beyond the sample rate and loudness the engine reports.
 - **The host passes the wasm bytes.** Instantiate the glue with
   `instantiateNamEngine(wasmBytes, factory)` and hand the resulting module to

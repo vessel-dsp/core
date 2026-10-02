@@ -16,14 +16,24 @@ The published packages are:
 | `@vessel-dsp/visual-effects` | Share Three.js toon, grain, and glitch effect preset helpers across generated preview viewers. |
 | `@vessel-dsp/amp` | Generate deterministic amplifier preview layouts, Three.js object graphs, and GLB preview payloads from compact amp profiles. |
 | `@vessel-dsp/cabinet` | Generate deterministic speaker cabinet preview layouts, Three.js object graphs, and GLB preview payloads from compact cabinet profiles. |
+| `@vessel-dsp/compiler` | Compile `.vdsp` / `CircuitDocument` schematic data into executable simulation `Program` ROMs (version 0.1.0, not yet published to npm). |
+| `@vessel-dsp/runtime` | Run compiled `Program` ROMs through a real-time MNA simulation runtime and solver console (version 0.1.0, not yet published to npm). |
+| `@vessel-dsp/chain` | Build a headless audio signal chain graph: guitar input profiling, compiled circuit runtimes, amp shaping, NAM playback, cabinet IR convolution, and master output (version 0.1.0, not yet published to npm). |
+| `@vessel-dsp/player` | Embed a `<vessel-player>` HTML custom element and Web Audio player for circuits, guitar profiling, NAM, and cabinet IRs (version 0.1.0, not yet published to npm). |
 
-Core and stompbox are headless. They do not ship a browser editor, realtime
-simulator, or custom schematic rendering surface. Core still treats `.vdsp` as
-the portable source-visible CircuitDocument for those hosts: downstream apps can
-render a source-like schematic, simulate a lowered runtime graph, and explain
-which source sections became explicit primitives, MNA islands, reusable kernels,
-macro DSP, or view-only evidence. Use downstream tscircuit applications to
-render or edit emitted Circuit JSON.
+Core and stompbox are headless. They do not ship a browser editor or custom
+schematic rendering surface. Realtime simulation lives in the newer workspace
+packages: `@vessel-dsp/compiler` lowers source schematics to simulation
+programs, `@vessel-dsp/runtime` solves them, `@vessel-dsp/chain` arranges
+runtimes with profiling, amp shaping, NAM, and cabinet IR nodes, and
+`@vessel-dsp/player` embeds the result as a Web Audio custom element. Core
+still treats `.vdsp` as the portable source-visible CircuitDocument for those
+hosts: downstream apps can render a source-like schematic, simulate a lowered
+runtime graph, and explain which source sections became explicit primitives,
+MNA islands, reusable kernels, macro DSP, or view-only evidence. Use downstream
+tscircuit applications to render or edit emitted Circuit JSON. See the
+[Signal Chain](/core/guides/signal-chain/) guide to arrange compiler, runtime,
+and chain nodes.
 
 ## Core data flow
 
@@ -83,4 +93,5 @@ brand/model metadata are enough.
 - [Generated 3D Previews](/core/guides/generated-3d-previews/) covers amp/cabinet profile visualization and reusable Three.js effects.
 - [Controls](/core/guides/controls/) explains how core derives `Panel` controls from imported schematics and `.vdsp` metadata.
 - [Control UI](/core/guides/control-ui/) covers React controls, default CSS, class hooks, and theming.
+- [Signal Chain](/core/guides/signal-chain/) covers headless guitar signal chains with input profiling, amp shaping, cabinet IR convolution, and NAM playback.
 - [API Reference](/core/reference/api/readme/) is generated from the public TypeScript entrypoints.

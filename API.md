@@ -80,7 +80,7 @@ unsupported element families where they affect `CircuitDocument`.
 
 | Export | Purpose |
 | --- | --- |
-| `serializeVdspCircuitDocument(document, options?)` | Serializes strict `circuit-interchange/v2` YAML. |
+| `serializeVdspCircuitDocument(document, options?)` | Serializes `.vdsp` YAML, writing the document's own `interchangeSchema` (`circuit-interchange/v2`, `v3`, or `v4`) for parsed documents, and inferring `v3` (audio or v3-only fields present) or `v2` for constructed documents. |
 | `serializeSchx(document)` | Serializes LiveSPICE `.schx`. |
 | `serializeLtspiceAsc(document, options?)` | Serializes LTspice `.asc`. |
 | `serializeSpiceNetlist(document)` | Serializes legacy SPICE-style netlist output. |
