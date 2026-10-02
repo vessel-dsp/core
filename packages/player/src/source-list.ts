@@ -43,20 +43,33 @@ export function deriveSourceId(index: number): string {
  * as protocol-relative URLs (//host/...) which are not same-origin
  * relative. Leading and trailing whitespace is trimmed before the check.
  */
-export function isSafeSrc(src: string): boolean {
+export function isSafeSrc(src: string, baseUrl = "https://player.invalid/"): boolean {
 	const trimmed = src.trim();
 	if (trimmed === "") {
 		return false;
 	}
-	const schemeMatch = /^[A-Za-z][A-Za-z0-9+.-]*:/.exec(trimmed);
-	if (schemeMatch === null) {
-		if (trimmed.startsWith("//")) {
-			return false;
-		}
-		return true;
+	// Browsers strip tabs, newlines and leading control characters before reading
+	// the scheme, so "java<TAB>script:x" and "<NUL>javascript:x" are javascript: URLs
+	// to a browser. A regex over the raw text cannot see that, so refuse any control
+	// character outright, and any backslash, which browsers read as a slash and which
+	// turns "\\host/x" into a cross-origin URL.
+	if (/[\u0000-\u001f\u007f\\]/.test(trimmed)) {
+		return false;
 	}
-	const scheme = trimmed.slice(0, schemeMatch[0].length - 1).toLowerCase();
-	return scheme === "http" || scheme === "https";
+	let resolved: URL;
+	try {
+		resolved = new URL(trimmed, baseUrl);
+	} catch {
+		return false;
+	}
+	if (resolved.protocol !== "http:" && resolved.protocol !== "https:") {
+		return false;
+	}
+	// A scheme-less reference is documented as same-origin: refuse "//host/x".
+	if (!/^[A-Za-z][A-Za-z0-9+.-]*:/.test(trimmed) && trimmed.startsWith("//")) {
+		return false;
+	}
+	return true;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

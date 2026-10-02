@@ -20,5 +20,5 @@
 			"@vessel-dsp/player/*": ["packages/player/src/*"]
 		}
 	},
-	"include": ["src/**/*"]
+	"include": ["src/**/*", "../../tests/player/**/*"]
 }

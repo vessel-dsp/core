@@ -18,6 +18,7 @@ import {
 	type PlayerTelemetry,
 	type SourceItem,
 } from "./types.js";
+import { isSafeSrc } from "./source-list.js";
 
 export interface PlayerControllerOptions {
 	readonly src?: string | null;
@@ -63,6 +64,7 @@ export class PlayerController {
 	private fallbackReasonValue: "no-engine" | EngineUnavailableReason | null = null;
 	private vdspValue: string | null = null;
 	private fallbackUrlValue: string | null = null;
+	private fallbackRefusalValue: "unsafe-src" | null = null;
 	private inputSources: SourceItem[] = [];
 	private namSources: SourceItem[] = [];
 	private irSources: SourceItem[] = [];
@@ -95,7 +97,7 @@ export class PlayerController {
 		this.inputSources = options?.inputs ? [...options.inputs] : [];
 		this.namSources = options?.nam ? [...options.nam] : [];
 		this.irSources = options?.ir ? [...options.ir] : [];
-		this.fallbackUrlValue = options?.fallbackUrl ?? null;
+		this.applyFallbackUrl(options?.fallbackUrl ?? null);
 		this.rebuildInputChoices();
 		this.vdspValue = options?.src ?? null;
 		this.enterInitialState();
@@ -238,7 +240,25 @@ export class PlayerController {
 
 	setFallbackUrl(url: string | null): void {
 		this.throwIfDisposed();
+		this.applyFallbackUrl(url);
+	}
+
+	/**
+	 * A fallback URL that fails the same safety check as the source lists is treated as
+	 * absent, and the refusal is readable through `fallbackRefusal`.
+	 */
+	private applyFallbackUrl(url: string | null): void {
+		if (url !== null && !isSafeSrc(url)) {
+			this.fallbackUrlValue = null;
+			this.fallbackRefusalValue = "unsafe-src";
+			return;
+		}
 		this.fallbackUrlValue = url;
+		this.fallbackRefusalValue = null;
+	}
+
+	get fallbackRefusal(): "unsafe-src" | null {
+		return this.fallbackRefusalValue;
 	}
 
 	/**

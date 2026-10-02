@@ -328,6 +328,9 @@ export class VesselPlayerElement extends HTMLElementBase {
 			case "playing":
 				return "Playing.";
 			case "fallback":
+				if (this.controller?.fallbackRefusal === "unsafe-src") {
+					return "No player engine, and the fallback audio URL was refused as unsafe.";
+				}
 				return this.controller?.fallbackUrl
 					? "No player engine: playing the pre-rendered fallback audio."
 					: "No player engine and no fallback audio.";
@@ -388,9 +391,12 @@ export class VesselPlayerElement extends HTMLElementBase {
 		const transportLabel = state === "playing" ? "Pause" : "Play";
 		const transportDisabled = state === "playing" || state === "ready" ? "" : " disabled";
 
-		root.innerHTML = `
-      <style>${STYLES}</style>
-      <div class="row">
+		// In the fallback state there is no engine to drive, so the transport, the pickers and the
+		// controls would do nothing: show only the fallback audio (or the message) and the status.
+		const interactiveBlock =
+			state === "fallback"
+				? ""
+				: `<div class="row">
         <button type="button" data-action="transport"${transportDisabled}>${transportLabel}</button>
       </div>
       <div class="row">
@@ -398,7 +404,11 @@ export class VesselPlayerElement extends HTMLElementBase {
         <div class="field"><label for="player-nam">NAM model</label><select id="player-nam" data-picker="nam">${namOptions}</select></div>
         <div class="field"><label for="player-ir">Impulse response</label><select id="player-ir" data-picker="ir">${irOptions}</select></div>
       </div>
-      <div class="controls">${controlInputs}</div>
+      <div class="controls">${controlInputs}</div>`;
+
+		root.innerHTML = `
+      <style>${STYLES}</style>
+      ${interactiveBlock}
       ${fallbackBlock}
       <p class="status" aria-live="polite">${escapeHtml(this.describeStatus(state))}</p>
       <p class="error" role="alert">${errorText ? escapeHtml(errorText) : ""}</p>
