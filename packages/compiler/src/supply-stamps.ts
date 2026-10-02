@@ -10,29 +10,52 @@
 // to the compiled stamps.
 //
 // Typed evidence only. This module never reads component names, designators,
-// descriptions, or any other prose: a rail is its `railComponentId`, a node is
-// the connectivity pin map, and a stamp is its terminal rows. Renaming every
+// descriptions, or any other prose: a rail is its `railComponentId`, a source
+// is its lowered device kind, and a stamp is its terminal rows. Renaming every
 // component in the document without touching the typed linkage returns the
 // same resolution.
 //
-// Connectivity note. `CircuitDocument` carries no declared `node:` ledger --
-// the interchange parser drops it and `Terminal` has no node field -- so the
-// document side is read with `resolveConnectivity`, the same geometric
-// resolver the compiler falls back to when a document declares no nodes. For a
-// document whose connectivity is purely geometric, core's ids and the
-// compiler's internal ids agree (ground is 0, the rest follow document order),
-// and `block.nodeIds` translates a stamp's row back to exactly such an id
-// (`lower.ts` builds `nodeIds` as row -> source `NodeId`). A document that
-// relies solely on a declared ledger with no matching geometry will resolve to
-// `no-stamp-for-rail` rather than to a guessed stamp: refusing is the honest
-// answer when the evidence is not in view.
+// Two joins, both through the compiler's own lowering rather than geometry:
+//
+// 1. Source kind. Most real packets predate `sourceKind`, so when it is
+//    absent the domain's `sourceComponentIds` are classified by the same typed
+//    discriminator the device laws use (`device-laws.ts`): a `voltage-source`
+//    device with a positive finite `frequency` parameter lowers to `ac-source`
+//    and everything else in that kind lowers to `dc-source`; a `rail` with a
+//    finite `volts` parameter lowers to `voltage-source` and without one stays
+//    `open`; a `transformer` is mains-side magnetics. Any mains evidence makes
+//    the domain mains: a boundary touching the wall socket is mains-fed even
+//    when it also names DC rails downstream of its rectifier. An explicit
+//    `sourceKind` still wins, and a clean contradiction between it and the
+//    lowered evidence is its own refusal rather than a silent override.
+// 2. Rail to stamp. The rail's device is read from the compiler netlist
+//    (`readNetlist`, the same stage `compile` runs first, so declared `node:`
+//    keys and the `nodes:` ledger resolve exactly as they did at compile
+//    time), and its nodes are matched to `dc-source` stamps through
+//    `block.nodeIds`, which translates a stamp's row back to its source node
+//    (`lower.ts` builds `nodeIds` as row -> source `NodeId`). Either terminal
+//    may identify the rail -- a battery-style supply hangs it off one end or
+//    the other depending on grounding, while a single-ended `rail` asserts
+//    its potential on the positive terminal with the sign in its volts --
+//    except ground on the negative side: node 0 is the common return every
+//    supply shares, so it can never name a rail. A port or label rail lowers
+//    to no device and therefore maps to no stamp: it asserts nothing, so
+//    `no-stamp-for-rail` is the honest answer, not a guess at the battery
+//    beside it.
+//
+// The inputs are the `.vdsp` source text and the program compiled from it (the
+// node resolution does not depend on compile jack options, so none are taken).
+// Pure: reads both inputs, mutates neither, and leaves the program's stamps
+// exactly as compiled. A source text that cannot be read throws exactly as
+// `compile` does on the same text.
 
 import {
-	getPinNode,
-	resolveConnectivity,
+	parseInterchangeYaml,
 	type CircuitDocument,
 } from "@vessel-dsp/core";
-import type { Program } from "./types";
+import { readNetlist } from "./netlist";
+import type { Device, Program } from "./types";
+import { GROUND } from "./types";
 
 /** Where a supply stamp lives: which block holds it and which source it is. */
 export type SupplyAddress = {
@@ -57,6 +80,7 @@ export type SupplyRefusalReason =
 	| "no-power-section"
 	| "mains-ac-source"
 	| "unknown-source-kind"
+	| "source-kind-conflict"
 	| "derived-rail"
 	| "rail-not-main-supply"
 	| "no-stamp-for-rail"
@@ -74,23 +98,63 @@ export type SupplyResolution = {
 };
 
 /**
+ * What a source component contributes to its domain, read from the lowered
+ * device the same way the device laws read it -- never from names or prose.
+ */
+type SourceEvidence = "dc" | "ac" | "none";
+
+function sourceEvidence(device: Device): SourceEvidence {
+	// Mirrors the `voltage-source` law: a positive finite `frequency`
+	// parameter is what makes the device an AC source; presence of the
+	// parameter, not anything in the packet's prose, is the discriminator.
+	if (device.kind === "voltage-source") {
+		const frequency = device.parameters.frequency;
+		return frequency !== undefined &&
+			Number.isFinite(frequency) &&
+			frequency > 0
+			? "ac"
+			: "dc";
+	}
+	// Mirrors the `rail` law: a rail with a finite declared voltage asserts a
+	// potential (a `voltage-source` law); one without stays `open`.
+	if (device.kind === "rail") {
+		const volts = device.parameters.volts;
+		return typeof volts === "number" && Number.isFinite(volts)
+			? "dc"
+			: "none";
+	}
+	// Mains-side magnetics: not a `dc-source` stamp, but mains evidence the
+	// same way an `ac-source` device is.
+	if (device.kind === "transformer") {
+		return "ac";
+	}
+	return "none";
+}
+
+/**
  * Join the document's power domains to the program's `dc-source` stamps.
  *
- * Only rails in an `external-dc` domain whose `derivation` is `direct` and
- * whose `role` is `main-supply` are candidates. Each candidate's
- * `railComponentId` resolves through the document connectivity to the node its
- * terminals sit on; the supply is the single `dc-source` stamp whose
- * supply-side terminal is that node -- the positive terminal, or the negative
- * terminal for a `positive-ground` domain, where the rail runs below ground.
- * Zero or several such stamps is a refusal naming the rail, never a guess.
- *
- * Pure: reads both inputs, mutates neither, and leaves the program's stamps
- * exactly as compiled.
+ * Only rails in an `external-dc` domain -- declared, or inferred from the
+ * domain's source components when `sourceKind` is absent -- whose
+ * `derivation` is `direct` and whose `role` is `main-supply` are candidates.
+ * Each candidate's `railComponentId` resolves to its lowered device, whose
+ * nodes are matched to the single `dc-source` stamp with a terminal on one
+ * of them. Zero or several such stamps is a refusal naming the rail, never
+ * a guess.
  */
 export function resolveSupplyStamps(
-	document: CircuitDocument,
+	source: string,
 	program: Program,
 ): SupplyResolution {
+	const document: CircuitDocument = parseInterchangeYaml(source);
+	const netlist = readNetlist(source);
+	const deviceById = new Map(
+		netlist.devices.map((device) => [device.id, device] as const),
+	);
+	const componentById = new Map(
+		document.components.map((component) => [component.id, component] as const),
+	);
+
 	const power = document.power;
 	if (power === undefined || power.domains.length === 0) {
 		return {
@@ -106,16 +170,44 @@ export function resolveSupplyStamps(
 		};
 	}
 
-	const connectivity = resolveConnectivity(document);
-	const componentById = new Map(
-		document.components.map((component) => [component.id, component] as const),
-	);
-
 	const supplies: ResolvedSupply[] = [];
 	const refused: RefusedSupply[] = [];
 
 	for (const domain of power.domains) {
-		if (domain.sourceKind === "mains-ac") {
+		const evidence = domain.sourceComponentIds.map(
+			(id) => sourceEvidenceOf(deviceById.get(id)),
+		);
+		const dc = evidence.filter((kind) => kind === "dc").length;
+		const ac = evidence.filter((kind) => kind === "ac").length;
+		// Any mains evidence makes the domain mains: a boundary touching the
+		// wall socket is mains-fed even when it also names DC rails downstream
+		// of its rectifier (the amp B+ case). Pure DC evidence is external.
+		const inferred =
+			ac > 0
+				? ("mains-ac" as const)
+				: dc > 0
+					? ("external-dc" as const)
+					: undefined;
+		const explicit = domain.sourceKind;
+		if (explicit !== undefined && inferred !== undefined && explicit !== inferred) {
+			if (domain.rails.length === 0) {
+				refused.push({
+					railComponentId: null,
+					reason: "source-kind-conflict",
+					detail: `domain "${domain.id}" declares sourceKind "${explicit}" but its source components lower as ${inferred === "mains-ac" ? "mains" : "external DC"}, so nothing in it can be trusted as external: it keeps its compiled values.`,
+				});
+			}
+			for (const rail of domain.rails) {
+				refused.push({
+					railComponentId: rail.railComponentId,
+					reason: "source-kind-conflict",
+					detail: `domain "${domain.id}" declares sourceKind "${explicit}" but its source components lower as ${inferred === "mains-ac" ? "mains" : "external DC"}: rail "${rail.railComponentId}" keeps its compiled values.`,
+				});
+			}
+			continue;
+		}
+		const effective = explicit ?? inferred;
+		if (effective === "mains-ac") {
 			if (domain.rails.length === 0) {
 				refused.push({
 					railComponentId: null,
@@ -132,19 +224,19 @@ export function resolveSupplyStamps(
 			}
 			continue;
 		}
-		if (domain.sourceKind === undefined) {
+		if (effective === undefined) {
 			if (domain.rails.length === 0) {
 				refused.push({
 					railComponentId: null,
 					reason: "unknown-source-kind",
-					detail: `domain "${domain.id}" declares no sourceKind and no rails, so nothing can be shown external.`,
+					detail: `domain "${domain.id}" declares no sourceKind and its source components show no external DC or mains evidence, so nothing can be shown external.`,
 				});
 			}
 			for (const rail of domain.rails) {
 				refused.push({
 					railComponentId: rail.railComponentId,
 					reason: "unknown-source-kind",
-					detail: `domain "${domain.id}" declares no sourceKind, so rail "${rail.railComponentId}" cannot be shown external or derived: it keeps its compiled values.`,
+					detail: `domain "${domain.id}" declares no sourceKind and its source components show no external DC or mains evidence, so rail "${rail.railComponentId}" cannot be shown external or derived: it keeps its compiled values.`,
 				});
 			}
 			continue;
@@ -166,30 +258,20 @@ export function resolveSupplyStamps(
 				});
 				continue;
 			}
-			const component = componentById.get(rail.railComponentId);
-			if (component === undefined) {
+			const device = deviceById.get(rail.railComponentId);
+			if (device === undefined) {
+				const component = componentById.get(rail.railComponentId);
 				refused.push({
 					railComponentId: rail.railComponentId,
 					reason: "no-stamp-for-rail",
-					detail: `rail "${rail.railComponentId}" names a component the document does not contain, so no node can be resolved for it and nothing is mapped.`,
+					detail:
+						component === undefined
+							? `rail "${rail.railComponentId}" names a component the document does not contain, so no node can be resolved for it and nothing is mapped.`
+							: `rail "${rail.railComponentId}" is a ${component.kind} symbol with no lowered device, so no stamp can carry it and nothing is mapped.`,
 				});
 				continue;
 			}
-			const railNodes = new Set<number>();
-			for (const terminal of component.terminals) {
-				const node = getPinNode(connectivity, {
-					componentId: component.id,
-					terminalName: terminal.name,
-				});
-				if (node !== undefined) {
-					railNodes.add(node);
-				}
-			}
-			// A positive-ground supply runs its rail below ground: the rail is the
-			// stamp's negative terminal. Every other polarity hangs the rail off
-			// the positive terminal, including bipolar, whose main supply is the
-			// positive rail of the pair.
-			const positiveGround = domain.groundPolarity === "positive-ground";
+			const railNodes = new Set<number>(device.nodes);
 			const matches: SupplyAddress[] = [];
 			program.blocks.forEach((block, blockIndex) => {
 				if (block.kind !== "mna") {
@@ -199,9 +281,23 @@ export function resolveSupplyStamps(
 					if (stamp.kind !== "dc-source") {
 						continue;
 					}
-					const row = positiveGround ? stamp.negative : stamp.positive;
-					const sourceNode: number | undefined = block.nodeIds[row];
-					if (sourceNode !== undefined && railNodes.has(sourceNode)) {
+					// Either terminal may identify the rail: a battery-style
+					// supply hangs it off one end or the other depending on
+					// grounding, while a single-ended rail asserts its
+					// potential on the positive terminal with the sign in its
+					// volts (the germanium positive-ground case). Ground on
+					// the negative side never counts: node 0 is the common
+					// return every supply shares, so it cannot name a rail.
+					const positiveNode: number | undefined =
+						block.nodeIds[stamp.positive];
+					const negativeNode: number | undefined =
+						block.nodeIds[stamp.negative];
+					const touches =
+						(positiveNode !== undefined && railNodes.has(positiveNode)) ||
+						(negativeNode !== undefined &&
+							negativeNode !== GROUND &&
+							railNodes.has(negativeNode));
+					if (touches) {
 						matches.push({ blockIndex, sourceIndex: stamp.sourceIndex });
 					}
 				}
@@ -239,4 +335,8 @@ export function resolveSupplyStamps(
 	}
 
 	return { supplies, refused };
+}
+
+function sourceEvidenceOf(device: Device | undefined): SourceEvidence {
+	return device === undefined ? "none" : sourceEvidence(device);
 }
