@@ -1,4 +1,5 @@
 export * from "./chain.js";
+export { resampleImpulseResponse } from "./ir-resample.js";
 export * from "./nam/engine.js";
 export * from "./nodes/amp-shaper-node.js";
 export * from "./nodes/gain-node.js";

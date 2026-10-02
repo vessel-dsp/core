@@ -1,4 +1,5 @@
 import type { ChainNode } from "../types.js";
+import { resampleImpulseResponse } from "../ir-resample.js";
 
 export interface CabinetIrConfig {
 	id?: string;
@@ -78,37 +79,6 @@ function spectrumOfBlock(block: Float64Array): {
 	}
 	fftInPlace(re, im, false);
 	return { re, im };
-}
-
-function resampleIrWindowedSinc(
-	input: Float64Array,
-	sourceRate: number,
-	targetRate: number,
-): Float64Array {
-	if (!(sourceRate > 0) || !(targetRate > 0) || sourceRate === targetRate) {
-		return new Float64Array(input);
-	}
-	const ratio = targetRate / sourceRate;
-	const outLen = Math.max(1, Math.round(input.length * ratio));
-	const cutoff = Math.min(1, ratio);
-	const radius = Math.max(1, Math.ceil(16 / cutoff));
-	const output = new Float64Array(outLen);
-	for (let n = 0; n < outLen; n++) {
-		const srcPos = n / ratio;
-		const iCenter = Math.floor(srcPos);
-		let sum = 0;
-		for (let i = iCenter - radius; i <= iCenter + radius; i++) {
-			if (i < 0 || i >= input.length) continue;
-			const d = srcPos - i;
-			if (Math.abs(d) > radius) continue;
-			const xd = d * cutoff;
-			const sinc = xd === 0 ? 1 : Math.sin(Math.PI * xd) / (Math.PI * xd);
-			const hann = 0.5 * (1 + Math.cos((Math.PI * d) / radius));
-			sum += (input[i] ?? 0) * cutoff * sinc * hann;
-		}
-		output[n] = sum;
-	}
-	return output;
 }
 
 interface Biquad {
@@ -441,7 +411,7 @@ export class CabinetIrNode implements ChainNode {
 
 	private deriveEffectiveIr(): void {
 		if (this.sourceRate !== undefined && this.sourceRate !== this.sampleRate) {
-			this.ir = resampleIrWindowedSinc(
+			this.ir = resampleImpulseResponse(
 				this.sourceIr,
 				this.sourceRate,
 				this.sampleRate,
