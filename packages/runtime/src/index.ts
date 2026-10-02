@@ -2,6 +2,7 @@ export * from "./reference-runtime";
 export * from "./supply";
 export * from "./settle";
 export * from "./admission";
+export * from "./calibrate";
 export * from "./taper";
 export * from "./supply-ground";
 export * from "./v2-wasm-engine";
