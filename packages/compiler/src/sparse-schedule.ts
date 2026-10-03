@@ -33,6 +33,30 @@ export function stampTerminals(
 /**
  * Entries that are provably nonzero at every control position and every Newton iterate,
  * and are therefore the only ones allowed to be pivots.
+ *
+ * **Two conditions, and both are load-bearing. An entry belongs here only when the stamp
+ * writes it (a) in the direction being claimed and (b) on every iterate.** Marking an entry
+ * the stamp leaves zero does not produce a wrong answer -- the runtime's pivot guard catches
+ * the collapse and re-solves densely -- but it produces a *silently dense* block, which is
+ * worse than a slow one because nothing reports it. Measured 2026-09-18 on the shipping
+ * console: `boss-ch-1` gave its schedule up inside `prepare()` and ran 100x100 dense for the
+ * whole session (12.8x real time), `boss-ce-5` tripped the guard on half its iterations and
+ * paid for the schedule *and* the dense solve (6.6x), and `boss-ce-2`, `boss-ce-2b`,
+ * `boss-dm-2` and `boss-dd-3b` abandoned within their first 64 audio iterations. Every one of
+ * those traced back to an entry marked here that the owning stamp cannot guarantee. See
+ * `thoughts/shared/2026-09-18-sparse-schedule-runtime-audit.md`.
+ *
+ * So `pair()` is for symmetric writes only. A stamp that writes `matrix[row][column]` and not
+ * its transpose -- every controlled-source coupling in this file's device set does exactly
+ * that -- marks the one entry with `eligible.add`, or marks nothing when the value can vanish.
+ *
+ * **What this does NOT establish is that an eligible pivot is numerically usable.** Every node
+ * diagonal is listed below because the runtime adds `gmin` to it, which is true and nearly
+ * useless: a pivot of 1e-12 against entries of order 1e2 is a growth factor of 1e14, and dense
+ * partial pivoting would never choose it. That is a separate, open defect (`boss-aw-2` fails to
+ * converge on the sparse path and converges in four iterations densely), and it cannot be fixed
+ * from the pattern alone -- it needs the pivot search to see magnitudes. Recorded in §6 of the
+ * audit above.
  */
 export function provablyNonzeroEntries(
 	block: { nodeCount: number; stamps: readonly Stamp[] },
@@ -42,6 +66,7 @@ export function provablyNonzeroEntries(
 	for (let node = 0; node < block.nodeCount; node += 1) {
 		eligible.add(node * size + node);
 	}
+	/** For entries a stamp writes in BOTH directions on every iterate, and only those. */
 	const pair = (row: number, column: number): void => {
 		eligible.add(row * size + column);
 		eligible.add(column * size + row);
@@ -93,54 +118,74 @@ export function provablyNonzeroEntries(
 				break;
 			}
 			case "analog-switch": {
+				// **The channel only.** `g = gOff + (gOn - gOff) * sigmoid` is bounded below by
+				// `gOff = 1/offOhms > 0` at every control voltage, and `stampConductance` writes
+				// all four of its cells, so the channel pair is provable.
+				//
+				// The gate couplings are not, on both counts. `coupling = dg/dvCtrl * (vA - vB)`
+				// is written into `matrix[a][control]` and `matrix[b][control]` and **never their
+				// transposes**, and it is exactly zero twice over: the sigmoid derivative
+				// underflows once the gate is more than ~8 V past threshold (which is where a
+				// CMOS switch spends all of its time), and `vA - vB` is zero across a closed
+				// switch feeding a settled node. `boss-dd-3b` pivoted on `(node23, node6)` and
+				// abandoned its schedule 27 iterations into the operating point.
 				if (stamp.a !== stamp.b) {
 					pair(stamp.a, stamp.b);
-				}
-				if (stamp.a !== stamp.control) {
-					pair(stamp.a, stamp.control);
-				}
-				if (stamp.b !== stamp.control) {
-					pair(stamp.b, stamp.control);
 				}
 				break;
 			}
 			case "compandor": {
-				if (stamp.cellIn !== stamp.sumNode) {
-					pair(stamp.cellIn, stamp.sumNode);
-				}
+				// **Nothing is provable here.** `(sumNode, cellIn)` carries `-gCell`, where
+				// `gCell` is the *envelope* state: zero until the rectifier's capacitor has
+				// charged, which on a fresh `prepare()` is every iterate of the operating point
+				// and the first few hundred samples after it. It is also written one way only.
+				// `mxr-carbon-copy` and `electro-harmonix-deluxe-memory-man` carry two of these
+				// each on their dominant block.
 				break;
 			}
 			case "clock-driver": {
-				// **Both supply pins on every row, not the one this sample selects.** CP1 couples
-				// to `vdd` while the phase is high and to `gnd` while it is low, alternating every
-				// few samples, so a pattern holding only the current pin drops the other entry on
-				// the next flip and the per-iterate matrix copy writes into a slot the schedule
-				// never reserved. The optocoupler shipped with exactly that omission -- its stamp
-				// wrote `ledAnode` rows the pattern did not list -- and it is invisible until the
-				// alternation happens to land badly.
+				// **The phase rows and their own diagonals; NOT the supply couplings.**
+				//
+				// Each phase row is an ideal source row for one output pin: `matrix[row][cpN] +=
+				// 1`, `matrix[cpN][row] += 1`, `matrix[row][row] -= 1`. All three are
+				// unconditional, the first two are symmetric, and an aux row belongs to exactly
+				// one stamp, so nothing else can cancel the -1 on its diagonal. That diagonal is
+				// the best pivot in the block and was previously not listed at all.
+				//
+				// The supply couplings are the opposite of provable. `couple(theta < 0.5 ? vdd :
+				// gnd, row1, 1.0)` writes ONE of the two pins per iterate, into `matrix[row][pin]`
+				// and never the transpose. Both were listed, so at any instant at least half of
+				// what was marked was zero, and the alternation guaranteed that a pivot chosen on
+				// one phase collapsed on the next. This is what `boss-ch-1` (aux10, node2),
+				// `boss-ce-5` (aux4, node1), `boss-ce-2` (node2, aux5 -- a transpose that no
+				// stamp ever writes) and `boss-dm-2` (node1, aux7) each pivoted on.
+				//
+				// The *pattern* still needs both pins, and still has them: `stampTerminals` reads
+				// the shape table, which is a different question from what may be a pivot. The
+				// bug the old comment here describes -- a pattern missing a cell the stamp writes
+				// -- is real and is not this set's job to prevent.
 				const row1 = auxRow(stamp.sourceIndex);
 				pair(row1, stamp.cp1);
-				if (stamp.vdd !== 0) pair(row1, stamp.vdd);
-				if (stamp.gnd !== 0) pair(row1, stamp.gnd);
+				eligible.add(row1 * size + row1);
 				const row2 = auxRow(stamp.sourceIndex, 1);
 				pair(row2, stamp.cp2);
-				if (stamp.vdd !== 0) pair(row2, stamp.vdd);
-				if (stamp.gnd !== 0) pair(row2, stamp.gnd);
+				eligible.add(row2 * size + row2);
 				const row3 = auxRow(stamp.sourceIndex, 2);
 				pair(row3, stamp.vgg);
-				if (stamp.vdd !== 0) pair(row3, stamp.vdd);
-				if (stamp.gnd !== 0) pair(row3, stamp.gnd);
+				eligible.add(row3 * size + row3);
 				break;
 			}
 			case "comparator": {
+				// **The pull-down only.** `gCell = gOn * sigma + gOff` is bounded below by
+				// `gOff = 1/floatOhms > 0` and goes through `stampConductance`, so it is
+				// symmetric and cannot vanish.
+				//
+				// The input couplings carry `gControl = gOn * dsigma * (vOut - vVee)`, written
+				// into the output and vee rows only, never the transpose, and zero whenever the
+				// comparator is saturated -- which for a comparator is its entire working life,
+				// the linear band being a few millivolts wide. `moogerfooger-mf-102` carries four.
 				if (stamp.output !== stamp.vee) {
 					pair(stamp.output, stamp.vee);
-				}
-				if (stamp.output !== stamp.plus) {
-					pair(stamp.output, stamp.plus);
-				}
-				if (stamp.output !== stamp.minus) {
-					pair(stamp.output, stamp.minus);
 				}
 				break;
 			}

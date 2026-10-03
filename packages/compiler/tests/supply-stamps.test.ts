@@ -1,21 +1,16 @@
 // Document-to-supply-stamp map: resolveSupplyStamps over typed power evidence.
 //
-// Fixture basis (tests/fixtures/interchange/): the power-section SHAPES come
-// from voltage-divider-power-topology.vdsp (external-dc domain, direct
-// main-supply rail + divider bias rail) and
-// charge-pump-derived-rails-valid.vdsp (doubler/inverter derived rails with
-// converterComponentId references). Neither raw fixture compiles
-// ("document declares no connected jack"), so the tests build compilable
-// DECLARED-NODE derivatives in the style of big-muff-pi.vdsp: terminals carry
-// `node:` keys, there are no wires, the main rail is a component of kind
-// `rail` with a typed Voltage, and (unless the test says otherwise) the power
-// section declares NO sourceKind, exercising inference from the source
-// components' lowered device kinds.
+// The fixtures below are small declared-node documents in the style of
+// big-muff-pi.vdsp: terminals carry `node:` keys, there are no wires, the main
+// rail is a component of kind `rail` with a typed Voltage, and (unless the
+// test says otherwise) the power section declares NO sourceKind, exercising
+// inference from the source components' lowered device kinds. They make no
+// claim about any real pedal.
 //
 // The map takes the source text and the program: declared connectivity is
-// only visible in the source (CircuitDocument drops it), and the join runs
-// through the compiler's own netlist, so declared ids are the ids both sides
-// share. Hand-derived node maps precede each document.
+// only visible in the source, and the join runs through the compiler's own
+// netlist, so declared ids are the ids both sides share. Hand-derived node
+// maps precede each document.
 
 import { describe, expect, test } from "bun:test";
 import {
@@ -23,13 +18,13 @@ import {
 	emptyRegistry,
 	readNetlist,
 	resolveSupplyStamps,
-} from "../../packages/compiler/src/index.ts";
-import type { Program } from "../../packages/compiler/src/index.ts";
+} from "../src/index";
+import type { Program } from "../src/index";
 import type {
 	RefusedSupply,
 	ResolvedSupply,
 	SupplyResolution,
-} from "../../packages/compiler/src/index.ts";
+} from "../src/index";
 
 // --- YAML builders (block style only: the interchange subset parser takes no flow mappings) ---
 
@@ -655,12 +650,6 @@ function dcVolts(program: Program): readonly number[] {
 	);
 }
 
-function printResolution(label: string, resolution: SupplyResolution): void {
-	console.log(
-		`${label} supplies=${JSON.stringify(resolution.supplies)} refused=${JSON.stringify(resolution.refused)}`,
-	);
-}
-
 function deepFreeze(value: unknown): void {
 	if (value === null || typeof value !== "object") {
 		return;
@@ -680,7 +669,6 @@ describe("resolveSupplyStamps", () => {
 		const program = compileOk(source);
 		const before = JSON.stringify(program);
 		const resolution = resolveSupplyStamps(source, program);
-		printResolution("declared-rail", resolution);
 
 		expect(resolution.supplies).toHaveLength(1);
 		const supply = resolution.supplies[0] as ResolvedSupply;
@@ -708,7 +696,6 @@ describe("resolveSupplyStamps", () => {
 		const program = compileOk(source);
 		const before = JSON.stringify(program);
 		const resolution = resolveSupplyStamps(source, program);
-		printResolution("charge-pump", resolution);
 
 		expect(resolution.supplies).toHaveLength(1);
 		const supply = resolution.supplies[0] as ResolvedSupply;
@@ -731,9 +718,10 @@ describe("resolveSupplyStamps", () => {
 		expect(JSON.stringify(program)).toBe(before);
 	});
 
-	test("a: port rail has no lowered device and maps to no stamp", () => {
+	test("a: port rail with no lowered device resolves through the domain source", () => {
 		// RAIL_PORT sits on node 3 beside the battery stamp, but a port asserts
-		// nothing: refusing is honest, guessing the battery would be a name read.
+		// nothing itself: the resolution comes from the domain's source list
+		// ([VPLUS_RAIL], a dc source), never from the port's name or node.
 		const source = muffYaml().replace(
 			"        - railComponentId: RAIL_OPEN",
 			"        - railComponentId: RAIL_PORT\n          role: main-supply\n          derivation: direct\n        - railComponentId: RAIL_OPEN",
@@ -759,16 +747,22 @@ describe("resolveSupplyStamps", () => {
 		);
 		const program = compileOk(withPort);
 		const resolution = resolveSupplyStamps(withPort, program);
-		printResolution("port-rail", resolution);
-		expect(resolution.supplies).toHaveLength(1);
+		expect(resolution.supplies).toHaveLength(2);
+		const byRail = new Map(
+			resolution.supplies.map((entry) => [entry.railComponentId, entry]),
+		);
+		expect((byRail.get("VPLUS_RAIL") as ResolvedSupply).via).toBe(
+			"rail-device",
+		);
+		const port = byRail.get("RAIL_PORT") as ResolvedSupply;
+		expect(port.via).toBe("domain-source");
 		expect(
-			(resolution.supplies[0] as ResolvedSupply).railComponentId,
-		).toBe("VPLUS_RAIL");
+			stampAt(program, port.address.blockIndex, port.address.sourceIndex)
+				.volts,
+		).toBe(9);
 		expect(
-			resolution.refused.find(
-				(entry) => entry.railComponentId === "RAIL_PORT",
-			)?.reason,
-		).toBe("no-stamp-for-rail");
+			(byRail.get("VPLUS_RAIL") as ResolvedSupply).address,
+		).toEqual(port.address);
 	});
 
 	test("b: battery-kind source resolves; transformer, ac inlet, unknown refuse", () => {
@@ -778,7 +772,6 @@ describe("resolveSupplyStamps", () => {
 			batteryRailYaml(),
 			batteryProgram,
 		);
-		printResolution("battery-rail", batteryResolution);
 		expect(batteryResolution.supplies).toHaveLength(1);
 		expect(
 			(batteryResolution.supplies[0] as ResolvedSupply).railComponentId,
@@ -798,7 +791,6 @@ describe("resolveSupplyStamps", () => {
 			transformerYaml(),
 			transformerProgram,
 		);
-		printResolution("transformer", transformerResolution);
 		expect(transformerResolution.supplies).toEqual([]);
 		expect(transformerResolution.refused).toHaveLength(1);
 		expect(
@@ -811,7 +803,6 @@ describe("resolveSupplyStamps", () => {
 		// AC inlet (typed Frequency -> ac-source law): mains evidence.
 		const acProgram = compileOk(acMainsYaml());
 		const acResolution = resolveSupplyStamps(acMainsYaml(), acProgram);
-		printResolution("ac-inlet", acResolution);
 		expect(acResolution.supplies).toEqual([]);
 		expect(acResolution.refused).toHaveLength(1);
 		expect((acResolution.refused[0] as RefusedSupply).reason).toBe(
@@ -825,7 +816,6 @@ describe("resolveSupplyStamps", () => {
 			unknownSourceYaml(),
 			unknownProgram,
 		);
-		printResolution("unknown-source", unknownResolution);
 		expect(unknownResolution.supplies).toEqual([]);
 		expect(unknownResolution.refused).toHaveLength(3);
 		for (const entry of unknownResolution.refused) {
@@ -840,7 +830,6 @@ describe("resolveSupplyStamps", () => {
 			acMainsYaml("external-dc"),
 			acProgram,
 		);
-		printResolution("conflict-ac", acResolution);
 		expect(acResolution.supplies).toEqual([]);
 		expect(acResolution.refused).toHaveLength(1);
 		expect((acResolution.refused[0] as RefusedSupply).reason).toBe(
@@ -853,7 +842,6 @@ describe("resolveSupplyStamps", () => {
 			muffYaml({ sourceKind: "mains-ac" }),
 			dcProgram,
 		);
-		printResolution("conflict-dc", dcResolution);
 		expect(dcResolution.supplies).toEqual([]);
 		expect(dcResolution.refused).toHaveLength(3);
 		for (const entry of dcResolution.refused) {
@@ -904,7 +892,6 @@ describe("resolveSupplyStamps", () => {
 			);
 		const renamedProgram = compileOk(renamed);
 		const actual = resolveSupplyStamps(renamed, renamedProgram);
-		printResolution("renamed", actual);
 		// The decoy shares node 98 with RAIL_OPEN's terminal: a port asserts
 		// nothing either way, and the renamed rail still resolves.
 		expect(
@@ -924,20 +911,23 @@ describe("resolveSupplyStamps", () => {
 			).volts,
 		).toBe(9);
 
-		// Negative control: the power section points at a component id that
-		// does not exist. That is a refusal, not an invitation to guess.
+		// Negative control: the power section points at a component id that does not exist in
+		// the document. That is a defect in the declaration, and the domain-source fallback must
+		// NOT repair it: a typo that silently resolves is a guess, so it is refused by name.
+		// (A rail whose component EXISTS but has no lowered device does resolve through the
+		// domain's sources; see the domain-source tests below.) Positive control: the same
+		// document with the original id resolves, so the refusal is caused by the missing id.
 		const broken = source.replaceAll(
 			"railComponentId: VPLUS_RAIL",
 			"railComponentId: NO_SUCH_RAIL",
 		);
 		const brokenProgram = compileOk(broken);
 		const brokenResolution = resolveSupplyStamps(broken, brokenProgram);
-		printResolution("broken-rail", brokenResolution);
-		expect(brokenResolution.supplies).toEqual([]);
-		const missing = brokenResolution.refused.find(
-			(entry) => entry.railComponentId === "NO_SUCH_RAIL",
-		);
-		expect(missing?.reason).toBe("no-stamp-for-rail");
+		expect(brokenResolution.supplies).toHaveLength(0);
+		expect(
+			brokenResolution.refused.map((entry) => [entry.railComponentId, entry.reason]),
+		).toContainEqual(["NO_SUCH_RAIL", "no-stamp-for-rail"]);
+		expect(resolveSupplyStamps(source, compileOk(source)).supplies.length).toBeGreaterThan(0);
 	});
 
 	test("d: name independence holds on a declared-node document", () => {
@@ -951,7 +941,6 @@ describe("resolveSupplyStamps", () => {
 			.replaceAll("RAIL_MAIN", "PRIMARY_RAIL");
 		const renamedProgram = compileOk(renamed);
 		const actual = resolveSupplyStamps(renamed, renamedProgram);
-		printResolution("renamed-charge-pump", actual);
 		expect(actual.supplies).toHaveLength(1);
 		expect(
 			(actual.supplies[0] as ResolvedSupply).railComponentId,
@@ -987,7 +976,6 @@ describe("resolveSupplyStamps", () => {
 		const source = positiveGroundYaml();
 		const program = compileOk(source);
 		const resolution = resolveSupplyStamps(source, program);
-		printResolution("positive-ground", resolution);
 
 		expect(resolution.supplies).toHaveLength(1);
 		const supply = resolution.supplies[0] as ResolvedSupply;
@@ -1025,7 +1013,6 @@ describe("resolveSupplyStamps", () => {
 		const source = muffYaml({ power: false });
 		const bare = compileOk(source);
 		const bareResolution = resolveSupplyStamps(source, bare);
-		printResolution("no-power", bareResolution);
 		expect(bareResolution.supplies).toEqual([]);
 		expect(bareResolution.refused).toHaveLength(1);
 		expect(
@@ -1034,5 +1021,347 @@ describe("resolveSupplyStamps", () => {
 		expect((bareResolution.refused[0] as RefusedSupply).reason).toBe(
 			"no-power-section",
 		);
+	});
+});
+
+describe("resolveSupplyStamps via domain sources", () => {
+	// --- hand-derived topology, rail-label document ---
+	//
+	// Declared nodes: 0 = ground, 1 = in, 2 = out, 3 = BATT1.positive +
+	// RLOAD.a + RAIL_LBL.t. The rail is a `label`: the netlist drops it, so it
+	// has no lowered device -- the shape every Boss-style 9 V packet takes.
+	// Power: sources [BATT1] (battery -> voltage-source law -> dc evidence ->
+	// external-dc inferred, no sourceKind), one direct main-supply rail.
+	// Expected: RAIL_LBL -> the 9 V stamp via "domain-source".
+	function labelRailYaml(options?: {
+		readonly sources?: readonly string[];
+		readonly sourceKind?: string;
+	}): string {
+		const sources = options?.sources ?? ["BATT1"];
+		const kindLine =
+			options?.sourceKind === undefined
+				? ""
+				: `      sourceKind: ${options.sourceKind}\n`;
+		// An empty source list must still be an array: a bare
+		// `sourceComponentIds:` key parses as null and the document is refused.
+		const sourcesBlock =
+			sources.length === 0
+				? "      sourceComponentIds: []\n"
+				: `      sourceComponentIds:\n${sources.map((id) => `        - ${id}`).join("\n")}\n`;
+		return (
+			docHead("label rail supply map", "label_rail_supply.vdsp") +
+			signalComponents() +
+			componentBlock(
+				"BATT1",
+				"battery",
+				0,
+				0,
+				[
+					{ name: "negative", node: 0, x: 0, y: -100, role: "negative" },
+					{ name: "positive", node: 3, x: 0, y: 100, role: "positive" },
+				],
+				props('Voltage: "9V"'),
+				"Circuit.Battery",
+			) +
+			componentBlock(
+				"RLOAD",
+				"resistor",
+				0,
+				0,
+				[
+					{ name: "a", node: 3, x: 0, y: 90 },
+					{ name: "b", node: 0, x: 0, y: -90 },
+				],
+				props('Resistance: "9k"'),
+				"Circuit.Resistor",
+			) +
+			componentBlock(
+				"RAIL_LBL",
+				"label",
+				0,
+				120,
+				[{ name: "t", node: 3, x: 0, y: 120 }],
+				NO_PROPS,
+			) +
+			docFoot(`power:
+  schema: circuit-power/v1
+  coverage: declared-rails
+  domains:
+    - id: main
+${sourcesBlock}      groundPolarity: negative-ground
+${kindLine}      rails:
+        - railComponentId: RAIL_LBL
+          role: main-supply
+          derivation: direct
+`)
+		);
+	}
+
+	test("a: rail label with no device resolves through the domain source", () => {
+		const source = labelRailYaml();
+		const program = compileOk(source);
+		const before = JSON.stringify(program);
+		const resolution = resolveSupplyStamps(source, program);
+
+		expect(resolution.supplies).toHaveLength(1);
+		const supply = resolution.supplies[0] as ResolvedSupply;
+		expect(supply.railComponentId).toBe("RAIL_LBL");
+		expect(supply.role).toBe("main-supply");
+		expect(supply.via).toBe("domain-source");
+		expect(supply.nominalVolts).toBeNull();
+		expect(
+			stampAt(program, supply.address.blockIndex, supply.address.sourceIndex)
+				.volts,
+		).toBe(9);
+		expect(resolution.refused).toEqual([]);
+		expect(JSON.stringify(program)).toBe(before);
+	});
+
+	test("b: removing the source from sourceComponentIds refuses", () => {
+		// The domain stays external-dc by explicit declaration, so the fallback
+		// itself is exercised and finds nothing: no-stamp-for-rail, not a guess.
+		// (Without the explicit kind an empty source list would refuse as
+		// unknown-source-kind before any join -- that path is covered by the
+		// label-source test above.)
+		const source = labelRailYaml({ sources: [], sourceKind: "external-dc" });
+		const program = compileOk(source);
+		const resolution = resolveSupplyStamps(source, program);
+
+		expect(resolution.supplies).toEqual([]);
+		expect(resolution.refused).toHaveLength(1);
+		expect(
+			(resolution.refused[0] as RefusedSupply).railComponentId,
+		).toBe("RAIL_LBL");
+		expect((resolution.refused[0] as RefusedSupply).reason).toBe(
+			"no-stamp-for-rail",
+		);
+	});
+
+	test("c: two voltage-sources in the domain refuse ambiguous-stamp", () => {
+		// A second 9 V battery on its own loaded node: two distinct dc-source
+		// stamps, so the label names no single supply.
+		const two = labelRailYaml()
+			.replace(
+				"  - id: RAIL_LBL",
+				`  - id: BATT2
+    kind: battery
+    name: BATT2
+    sourceTypeName: Circuit.Battery
+    origin:
+      x: 60
+      y: 100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: positive
+        node: 4
+        position:
+          x: 60
+          y: 90
+      - name: negative
+        node: 0
+        position:
+          x: 60
+          y: 110
+    properties:
+      Voltage: "9V"
+  - id: RLOAD2
+    kind: resistor
+    name: RLOAD2
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 60
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 60
+          y: 50
+      - name: b
+        node: 0
+        position:
+          x: 60
+          y: -90
+    properties:
+      Resistance: "9k"
+  - id: RAIL_LBL`,
+			)
+			.replace(
+				"      sourceComponentIds:\n        - BATT1",
+				"      sourceComponentIds:\n        - BATT1\n        - BATT2",
+			);
+		const program = compileOk(two);
+		const resolution = resolveSupplyStamps(two, program);
+
+		expect(resolution.supplies).toEqual([]);
+		expect(resolution.refused).toHaveLength(1);
+		const refused = resolution.refused[0] as RefusedSupply;
+		expect(refused.railComponentId).toBe("RAIL_LBL");
+		expect(refused.reason).toBe("ambiguous-stamp");
+	});
+
+	test("d: a jack-only domain refuses, even across the battery node", () => {
+		// JACK_DC sits directly across the battery (nodes 3 and 0): node overlap
+		// alone would match the battery stamp, so this proves the lowered-law
+		// filter -- a jack is not a DC source -- rather than the node join.
+		const jackOnly = labelRailYaml({
+			sources: ["JACK_DC"],
+			sourceKind: "external-dc",
+		}).replace(
+			"  - id: RAIL_LBL",
+			`  - id: JACK_DC
+    kind: jack
+    name: JACK_DC
+    sourceTypeName: Circuit.DcInlet
+    origin:
+      x: -60
+      y: 100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 3
+        position:
+          x: -60
+          y: 90
+      - name: sleeve
+        node: 0
+        position:
+          x: -60
+          y: 110
+    properties: {}
+  - id: RAIL_LBL`,
+		);
+		const program = compileOk(jackOnly);
+		const resolution = resolveSupplyStamps(jackOnly, program);
+
+		expect(resolution.supplies).toEqual([]);
+		expect(resolution.refused).toHaveLength(1);
+		expect((resolution.refused[0] as RefusedSupply).reason).toBe(
+			"no-stamp-for-rail",
+		);
+	});
+
+	test("e: a mains domain refuses before the fallback runs", () => {
+		// Battery plus an AC inlet in the sources, no explicit kind: mains
+		// evidence makes the domain mains-fed, so the label rail is refused
+		// without any source join.
+		const withMains = labelRailYaml().replace(
+			"  - id: RAIL_LBL",
+			`  - id: MAINS1
+    kind: voltage-source
+    name: MAINS1
+    sourceTypeName: Circuit.MainsInlet
+    origin:
+      x: 0
+      y: -150
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: hot
+        node: 30
+        position:
+          x: 0
+          y: -140
+        role: positive
+      - name: neutral
+        node: 0
+        position:
+          x: 0
+          y: -160
+        role: negative
+    properties:
+      Voltage:
+        raw: "120 V"
+        value: 120
+        unit: V
+      Frequency:
+        raw: "60 Hz"
+        value: 60
+        unit: Hz
+  - id: RLOADM
+    kind: resistor
+    name: RLOADM
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 40
+      y: -140
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 30
+        position:
+          x: 30
+          y: -140
+      - name: b
+        node: 0
+        position:
+          x: 30
+          y: -160
+    properties:
+      Resistance: "10k"
+  - id: RAIL_LBL`,
+		).replace(
+			"      sourceComponentIds:\n        - BATT1",
+			"      sourceComponentIds:\n        - BATT1\n        - MAINS1",
+		);
+		const program = compileOk(withMains);
+		const resolution = resolveSupplyStamps(withMains, program);
+
+		expect(resolution.supplies).toEqual([]);
+		expect(resolution.refused).toHaveLength(1);
+		expect((resolution.refused[0] as RefusedSupply).reason).toBe(
+			"mains-ac-source",
+		);
+	});
+
+	test("f: renaming the battery and the label changes nothing", () => {
+		const source = labelRailYaml();
+		const program = compileOk(source);
+		const expected = resolveSupplyStamps(source, program);
+		expect(expected.supplies).toHaveLength(1);
+
+		// Rename the battery and the label together (linkage intact); the old
+		// names vanish. The map follows the domain linkage, never the names.
+		const renamed = source
+			.replaceAll("BATT1", "CELL9")
+			.replaceAll("RAIL_LBL", "EXTLBL");
+		const renamedProgram = compileOk(renamed);
+		const actual = resolveSupplyStamps(renamed, renamedProgram);
+
+		expect(actual.supplies).toHaveLength(1);
+		const supply = actual.supplies[0] as ResolvedSupply;
+		expect(supply.railComponentId).toBe("EXTLBL");
+		expect(supply.via).toBe("domain-source");
+		expect(supply.nominalVolts).toBe(
+			(expected.supplies[0] as ResolvedSupply).nominalVolts,
+		);
+		expect(
+			stampAt(
+				renamedProgram,
+				supply.address.blockIndex,
+				supply.address.sourceIndex,
+			).volts,
+		).toBe(9);
+		expect(actual.refused).toEqual([]);
+	});
+
+	test("g: a rail with a device still resolves via rail-device", () => {
+		const source = muffYaml();
+		const program = compileOk(source);
+		const resolution = resolveSupplyStamps(source, program);
+
+		expect(resolution.supplies).toHaveLength(1);
+		const supply = resolution.supplies[0] as ResolvedSupply;
+		expect(supply.railComponentId).toBe("VPLUS_RAIL");
+		expect(supply.via).toBe("rail-device");
+		expect(
+			stampAt(program, supply.address.blockIndex, supply.address.sourceIndex)
+				.volts,
+		).toBe(9);
 	});
 });

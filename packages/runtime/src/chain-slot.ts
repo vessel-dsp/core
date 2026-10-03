@@ -47,6 +47,13 @@ export type SlotContract = {
 		readonly output: number | null;
 	};
 	/**
+	 * The port's declared 0 dBFS reference where the source states one, separate from the derived ceiling.
+	 */
+	readonly portReferenceVolts?: {
+		readonly input: number | null;
+		readonly output: number | null;
+	};
+	/**
 	 * Port impedances for the seam divider, or **`null` when this slot's ports are not electrical**.
 	 *
 	 * The two cases are different and must not collapse into one. A *circuit* seam with no declared
@@ -105,13 +112,79 @@ export type ExternalProcessor = SlotContract & {
  * severity would be a field with one speculative consumer, and the advisory already names the seam;
  * a host that knows its processor is nonlinear knows to take that seam more seriously.
  */
-export type ChainSlot =
-	| { readonly kind: "program"; readonly program: Program }
-	| { readonly kind: "processor"; readonly processor: ExternalProcessor };
+export type BypassMode = "wire" | "buffer" | "effect";
 
-/** A compiled circuit as a slot. */
-export function programSlot(program: Program): ChainSlot {
-	return { kind: "program", program };
+/**
+ * Row 8 tail step 1 — host mapping: bypass state → chain mode, per `program.bypass.kind`.
+ *
+ * The Studio's slot toggle already reads ENGAGED/BYPASSED, but the worklet chain omitted
+ * bypassed slots, so a bypassed buffered pedal ran no buffer and the mode plumbing
+ * (`setBypassMode`, `effectiveBypassMode`) never engaged in product. The host now keeps
+ * the slot and states the mode instead of dropping it.
+ *
+ * Returns `null` when no honest mode exists yet: `buffered` bypass needs the compiler's
+ * `bufferProgram` derivation (row 8 step 2), and requesting `buffer` without one falls back
+ * to the full program — which would play the effect under bypass. The caller omits those
+ * slots exactly as before, until step 2 lands. Everything else maps:
+ * engaged → `effect`; bypassed `true-bypass` → `wire`; `hardwire` → `wire`, with the input
+ * loading a hardwired output switch leaves behind still unmodelled (23 pedals by census —
+ * named here, not silent); `none` / `not-in-audio-path` → `wire`, agreeing with the
+ * runtime's own demotion guard.
+ */
+export function resolveBypassMode(
+	bypass: Program["bypass"],
+	engaged: boolean,
+): BypassMode | null {
+	if (engaged) {
+		return "effect";
+	}
+	if (bypass.declared === "none") {
+		return "wire";
+	}
+	switch (bypass.kind) {
+		case "true-bypass":
+			return "wire";
+		case "hardwire":
+			return "wire";
+		case "buffered":
+		case "buffered-mechanical":
+			// Both carry the pedal's own buffers in the bypass path; neither has a chain mode
+			// until the buffer program exists (row 8 step 3), so the host must decide.
+			return null;
+		case "not-in-audio-path":
+			return "wire";
+		default:
+			return "wire";
+	}
+}
+
+export type ChainSlot =
+	| {
+			readonly kind: "program";
+			readonly program: Program;
+			readonly bufferProgram?: Program;
+			readonly bufferProcessor?: ExternalProcessor;
+			readonly bypassMode?: BypassMode;
+	  }
+	| {
+			readonly kind: "processor";
+			readonly processor: ExternalProcessor;
+			readonly bufferProcessor?: ExternalProcessor;
+			readonly bypassMode?: BypassMode;
+	  };
+
+/** A compiled circuit as a slot. `bufferProgram` is the buffer-only stages for buffered bypass. */
+export function programSlot(program: Program, bufferProgram?: Program): ChainSlot {
+	return bufferProgram !== undefined ? { kind: "program", program, bufferProgram } : { kind: "program", program };
+}
+
+/** A compiled circuit as a slot with explicit buffer processor (WASM). */
+export function programSlotWithBufferProcessor(
+	program: Program,
+	bufferProcessor: ExternalProcessor,
+	bufferProgram?: Program,
+): ChainSlot {
+	return { kind: "program", program, bufferProgram, bufferProcessor, bypassMode: "effect" };
 }
 
 /** An injected processor as a slot. */
@@ -133,6 +206,7 @@ export function slotContract(slot: ChainSlot): SlotContract {
 		produces: slot.program.stageCoverage,
 		expects: "instrument",
 		portFullScaleVolts: slot.program.portFullScaleVolts,
+		portReferenceVolts: slot.program.portReferenceVolts,
 		// A compiled circuit always has electrical ports, so this is the object form even when both
 		// impedances are unstated. A processor supplies `null` instead -- see `SlotContract`.
 		portImpedanceOhms: slot.program.portImpedanceOhms,

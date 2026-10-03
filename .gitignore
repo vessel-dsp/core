@@ -10,3 +10,4 @@ docs/src/content/docs/reference/api/
 .playwright-cli/
 thoughts/
 tmp/
+packages/runtime/src/wasm/

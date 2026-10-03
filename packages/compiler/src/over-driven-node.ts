@@ -95,7 +95,18 @@ import { blockRow, describeRow } from "./block-row";
  * are what the runtime executes and what the deck is emitted from, so they are the only thing
  * that can say whether two sources really force one unknown.
  *
- * Counts `dc-source` positives and `ideal-opamp` outputs, and nothing else. A transistor
+ * Counts `dc-source` positives, `ac-source` positives, `ideal-opamp` outputs, and the
+ * `clock-driver` stamp's `vgg` output, and nothing else. The clock driver's VGG pin is an
+ * on-chip voltage-source output (`lower.ts` budgets it its own auxiliary row beside CP1 and
+ * CP2), so a declared rail on the same node is the same over-determined system as two rails.
+ * It fires on three packets today, all clock-VGG fights: canonical `boss-ce-2` v1.22
+ * (`VGG_RAIL` against the MN3101's own VGG on the bias node), `boss-ce-5`
+ * (a 7.5 V rail against the clock VGG, drawing 4.0 A of phantom supply current in the TS
+ * runtime), and `boss-bf-2` (clock VGG against an op-amp output). `boss-ce-2b`'s 2.3 A is
+ * NOT this shape -- measured, it is a D5 (1S2473) + D7 (S5500G) two-hop forward-diode path
+ * to ground, so this warning correctly stays silent there; that current is a packet defect
+ * for artifacts, and `findSupplyShorts` only sees single-hop shorts. CP1/CP2 are not counted: no packet ties a rail to a clock phase, and expanding
+ * the count without an observed case would be speculative. A transistor
  * collector on a driven node is ordinary -- a collector is a current source behind a load
  * resistor, not a voltage forced through near-zero impedance -- and a supply's negative end is
  * a reference rather than a driver, so counting either would make this noise.
@@ -169,6 +180,14 @@ function drivenNode(
 			return {
 				node: stamp.output,
 				label: `ideal-opamp#${stamp.sourceIndex}`,
+			};
+		// The clock driver's VGG pin is a voltage-source output like the rails above: the
+		// lowering gives it its own auxiliary row, and a declared rail on the same node fights
+		// it for the unknown. See the file header for the two packets that do this today.
+		case "clock-driver":
+			return {
+				node: stamp.vgg,
+				label: `clock-driver-vgg#${stamp.sourceIndex}`,
 			};
 		default:
 			return null;

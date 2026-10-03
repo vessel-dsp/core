@@ -724,11 +724,19 @@ describe("npm publish workflow", () => {
 		expect(workflow).toContain("- visual-effects");
 		expect(workflow).toContain("- amp");
 		expect(workflow).toContain("- cabinet");
+		expect(workflow).toContain("- compiler");
+		expect(workflow).toContain("- runtime");
 		expect(workflow).toContain("- chain");
+		expect(workflow).toContain("- player");
 		expect(workflow).toContain("push:");
 		expect(workflow).toContain("tags:");
 		expect(workflow).toContain("- 'v*'");
+		expect(workflow).toContain("- 'compiler-v*'");
+		expect(workflow).toContain("- 'runtime-v*'");
 		expect(workflow).toContain("- 'chain-v*'");
+		expect(workflow).toContain("- 'player-v*'");
+		// The runtime ships a wasm console built by prepack, so the workflow must provide em++.
+		expect(workflow).toContain("mymindstorm/setup-emsdk");
 		expect(workflow).not.toContain("release:");
 		expect(workflow).toContain("id-token: write");
 		expect(workflow).toContain("oven-sh/setup-bun@v2");

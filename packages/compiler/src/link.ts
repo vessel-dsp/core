@@ -25,6 +25,7 @@ import type {
 	Partitioning,
 	Ports,
 	Program,
+	ProgramBypass,
 } from "./types";
 
 export class LinkError extends StageRefusal {
@@ -50,12 +51,13 @@ export function link(
 		input: null,
 		output: null,
 	},
+	bypass: ProgramBypass = { declared: "none" },
 ): Program {
 	const order = executionOrder(blocks, partitioning);
 	const live = new Set(order);
 	const executed = blocks.filter((block) => live.has(block.id));
 	return {
-		formatVersion: 1,
+		formatVersion: 6,
 		// Read off `order`'s blocks, not `blocks` -- see `requiredOperators`'s own comment for
 		// why a pruned block's operator is not "required to execute a program" at all. The
 		// same exclusion applies to `requiredModels` and to `costPredictors`, for the same
@@ -98,6 +100,7 @@ export function link(
 		stageCoverage: stageCoverage(blocks, ports),
 		// A port property, decided in stage 1 where the jack's own declaration is readable.
 		portImpedanceOhms,
+		bypass,
 	};
 }
 
@@ -117,9 +120,12 @@ function costPredictors(
 	}[] = [];
 	const macroBlocks: { blockId: string; modelId: string }[] = [];
 	for (const block of executed) {
-		if (block.kind === "macro") {
+		if (block.kind === "macro" || block.kind === "composed") {
 			// Declared, not priced -- see `CostPredictors.macroBlocks`. Its absence is what let
-			// a macro's per-sample work cost zero at the admission gate.
+			// a macro's per-sample work cost zero at the admission gate. A composed block
+			// prices at its `modelId` exactly like the macro it replaces (board-p3 row 4,
+			// first slice): equal budget while the bit-identical gate holds; op-level
+			// costing follows with the catalog migration.
 			macroBlocks.push({ blockId: block.id, modelId: block.modelId });
 			continue;
 		}
@@ -186,7 +192,14 @@ function blocksReachingOutput(
 	const live = new Set<string>();
 	const pending: string[] = [];
 	for (const block of blocks) {
-		if (block.kind === "macro" || block.outputNode !== null) {
+		// A composed block stays live like a macro: its readers are stamps, so its
+		// reachability is as unprovable as a macro's, and the error asymmetry is
+		// the same -- a kept dead block costs time, a dropped live one loses audio.
+		if (
+			block.kind === "macro" ||
+			block.kind === "composed" ||
+			block.outputNode !== null
+		) {
 			live.add(block.id);
 			pending.push(block.id);
 		}
@@ -261,7 +274,14 @@ function requiredOperators(blocks: readonly Block[]): readonly OperatorKind[] {
 function requiredModels(blocks: readonly Block[]): readonly string[] {
 	const models = new Set<string>();
 	for (const block of blocks) {
-		if (block.kind !== "macro") {
+		if (block.kind !== "macro" && block.kind !== "composed") {
+			continue;
+		}
+		// A composition whose ops came from the source needs no algorithm from the runtime:
+		// it brought its own. Declaring its chip's part number here would make every
+		// reprogrammable pedal refuse at load on a name no runtime could ever register,
+		// which is the opposite of what this set is for.
+		if (block.kind === "composed" && block.modelSource === "declared") {
 			continue;
 		}
 		models.add(block.modelId);

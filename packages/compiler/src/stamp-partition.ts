@@ -200,6 +200,12 @@ export const STAMP_SHAPES = {
 		ports: "nodes",
 		newton: true,
 	},
+	"linear-vca": {
+		nodes: ["plus", "minus", "output", "control"],
+		aux: 0,
+		ports: "nodes",
+		newton: true,
+	},
 } as const satisfies {
 	[K in Stamp["kind"]]: {
 		readonly nodes: readonly (keyof Extract<Stamp, { kind: K }> & string)[];
@@ -446,9 +452,19 @@ export function shouldEliminate(
 	unknowns: number,
 	portRowCount: number,
 	linear: boolean,
+	/**
+	 * The document's `convergence-opt-in` flag. Where set, a nonlinear block with port rows is
+	 * eliminated regardless of the cost rule -- it overrides the cost veto, but not the
+	 * linear / zero-port guard above, which a portless or linear block cannot use elimination
+	 * for at all.
+	 */
+	convergenceOptIn = false,
 ): boolean {
 	if (linear || portRowCount === 0) {
 		return false;
+	}
+	if (convergenceOptIn) {
+		return true;
 	}
 	if (derivedAdmissionEnabled()) {
 		return derivedShouldEliminate(unknowns, portRowCount);
@@ -461,16 +477,17 @@ export function shouldEliminate(
 }
 
 /**
- * **The measured dense-versus-sparse penalty**, from the WASM console on two matched-size pairs:
- * `boss-ch-1` (dense) against `orange-gro100` (sparse) at 85 unknowns, and `boss-ce-5` against
- * `mxr-carbon-copy` at ~100. **Measured, not chosen** — which is the whole point of using it here.
- *
- * **It is measured at 85–105 unknowns only and should GROW with size**, since dense factorisation
- * scales roughly `n³` against a sparse schedule's `n^1.5`-ish. Two pairs at one size cannot tell a
- * constant from a size-dependent penalty, so treat this as "about 1.9 at ~100 unknowns, unmeasured
- * above".
+ * **The measured dense-versus-sparse penalty**, from the WASM console. First measured 2026-08-25
+ * on two matched-size pairs (`boss-ch-1`/`orange-gro100` at 85 unknowns, `boss-ce-5`/
+ * `mxr-carbon-copy` at ~100) and pinned at 1.9 with the caveat that it "should grow with size".
+ * The 2026-09-17 re-fit measured the on/off cost of the five large amps (72-119 unknowns) directly
+ * -- jcm800 1.41x, vox 1.85x, peavey 2.57x, sunn 2.57x, rockerverb 2.98x -- and fitting
+ * `R = C (p/n)^b` to those gives **C = 7.2, b = 1.98 (R^2 = 0.79)**. The constant was ~4x too low
+ * (the "grows with size" direction was right) but the exponent is **~2, not the 1.5** the
+ * sparse-cost hypothesis predicted: the phase-2 cost regression is a too-low constant, not a
+ * size-dependent exponent. **Measured, not chosen** — which is the whole point of using it here.
  */
-const MEASURED_DENSIFICATION = 1.9;
+const MEASURED_DENSIFICATION = 7.2;
 
 /**
  * The derived admission rule, behind `VESSEL_DERIVED_ELIMINATION=1`.
@@ -481,13 +498,14 @@ const MEASURED_DENSIFICATION = 1.9;
  * **densification**: the port system is dense where the original may have been sparse. So:
  *
  * ```
- * admit when   MEASURED_DENSIFICATION * p²  <  n²      i.e.  n/p > sqrt(1.9) = 1.378
+ * admit when   MEASURED_DENSIFICATION * p²  <  n²      i.e.  n/p > sqrt(7.2) = 2.68
  * ```
  *
- * **No free constant.** `1.9` is measured and the exponent is fitted; neither was chosen to admit
- * any particular packet — which is the failure this replaces. Lowering `2.4` until it admitted the
- * three packets whose saving had been predicted would have made the prediction and the admission
- * one choice, and no later measurement could have separated them.
+ * **No free constant.** `7.2` is the measured on/off of the two solve paths at 72-119 unknowns and
+ * the exponent is fitted (~2); neither was chosen to admit or reject any particular packet — which
+ * is the failure this replaces. Lowering `2.4` until it admitted the three packets whose saving had
+ * been predicted would have made the prediction and the admission one choice, and no later
+ * measurement could have separated them.
  *
  * **`ELIMINATE_MIN_UNKNOWNS` is still consulted and is still hand-set.** The model has **no term
  * for fixed per-block overhead**, and without one the inequality admits every block with any
@@ -516,5 +534,8 @@ export function derivedShouldEliminate(
  * `artifacts/docs/validation/2026-09-11-what-actually-drives-cpu-cost.md`.
  */
 function derivedAdmissionEnabled(): boolean {
-	return process.env.VESSEL_DERIVED_ELIMINATION === "1";
+	// Guarded like the runtime's limiter trace: the compiler also runs in the browser, where
+	// `process` does not exist. A measurement-only switch does not earn a CompileOptions field
+	// threaded through lower.ts and couple.ts, so it stays an environment read.
+	return typeof process !== "undefined" && process.env?.VESSEL_DERIVED_ELIMINATION === "1";
 }

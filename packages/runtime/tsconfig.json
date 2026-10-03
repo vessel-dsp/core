@@ -16,5 +16,5 @@
 			"@vessel-dsp/runtime/*": ["packages/runtime/src/*"]
 		}
 	},
-	"include": ["src/**/*"]
+	"include": ["src/**/*", "tests/**/*"]
 }

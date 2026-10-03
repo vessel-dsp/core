@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/runtime",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Real-time MNA simulation runtime and solver console for VesselDSP Program ROMs.",
 	"keywords": [
 		"guitar-pedal",
@@ -30,6 +30,9 @@
 		},
 		"./package.json": {
 			"default": "./package.json"
+		},
+		"./wasm/*": {
+			"default": "./dist/wasm/*"
 		}
 	},
 	"main": "./dist/index.js",
@@ -41,14 +44,17 @@
 		"LICENSE.md"
 	],
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm",
 		"clean": "rm -rf dist",
-		"prepack": "bun run --cwd ../compiler build && bun run build",
+		"prepack": "bun run --cwd ../compiler build && bun run build:wasm && bun run build",
 		"pack:dry-run": "npm pack --dry-run",
-		"typecheck": "tsc --noEmit -p tsconfig.json"
+		"typecheck": "tsc --noEmit -p tsconfig.json",
+		"build:wasm": "bash scripts/build-wasm.sh",
+		"test": "bun test tests",
+		"generate-kernels": "bun scripts/generate-kernels.ts"
 	},
 	"dependencies": {
-		"@vessel-dsp/compiler": "0.1.0"
+		"@vessel-dsp/compiler": "0.2.0"
 	},
 	"publishConfig": {
 		"access": "public"

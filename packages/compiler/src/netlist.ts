@@ -26,10 +26,17 @@ import {
 import { load as loadYaml } from "js-yaml";
 import { StageRefusal } from "./errors";
 import { foldToken } from "./registry";
+import { findBistableLatches } from "./latch-seed";
 import { speakerOnePort } from "./speaker-load";
 import {
 	type CompileWarning,
 	type Control,
+	type DeclaredProgram,
+	type DeclaredProgramRoute,
+	type DeclaredProgramRouter,
+	type DeclaredProgramOp,
+	type DeclaredProgramParameter,
+	type DeclaredProgramPosition,
 	type DeclaredWinding,
 	type DeclaredWindingImpedance,
 	type Device,
@@ -37,8 +44,10 @@ import {
 	type DeviceKind,
 	GROUND,
 	type Netlist,
+	type NetlistBypass,
 	type NodeId,
 	type TaperKind,
+	type TapLaw,
 } from "./types";
 
 export class NetlistError extends StageRefusal {
@@ -762,6 +771,22 @@ export function readNetlist(
 	for (const component of document.components) {
 		const componentKind = String(component.kind);
 		if (ignoredComponentKinds.has(componentKind)) {
+			// `unsupported` is a modeled device class the format has a typed entry for but no
+			// solver law; `sourceTypeName` carries the source's own name for it.  Other ignored
+			// kinds (label, port, etc.) are structural noise and do not name a device, so they
+			// stay silently dropped.
+			if (componentKind === "unsupported") {
+				const typeName =
+					typeof component.sourceTypeName === "string" &&
+					component.sourceTypeName.length > 0
+						? ` (${component.sourceTypeName})`
+						: "";
+				warnings.push({
+					code: "unsupported-component",
+					device: String(component.id),
+					detail: `Component ${component.id} is declared as an unsupported device class${typeName} and is excluded from the solve.`,
+				});
+			}
 			continue;
 		}
 		// The source marks this component interface or source context, not modeled graph. v1 gives
@@ -891,7 +916,26 @@ export function readNetlist(
 		} else {
 			nodes = rawNodes as NodeId[];
 		}
-		const control = controlBindingFor(component, declaredControlIds, kind);
+		// **A switch whose every connected terminal resolves to one node is a fixed
+		// bridge, not a variable** — its pole and throw are the same wire, so no
+		// position can change the circuit and exposing a control for it is noise.
+		// `boss-od-1`'s `INPUT_BATTERY_CONTACT` is the corpus case: a two-terminal
+		// contact with both ends on node 0, offered to the player as a knob to twist.
+		// Connectivity-only evidence (`new Set(nodes).size === 1`), because the
+		// document gives the device no role to refuse by. Measured across the corpus,
+		// four other switches sit on a single node and none of them gains a control
+		// from it: two are already unbound and the other two are declared controls,
+		// which bind before this gate is reached.
+		const fixedContactSwitch =
+			kind === "switch" &&
+			nodes.length > 0 &&
+			new Set(nodes).size === 1;
+		const control = controlBindingFor(
+			component,
+			declaredControlIds,
+			kind,
+			fixedContactSwitch,
+		);
 		if (control !== null) {
 			controlIds.add(control);
 			if (
@@ -1020,6 +1064,7 @@ export function readNetlist(
 				effectiveTerminals.map((terminal) => declaredRole(terminal)),
 			),
 			isLed: componentKind === "led" ? true : undefined,
+			program: declaredProgram(component),
 		});
 	}
 
@@ -1033,20 +1078,23 @@ export function readNetlist(
 	// A device bound to no panel control is an internal trimmer or a fixed switch:
 	// still adjustable, just not on the enclosure. It gets a control of its own rather
 	// than refusing the pedal.
+	const userControls = (document.deviceInterface?.controls ?? []).filter(
+		isUserPanelControl,
+	);
 	const declaredTapers = new Map(
-		(document.deviceInterface?.controls ?? []).map(
+		userControls.map(
 			(control) => [String(control.id), taperFor(control)] as const,
 		),
 	);
 	// The panel's own role for each control, carried verbatim. Same shape as the tapers above:
 	// the declaration is the only source, and absence is `null` rather than a guess.
 	const declaredRoles = new Map(
-		(document.deviceInterface?.controls ?? []).map(
+		userControls.map(
 			(control) => [String(control.id), roleFor(control)] as const,
 		),
 	);
 	const declaredLabels = new Map(
-		(document.deviceInterface?.controls ?? []).map(
+		userControls.map(
 			(control) =>
 				[
 					String(control.id),
@@ -1074,10 +1122,41 @@ export function readNetlist(
 	// `id`/`label`/`kind`/`role`/`taper` off a control entry and drops exactly this field --
 	// see `readRawControlPositions`.
 	const declaredPositions = readRawControlPositions(source);
+	const declaredDiscretePositions = readRawControlDiscretePositions(source);
 	// Panel controls keep the order the document declares them in, which is the order
 	// they sit on the enclosure; the invented ones follow. Order is not electrical, but
 	// it is what a panel reads off, so it should not depend on which device happened to
 	// bind first.
+	// **A scanned control is admitted although no device is bound to it**, and it has to be.
+	// A control reaches the program one of two ways: by varying a device the solver stamps, or
+	// by being read directly because the path to the chip is not modelled. Only the first leaves
+	// a bound device behind, so the second would vanish here -- and then `setControl` would move
+	// nothing, the panel would show no knob, and the program that names it could never be
+	// selected. Core has already checked that the component doing the reading exists.
+	const tappedControls = tappedControlIds(document);
+	const tapLaws = tapLawsByControl(document);
+	// Any declared panel control qualifies here, whatever its kind: a program that says a chip
+	// reads it (scanned) or times it (tapped) is the evidence that it is played, which a jack you
+	// tap into is, even though a jack is not a knob-style user panel control.
+	const anyDeclaredControlById = new Map(
+		(document.deviceInterface?.controls ?? []).map(
+			(control) => [String(control.id), control as { role?: unknown; label?: unknown }] as const,
+		),
+	);
+	const anyDeclaredControl = new Set(anyDeclaredControlById.keys());
+	const controllers = declaredControllers(document, nodeOf);
+	const latchToggles = new Set(controllers.latches.map((latch) => latch.toggledBy));
+	const pinControls = controllers.pins.flatMap((pin) => (pin.highAt === undefined ? [] : [pin.highAt.control]));
+	const chipReadControls = new Set([...scannedControls(document), ...latchToggles, ...pinControls]);
+	for (const control of chipReadControls) {
+		if (
+			declaredControlIds.has(control) ||
+			declaredTapers.has(control) ||
+			anyDeclaredControl.has(control)
+		) {
+			controlIds.add(control);
+		}
+	}
 	const orderedIds = [
 		...declaredTapers.keys(),
 		...[...controlIds].filter((id) => !declaredTapers.has(id)),
@@ -1139,6 +1218,10 @@ export function readNetlist(
 		ports,
 		unpositionedSwitchControls,
 	);
+	// The bypass declaration, parsed once for the control defaults below and the
+	// bypass record at the end (same shape, same validation -- see
+	// parseBypassDeclaration).
+	const bypassDeclaration = parseBypassDeclaration(document);
 	const controls: Control[] = orderedIds.map((id) => {
 		const owner = ownerByControl.get(id);
 		// The panel's declaration wins over both the connectivity fallback (a guess about an
@@ -1175,21 +1258,137 @@ export function readNetlist(
 					"linear. An audio pot rendered linear is audible across the whole sweep.",
 			});
 		}
-		return {
+		const discretePositions = discretePositionsForControl(
 			id,
-			taper:
-				declaredTapers.get(id) ?? componentTaper?.taper ?? "linear",
-			defaultPosition:
-				panelPosition ??
+			owner,
+			document,
+			declaredDiscretePositions,
+		);
+		// Only for a control a chip reads (scanned or tapped): a jack you tap into is not a
+		// knob-style panel control, so its label and role come from its own declaration. Every
+		// other control keeps the knob-style reading, so this changes nothing else's role.
+		const declaredAny = chipReadControls.has(id) ? anyDeclaredControlById.get(id) : undefined;
+		// A spring-return contact rests released. Derived like `momentary` itself, so the
+		// first press is a rising edge rather than a 0.5 -> 1 step nothing counts.
+		// The one exception is the bypass switch itself when the document declares
+		// it engaged at position 1: every fallback below would rest it at 0, so
+		// every default render plays bypass while the product shows the pedal
+		// engaged. The override is fenced on both sides. It applies only to a
+		// maintained switch: a momentary or latch-toggled contact declaring 1
+		// would rest "held pressed", and its first press would produce no rising
+		// edge -- so those keep 0 and are named by the warning below instead.
+		// And a declared 0 overrides only a default that is no position at all:
+		// half travel on a two-position switch is the boundary between its
+		// throws, which is what an unresolvable stated position falls to
+		// (`boss-ce-2`'s one-throw contact states `Position: Effect` against
+		// `Options: Normal,Effect`, which names no throw, and rested at 0.5,
+		// which the runtime plays as the NORMAL throw). A derived real position
+		// keeps winning over a declared 0: `boss-ph-1r` declares 0 while its
+		// CHECK LED lights at latch 1, so its declaration is not evidence.
+		// Owner-matched, not id-matched: the control id and the switch device
+		// id coincide in some packets and differ in others.
+		const isBypassSwitch =
+			owner !== undefined &&
+			bypassDeclaration.switchId !== null &&
+			String(owner.id) === bypassDeclaration.switchId;
+		const isMomentary =
+			tappedControls.has(id) || latchToggles.has(id);
+		const baseDefault = isMomentary
+			? 0
+			: (panelPosition ??
 				(closedForPortPath.has(id) || closedForSupplyPath.has(id)
 					? 1
 					: owner === undefined
 						? 0.5
-						: declaredPosition(owner)),
-			role: declaredRoles.get(id) ?? null,
-			label: declaredLabels.get(id) ?? null,
+						: declaredPosition(owner)));
+		const engagedOverride =
+			!isBypassSwitch || isMomentary || bypassDeclaration.engaged === null
+				? null
+				: bypassDeclaration.engaged === 1 ||
+					  (discretePositions === 2 && baseDefault === 0.5)
+					? bypassDeclaration.engaged
+					: null;
+		const defaultPosition = engagedOverride ?? baseDefault;
+		// A declared engaged position the default does not honor is a product
+		// defect either way (shows engaged while rendering dry, or the reverse),
+		// so it is named rather than silently kept or silently dropped. The one
+		// silent case is the override above doing its job.
+		if (
+			isBypassSwitch &&
+			bypassDeclaration.engaged !== null &&
+			defaultPosition !== bypassDeclaration.engaged
+		) {
+			warnings.push({
+				code: "bypass-engaged-disagrees",
+				device: owner !== undefined ? owner.id : null,
+				detail:
+					`Control ${id}: audio.bypass declares engagedPosition ${bypassDeclaration.engaged} but the derived default is ${defaultPosition}` +
+					(isMomentary
+						? "; the override is withheld because a momentary/latch contact rests released"
+						: "; the declaration stands as read until a source read confirms or corrects it"),
+			});
+		}
+		return {
+			id,
+			taper:
+				declaredTapers.get(id) ?? componentTaper?.taper ?? "linear",
+			defaultPosition,
+			positions: discretePositions,
+			role:
+				declaredRoles.get(id) ??
+				(typeof declaredAny?.role === "string" ? declaredAny.role : null),
+			label:
+				declaredLabels.get(id) ??
+				(typeof declaredAny?.label === "string" ? declaredAny.label : null),
+			// Derived from the program, never declared: a contact a chip times by its presses
+			// springs back, so a panel draws it as a button.
+			// A contact whose press a controller counts to flip a latch springs back the same way.
+			...(tappedControls.has(id) || latchToggles.has(id) ? { momentary: true } : {}),
+			...(tapLaws.has(id) ? { tap: tapLaws.get(id) } : {}),
 		};
 	});
+	// A latch is a control whose position the firmware sets, so it joins the list a program and a
+	// driven pin read from. Two positions, starting where the declaration says the chip powers up.
+	for (const latch of controllers.latches) {
+		const engaged =
+			declaredRoles.get(latch.toggledBy) === "bypass" ? engagedLatchState(document, latch.id) : null;
+		controls.push({
+			id: latch.id,
+			taper: "linear",
+			defaultPosition: engaged ?? latch.initial,
+			positions: 2,
+			role: null,
+			label: latch.id,
+			latch: { toggledBy: latch.toggledBy, initial: latch.initial },
+		});
+	}
+
+	// A momentary footswitch operating a BJT bistable latch controls the electronic
+	// bypass latch state rather than holding a mechanical contact across DC-blocking
+	// capacitors. The mechanical contact is fixed open at rest (`device.control = null`),
+	// while the control remains in `netlist.controls` to steer the latch.
+	const bistableLatches = findBistableLatches({
+		devices,
+		controls,
+	});
+	if (bistableLatches.length > 0) {
+		const latchControlIds = new Set(
+			bistableLatches
+				.map((latch) => latch.controlId)
+				.filter((id): id is string => id !== null),
+		);
+		for (let i = 0; i < devices.length; i += 1) {
+			const device = devices[i];
+			if (
+				device !== undefined &&
+				device.kind === "switch" &&
+				device.control !== null &&
+				latchControlIds.has(device.control)
+			) {
+				devices[i] = { ...device, control: null };
+			}
+		}
+	}
 
 	// **A power stage the graph does not contain.** `mesa-boogie-mark-v` declares a power
 	// transformer with a typed `voltsHv` winding -- a B+ supply, which only an amp has -- and no
@@ -1228,22 +1427,40 @@ export function readNetlist(
 	const speakerLoads = outputJackLoads(document, devices);
 	devices.push(...speakerLoads.devices);
 	warnings.push(...speakerLoads.warnings);
+	// A driven controller pin, lowered as the selector it is: the pin to the chip's own ground at
+	// latch 0 and to its own supply at 1 (reversed by `invert`). Appended last for the same reason
+	// as the speaker loads -- port resolution and the switch defaults have already run.
+	for (const pin of controllers.pins) {
+		devices.push(controllerPinDevice(pin, controls));
+	}
 
 	const nodes = [
 		...new Set([GROUND, ...devices.flatMap((device) => device.nodes)]),
 	].sort((a, b) => a - b);
+
+	const rawBypass = parseBypassDeclaration(document);
+	const bypass: NetlistBypass =
+		rawBypass.switchId !== null
+			? {
+					declared: "switch",
+					switch: rawBypass.switchId,
+					engagedPosition: rawBypass.rawEngagedPosition,
+			  }
+			: { declared: "none" };
 
 	return {
 		nodes,
 		devices,
 		controls,
 		ports,
+		bypass,
 		portImpedanceOhms: portImpedanceOhms(document, devices, ports),
 		portDeclaredFullScaleVolts: portDeclaredFullScaleVolts(
 			document,
 			devices,
 			ports,
 		),
+		convergenceOptIn: convergenceOptInDeclared(source),
 		warnings,
 	};
 }
@@ -1923,6 +2140,30 @@ function unquoteBool(component: ComponentLike, key: string): boolean {
 }
 
 /**
+ * The document's own `convergence-opt-in` declaration, read from the source text.
+ *
+ * Core's interchange parser lifts a fixed allow-list of front-matter scalars into the parsed
+ * document and drops every other key, so a new flag cannot reach the compiler through the
+ * parsed shape without a core change. This reads the flag straight off the document's text --
+ * the same typed-flag evidence class as `DNP` / `InterfaceOnly` above, at document scope
+ * instead of component scope. It matches one exact closed-vocabulary line compared whole, not
+ * prose, so a description that mentions the words cannot set it.
+ */
+function convergenceOptInDeclared(source: string): boolean {
+	for (const line of source.split(/\r?\n/)) {
+		const trimmed = line.trim();
+		if (
+			trimmed === "convergence-opt-in: true" ||
+			trimmed === "convergence-opt-in: 'true'" ||
+			trimmed === 'convergence-opt-in: "true"'
+		) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
  * `propertyString`, plus a bare unquoted YAML number.
  *
  * Scoped to the quantity fallback path below (`Resistance`/`R`, `Capacitance`/`C`,
@@ -2196,6 +2437,13 @@ function parametersFor(
 	if (kind === "rail") {
 		const volts = optionalQuantity(component, "Voltage");
 		return volts === null ? {} : { volts };
+	}
+	if (kind === "switch") {
+		const pos =
+			isHardwareSwitch(component) && !statesPosition(component)
+				? 1
+				: declaredPosition(component);
+		return { position: pos };
 	}
 	// A transformer's turns ratio, from the impedances the source states as typed quantities.
 	//
@@ -2612,7 +2860,11 @@ function declaredChannel(declared: string): "n" | "p" | null {
 		) {
 			parameters.pChannel = 1;
 		}
+		// "Vt0"/"Beta" first: those are the live corpus spellings (mxr-phase-90,
+		// boss-ph-1r, mxr-noise-gate-line-driver, jhs-morning-glory), and no corpus
+		// file uses the all-caps SPICE forms. Closed whole-key list, not matching.
 		const vto =
+			optionalQuantity(component, "Vt0") ??
 			optionalQuantity(component, "VTO") ??
 			optionalQuantity(component, "ThresholdVoltage") ??
 			optionalQuantity(component, "thresholdVolts");
@@ -2620,6 +2872,7 @@ function declaredChannel(declared: string): "n" | "p" | null {
 			parameters.thresholdVolts = vto;
 		}
 		const beta =
+			optionalQuantity(component, "Beta") ??
 			optionalQuantity(component, "BETA") ??
 			optionalQuantity(component, "Transconductance") ??
 			optionalQuantity(component, "transconductance");
@@ -2935,6 +3188,10 @@ const controlReferenceKeys = [
 	"Control_Id",
 	"Control",
 	"control",
+	"ControlledBy",
+	"controlledBy",
+	"Gang",
+	"gang",
 	"ControlName",
 	"controlName",
 	"ControlRole",
@@ -2948,6 +3205,163 @@ const controlReferenceKeys = [
 	"Label",
 	"label",
 ] as const;
+
+export const HARDWARE_SWITCH_ROLES: ReadonlySet<string> = new Set([
+	"power",
+	"power-switch",
+	"standby",
+	"mains",
+	"service-trim",
+	"ground-switch",
+	"voltage-selector",
+	"impedance-selector",
+]);
+
+export const HARDWARE_SWITCH_KINDS: ReadonlySet<string> = new Set([
+	"mains-power",
+	"standby",
+	"mains-voltage-selector",
+	"rotary-impedance-selector",
+	"ground-switch",
+]);
+
+/**
+ * The `DeviceInterfaceControlKind` values that admit a real panel control into
+ * `Program.controls`.
+ *
+ * Closed vocabulary compared as whole values, exactly as `@vessel-dsp/core`'s
+ * `parseDeviceInterfaceControlKind` validates: `knob`, `slider`, `switch`,
+ * `selector`, `footswitch`, `led`, `display`, `jack`. The potentiometer/sweep
+ * class (`knob`, `slider`) is admitted together with the switches a player
+ * operates — bypass footswitches, mode/range selectors, effect switches. The
+ * hardware that cannot move the audio is excluded: `jack`, `led`, `display`,
+ * plus anything outside the vocabulary. A control whose declared kind is not a
+ * member is dropped from `Program.controls`; a control with no declared kind
+ * passes, because an older document without the field is not assumed to be
+ * hardware. A kind is compared whole, never by matching a control's name or
+ * description.
+ */
+export const USER_CONTROL_KINDS: ReadonlySet<string> = new Set([
+	"knob",
+	"slider",
+	"switch",
+	"selector",
+	"footswitch",
+]);
+
+/**
+ * Declared panel-control roles that name non-user hardware which is not a
+ * switch: a contact a power-entry jack carries (`battery-contact`) or a status
+ * light (`indicator`). Closed vocabulary compared as whole values — a role
+ * that is not a member is never matched by substring or prose.
+ */
+export const NON_USER_HARDWARE_ROLES: ReadonlySet<string> = new Set([
+	"indicator",
+	"battery-contact",
+]);
+
+/**
+ * Whether a declared panel control is user-visible hardware the runtime should
+ * expose.
+ *
+ * All decisions are whole-value comparisons against closed vocabularies — the
+ * kind set {@link USER_CONTROL_KINDS} and the role sets
+ * {@link HARDWARE_SWITCH_ROLES} and {@link NON_USER_HARDWARE_ROLES} — never a
+ * read of the control's name or description, which the engineering principles
+ * forbid. An absent kind or role passes: an older document that states neither
+ * is not assumed to be hardware.
+ */
+export function isUserPanelControl(control: {
+	readonly kind?: unknown;
+	readonly role?: unknown;
+}): boolean {
+	const role = control.role;
+	if (
+		typeof role === "string" &&
+		(HARDWARE_SWITCH_ROLES.has(role.toLowerCase()) ||
+			NON_USER_HARDWARE_ROLES.has(role.toLowerCase()))
+	) {
+		return false;
+	}
+	const kind = control.kind;
+	if (
+		typeof kind === "string" &&
+		kind.length > 0 &&
+		!USER_CONTROL_KINDS.has(kind.toLowerCase())
+	) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Whether a component represents non-performance hardware, power-domain switching,
+ * or internal service configuration rather than a player-adjustable control.
+ */
+export function isHardwareSwitch(component: ComponentLike): boolean {
+	const role =
+		(component as { role?: unknown }).role ??
+		(component as { properties?: Record<string, unknown> }).properties?.Role;
+	if (
+		typeof role === "string" &&
+		HARDWARE_SWITCH_ROLES.has(role.toLowerCase())
+	) {
+		return true;
+	}
+	const switchKind =
+		propertyString(component, "SwitchKind") ??
+		propertyString(component, "switchKind");
+	if (
+		switchKind !== null &&
+		HARDWARE_SWITCH_KINDS.has(switchKind.toLowerCase())
+	) {
+		return true;
+	}
+	const powerSwitch = propertyString(component, "PowerSwitch");
+	if (
+		powerSwitch === "true" ||
+		(component as { properties?: Record<string, unknown> }).properties
+			?.PowerSwitch === true
+	) {
+		return true;
+	}
+	const serviceControl = propertyString(component, "ServiceControl");
+	if (
+		serviceControl === "true" ||
+		(component as { properties?: Record<string, unknown> }).properties
+			?.ServiceControl === true
+	) {
+		return true;
+	}
+	const visibility = propertyString(component, "Visibility");
+	if (visibility !== null && visibility.toLowerCase() === "internal") {
+		return true;
+	}
+	if (
+		propertyString(component, "ThermalFuse") !== null ||
+		propertyString(component, "SelectedValidationState") !== null ||
+		propertyString(component, "SelectedValidationTap") !== null
+	) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Strips multi-pole designator suffixes (e.g. `FOOTSWITCH_A` -> `FOOTSWITCH`, `S1A` -> `S1`, `SW2B` -> `SW2`)
+ * so ganged switch poles bind to the shared base actuator.
+ */
+export function stripPoleSuffix(id: string): string {
+	const underscoreMatch = /^(.+?)_[A-Za-z0-9]$/.exec(id);
+	if (underscoreMatch && underscoreMatch[1]) {
+		return underscoreMatch[1];
+	}
+	const letterMatch = /^([A-Za-z]+\d+)[A-Za-z]$/.exec(id);
+	if (letterMatch && letterMatch[1]) {
+		return letterMatch[1];
+	}
+	return id;
+}
 
 /**
  * Which control varies this device.
@@ -2966,7 +3380,13 @@ function controlBindingFor(
 	component: ComponentLike,
 	declaredControls: ReadonlyMap<string, string>,
 	kind: DeviceKind,
+	// A switch whose every connected terminal resolves to one node. It is a fixed
+	// bridge, so it manufactures no control even though it binds no declared one.
+	fixedContactSwitch: boolean,
 ): string | null {
+	if (isHardwareSwitch(component)) {
+		return null;
+	}
 	for (const key of controlReferenceKeys) {
 		const value = propertyString(component, key);
 		if (value !== null) {
@@ -2984,8 +3404,23 @@ function controlBindingFor(
 	if (idBound !== undefined) {
 		return idBound;
 	}
-	if (kind === "potentiometer" || kind === "rheostat" || kind === "switch") {
+	const baseId = stripPoleSuffix(idStr);
+	if (baseId !== idStr) {
+		const baseBound =
+			declaredControls.get(baseId) ??
+			declaredControls.get(baseId.toLowerCase());
+		if (baseBound !== undefined) {
+			return baseBound;
+		}
+	}
+	if (kind === "potentiometer" || kind === "rheostat") {
 		return idStr;
+	}
+	if (kind === "switch") {
+		if (fixedContactSwitch) {
+			return null;
+		}
+		return baseId;
 	}
 	return null;
 }
@@ -3006,6 +3441,9 @@ function controlBindingFor(
 function declaredControlNames(document: ParsedDocument): Map<string, string> {
 	const names = new Map<string, string>();
 	for (const control of document.deviceInterface?.controls ?? []) {
+		if (!isUserPanelControl(control)) {
+			continue;
+		}
 		const id = String(control.id);
 		names.set(id, id);
 		names.set(id.toLowerCase(), id);
@@ -3417,6 +3855,240 @@ function declaredRole(terminal: unknown): string | null {
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+/** Panel control ids that some component's program reads `tapped` (core 0.13.0). */
+function tappedControlIds(document: unknown): ReadonlySet<string> {
+	const named = new Set<string>();
+	const components = (document as { components?: unknown }).components;
+	if (!Array.isArray(components)) return named;
+	for (const component of components) {
+		const program = declaredProgram(component);
+		if (program === undefined) continue;
+		for (const position of program.positions) {
+			const cited = [
+				...Object.values(position.lines).flatMap((parameters) => Object.values(parameters)),
+				...Object.values(position.parameters),
+			];
+			for (const parameter of cited) {
+				if (parameter.read === "tapped" && parameter.control !== undefined) {
+					named.add(parameter.control);
+				}
+			}
+			// A hold sampler's gate is a pedal the chip reads while it is held: a press, so the
+			// contact springs back exactly as a tapped one does. The op name is a closed-vocabulary
+			// token compared whole.
+			for (const op of position.ops) {
+				if (op.op !== "hold-loop") continue;
+				const gate = op.gate as { parameter?: unknown } | null | undefined;
+				const name = typeof gate?.parameter === "string" ? gate.parameter : undefined;
+				const control = name === undefined ? undefined : position.parameters[name]?.control;
+				if (control !== undefined) named.add(control);
+			}
+		}
+	}
+	return named;
+}
+
+/**
+ * Panel control ids that some component's program declares it reads by scanning or timing -- as
+ * its router, or as a cited parameter.
+ *
+ * Read from the raw document rather than from the devices, because the whole point of a
+ * scanned control is that no device carries it.
+ */
+function scannedControls(document: unknown): ReadonlySet<string> {
+	const named = new Set<string>();
+	const components = (document as { components?: unknown }).components;
+	if (!Array.isArray(components)) return named;
+	for (const component of components) {
+		const program = declaredProgram(component);
+		if (program === undefined) continue;
+		if (program.router?.read === "scanned") named.add(program.router.control);
+		for (const position of program.positions) {
+			const cited = [
+				...Object.values(position.lines).flatMap((parameters) => Object.values(parameters)),
+				...Object.values(position.parameters),
+			];
+			for (const parameter of cited) {
+				if ((parameter.read === "scanned" || parameter.read === "tapped") && parameter.control !== undefined) {
+					named.add(parameter.control);
+				}
+			}
+		}
+	}
+	return named;
+}
+
+/**
+ * The program a component declares, or null.
+ *
+ * Read verbatim like `declaredRole`, and for the same reason: core has already refused the shapes
+ * that cannot be executed -- no positions, several positions with no selector naming the control
+ * that chooses, a position with no ops, an op with no name. What survives that is a declaration
+ * this stage has no business re-adjudicating.
+ *
+ * **The ops are not validated here and that is deliberate.** Their vocabulary is the runtime's op
+ * enum, which stage 1 knows nothing about; checking it here would put a second copy of that
+ * vocabulary in the reader. `validateDeclaredOp` does it at resolution, where the refusal can name
+ * the op and the device together.
+ */
+function declaredProgram(component: unknown): DeclaredProgram | undefined {
+	const raw =
+		component !== null && typeof component === "object"
+			? (component as { program?: unknown }).program
+			: undefined;
+	if (raw === null || typeof raw !== "object") return undefined;
+	const positionsRaw = (raw as { positions?: unknown }).positions;
+	if (!Array.isArray(positionsRaw) || positionsRaw.length === 0) return undefined;
+	const positions: DeclaredProgramPosition[] = [];
+	for (const entry of positionsRaw) {
+		if (entry === null || typeof entry !== "object") continue;
+		const position = entry as {
+			id?: unknown;
+			label?: unknown;
+			ops?: unknown;
+			lines?: unknown;
+			parameters?: unknown;
+		};
+		if (typeof position.id !== "string" || !Array.isArray(position.ops)) continue;
+		positions.push({
+			id: position.id,
+			label: typeof position.label === "string" ? position.label : null,
+			ops: position.ops.filter(
+				(op: unknown): op is DeclaredProgramOp =>
+					op !== null &&
+					typeof op === "object" &&
+					typeof (op as { op?: unknown }).op === "string",
+			),
+			lines: declaredProgramLines(position.lines),
+			parameters: declaredPositionParameters(position.parameters),
+		});
+	}
+	if (positions.length === 0) return undefined;
+	return { router: declaredProgramRouter((raw as { router?: unknown }).router), positions };
+}
+
+/**
+ * The router a component's program declares, read verbatim.
+ *
+ * Core has already refused every router that cannot be executed -- no control, fewer than two
+ * positions, no routes, a route out of range, a duplicate route, a route naming a program the
+ * component does not declare. What survives that is a declaration this stage has no business
+ * re-adjudicating, so it is copied rather than checked.
+ */
+function declaredProgramRouter(raw: unknown): DeclaredProgramRouter | null {
+	if (raw === null || typeof raw !== "object") return null;
+	const router = raw as {
+		control?: unknown;
+		read?: unknown;
+		scannedBy?: unknown;
+		positions?: unknown;
+		routes?: unknown;
+	};
+	if (typeof router.control !== "string" || router.control.trim().length === 0) return null;
+	if (typeof router.positions !== "number" || !Number.isInteger(router.positions)) return null;
+	if (!Array.isArray(router.routes)) return null;
+	const routes: DeclaredProgramRoute[] = [];
+	for (const entry of router.routes) {
+		if (entry === null || typeof entry !== "object") continue;
+		const route = entry as { position?: unknown; program?: unknown };
+		if (typeof route.position !== "number" || !Number.isInteger(route.position)) continue;
+		if (typeof route.program !== "string" || route.program.length === 0) continue;
+		routes.push({ position: route.position, program: route.program });
+	}
+	if (routes.length === 0) return null;
+	// Core validated these: `read` is one of two values, and a scanned router names a reader
+	// this document has. Read verbatim, as everything else at this boundary is.
+	const read = router.read === "scanned" ? "scanned" : "node";
+	const scannedBy =
+		typeof router.scannedBy === "string" && router.scannedBy.trim().length > 0
+			? router.scannedBy.trim()
+			: null;
+	return {
+		control: router.control.trim(),
+		read,
+		scannedBy,
+		positions: router.positions,
+		routes,
+	};
+}
+
+/**
+ * One cited program parameter, read verbatim: a line's or a position's, the same way. Core
+ * validated `read` / `scannedBy` exactly as it validates a router's.
+ */
+function declaredProgramParameter(valueRaw: unknown): DeclaredProgramParameter | null {
+	if (valueRaw === null || typeof valueRaw !== "object") return null;
+	const value = valueRaw as {
+		min?: unknown;
+		max?: unknown;
+		control?: unknown;
+		read?: unknown;
+		scannedBy?: unknown;
+		ratio?: unknown;
+		tap?: { presses?: unknown; timeoutSeconds?: unknown; defaultSeconds?: unknown };
+		source?: unknown;
+	};
+	if (typeof value.min !== "number" || typeof value.max !== "number") return null;
+	const tap =
+		value.tap !== undefined &&
+		typeof value.tap.presses === "number" &&
+		typeof value.tap.timeoutSeconds === "number"
+			? {
+					presses: value.tap.presses,
+					timeoutSeconds: value.tap.timeoutSeconds,
+					defaultSeconds: typeof value.tap.defaultSeconds === "number" ? value.tap.defaultSeconds : null,
+				}
+			: undefined;
+	return {
+		min: value.min,
+		max: value.max,
+		read: value.read === "scanned" || value.read === "tapped" ? value.read : "node",
+		ratio: typeof value.ratio === "number" && Number.isFinite(value.ratio) ? value.ratio : null,
+		...(tap === undefined ? {} : { tap }),
+		scannedBy:
+			typeof value.scannedBy === "string" && value.scannedBy.trim().length > 0
+				? value.scannedBy.trim()
+				: null,
+		...(typeof value.control === "string" ? { control: value.control } : {}),
+		...(typeof value.source === "string" ? { source: value.source } : {}),
+	};
+}
+
+/** A position's named parameters (core 0.12.0), read verbatim. */
+function declaredPositionParameters(
+	raw: unknown,
+): Readonly<Record<string, DeclaredProgramParameter>> {
+	if (raw === null || typeof raw !== "object") return {};
+	const parameters: Record<string, DeclaredProgramParameter> = {};
+	for (const [name, valueRaw] of Object.entries(raw as Record<string, unknown>)) {
+		const parameter = declaredProgramParameter(valueRaw);
+		if (parameter !== null) parameters[name] = parameter;
+	}
+	return parameters;
+}
+
+/** The cited parameters of one position's delay lines, keyed line then parameter. */
+function declaredProgramLines(
+	raw: unknown,
+): Readonly<Record<string, Readonly<Record<string, DeclaredProgramParameter>>>> {
+	if (raw === null || typeof raw !== "object") return {};
+	const lines: Record<string, Record<string, DeclaredProgramParameter>> = {};
+	for (const [lineId, parametersRaw] of Object.entries(
+		raw as Record<string, unknown>,
+	)) {
+		if (parametersRaw === null || typeof parametersRaw !== "object") continue;
+		const parameters: Record<string, DeclaredProgramParameter> = {};
+		for (const [name, valueRaw] of Object.entries(
+			parametersRaw as Record<string, unknown>,
+		)) {
+			const parameter = declaredProgramParameter(valueRaw);
+			if (parameter !== null) parameters[name] = parameter;
+		}
+		if (Object.keys(parameters).length > 0) lines[lineId] = parameters;
+	}
+	return lines;
+}
+
 /**
  * The coils a component declares, as terminal indices in coil order.
  *
@@ -3645,6 +4317,138 @@ function readRawControlPositions(source: string): Map<string, number> {
 		positions.set(id, Math.min(1, Math.max(0, record.defaultPosition)));
 	}
 	return positions;
+}
+
+/**
+ * Reads discrete position counts declared on `deviceInterface.controls[].positions` or
+ * `deviceInterface.controls[].options`.
+ */
+function readRawControlDiscretePositions(source: string): Map<string, number> {
+	const positions = new Map<string, number>();
+	let parsed: unknown;
+	try {
+		parsed = loadYaml(source);
+	} catch {
+		return positions;
+	}
+	if (parsed === null || typeof parsed !== "object") {
+		return positions;
+	}
+	const controls = (
+		(parsed as { deviceInterface?: { controls?: unknown } }).deviceInterface ??
+		{}
+	).controls;
+	if (!Array.isArray(controls)) {
+		return positions;
+	}
+	for (const control of controls) {
+		if (control === null || typeof control !== "object") {
+			continue;
+		}
+		const record = control as {
+			id?: unknown;
+			positions?: unknown;
+			options?: unknown;
+			kind?: unknown;
+		};
+		const id =
+			typeof record.id === "number" && Number.isFinite(record.id)
+				? String(record.id)
+				: typeof record.id === "string" && record.id.trim() !== ""
+					? record.id.trim()
+					: null;
+		if (id === null) {
+			continue;
+		}
+		if (Array.isArray(record.positions) && record.positions.length > 0) {
+			positions.set(id, record.positions.length);
+		} else if (
+			typeof record.positions === "number" &&
+			Number.isFinite(record.positions) &&
+			record.positions > 1
+		) {
+			positions.set(id, record.positions);
+		} else if (Array.isArray(record.options) && record.options.length > 0) {
+			positions.set(id, record.options.length);
+		} else if (
+			typeof record.kind === "string" &&
+			(record.kind === "switch" || record.kind === "footswitch")
+		) {
+			positions.set(id, 2);
+		}
+	}
+	return positions;
+}
+
+/**
+ * Computes discrete position count for a control (e.g. 2 for 2-way toggle/footswitch,
+ * N for multi-way selector), or `null` for continuous controls (potentiometers, rheostats).
+ */
+function discretePositionsForControl(
+	id: string,
+	owner: ComponentLike | undefined,
+	document: ParsedDocument,
+	rawPositionsMap: ReadonlyMap<string, number>,
+): number | null {
+	const raw = rawPositionsMap.get(id);
+	if (raw !== undefined && raw > 1) {
+		return raw;
+	}
+	for (const control of document.deviceInterface?.controls ?? []) {
+		if (String(control.id) === id) {
+			const positions = (control as { positions?: unknown }).positions;
+			if (Array.isArray(positions) && positions.length > 0) {
+				return positions.length;
+			}
+			if (typeof positions === "number" && positions > 1) {
+				return positions;
+			}
+			const options = (control as { options?: unknown }).options;
+			if (Array.isArray(options) && options.length > 0) {
+				return options.length;
+			}
+			const kind = (control as { kind?: unknown }).kind;
+			if (kind === "switch" || kind === "footswitch") {
+				return 2;
+			}
+		}
+	}
+	if (owner !== undefined) {
+		if (owner.kind === "potentiometer") {
+			return null;
+		}
+		const throwsVal =
+			propertyString(owner, "Throws") ?? propertyString(owner, "throws");
+		if (throwsVal !== null) {
+			const count = Number(throwsVal);
+			if (Number.isFinite(count) && count > 1) {
+				return count;
+			}
+		}
+		const positionsVal =
+			propertyString(owner, "Positions") ?? propertyString(owner, "positions");
+		if (positionsVal !== null) {
+			const count = Number(positionsVal);
+			if (Number.isFinite(count) && count > 1) {
+				return count;
+			}
+		}
+		const optionsVal =
+			propertyString(owner, "Options") ?? propertyString(owner, "options");
+		if (optionsVal !== null) {
+			const count = optionsVal
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean).length;
+			if (count > 1) {
+				return count;
+			}
+		}
+		if (owner.kind === "switch") {
+			return 2;
+		}
+	}
+	return null;
 }
 
 
@@ -4444,4 +5248,194 @@ function resolvePorts(
 			(node) => node !== GROUND && transformerNodes.has(node),
 		) ?? signalNode(output);
 	return { input: signalNode(input), output: outputNode };
+}
+
+type ControllerPinSpec = {
+	readonly id: string;
+	readonly node: NodeId;
+	readonly high: NodeId;
+	readonly low: NodeId;
+	readonly invert: boolean;
+	readonly follows?: string;
+	readonly highAt?: { readonly control: string; readonly positions: readonly number[] };
+};
+
+/**
+ * A driven pin as the selector it is. `follows` a latch: two throws, ground then supply.
+ * `highAt` a control's detents: one throw per detent, each on the supply or the ground, so the
+ * selector law's own detent mapping (`floor(position x count)`) chooses the level.
+ */
+function controllerPinDevice(pin: ControllerPinSpec, controls: readonly Control[]): Device {
+	const [on, off] = pin.invert ? [pin.low, pin.high] : [pin.high, pin.low];
+	const control = pin.highAt?.control ?? pin.follows ?? "";
+	const count = pin.highAt === undefined
+		? 2
+		: Math.max(2, controls.find((candidate) => candidate.id === control)?.positions ?? 2);
+	const throws = pin.highAt === undefined
+		? [off, on]
+		: Array.from({ length: count }, (_, detent) => (pin.highAt?.positions.includes(detent) ? on : off));
+	return {
+		id: pin.id,
+		kind: "switch",
+		nodes: [pin.node, ...throws],
+		parameters: {},
+		control,
+		identity: {
+			partNumber: null,
+			declaredType: null,
+			terminalRoles: ["common", ...throws.map(() => "throw")],
+			declaredTerminalRoles: ["common", ...throws.map(() => "throw")],
+			declaredWindings: null,
+		},
+	};
+}
+
+/**
+ * The firmware rules the document's controllers declare: their latches, and each driven pin as a
+ * three-node switch device between the chip's declared supply and ground.
+ *
+ * Core has already refused a pin on a terminal the chip lacks, a pin following no latch, and pins
+ * on a chip with no declared supply, so what reaches here is executable. The terminal a pin names
+ * is an exact identifier the declaration points at, never a name this stage interprets.
+ */
+function declaredControllers(
+	document: unknown,
+	nodeOf: (componentId: string, terminalName: string, index: number) => NodeId | null,
+): {
+	readonly latches: readonly { id: string; toggledBy: string; initial: 0 | 1 }[];
+	readonly pins: readonly ControllerPinSpec[];
+} {
+	const latches: { id: string; toggledBy: string; initial: 0 | 1 }[] = [];
+	const pins: ControllerPinSpec[] = [];
+	const components = (document as { components?: unknown }).components;
+	if (!Array.isArray(components)) return { latches, pins };
+	for (const component of components as {
+		id: string;
+		terminals: readonly { name: string; role?: string | null }[];
+		controller?: {
+			latches: readonly { id: string; toggledBy: string; initial: 0 | 1 }[];
+			pins?: readonly {
+				terminal: string;
+				follows?: string;
+				highAt?: { control: string; positions: readonly number[] };
+				invert?: boolean;
+			}[];
+		};
+	}[]) {
+		const controller = component.controller;
+		if (controller === undefined) continue;
+		for (const latch of controller.latches) {
+			latches.push({ id: latch.id, toggledBy: latch.toggledBy, initial: latch.initial });
+		}
+		const terminalNode = (predicate: (terminal: { name: string; role?: string | null }) => boolean) => {
+			const index = component.terminals.findIndex(predicate);
+			const terminal = component.terminals[index];
+			return terminal === undefined ? null : nodeOf(component.id, terminal.name, index);
+		};
+		const high = terminalNode((terminal) => terminal.role === "supplyPositive");
+		const low = terminalNode((terminal) => terminal.role === "supplyNegative");
+		for (const pin of controller.pins ?? []) {
+			const node = terminalNode((terminal) => terminal.name === pin.terminal);
+			if (node === null || high === null || low === null) continue;
+			pins.push({
+				id: `${component.id}:${pin.terminal}`,
+				node,
+				high,
+				low,
+				invert: pin.invert === true,
+				...(pin.follows === undefined ? {} : { follows: pin.follows }),
+				...(pin.highAt === undefined ? {} : { highAt: pin.highAt }),
+			});
+		}
+	}
+	return { latches, pins };
+}
+
+/**
+ * The bypass declaration both the control defaults and the bypass record
+ * read: which switch is the bypass, and which of its positions the document
+ * declares engaged. One parse, one validation, two readers -- the control
+ * assembly above and the NetlistBypass record below used to read the raw
+ * block independently and could disagree about its shape.
+ */
+function parseBypassDeclaration(document: unknown): {
+	readonly switchId: string | null;
+	readonly engaged: 0 | 1 | null;
+	readonly rawEngagedPosition: string | number | undefined;
+} {
+	const raw =
+		(document as { audio?: { bypass?: unknown } }).audio?.bypass;
+	const switchId =
+		raw !== null &&
+		typeof raw === "object" &&
+		"switch" in raw &&
+		typeof (raw as { switch: unknown }).switch === "string"
+			? ((raw as { switch: string }).switch as string)
+			: null;
+	const rawEngaged =
+		raw !== null && typeof raw === "object" && "engagedPosition" in raw
+			? (raw as { engagedPosition?: unknown }).engagedPosition
+			: undefined;
+	const engaged: 0 | 1 | null =
+		typeof rawEngaged === "number" &&
+		Number.isFinite(rawEngaged) &&
+		(rawEngaged === 0 || rawEngaged === 1)
+			? rawEngaged
+			: null;
+	const rawEngagedPosition =
+		typeof rawEngaged === "string" || typeof rawEngaged === "number"
+			? rawEngaged
+			: undefined;
+	return { switchId, engaged, rawEngagedPosition };
+}
+
+/**
+ * The latch state a program takes as its effect: the end of the latch at which the parameters
+ * reading it are largest. Null where no program reads the latch, or its readers disagree, so a
+ * latch whose meaning the document does not show keeps its declared power-on state.
+ */
+function engagedLatchState(document: unknown, latchId: string): 0 | 1 | null {
+	const components = (document as { components?: unknown }).components;
+	if (!Array.isArray(components)) return null;
+	const votes = new Set<0 | 1>();
+	for (const component of components) {
+		const program = declaredProgram(component);
+		if (program === undefined) continue;
+		for (const position of program.positions) {
+			const cited = [
+				...Object.values(position.lines).flatMap((parameters) => Object.values(parameters)),
+				...Object.values(position.parameters),
+			];
+			for (const parameter of cited) {
+				if (parameter.control !== latchId || parameter.max === parameter.min) continue;
+				votes.add(parameter.max > parameter.min ? 1 : 0);
+			}
+		}
+	}
+	return votes.size === 1 ? [...votes][0]! : null;
+}
+
+/**
+ * The tap law each tapped control is read with. Every tapped parameter of one control reads the
+ * same presses, so the first stated law is the control's; a DD-5's four TEMPO positions state one.
+ */
+function tapLawsByControl(document: unknown): ReadonlyMap<string, TapLaw> {
+	const laws = new Map<string, TapLaw>();
+	const components = (document as { components?: unknown }).components;
+	if (!Array.isArray(components)) return laws;
+	for (const component of components) {
+		const program = declaredProgram(component);
+		if (program === undefined) continue;
+		for (const position of program.positions) {
+			const cited = [
+				...Object.values(position.lines).flatMap((parameters) => Object.values(parameters)),
+				...Object.values(position.parameters),
+			];
+			for (const parameter of cited) {
+				if (parameter.read !== "tapped" || parameter.control === undefined || parameter.tap === undefined) continue;
+				if (!laws.has(parameter.control)) laws.set(parameter.control, parameter.tap);
+			}
+		}
+	}
+	return laws;
 }

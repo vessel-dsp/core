@@ -67,9 +67,20 @@ const LATCH_SEED_VOLTS = 0.65;
  * it is not an input the control plane can move, so a footswitch cannot change it. That needs
  * the latched-state operator with a state entry — see the runtime plan's S4 initial-state item.
  */
-export function findLatchSeeds(
-	netlist: Netlist,
-): readonly OperatingPointSeed[] {
+export type BistableLatch = {
+	readonly controlId: string | null;
+	readonly engagedBase: NodeId;
+	readonly bypassedBase: NodeId;
+	readonly emitter: NodeId;
+	readonly engagedCollector: NodeId;
+	readonly bypassedCollector: NodeId;
+	readonly engagedTransistorId: string;
+	readonly bypassedTransistorId: string;
+};
+
+export function findBistableLatches(
+	netlist: Pick<Netlist, "devices"> & { readonly controls?: readonly import("./types").Control[] },
+): readonly BistableLatch[] {
 	const rails = new Set<NodeId>([0]);
 	for (const device of netlist.devices) {
 		if (device.kind === "voltage-source" || device.kind === "rail") {
@@ -135,8 +146,7 @@ export function findLatchSeeds(
 		}
 	}
 
-	const seeds: OperatingPointSeed[] = [];
-	const seeded = new Set<NodeId>();
+	const latches: BistableLatch[] = [];
 	for (const pair of pairs) {
 		if (
 			[pair.a, pair.b].some((m) => (appearances.get(m.id) ?? 0) > 1)
@@ -145,14 +155,54 @@ export function findLatchSeeds(
 		}
 		// Prefer the side that engages the effect. Falling back to the lower base id keeps a
 		// latch this cannot read out of the unphysical midpoint, which is the seed's floor.
-		const node =
+		const engagedBaseNode =
 			engagedBase(netlist, rails, pair.a, pair.b) ??
 			(Math.min(pair.a.base, pair.b.base) as NodeId);
-		if (seeded.has(node)) {
+
+		const engaged = engagedBaseNode === pair.a.base ? pair.a : pair.b;
+		const bypassed = engagedBaseNode === pair.a.base ? pair.b : pair.a;
+
+		const bypassControls = (netlist.controls ?? []).filter(
+			(c) => c.role === "bypass",
+		);
+		let controlId: string | null =
+			bypassControls.length === 1 ? (bypassControls[0]?.id ?? null) : null;
+
+		if (controlId === null) {
+			for (const dev of netlist.devices) {
+				if (dev.kind === "switch" && dev.control !== null) {
+					controlId = dev.control;
+					break;
+				}
+			}
+		}
+
+		latches.push({
+			controlId,
+			engagedBase: engaged.base,
+			bypassedBase: bypassed.base,
+			emitter: pair.a.emitter,
+			engagedCollector: engaged.collector,
+			bypassedCollector: bypassed.collector,
+			engagedTransistorId: engaged.id,
+			bypassedTransistorId: bypassed.id,
+		});
+	}
+	return latches;
+}
+
+export function findLatchSeeds(
+	netlist: Netlist,
+): readonly OperatingPointSeed[] {
+	const latches = findBistableLatches(netlist);
+	const seeds: OperatingPointSeed[] = [];
+	const seeded = new Set<NodeId>();
+	for (const latch of latches) {
+		if (seeded.has(latch.engagedBase)) {
 			continue;
 		}
-		seeded.add(node);
-		seeds.push({ node, volts: LATCH_SEED_VOLTS });
+		seeded.add(latch.engagedBase);
+		seeds.push({ node: latch.engagedBase, volts: LATCH_SEED_VOLTS });
 	}
 	return seeds;
 }
@@ -189,7 +239,7 @@ type Edge = { readonly a: NodeId; readonly b: NodeId; readonly id: string };
  * Both floods are blocked by rails, the same exclusion the rest of this file makes.
  */
 function engagedBase(
-	netlist: Netlist,
+	netlist: Pick<Netlist, "devices">,
 	rails: ReadonlySet<NodeId>,
 	a: Transistor,
 	b: Transistor,
@@ -260,7 +310,7 @@ function engagedBase(
 
 /** Undirected two-terminal edges of the given kinds; a pot contributes one per terminal pair. */
 function edgesOf(
-	netlist: Netlist,
+	netlist: Pick<Netlist, "devices">,
 	kinds: readonly Device["kind"][],
 ): readonly Edge[] {
 	const wanted = new Set<string>(kinds);

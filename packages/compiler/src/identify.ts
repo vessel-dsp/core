@@ -85,6 +85,25 @@ export function mayCarryRegistrySections(device: Device): boolean {
  * registration question to end where it would today -- rung 3 -- rather than falling through to
  * `declaredType`, whose class would re-stamp the drawn `opamp`.
  */
+/**
+ * A bipolar transistor whose exact part id the registry expands into sections -- a bias-resistor
+ * built-in transistor (a "digital transistor") such as Toshiba's RN1307, whose datasheet puts a
+ * series base resistor and a base-emitter resistor inside the package. The class law is a bare
+ * transistor and cannot know they are there; the part number can. Every other BJT keeps its class
+ * law untouched, because no other BJT has a sections entry.
+ */
+export function bjtPartRegisteredAsSections(device: Device, registry: PartRegistry): boolean {
+	if (device.kind !== "bjt") return false;
+	const partNumber = device.identity.partNumber;
+	if (partNumber === null) return false;
+	const canonical = foldPartId(canonicalPartId(partNumber));
+	return registry.entries.some(
+		(entry) =>
+			entry.model.kind === "sections" &&
+			entry.partIds.some((id) => foldPartId(canonicalPartId(id)) === canonical),
+	);
+}
+
 export function opampPartRegisteredAsOtherLaw(device: Device, registry: PartRegistry): boolean {
 	if (device.kind !== "opamp") {
 		return false;
@@ -133,7 +152,8 @@ export function identify(
 ): PartIdentity | null {
 	if (
 		!mayCarryRegistrySections(device) &&
-		!opampPartRegisteredAsOtherLaw(device, registry)
+		!opampPartRegisteredAsOtherLaw(device, registry) &&
+		!bjtPartRegisteredAsSections(device, registry)
 	) {
 		return null;
 	}
@@ -144,7 +164,7 @@ export function identify(
 		// 1. Try to find an entry with matching partId AND matching terminal arity (or macro kind)
 		for (const entry of registry.entries) {
 			if (entry.partIds.some((id) => foldPartId(id) === folded)) {
-				if (entry.model.kind === "sections") {
+				if (entry.model.kind === "sections" || entry.model.kind === "sections-core") {
 					if (device.nodes.length === entry.model.pinout.length) {
 						// A part the op-amp class law binds already keeps that law unless the
 						// registry says the part is not an op-amp; see `opampKeepsItsClass`.
@@ -269,7 +289,7 @@ export function identify(
 			if (
 				!(partNumberUnmatched && entry.model.kind === "macro") &&
 				entry.declaredTypes.some((type) => foldToken(type) === folded) &&
-				entry.model.kind === "sections" &&
+				(entry.model.kind === "sections" || entry.model.kind === "sections-core") &&
 				device.nodes.length === entry.model.pinout.length
 			) {
 				const resolvedId = entry.declaredTypes[0] ?? declaredType;

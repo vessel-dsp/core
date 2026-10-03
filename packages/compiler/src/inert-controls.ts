@@ -63,10 +63,19 @@ export function findInertControls(
 
 	const scheduledControls = controlsInScheduledBlocks(program);
 
+	// Controls a program reads through a port rather than a stamp. Their devices are genuinely
+	// dead to the circuit and that is not a defect: a mode pot read by a high-impedance input
+	// has a wiper driving nothing, and it still chooses which program runs. Reporting it would
+	// be a wrong answer about someone's circuit, which is the bar this whole file sets.
+	const portedControls = controlsReadThroughPorts(program);
+
 	const warnings: InertControlWarning[] = [];
 	for (const control of netlist.controls) {
 		const bound = byControl.get(control.id) ?? [];
 		if (bound.length === 0) {
+			continue;
+		}
+		if (portedControls.has(control.id)) {
 			continue;
 		}
 		// Every device the control drives must be dead for the claim to hold. One live gang, or a
@@ -152,6 +161,44 @@ export function findInertControls(
  * Reads `program.order` rather than re-deriving reachability, because the program's own
  * statement of what executes is the fact being reported.
  */
+/**
+ * Controls a block reads through a port: a clock control, or a router choosing a program.
+ *
+ * Neither changes the conductance matrix, so every structural test in this file calls them
+ * dead. They are not: the control reaches the program by another road.
+ */
+function controlsReadThroughPorts(program: Program): ReadonlySet<ControlId> {
+	const ported = new Set<ControlId>();
+	for (const block of program.blocks) {
+		if (block.kind !== "macro" && block.kind !== "composed") continue;
+		const clock = block.clockControl?.controlId;
+		if (clock !== undefined) ported.add(clock);
+		if (block.kind === "composed" && block.router !== null && block.router !== undefined) {
+			ported.add(block.router.controlId);
+		}
+		// A scanned or tapped line's control moves the program's delay without varying any device.
+		if (block.kind === "composed") {
+			for (const position of block.positions) {
+				for (const line of Object.values(position.lines)) {
+					if (line.sweep !== undefined) ported.add(line.sweep.controlId);
+				}
+			}
+		}
+		// And a swept gain's knob moves a mix term the same way.
+		if (block.kind === "composed") {
+			for (const position of block.positions) {
+				for (const op of position.ops) {
+					if (op.op !== "mix") continue;
+					for (const term of op.terms) {
+						if (term.sweep !== undefined) ported.add(term.sweep.controlId);
+					}
+				}
+			}
+		}
+	}
+	return ported;
+}
+
 function controlsOnlyInUnscheduledBlocks(
 	program: Program,
 ): ReadonlySet<ControlId> {
@@ -159,7 +206,7 @@ function controlsOnlyInUnscheduledBlocks(
 	const stampedAnywhere = new Set<ControlId>();
 	const stampedInScheduled = new Set<ControlId>();
 	for (const block of program.blocks) {
-		if (block.kind === "macro") {
+		if (block.kind === "macro" || block.kind === "composed") {
 			const controlId = block.clockControl?.controlId;
 			if (controlId !== undefined) {
 				stampedAnywhere.add(controlId);
@@ -201,7 +248,7 @@ function controlsInScheduledBlocks(
 		if (!scheduled.has(block.id)) {
 			continue;
 		}
-		if (block.kind === "macro") {
+		if (block.kind === "macro" || block.kind === "composed") {
 			const controlId = block.clockControl?.controlId;
 			if (controlId !== undefined) {
 				inScheduled.add(controlId);

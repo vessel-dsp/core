@@ -46,7 +46,7 @@ function entryFor(partId: string, registry: PartRegistry): PartEntry | null {
  * and no side asserts what that order means.
  */
 function bindsByUnverifiedOrder(device: Device, entry: PartEntry): boolean {
-	if (entry.model.kind !== "sections") {
+	if (entry.model.kind !== "sections" && entry.model.kind !== "sections-core") {
 		return false;
 	}
 	// **A declared supply binding takes the section before any of this runs.** Without this the

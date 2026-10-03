@@ -8,7 +8,7 @@
 // keyed on folded terminal spellings that grew one packet at a time. `@vessel-dsp/core@0.6.35`
 // makes the coil grouping a declaration (`windings`) and the corpus declares it, so the table is
 // gone and `transformerWindings` reads. R1 in
-// `thoughts/shared/plans/2026-08-31-v2-complexity-reduction-plan.md` is the plan this closes.
+// `thoughts/shared/plans/archive/2026-08-31-v2-complexity-reduction-plan.md` is the plan this closes.
 
 import { LoweringError } from "./errors";
 import { GROUND, type Device, type DeviceLaw, type NodeId } from "./types";

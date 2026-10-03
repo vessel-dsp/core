@@ -21,7 +21,7 @@ export function emit(program: Program): Artifact {
 
 export function decode(text: string): Program {
 	const parsed = JSON.parse(text) as Program;
-	if (parsed.formatVersion !== 1) {
+	if (parsed.formatVersion !== 6) {
 		throw new Error(
 			`unsupported program format version ${parsed.formatVersion}`,
 		);

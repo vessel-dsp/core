@@ -14,5 +14,5 @@
 			"@vessel-dsp/compiler/*": ["packages/compiler/src/*"]
 		}
 	},
-	"include": ["src/**/*"]
+	"include": ["src/**/*", "tests/**/*"]
 }

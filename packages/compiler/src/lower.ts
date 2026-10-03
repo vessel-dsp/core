@@ -19,7 +19,11 @@
 
 import { SWITCH_ON_OHMS } from "./device-laws";
 
-import { findLatchSeeds } from "./latch-seed";
+import {
+	findBistableLatches,
+	findLatchSeeds,
+	type BistableLatch,
+} from "./latch-seed";
 import { computeSparseSchedule } from "./sparse-schedule";
 import {
 	computeStampPartition,
@@ -49,13 +53,19 @@ import {
 	transformerWindings,
 } from "./transformer";
 import {
+	opampInvertingInputNodes,
 	opampInputDistances,
+	opampOutputAcDistances,
+	opampOutputDistances,
 	potTerminals,
 	quietDistances,
 } from "./pot-orientation";
 
 export {
+	opampInvertingInputNodes,
 	opampInputDistances,
+	opampOutputAcDistances,
+	opampOutputDistances,
 	potTerminals,
 	quietDistances,
 } from "./pot-orientation";
@@ -76,6 +86,7 @@ export function lowerRegion(
 	 * transistors, and `boss-ds-1` lowers 82 regions from one netlist.
 	 */
 	latchSeeds: readonly OperatingPointSeed[] = [],
+	latches: readonly BistableLatch[] = [],
 	/**
 	 * Computed once by `lower`, for the same reason `latchSeeds` is: the graph a pot's
 	 * orientation reads (`quietDistances`) does not change between `boss-ds-1`'s 82 regions
@@ -89,6 +100,20 @@ export function lowerRegion(
 	 * `quietDistance` is: an unresolved pot, never a wrong one.
 	 */
 	opampInputDistance: ReadonlyMap<NodeId, number> = new Map(),
+	/**
+	 * Companion of `opampInputDistance` for the negative-feedback gain-stage tie in
+	 * `potTerminals`: a pot that the input-distance evidence cannot break reads which end
+	 * sits on an op-amp's declared output instead. Empty by default for the same reason.
+	 */
+	opampOutputDistance: ReadonlyMap<NodeId, number> = new Map(),
+	/**
+	 * Nodes that are a declared op-amp inverting input, and the AC (DC + capacitors) distance to
+	 * an op-amp's declared output: the two signals `potTerminals` reads for the one finite-tie
+	 * shape the DC maps cannot break -- a non-inverting gain pot whose wiper sits on the
+	 * inverting input. Empty by default for the same reason as the other maps.
+	 */
+	invertingInputNodes: ReadonlySet<NodeId> = new Set(),
+	acOutputDistance: ReadonlyMap<NodeId, number> = new Map(),
 ): Block {
 	if (region.kind === "macro") {
 		const macro = region.macro;
@@ -107,9 +132,22 @@ export function lowerRegion(
 			audioOut: false,
 			parameter: null,
 			modulation: null,
+			// The open-OX2 port and law ride only when recognised: emitting
+			// null keys here would churn every macro block's program bytes
+			// without changing any of them, and the ce-5/micro-flanger
+			// bit-identical gate names those programs byte for byte.
+			...(macro.clockLawParams !== undefined && macro.clockLawParams !== null
+				? { clockLawParams: macro.clockLawParams }
+				: {}),
 			clockControl: macro.clockControl ?? null,
 			delayProvenance: macro.delayProvenance ?? null,
 			delayDeclaredReason: macro.delayDeclaredReason ?? null,
+			// A declared composition rides the macro road as far as composition; `couple.ts`
+			// fills `selector` the same way it fills `parameter`, from the terminal index.
+			declaredPositions: macro.declaredPositions ?? null,
+			declaredRouter: macro.declaredRouter ?? null,
+			declaredParameter: macro.declaredParameter ?? null,
+			router: null,
 		};
 	}
 
@@ -179,12 +217,15 @@ export function lowerRegion(
 					device,
 					quietDistance,
 					opampInputDistance,
+					opampOutputDistance,
 					// The declared role of the control this pot answers to. `potTerminals`
 					// reads it for one narrow case -- a rheostat whose control names a time
 					// constant -- and ignores it otherwise.
 					lawed.netlist.controls.find(
 						(control) => control.id === law.control,
 					)?.role ?? null,
+					invertingInputNodes,
+					acOutputDistance,
 				);
 				// Both halves carry the same residual: it is a property of the wiper's
 				// travel, so each end of the track keeps one.
@@ -252,6 +293,50 @@ export function lowerRegion(
 							throwCount,
 							onOhms: law.onOhms,
 							offOhms: law.offOhms,
+						});
+					});
+				}
+				break;
+			}
+			case "fixed-selector": {
+				// Row 12: a momentary footswitch contact rests OPEN. A null-control
+				// switch with more than two terminals that touches a detected latch's
+				// collector/base set is the footswitch driving that latch: welding it
+				// shut (position ?? 1) drags the bypassed collector below gate
+				// threshold and the switch dies (boss-ph-1r measured: bypassed
+				// collector pinned at 0.82 V against a ~9 V pull-up by the 0.01 ohm
+				// common-to-throw2 weld, downstream gates never switch, audio
+				// bit-identical both positions). Emit no element; the latch state
+				// (exposed control + steering stamps) carries selection. Two-terminal
+				// null-control switches (boss-bd-2, boss-ds-1) and switches outside
+				// latch sets (boss-dm-3) never reach this branch.
+				const latchNodes = new Set<NodeId>();
+				for (const latch of latches) {
+					latchNodes.add(latch.engagedCollector);
+					latchNodes.add(latch.bypassedCollector);
+					latchNodes.add(latch.engagedBase);
+					latchNodes.add(latch.bypassedBase);
+				}
+				if (
+					device.nodes.length > 2 &&
+					device.nodes.some((node) => latchNodes.has(node))
+				) {
+					break;
+				}
+				const poles = switchPoles(device);
+				const throwCount = Math.max(...poles.map((pole) => pole.throws.length));
+				const selected = Math.min(
+					throwCount - 1,
+					Math.max(0, Math.floor(law.position * throwCount)),
+				);
+				for (const pole of poles) {
+					pole.throws.forEach((throwNode, throwIndex) => {
+						const ohms = throwIndex === selected ? law.onOhms : law.offOhms;
+						stamps.push({
+							kind: "conductance",
+							a: pole.common,
+							b: throwNode,
+							siemens: 1 / ohms,
 						});
 					});
 				}
@@ -420,6 +505,7 @@ export function lowerRegion(
 					thresholdVolts: law.thresholdVolts,
 					transconductance: law.transconductance,
 					channelLengthModulation: law.channelLengthModulation,
+					subthresholdVolts: law.subthresholdVolts,
 					gateSaturationCurrent: law.gateSaturationCurrent,
 					gateOnsetVolts: law.gateOnsetVolts,
 					gateScaleVolts: law.gateScaleVolts,
@@ -644,7 +730,7 @@ export function lowerRegion(
 					const vee =
 						law.veeIndex !== undefined &&
 						device.nodes[law.veeIndex] !== undefined
-							? (device.nodes[law.veeIndex] ?? 0)
+							? device.nodes[law.veeIndex]
 							: 0;
 					stamps.push({
 						kind: "ota",
@@ -668,7 +754,7 @@ export function lowerRegion(
 					// shipped OTA entries map three, five map five -- which split nine corpus
 					// packets across two opposite polarities.
 					//
-					// Non-inverting is the correct one. `component-part-lowering.json`'s own
+					// Non-inverting is the correct one. the part catalog's own
 					// cited reading of the CA3080/CA3094 datasheet records that with the output
 					// taken at terminal 6 the datasheet's output-mode table makes pin 3 the
 					// non-inverting input, and the entry's role groups are that reading. An OTA
@@ -676,17 +762,58 @@ export function lowerRegion(
 					//
 					// Crossed here rather than negating `transconductance`, so the law's value
 					// stays positive and matches the catalog wherever it is printed.
-					stamps.push({
-						kind: "vccs",
-						outP: output,
-						outN: 0,
-						inP: negative,
-						inN: positive,
-						transconductance: law.transconductance,
-					});
-				}
-				break;
+				stamps.push({
+					kind: "vccs",
+					outP: output,
+					outN: 0,
+					inP: negative,
+					inN: positive,
+					transconductance: law.transconductance,
+				});
 			}
+			break;
+		}
+		case "linear-vca": {
+			// Positional terminals only (sections path): [plus, minus, output,
+			// control]. The control pin is voltage-sense: no conductance is
+			// stamped on it, so a high-impedance depth network drives it
+			// without sagging (contrast the `ota` bias diode). The input pin
+			// is a current input at about the minus potential; the input
+			// conductance below is both its impedance and the I = V*G that
+			// the gain multiplies.
+			const plus = device.nodes[0];
+			const minus = device.nodes[1];
+			const output = device.nodes[2];
+			const control = device.nodes[3];
+			if (
+				plus === undefined ||
+				minus === undefined ||
+				output === undefined ||
+				control === undefined
+			) {
+				throw new LoweringError(
+					`linear-vca ${device.id} requires plus, minus, output, and control terminals`,
+					device.id,
+				);
+			}
+			stamps.push({
+				kind: "conductance",
+				a: plus,
+				b: minus,
+				siemens: law.inputSiemens,
+			});
+			stamps.push({
+				kind: "linear-vca",
+				plus,
+				minus,
+				output,
+				control,
+				inputSiemens: law.inputSiemens,
+				vrefVolts: law.vrefVolts,
+				minGain: law.minGain,
+			});
+			break;
+		}
 			case "inverter": {
 				const { input, output, vdd, gnd } = inverterTerminals(device);
 				if (input === undefined || output === undefined) {
@@ -705,6 +832,7 @@ export function lowerRegion(
 						thresholdVolts: law.thresholdVolts ?? 2.0,
 						transconductance: law.transconductance,
 						channelLengthModulation: 0,
+						subthresholdVolts: 0,
 						gateSaturationCurrent: 0,
 						gateOnsetVolts: 0,
 						gateScaleVolts: 1,
@@ -719,6 +847,7 @@ export function lowerRegion(
 						thresholdVolts: law.thresholdVolts ?? 2.0,
 						transconductance: law.transconductance,
 						channelLengthModulation: 0,
+						subthresholdVolts: 0,
 						gateSaturationCurrent: 0,
 						gateOnsetVolts: 0,
 						gateScaleVolts: 1,
@@ -767,6 +896,7 @@ export function lowerRegion(
 					thresholdVolts: law.thresholdVolts,
 					transconductance: law.transconductance,
 					channelLengthModulation: 0,
+					subthresholdVolts: 0,
 					gateSaturationCurrent: 0,
 					gateOnsetVolts: 0,
 					gateScaleVolts: 1,
@@ -782,6 +912,7 @@ export function lowerRegion(
 					thresholdVolts: law.thresholdVolts,
 					transconductance: law.transconductance,
 					channelLengthModulation: 0,
+					subthresholdVolts: 0,
 					gateSaturationCurrent: 0,
 					gateOnsetVolts: 0,
 					gateScaleVolts: 1,
@@ -797,6 +928,7 @@ export function lowerRegion(
 					thresholdVolts: law.thresholdVolts,
 					transconductance: law.transconductance,
 					channelLengthModulation: 0,
+					subthresholdVolts: 0,
 					gateSaturationCurrent: 0,
 					gateOnsetVolts: 0,
 					gateScaleVolts: 1,
@@ -812,6 +944,7 @@ export function lowerRegion(
 					thresholdVolts: law.thresholdVolts,
 					transconductance: law.transconductance,
 					channelLengthModulation: 0,
+					subthresholdVolts: 0,
 					gateSaturationCurrent: 0,
 					gateOnsetVolts: 0,
 					gateScaleVolts: 1,
@@ -1119,6 +1252,36 @@ export function lowerRegion(
 		regionNodes.has(seed.node),
 	);
 
+	// Complementary collector-steering switch stamps for bistable flip-flops:
+	// When control is engaged (>= 0.5): engagedCollector is pulled to emitter (100 ohm),
+	// forcing engagedCollector low (0 V), putting bypassed transistor into cutoff (bypassedCollector high).
+	// When control is bypassed (< 0.5): bypassedCollector is pulled to emitter (100 ohm),
+	// forcing bypassedCollector low (0 V), putting engaged transistor into cutoff (engagedCollector high).
+	for (const latch of latches) {
+		if (
+			latch.controlId !== null &&
+			regionNodes.has(latch.engagedCollector) &&
+			regionNodes.has(latch.bypassedCollector)
+		) {
+			stamps.push({
+				kind: "switch",
+				a: latch.engagedCollector,
+				b: latch.emitter,
+				control: latch.controlId,
+				onOhms: 100,
+				offOhms: 1e8,
+			});
+			stamps.push({
+				kind: "switch",
+				a: latch.bypassedCollector,
+				b: latch.emitter,
+				control: latch.controlId,
+				onOhms: 1e8,
+				offOhms: 100,
+			});
+		}
+	}
+
 	// The row numbering. Ground is row 0 whether or not a device in this region returns
 	// there, because the runtime pins row 0 and starts its gmin loop at 1 -- a region with
 	// no grounded device would otherwise have its first real node silently pinned to zero.
@@ -1172,7 +1335,13 @@ export function lowerRegion(
 			nodeIds.length + auxCount,
 			stampPartition.portRows.length,
 			!stamps.some(stampNeedsNewton),
+			lawed.netlist.convergenceOptIn,
 		),
+		// Only included when set, so a document that does not opt in lowers to a program
+		// byte-identical to one produced before this flag existed.
+		...(lawed.netlist.convergenceOptIn
+			? { convergenceOptIn: true }
+			: {}),
 		inputNode: ownsInput ? row(inputNode) : null,
 		outputNode: ownsOutput ? row(outputNode) : null,
 		operatingPointSeeds: operatingPointSeeds.map((seed) => ({
@@ -1220,8 +1389,12 @@ export function lower(
 ): readonly Block[] {
 	const { input, output } = lawed.netlist.ports;
 	const latchSeeds = findLatchSeeds(lawed.netlist);
+	const latches = findBistableLatches(lawed.netlist);
 	const quietDistance = quietDistances(lawed.netlist);
 	const opampInputDistance = opampInputDistances(lawed.netlist);
+	const opampOutputDistance = opampOutputDistances(lawed.netlist);
+	const invertingInputNodes = opampInvertingInputNodes(lawed.netlist);
+	const acOutputDistance = opampOutputAcDistances(lawed.netlist);
 	return partitioning.regions.map((region) =>
 		lowerRegion(
 			region,
@@ -1229,8 +1402,12 @@ export function lower(
 			input,
 			output,
 			latchSeeds,
+			latches,
 			quietDistance,
 			opampInputDistance,
+			opampOutputDistance,
+			invertingInputNodes,
+			acOutputDistance,
 		),
 	);
 }

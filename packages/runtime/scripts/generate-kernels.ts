@@ -1,0 +1,166 @@
+// Generates src/cpp/GeneratedKernels.cpp: straight-line kernels for the
+// sparse schedules of the programs that ship, keyed by a fingerprint of the
+// schedule itself.
+//
+// The compiler's schedule stays data; this is a build-time specialisation of the
+// replay loop for the programs that ship. Engine.cpp looks the fingerprint up at
+// `prepare()` and runs the kernel when present, the interpreter otherwise -- so a
+// live-compiled program, a stale table, or a schedule the generator skipped all
+// degrade to the interpreter rather than to a wrong answer.
+//
+// Blocks below `MIN_OPS` scheduled ops stay on the interpreter: they are the
+// trivial linear blocks whose replay is a rounding error of the sample.
+//
+// The input is a directory of Program JSON (one file per program), written by
+// `the workbench's `bun scripts/export-programs.ts``. Reading programs rather than importing the
+// browser catalogs keeps the runtime's C++ independent of `src/web`: this
+// generator travels with the runtime, the export stays with the workbench.
+//
+// Usage: bun scripts/generate-kernels.ts [--programs=build/programs] [--min-ops=64]
+//        [--out=src/cpp/GeneratedKernels.cpp]
+
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Program, SparseSchedule } from "@vessel-dsp/compiler";
+
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const argument = (name: string): string | undefined =>
+	process.argv.find((candidate) => candidate.startsWith(`--${name}=`))?.slice(name.length + 3);
+const programsDir = resolve(repositoryRoot, argument("programs") ?? "build/programs");
+const outputPath = resolve(repositoryRoot, argument("out") ?? "src/cpp/GeneratedKernels.cpp");
+const minOps = Number(argument("min-ops") ?? 64);
+
+const programFiles = readdirSync(programsDir)
+	.filter((file) => file.endsWith(".json"))
+	.sort();
+if (programFiles.length === 0) {
+	throw new Error(`no programs in ${programsDir}; run \`the workbench's `bun scripts/export-programs.ts`\` first`);
+}
+const programs: Program[] = programFiles.map(
+	(file) => JSON.parse(readFileSync(resolve(programsDir, file), "utf8")) as Program,
+);
+
+function fingerprint(schedule: SparseSchedule): number {
+	let hash = 2166136261 >>> 0;
+	const mix = (value: number): void => {
+		for (let shift = 0; shift < 32; shift += 8) {
+			hash = (hash ^ ((value >> shift) & 0xff)) >>> 0;
+			hash = Math.imul(hash, 16777619) >>> 0;
+		}
+	};
+	mix(schedule.size);
+	mix(schedule.slots);
+	mix(schedule.factorCount);
+	for (const op of schedule.ops) mix(op);
+	for (const row of schedule.gatherRow) mix(row);
+	for (const column of schedule.gatherColumn) mix(column);
+	return hash >>> 0;
+}
+
+function emitKernel(name: string, schedule: SparseSchedule): string {
+	const lines: string[] = [];
+	lines.push(
+		`static bool ${name}(double* __restrict v, double* __restrict rhs, double* __restrict f, double* __restrict x) {`,
+	);
+	lines.push("    double acc = 0.0;");
+	const ops = schedule.ops;
+	for (let at = 0; at < ops.length; at += 4) {
+		const op = ops[at] as number;
+		const a = ops[at + 1] as number;
+		const b = ops[at + 2] as number;
+		const c = ops[at + 3] as number;
+		switch (op) {
+			case 1:
+				lines.push(`    v[${a}] -= f[${b}] * v[${c}];`);
+				break;
+			case 0:
+				lines.push(`    f[${a}] = v[${b}] / v[${c}];`);
+				break;
+			case 2:
+				lines.push(`    rhs[${a}] -= f[${b}] * rhs[${c}];`);
+				break;
+			case 4:
+				lines.push(`    acc -= v[${a}] * x[${b}];`);
+				break;
+			case 3:
+				lines.push(`    acc = rhs[${a}];`);
+				break;
+			case 5:
+				lines.push(`    x[${a}] = acc / v[${b}];`);
+				break;
+			case 6:
+				lines.push(`    if (__builtin_expect(std::abs(v[${a}]) < 1e-18, 0)) return false;`);
+				break;
+			default:
+				throw new Error(`unknown schedule opcode ${op}`);
+		}
+	}
+	lines.push("    return true;");
+	lines.push("}");
+	return lines.join("\n");
+}
+
+const kernels = new Map<number, { name: string; schedule: SparseSchedule }>();
+let considered = 0;
+let skipped = 0;
+for (const program of programs) {
+	for (const block of program.blocks) {
+		if (block.kind !== "mna" || block.sparseSchedule === null) continue;
+		considered += 1;
+		const ops = block.sparseSchedule.ops.length / 4;
+		if (ops < minOps) {
+			skipped += 1;
+			continue;
+		}
+		const key = fingerprint(block.sparseSchedule);
+		const existing = kernels.get(key);
+		if (existing !== undefined) {
+			if (existing.schedule.ops.join(",") !== block.sparseSchedule.ops.join(",")) {
+				throw new Error(`fingerprint collision at 0x${key.toString(16)}`);
+			}
+			continue;
+		}
+		kernels.set(key, { name: `k_${key.toString(16).padStart(8, "0")}`, schedule: block.sparseSchedule });
+	}
+}
+
+const sorted = [...kernels.entries()].sort((a, b) => a[0] - b[0]);
+const lines: string[] = [];
+lines.push("// GENERATED FILE -- do not hand-edit. Generated by scripts/generate-v2-kernels.ts.");
+lines.push(`// ${sorted.length} kernels from ${considered} scheduled program blocks (min ops ${minOps}; ${skipped} skipped).`);
+lines.push('#include "v2/GeneratedKernels.h"');
+lines.push("#include <cmath>");
+lines.push("");
+lines.push("namespace vessel_dsp::v2 {");
+lines.push("namespace {");
+lines.push("");
+for (const [, kernel] of sorted) {
+	lines.push(emitKernel(kernel.name, kernel.schedule));
+	lines.push("");
+}
+lines.push("} // namespace");
+lines.push("");
+lines.push("const V2GeneratedKernelEntry* v2GeneratedKernels(size_t* count) {");
+if (sorted.length === 0) {
+	lines.push("    if (count != nullptr) *count = 0;");
+	lines.push("    return nullptr;");
+} else {
+	lines.push("    static const V2GeneratedKernelEntry entries[] = {");
+	for (const [key, kernel] of sorted) {
+		lines.push(`        {0x${key.toString(16).padStart(8, "0")}u, ${kernel.name}},`);
+	}
+	lines.push("    };");
+	lines.push("    if (count != nullptr) *count = sizeof(entries) / sizeof(entries[0]);");
+	lines.push("    return entries;");
+}
+lines.push("}");
+lines.push("");
+lines.push("} // namespace vessel_dsp::v2");
+lines.push("");
+
+writeFileSync(outputPath, lines.join("\n"), "utf8");
+console.log(
+	`generate-v2-kernels: wrote ${outputPath} with ${sorted.length} kernels ` +
+		`(${considered} scheduled blocks, ${skipped} below min ops ${minOps})`,
+);

@@ -1,5 +1,39 @@
 # Changelog
 
+## compiler 0.2.0 / runtime 0.2.0
+
+`@vessel-dsp/compiler` and `@vessel-dsp/runtime` are now the engine's source of
+truth: the TypeScript compiler, the TypeScript reference runtime and the C++
+solver console moved here from the workbench, replacing the 2026-09-16 copies.
+Both packages move to 0.2.0 and `chain`/`player` pin them exactly.
+
+- The compiled wasm console (`v2_dsp.cjs`/`v2_dsp.wasm`) is a release artifact:
+  `bun run --cwd packages/runtime build:wasm` (needs `em++`) writes it to the
+  gitignored `src/wasm/`, `build` copies it to `dist/wasm/`, and `prepack` does
+  both. `V2WasmEngine.create()` loads it from the package's own glue.
+- `@vessel-dsp/compiler` exports `.`, `./diagnostics` (the report-only reach
+  into stages) and `./fixtures` (the synthetic circuits the engine is graded
+  on). `@vessel-dsp/runtime` exports `.` and `./wasm/*`.
+- Runtime supply control (`getSupplies`/`setSupply` on both consoles) and the
+  compiler's `resolveSupplyStamps` are the workbench's; the two consoles agree
+  to <1e-4 on a sagged synthetic stage (`tests/supply-cross-console.test.ts`).
+  Call `setSupply` before `prepare()` or mid-stream: the consoles solve the
+  operating point at different moments, so a call between `prepare()` and the
+  first sample is not guaranteed to agree.
+- Compiled `Program`s carry `formatVersion` 6 (was 1 in the 0.1.0 copies).
+  Named I/O ports and the `bufferProgram` bypass are deferred to a later
+  `formatVersion`; from here any change to `Program`, the `Stamp` union,
+  `ProgramJson.cpp` or `Program.h` is a package minor bump.
+- Tests moved into the packages (`packages/{compiler,runtime}/tests`). The
+  runtime pipeline test still imports compiler stage files through the
+  repo-only `@vessel-dsp/compiler/<stage>` path mapping; those are not
+  published exports.
+- `publish.yml` gains `compiler-v*`, `runtime-v*` and `player-v*` tags (and
+  dispatch choices), an emsdk step, and a gate that runs both packages' suites
+  against the freshly built wasm before `runtime` publishes. Publish order:
+  compiler, runtime, chain, player; each refuses if a pinned `@vessel-dsp`
+  dependency is not on npm.
+
 ## chain 0.1.0
 
 New package `@vessel-dsp/chain` 0.1.0: headless signal chain graph

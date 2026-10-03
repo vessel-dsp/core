@@ -10,7 +10,7 @@
 // The rule this file establishes: **a role vocabulary consulted by more than one stage lives
 // here, once.** A vocabulary only one stage reads stays with that stage -- it cannot drift
 // against anything. This is phase 1 of R1 in
-// `thoughts/shared/plans/2026-08-31-v2-complexity-reduction-plan.md`, and it is deliberately
+// `thoughts/shared/plans/archive/2026-08-31-v2-complexity-reduction-plan.md`, and it is deliberately
 // the half that needs nothing from `@vessel-dsp/core`: consolidating duplication that already
 // exists inside this repository. Canonicalising the spellings themselves, upstream, is the
 // other half and is still gated on the core parser contract.

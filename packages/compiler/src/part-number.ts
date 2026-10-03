@@ -37,6 +37,9 @@ const ALIASES: ReadonlyMap<string, string> = new Map([
 	["UPD4013C1", "UPD4013"],
 	["UPD4013C6", "UPD4013"],
 	["UPD4013C", "UPD4013"],
+	// NEC uPD6379 datasheet, ORDERING INFORMATION: uPD6379GR is the one ordering code for the
+	// 5 V uPD6379 die, GR being the 8-pin SOP. (L is the 3.3 V die, A a different pinout.)
+	["UPD6379GR", "UPD6379"],
 ]);
 
 /**

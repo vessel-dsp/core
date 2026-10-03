@@ -42,13 +42,16 @@ export type ChainAdvisory = {
 	 * `cab-after-miked` — an already-miked signal is sent through a cabinet stage again.
 	 * `undividable-seam` — one electrical side declares a port impedance and the other does not.
 	 * `instrument-into-speaker-stage` — a stage wanting a speaker terminal is fed instrument level.
+	 * `bypass-not-modelled` — a chain bypass was requested on a slot whose packet declares
+	 * `audio.bypass: "none"` — the circuit has no bypass switch, so the slot is wired through.
 	 */
 	readonly code:
 		| "unscalable-seam"
 		| "speaker-signal-into-input"
 		| "cab-after-miked"
 		| "undividable-seam"
-		| "instrument-into-speaker-stage";
+		| "instrument-into-speaker-stage"
+		| "bypass-not-modelled";
 	/** The slot whose output crosses the seam, and the slot receiving it. */
 	readonly slots: readonly [number, number];
 	readonly message: string;
@@ -177,6 +180,7 @@ export function chainAdvisories(
 				"than a level error",
 		});
 	}
+
 	// **Only the asymmetric case is worth a word.** A divider needs an impedance on both sides, and
 	// the two ways it can be missing are not equally interesting:
 	//
@@ -216,6 +220,40 @@ export function chainAdvisories(
 						"no input impedance, so the signal crosses without loading and the declared " +
 						"figure has no effect",
 		});
+	}
+	return advisories;
+}
+
+/**
+ * Bypass requested on a packet that declares no bypass switch.
+ *
+ * `audio.bypass: "none"` is a declared absence (37 core-only lanes + 1 passive volume, 38 total
+ * after backfill) — not a missing field. A chain "bypass" on such a slot has nothing in the
+ * circuit to mean; wire is the only honest choice, and the slot must say so via advisory, not
+ * log. Hard-coded to the Program's carried declaration when present; missing field (pre-backfill
+ * programs) is treated as "switch" (has bypass) until Y lands `program.bypass`.
+ */
+export function bypassNotModelledAdvisories(slots: readonly import("./chain-slot").ChainSlot[]): readonly ChainAdvisory[] {
+	const advisories: ChainAdvisory[] = [];
+	for (let idx = 0; idx < slots.length; idx++) {
+		const slot = slots[idx];
+		if (slot === undefined || slot.kind !== "program") continue;
+		const bypassMode = slot.bypassMode ?? "effect";
+		if (bypassMode !== "wire" && bypassMode !== "buffer") continue;
+		const bypass = slot.program.bypass;
+		if (bypass.declared === "none") {
+			advisories.push({
+				code: "bypass-not-modelled",
+				slots: [idx, idx],
+				message: `slot ${idx} bypass not modelled by this packet; slot is wired through (audio.bypass: "none" — declared absence, not a guess)`,
+			});
+		} else if (bypass.kind === "not-in-audio-path") {
+			advisories.push({
+				code: "bypass-not-modelled",
+				slots: [idx, idx],
+				message: `slot ${idx} bypass switch is not in the audio path; slot is wired through`,
+			});
+		}
 	}
 	return advisories;
 }

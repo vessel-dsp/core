@@ -128,6 +128,33 @@ export type Coupled = {
 	readonly dependencies: Partitioning["dependencies"];
 };
 
+/**
+ * Record that this block reads a solved node of another, so the order puts the writer first.
+ *
+ * **A port is a data dependency and the partitioner cannot see this one.** Stage 4 draws an
+ * edge where two regions *share a node*; a router reads the wiper of a pot the chip never
+ * touches, so no shared node exists and no edge is drawn. Without this the composed block can
+ * be ordered first and read a stale operating point.
+ *
+ * Measured 2026-09-22, and it is why this exists: with the edge missing, the C++ console read
+ * the router's node as its prepare-time value and played one program at both ends of the knob,
+ * while the TypeScript console read its live map and switched correctly. Two consoles
+ * disagreeing is the symptom; the missing edge is the defect.
+ */
+function dependOn(
+	dependencies: Record<string, string[]>,
+	blockId: string,
+	sourceId: string,
+): void {
+	if (sourceId === blockId) return;
+	const list = dependencies[blockId];
+	if (list === undefined) {
+		dependencies[blockId] = [sourceId];
+		return;
+	}
+	if (!list.includes(sourceId)) list.push(sourceId);
+}
+
 export function couple(
 	blocks: readonly Block[],
 	partitioning: Partitioning,
@@ -344,6 +371,82 @@ export function couple(
 			}
 		}
 
+		// The router: which program a declared composition runs, and at which detent. Wired
+		// exactly like `parameter` below, from the same evidence, because it is the same
+		// mechanism -- a solved node voltage driving the block. Unlike `parameter` it is not
+		// purity-gated: a mode control is a control, and demanding its node be a control-free
+		// derivation would refuse the one topology it always has.
+		const plan = macro.declaredRouter;
+		if (plan !== null && plan !== undefined && plan.node === null) {
+			// A scanned control: the runtime reads its position directly, so there is no node to
+			// own, nothing to resolve across blocks, and no ordering edge to record.
+			next = {
+				...next,
+				router: {
+					controlId: plan.controlId,
+					port: null,
+					positions: plan.positions,
+					routes: plan.routes,
+				},
+			};
+		} else if (
+			plan !== null &&
+			plan !== undefined &&
+			plan.node !== null &&
+			plan.referenceVolts !== null
+		) {
+			const node = plan.node;
+			const referenceVolts = plan.referenceVolts;
+			const source = ownerOf(node, partitioning);
+			const sourceBlock = source === undefined ? undefined : byId.get(source.id);
+			const sourceRow =
+				sourceBlock?.kind === "mna" ? blockNodeIndex(sourceBlock, node) : null;
+			if (source !== undefined && sourceRow !== null) {
+				dependOn(dependencies, next.id, source.id);
+				next = {
+					...next,
+					router: {
+						controlId: plan.controlId,
+						port: {
+							block: source.id,
+							node: sourceRow,
+							referenceVolts,
+						},
+						positions: plan.positions,
+						routes: plan.routes,
+					},
+				};
+			}
+		}
+
+
+		// A declared program's cited parameter, resolved from its planned node. Same path as the
+		// router above; not purity-gated, for the same reason.
+		const parameterPlan = macro.declaredParameter;
+		if (
+			parameterPlan !== null &&
+			parameterPlan !== undefined &&
+			parameterPlan.node !== null &&
+			parameterPlan.referenceVolts !== null
+		) {
+			const planNode = parameterPlan.node;
+			const source = ownerOf(planNode, partitioning);
+			const sourceBlock = source === undefined ? undefined : byId.get(source.id);
+			const sourceRow =
+				sourceBlock?.kind === "mna" ? blockNodeIndex(sourceBlock, planNode) : null;
+			if (source !== undefined && sourceRow !== null) {
+				dependOn(dependencies, next.id, source.id);
+				next = {
+					...next,
+					parameter: {
+						block: source.id,
+						node: sourceRow,
+						referenceVolts: parameterPlan.referenceVolts,
+					},
+				};
+			}
+		}
+
 		// The `parameter` port, purity-gated -- see this file's header for the two checks and
 		// where they diverge from the census's own. Missing or negative evidence leaves
 		// `parameter` at its `null` default from `lower.ts`, which is the spec's safe default:
@@ -394,7 +497,7 @@ export function couple(
 					// derivation, which this stage cannot see and `compile` can -- a packet whose
 					// delay follows a knob loses only the sweep, one with no derivation at all is
 					// a fixed comb filter. Stating the wrong one of those was a real misfire:
-					// `pt2399-delay` derives 239 ms from its own resistor network and was being
+					// `pt2399-delay` derives its delay from its own resistor network and was being
 					// told its delay was fixed.
 					modulationRefusal:
 						source === undefined || sourceRow === null
@@ -434,6 +537,32 @@ export function couple(
 						block: modSource.id,
 						node: modRow,
 						steeredBy: macro.modulationSteeredBy,
+					},
+				};
+			}
+		}
+
+		// The `clock-law` port. Same road as `modulation` above: the slow node
+		// is a divider node elsewhere in the clock circuit, so it arrives as a
+		// source node and is mapped to a row here. Read every sample, caches
+		// nothing, for the same reason.
+		if (
+			macro.clockLawNode !== null &&
+			macro.clockLawNode !== undefined &&
+			macro.clockLawSteeredBy != null
+		) {
+			const lawNode = macro.clockLawNode;
+			const lawSource = ownerOf(lawNode, partitioning);
+			const lawBlock = lawSource === undefined ? undefined : byId.get(lawSource.id);
+			const lawRow =
+				lawBlock?.kind === "mna" ? blockNodeIndex(lawBlock, lawNode) : null;
+			if (lawSource !== undefined && lawRow !== null) {
+				next = {
+					...next,
+					clockLaw: {
+						block: lawSource.id,
+						node: lawRow,
+						steeredBy: macro.clockLawSteeredBy,
 					},
 				};
 			}
@@ -493,6 +622,7 @@ export function withStamp(
 		block.nodeCount + auxCount,
 		stampPartition.portRows.length,
 		linear,
+		block.convergenceOptIn === true,
 	);
 	return {
 		...block,

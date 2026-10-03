@@ -17,6 +17,7 @@
 // in lockstep. Keeping a control inside one region is what makes the update cheap.
 
 import { StageRefusal } from "./errors";
+import { findBistableLatches } from "./latch-seed";
 import type {
 	DeviceId,
 	DeviceLaw,
@@ -59,6 +60,7 @@ const NEWTON_BY_LAW_KIND: Readonly<
 	"ac-source": false,
 	switch: false,
 	selector: false,
+	"fixed-selector": false,
 	transformer: false,
 	"port-engage": false,
 	open: false,
@@ -89,6 +91,10 @@ const NEWTON_BY_LAW_KIND: Readonly<
 	"analog-switch": true,
 	compandor: true,
 	comparator: true,
+	// Piecewise-linear in the control (max() kink at cutoff) with solution-dependent
+	// gain: linear within a Newton pass at fixed gain, nonlinear across passes as the
+	// control moves. Treating it as linear would freeze the first gain it sees.
+	"linear-vca": true,
 	// Its phase advances once per sample, but the three levels it drives are all read
 	// from the solved VDD rail, so its rows move with the solution inside one sample.
 	"clock-driver": true,
@@ -144,6 +150,7 @@ export function partition(lawed: LawedNetlist): Partitioning {
 		(deviceById.get(id)?.nodes ?? []).filter((node) => node !== 0),
 	);
 
+	const latches = findBistableLatches(netlist);
 	const analogRegions: Region[] = groups.map((group, index) => {
 		const nonlinear = group.some((id) => {
 			const resolution = resolutionByDevice.get(id);
@@ -152,12 +159,23 @@ export function partition(lawed: LawedNetlist): Partitioning {
 		const nodes = [
 			...new Set(group.flatMap((id) => deviceById.get(id)?.nodes ?? [])),
 		].sort((a, b) => a - b);
+		const latchControls = latches
+			.filter(
+				(latch) =>
+					latch.controlId !== null &&
+					(group.includes(latch.engagedTransistorId) ||
+						group.includes(latch.bypassedTransistorId) ||
+						nodes.includes(latch.engagedBase) ||
+						nodes.includes(latch.bypassedBase)),
+			)
+			.map((latch) => latch.controlId as string);
 		const controls = [
-			...new Set(
-				group
+			...new Set([
+				...group
 					.map((id) => deviceById.get(id)?.control ?? null)
 					.filter((control): control is string => control !== null),
-			),
+				...latchControls,
+			]),
 		];
 		return {
 			id: `analog:${index}`,

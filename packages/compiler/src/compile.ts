@@ -7,15 +7,22 @@
 
 import {
 	attachDeviceLaws,
+	composeMacroBlocks,
 	findElectricallyIsolatedIcs,
 	findIcsNotExecuted,
 	findUnimplementedDeviceLaws,
+	JFET_DEFAULT_THRESHOLD_VOLTS,
+	JFET_DEFAULT_TRANSCONDUCTANCE,
+	SILICON_FORWARD_BETA,
+	SILICON_SATURATION_CURRENT,
 } from "./device-laws";
 import {
 	findMultiDeviceShells,
 	findUnreadableTerminalRoles,
 } from "./unreadable-terminal-role";
 import { findUnexecutedRegions } from "./unexecuted-region";
+import { deriveBypass } from "./bypass";
+import { applyConverterScale } from "./converter-scale";
 import { couple } from "./couple";
 import { type Artifact, emit } from "./emit";
 import { StageRefusal } from "./errors";
@@ -38,12 +45,19 @@ import { findUnverifiedPinoutBindings } from "./unverified-pinout";
 import { findGenericTubeFits } from "./generic-tube-fit";
 import { findGroundedClockSupplies } from "./grounded-clock-supply";
 import { findNonExecutableClockDrivers } from "./non-executable-clock-drivers";
+import { GROUND } from "./types";
 import type {
+	BjtLawDefaultWarning,
+	OpampLawDefaultWarning,
 	CompileResult,
 	DeclaredDelayWarning,
+	FetLawDefaultWarning,
 	LawedNetlist,
 	ModulationNotModelledWarning,
+	Netlist,
+	NodeId,
 	Program,
+	RailWithoutVoltageWarning,
 } from "./types";
 import { findUnboundedOpamps } from "./unbounded-operating-point";
 
@@ -116,13 +130,20 @@ function run(source: string, options: CompileOptions): CompileResult {
 	// schedule) -- `link` must sort against that corrected graph, not stage 4's original one, or
 	// a coupled seam's downstream side would be free to run before the macro that feeds it.
 	const coupled = couple(lowered, partitioning, lawed);
+	const bypass = deriveBypass(netlist);
+	// Stage 5.75 (board-p3 row 4): the three decomposed models execute as
+	// catalog-parameterized compositions. Unconditional since board-p3 row 7 deleted the
+	// dispatched kernels: there is no second route to emit, and both runtimes refuse a
+	// `macro` block by name rather than execute one.
+	const composed = composeMacroBlocks(coupled.blocks);
 	const linked: Program = link(
-		coupled.blocks,
+		composed,
 		{ ...partitioning, dependencies: coupled.dependencies },
 		netlist.controls,
 		netlist.ports,
 		netlist.portImpedanceOhms,
 		netlist.portDeclaredFullScaleVolts,
+		bypass,
 	);
 	// Stage 6.5: an op-amp the topology leaves genuinely undefined (no DC path back to its
 	// inverting input, or none from its non-inverting input to any reference) gets an implicit
@@ -130,7 +151,15 @@ function run(source: string, options: CompileOptions): CompileResult {
 	// into -- see `dangling-active-terminal.ts`'s "implicit op-amp DC-bias synthesis" section.
 	// Every later Program-consuming stage below reads the bridged program, because that is the
 	// one the runtime will actually execute.
-	const program: Program = synthesizeOpampImplicitBias(linked);
+	// Stage 6.75: a composed program between two converters takes their full-scale ratio as its
+	// level, or says why it cannot. Read from the catalog by exact part id and found by
+	// connectivity, so nothing about it is declared in the document.
+	const scaled = applyConverterScale(
+		synthesizeOpampImplicitBias(linked),
+		netlist,
+		options.registry ?? emptyRegistry,
+	);
+	const program: Program = scaled.program;
 	// A program with no blocks has nothing to execute, so calling it `ok` reports a
 	// compiled pedal that can only ever render silence. `boss-ps-2` reaches here: its
 	// jacks and ground are wired and its 223 electrically active parts declare no
@@ -158,7 +187,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 			status: "unsupported",
 			reasons: structuralDefects.map((w) => ({
 				stage: "link" as const,
-				device: (w.devices && w.devices.length > 0) ? (w.devices[0] ?? null) : null,
+				device: (w.devices && w.devices.length > 0) ? w.devices[0] : null,
 				reason: w.detail,
 			})),
 		};
@@ -188,7 +217,11 @@ function run(source: string, options: CompileOptions): CompileResult {
 			),
 			...findUnimplementedControlRoles(program.controls ?? []),
 			...findElectricallyIsolatedIcs(netlist),
-			...findIcsNotExecuted(lawed, netlist),
+			...findIcsNotExecuted(
+				lawed,
+				netlist,
+				options.registry ?? emptyRegistry,
+			),
 			...findUnreadableTerminalRoles(lawed),
 			...findMultiDeviceShells(lawed),
 			...findUnimplementedDeviceLaws(lawed),
@@ -196,6 +229,11 @@ function run(source: string, options: CompileOptions): CompileResult {
 			...findUnexecutedRegions(program),
 			...findDeclaredDelays(program),
 			...findUnmodelledModulation(program),
+		...findRailsWithoutVoltage(netlist),
+		...findFetLawDefaults(netlist),
+		...findBjtLawDefaults(netlist),
+		...findOpampLawDefaults(lawed),
+		...scaled.warnings,
 		],
 	};
 }
@@ -214,7 +252,8 @@ function findUnmodelledModulation(
 	program: Program,
 ): readonly ModulationNotModelledWarning[] {
 	return program.blocks.flatMap((block) =>
-		block.kind === "macro" && typeof block.modulationRefusal === "string"
+		(block.kind === "macro" || block.kind === "composed") &&
+		typeof block.modulationRefusal === "string"
 			? [
 					{
 						code: "modulation-not-modelled" as const,
@@ -248,7 +287,8 @@ function findUnmodelledModulation(
  */
 function findDeclaredDelays(program: Program): readonly DeclaredDelayWarning[] {
 	return program.blocks.flatMap((block) =>
-		block.kind === "macro" && block.delayProvenance === "declared"
+		(block.kind === "macro" || block.kind === "composed") &&
+		block.delayProvenance === "declared"
 			? [
 					{
 						code: "declared-delay-not-derived" as const,
@@ -263,6 +303,125 @@ function findDeclaredDelays(program: Program): readonly DeclaredDelayWarning[] {
 				]
 			: [],
 	);
+}
+
+/** Voltage-less rails that something is connected to. See `RailWithoutVoltageWarning`. */
+function findRailsWithoutVoltage(netlist: Netlist): readonly RailWithoutVoltageWarning[] {
+	const loaded = new Map<NodeId, number>();
+	for (const device of netlist.devices) {
+		for (const node of new Set(device.nodes)) loaded.set(node, (loaded.get(node) ?? 0) + 1);
+	}
+	return netlist.devices.flatMap((device) => {
+		if (device.kind !== "rail") return [];
+		const volts = device.parameters.volts;
+		if (volts !== undefined && Number.isFinite(volts)) return [];
+		const attached = [...new Set(device.nodes)].filter(
+			(node) => node !== GROUND && (loaded.get(node) ?? 0) > 1,
+		);
+		if (attached.length === 0) return [];
+		return [
+			{
+				code: "rail-without-voltage" as const,
+				device: device.id,
+				detail:
+					`${device.id} declares no voltage, so it asserts nothing and lowers open; ` +
+					`${attached.length === 1 ? `node ${attached[0]} has` : `nodes ${attached.join(", ")} have`} ` +
+					"other devices attached, and they see only gmin to ground. A supply the sheet draws " +
+					"there solves at 0 V.",
+			},
+		];
+	});
+}
+
+/** JFETs stamped with the fet law's own defaults. See `FetLawDefaultWarning`. */
+function findFetLawDefaults(netlist: Netlist): readonly FetLawDefaultWarning[] {
+	const defaulted = netlist.devices.filter(
+		(device) =>
+			device.kind === "jfet" &&
+			(device.parameters.thresholdVolts === undefined ||
+				device.parameters.transconductance === undefined),
+	);
+	if (defaulted.length === 0) return [];
+	const listed = defaulted.map((device) => {
+		const missing = [
+			device.parameters.thresholdVolts === undefined ? "Vt0" : null,
+			device.parameters.transconductance === undefined ? "Beta" : null,
+		].filter((name) => name !== null);
+		const part = device.identity.partNumber;
+		return `${device.id}${part === null ? "" : ` (${part})`} without ${missing.join("/")}`;
+	});
+	return [
+		{
+			code: "fet-law-default-parameters" as const,
+			device: null,
+			devices: defaulted.map((device) => device.id),
+			detail:
+				`${defaulted.length} JFET(s) run on the fet law's own defaults ` +
+				`(Vt0 ${JFET_DEFAULT_THRESHOLD_VOLTS} V, Beta ${JFET_DEFAULT_TRANSCONDUCTANCE * 1e3} mS), ` +
+				`which are not any part's values: ${listed.join("; ")}. Harmless for a switch that is ` +
+				"fully on or off; decisive for one biased near its knee.",
+		},
+	];
+}
+
+/** BJTs stamped with the bjt law's own defaults. See `BjtLawDefaultWarning`. */
+function findBjtLawDefaults(netlist: Netlist): readonly BjtLawDefaultWarning[] {
+	const defaulted = netlist.devices.filter(
+		(device) =>
+			device.kind === "bjt" &&
+			(device.parameters.saturationCurrent === undefined ||
+				device.parameters.beta === undefined),
+	);
+	if (defaulted.length === 0) return [];
+	const listed = defaulted.map((device) => {
+		const missing = [
+			device.parameters.saturationCurrent === undefined ? "IS" : null,
+			device.parameters.beta === undefined ? "BF" : null,
+		].filter((name) => name !== null);
+		const part = device.identity.partNumber;
+		return `${device.id}${part === null ? "" : ` (${part})`} without ${missing.join("/")}`;
+	});
+	return [
+		{
+			code: "bjt-law-default-parameters" as const,
+			device: null,
+			devices: defaulted.map((device) => device.id),
+			detail:
+				`${defaulted.length} BJT(s) run on the bjt law's own defaults ` +
+				`(IS ${SILICON_SATURATION_CURRENT} A, BF ${SILICON_FORWARD_BETA}), ` +
+				`which are not any part's values: ${listed.join("; ")}. Harmless for a saturated ` +
+				"switch; decisive for a biased stage.",
+		},
+	];
+}
+
+/** Op-amps that state no output-swing drop. See `OpampLawDefaultWarning`. */
+function findOpampLawDefaults(lawed: LawedNetlist): readonly OpampLawDefaultWarning[] {
+	const byId = new Map(lawed.netlist.devices.map((device) => [device.id, device]));
+	const stated = new Map<string, boolean>();
+	for (const resolution of lawed.resolutions) {
+		if (resolution.outcome !== "law" || resolution.law.kind !== "ideal-opamp") continue;
+		// A section of a package is lowered as `<device>#<index>`; the warning names the device.
+		const id = resolution.device.replace(/#\d+$/, "");
+		stated.set(id, (stated.get(id) ?? true) && resolution.law.outputSwingDropVolts !== undefined);
+	}
+	const defaulted = [...stated].flatMap(([id, has]) => (has ? [] : [id]));
+	if (defaulted.length === 0) return [];
+	const listed = defaulted.map((id) => {
+		const part = byId.get(id)?.identity.partNumber ?? null;
+		return `${id}${part === null ? "" : ` (${part})`}`;
+	});
+	return [
+		{
+			code: "opamp-law-default-parameters" as const,
+			device: null,
+			devices: defaulted as unknown as OpampLawDefaultWarning["devices"],
+			detail:
+				`${defaulted.length} op-amp(s) swing the full supply because the part states no ` +
+				`output-swing drop: ${listed.join("; ")}. Harmless for a stage that never nears ` +
+				"the rails; decisive for a comparator, an LFO or a clipper.",
+		},
+	];
 }
 
 export function compileToArtifact(

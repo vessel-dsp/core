@@ -1,23 +1,26 @@
 // Runtime-settable supply: `ReferenceRuntime.getSupplies` / `setSupply` /
-// `supplyRebuilds`. Covers brief items a-f; item g (C++ console mirror) is a code
-// comment on `setSupply`, not a test: this repo only has the TS reference runtime.
+// `supplyRebuilds`.
 //
 // Every expected value below is computed by hand in the comment preceding its
 // assertion. Deterministic: silence in, no randomness anywhere in the solver.
 import { describe, expect, test } from "bun:test";
-import type { Block, Program } from "@vessel-dsp/compiler";
-import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import {
+	compile,
+	emptyRegistry,
+	type Block,
+	type Program,
+} from "@vessel-dsp/compiler";
 import {
 	ReferenceRuntime,
 	RuntimeError,
 	type SupplyAddress,
 	type SupplyInfo,
-} from "@vessel-dsp/runtime";
+} from "../src/index";
 
 const RATE = 48000;
 
 // ---------------------------------------------------------------------------
-// Probe document builders (same component shapes as docs/design/sag-poc).
+// Probe document builders.
 // ---------------------------------------------------------------------------
 
 function head(name: string, filename: string): string {
@@ -197,11 +200,8 @@ function bjt(
 // input source holds an ideal 0 V, so the rail is still the exact divider
 // E*9000/(9000+R) -- but the rail now joins the executed signal region. A load
 // to ground would leave the supply in a block pruned from `program.order`
-// ("never executed, by any runtime"), which solves once at the operating point
-// and never re-renders: `setSupply` could not move its rail mid-stream. This
-// differs from the design note's section 3b probe shape (fresh runtime per
-// value, where the operating point alone carries the answer); see the
-// Implementation status note for why the committed tests need this shape.
+// (never executed, by any runtime), which solves once at the operating point
+// and never re-renders: `setSupply` could not move its rail mid-stream.
 const RESISTIVE_DOC =
 	head("Supply probe: resistive load", "supply_resistive.vdsp") +
 	jack("JIN", "INPUT", 1, -200, "Circuit.Input") +
@@ -328,7 +328,7 @@ function expectSupplyThrow(fn: () => void): void {
 }
 
 describe("runtime supply control", () => {
-	// Item a. Resistive load: 9 V source into a 9k load.
+	// Resistive load: 9 V source into a 9k load.
 	// Hand computation: the rail is the Thevenin divider E*9000/(9000+R):
 	//   R=0:   rail = 9*9000/9000 = 9.0 exactly;            |I| = 9/9000 = 0.001
 	//   R=1:   rail = 81000/9001 = 8.9990001110989...;     |I| = 9/9001 = 0.000999888901...
@@ -367,7 +367,7 @@ describe("runtime supply control", () => {
 		expect(rt.supplyRebuilds).toBe(4);
 	});
 
-	// Item a, negative control: without setSupply the as-compiled program
+	// Negative control: without setSupply the as-compiled program
 	// (sourceOhms 1) sits at the R=1 divider value, not the ideal rail.
 	test("as-compiled program without setSupply sits at the 1 ohm divider value", () => {
 		const program = compileOrThrow(RESISTIVE_DOC);
@@ -381,9 +381,10 @@ describe("runtime supply control", () => {
 		expect(rt.supplyRebuilds).toBe(0);
 	});
 
-	// Item b. Mid-stream: process, setSupply, process again; the second block
+	// Mid-stream: process, setSupply, process again; the second block
 	// reflects the new rail. Negative control: writing the Program's stamp fields
-	// directly (the ignored behavior in sag-midrun.ts) does NOT move the rail.
+	// directly does NOT move the rail, because volts/sourceOhms are baked into
+	// the base matrices at prepare().
 	test("setSupply takes effect mid-stream; direct Program writes do not", () => {
 		const program = compileOrThrow(RESISTIVE_DOC);
 		const rt = new ReferenceRuntime(program);
@@ -394,9 +395,8 @@ describe("runtime supply control", () => {
 		// Hand computation: as-compiled 1 ohm gives 81000/9001 = 8.9990001110989....
 		expect(Math.abs(railOf(rt, program, info) - (9 * 9000) / 9001)).toBeLessThan(1e-9);
 
-		// Direct mutation of the live Program object, exactly what sag-midrun.ts
-		// does: silently ignored, because volts/sourceOhms are baked into the base
-		// matrices at prepare().
+		// Direct mutation of the live Program object: silently ignored, because
+		// volts/sourceOhms are baked into the base matrices at prepare().
 		setAllProgramSourceOhms(program, 100);
 		rt.process(new Float64Array(64));
 		// Hand computation: still 81000/9001 = 8.9990001110989..., NOT the 100 ohm
@@ -416,7 +416,7 @@ describe("runtime supply control", () => {
 		expect(Math.abs(railOf(rt, program, info) - 9)).toBeLessThan(1e-9);
 	});
 
-	// Item c. Copy on write: two runtimes from one Program never interact, the
+	// Copy on write: two runtimes from one Program never interact, the
 	// Program object is unchanged, and a deep-frozen Program does not throw.
 	test("two runtimes from one Program are independent; frozen Programs work", () => {
 		const program = compileOrThrow(RESISTIVE_DOC);
@@ -456,7 +456,7 @@ describe("runtime supply control", () => {
 		expect(f.supplyRebuilds).toBe(1);
 	});
 
-	// Item d. Addressing on a two-supply program (9 V rail + 5 V reference).
+	// Addressing on a two-supply program (9 V rail + 5 V reference).
 	test("setSupply addresses one rail and leaves the other alone", () => {
 		const program = compileOrThrow(TWO_SUPPLY_DOC);
 		const rt = new ReferenceRuntime(program);
@@ -490,7 +490,7 @@ describe("runtime supply control", () => {
 		expect(rt.supplyRebuilds).toBe(1);
 	});
 
-	// Item d, invalid calls: every bad address or value throws RuntimeError and
+	// Invalid calls: every bad address or value throws RuntimeError and
 	// changes NOTHING -- rails, stamps and the rebuild counter included, even for
 	// the valid addresses named in the same call.
 	test("invalid setSupply calls throw and change nothing", () => {
@@ -576,10 +576,9 @@ describe("runtime supply control", () => {
 		expect(rtMacro.getSupplies()).toHaveLength(2);
 	});
 
-	// Item e. Elimination invalidation: a nonlinear block with 12 unknowns takes
-	// the eliminated path (forced via the constructor option -- the compiler only
-	// admits blocks with unknowns/ports >= 4, and this block is 12/6 = 2), and the
-	// eliminated path must agree with the dense path at every swept value.
+	// Elimination invalidation: a nonlinear 12-unknown block takes the eliminated
+	// path (forced via the constructor option), and the eliminated path must
+	// agree with the dense path at every swept value.
 	test("eliminated and dense paths agree across the sourceOhms sweep", () => {
 		const program = compileOrThrow(TWO_STAGE_BJT_DOC);
 		const mna = program.blocks.filter((b) => b.kind === "mna");
@@ -625,7 +624,7 @@ describe("runtime supply control", () => {
 		}
 	});
 
-	// Item f. The idle-rebuild counter: re-applying the values a stamp already
+	// The idle-rebuild counter: re-applying the values a stamp already
 	// has rebuilds nothing.
 	test("re-applying identical values leaves supplyRebuilds unchanged", () => {
 		const program = compileOrThrow(RESISTIVE_DOC);

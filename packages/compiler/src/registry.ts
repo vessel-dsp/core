@@ -145,7 +145,25 @@ export type PartModel =
 			/** The declaration order `sections[*].terminals` index into. See `PartPinout`. */
 			readonly pinout: PartPinout;
 	  }
-	| { readonly kind: "macro"; readonly macro: MacroPartModel };
+	| { readonly kind: "macro"; readonly macro: MacroPartModel }
+	| {
+			/**
+			 * A chip whose silicon holds both lumped analog stages and a sampled
+			 * core (first case: the PT2399's internal filter op-amps around its
+			 * ADC/RAM/DAC): `sections` expand to ordinary MNA devices exactly as
+			 * the `sections` arm does, and `core` resolves to the macro block
+			 * exactly as the `macro` arm does, against the same device. Neither
+			 * arm can express this alone -- a section is a lumped law and a
+			 * macro solves outside MNA -- so the entry carries both, and the
+			 * arms stay exclusive otherwise.
+			 */
+			readonly kind: "sections-core";
+			readonly sections: readonly PartSection[];
+			/** The declaration order `sections[*].terminals` index into. See `PartPinout`. */
+			readonly pinout: PartPinout;
+			/** The sampled core, resolved as a macro against the whole device. */
+			readonly core: MacroPartModel;
+	  };
 
 /**
  * The index of the one terminal whose role matches any of `aliases`, or `null`.
@@ -216,6 +234,19 @@ export type PartEntry = {
 	 */
 	readonly firmware?: FirmwareEvidence;
 	/**
+	 * **The whole package's own supply current at no load, in amps, from its datasheet.**
+	 *
+	 * An `ideal-opamp` takes its rails as numbers and a clock driver's phases are ideal sources, so
+	 * without this no IC draws anything from the supply: `boss-ce-2`'s battery read 2.7 mA against
+	 * the 9 mA its service notes print, the missing ~6 mA being its 4558, TL022 and MN3101.
+	 * `device-laws.ts` lowers it as a conductance across the package's supply pins, sized at the
+	 * pedal's own rail span, so the draw is right at the rail the pedal runs on. A device that
+	 * declares one section of a multi-section package draws that section's share.
+	 *
+	 * Absent means no datasheet figure is recorded, and the part draws nothing, as before.
+	 */
+	readonly quiescentSupplyAmps?: number;
+	/**
 	 * **What each terminal IS, with per-terminal evidence.** Absent means `unpopulated`, which is a
 	 * correct state rather than a gap: a consumer that needs audio terminals must fall back to
 	 * bridging everything and **report its result as an upper bound**.
@@ -264,6 +295,24 @@ export type PartEntry = {
 		readonly refutedBy: string;
 		readonly on: string;
 	}[];
+	/**
+	 * **This part is a data converter, and what its full scale is.** Read by `converter-scale.ts`:
+	 * a program runs in volts, so a DSP between an ADC and a DAC is unity only if the two full
+	 * scales are equal. The real gain is `dac / adc`, and it is a fact about the two parts, not
+	 * something a document should have to declare.
+	 */
+	readonly converter?: ConverterDeclaration;
+};
+
+/**
+ * A converter's full scale, cited. `fullScaleVoltsPeakToPeak` is null when no datasheet was
+ * obtained, and `basis` then says what was searched: an unknown full scale is a named gap, never
+ * a guessed number.
+ */
+export type ConverterDeclaration = {
+	readonly direction: "adc" | "dac";
+	readonly fullScaleVoltsPeakToPeak: number | null;
+	readonly basis: string;
 };
 
 export type PartRegistry = {
@@ -330,7 +379,8 @@ export function registryEntryFor(
 				(entry.partIds ?? []).some(
 					(id) => foldPartId(id) === foldPartId(identity.partId),
 				) &&
-				(entry.model.kind !== "sections" ||
+				(entry.model.kind !== "sections" &&
+					entry.model.kind !== "sections-core" ||
 					entry.model.pinout.length === terminalCount ||
 					(entry.terminalRoleGroups?.length > 0 &&
 						entry.terminalRoleGroups.length === terminalCount))
@@ -341,7 +391,8 @@ export function registryEntryFor(
 				(entry.declaredTypes ?? []).some(
 					(type) => foldToken(type) === foldToken(identity.partId),
 				) &&
-				(entry.model.kind !== "sections" ||
+				(entry.model.kind !== "sections" &&
+					entry.model.kind !== "sections-core" ||
 					entry.model.pinout.length === terminalCount ||
 					(entry.terminalRoleGroups?.length > 0 &&
 						entry.terminalRoleGroups.length === terminalCount))
@@ -428,6 +479,37 @@ export function registryLawFor(
 		}
 		if (entry.model.kind === "law" && entry.model.law.kind === lawKind) {
 			return entry.model.law;
+		}
+	}
+	return null;
+}
+
+/**
+ * How far a part's output stops short of each supply rail, from the registry entry that names
+ * it, or `null` when the part is not in the registry or states none (the rails are then used as
+ * they are). Read from either an `ideal-opamp` law entry or the first section of a `sections`
+ * entry, because a declared `opamp` device never reaches the section lowering.
+ */
+export function registryOpampSwingDrop(
+	registry: PartRegistry,
+	partNumber: string | null,
+): number | null {
+	if (partNumber === null) {
+		return null;
+	}
+	const folded = foldPartId(partNumber);
+	for (const entry of registry.entries) {
+		if (!entry.partIds.some((id) => foldPartId(id) === folded)) {
+			continue;
+		}
+		const law =
+			entry.model.kind === "law"
+				? entry.model.law
+				: entry.model.kind === "sections"
+					? entry.model.sections[0]?.law
+					: undefined;
+		if (law !== undefined && law.kind === "ideal-opamp") {
+			return law.outputSwingDropVolts ?? null;
 		}
 	}
 	return null;

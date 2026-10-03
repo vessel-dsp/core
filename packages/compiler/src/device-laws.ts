@@ -16,7 +16,9 @@
 // carried into the program and applied by whoever runs it, so the curve itself lives in
 // `src/runtime/taper.ts` and no stage here can fold it into a coefficient by accident.
 
+import { checkDeclaredProgram } from "./declared-program";
 import {
+	bjtPartRegisteredAsSections,
 	identify,
 	mayCarryRegistrySections,
 	opampPartRegisteredAsOtherLaw,
@@ -26,8 +28,13 @@ import { isMultiDeviceTransistorShell } from "./unreadable-terminal-role";
 import {
 	deriveBbdDelayFromNetlist,
 	resolveClockModulationSource,
+	deriveOpenOx2ClockLaw,
 	derivePt2399DelayFromNetlist,
 	deriveM50195DelayFromNetlist,
+	OPEN_OX2_VDD_VOLTS,
+	OPEN_OX2_VTH_VOLTS,
+	OPEN_OX2_VF_VOLTS,
+	OPEN_OX2_FLOOR_VOLTS,
 } from "./bbd-clock";
 import {
 	foldPartId,
@@ -40,20 +47,30 @@ import {
 	registryEntryFor,
 	registryLawFor,
 	registryModelFor,
+	registryOpampSwingDrop,
 	terminalWithRole,
 	withRecordedReads,
 } from "./registry";
+import type { FirmwareClass } from "./firmware-class";
 import type {
+	ComposedLineSweep,
+	Block,
 	ControlId,
+	DeclaredProgram,
+	DeclaredParameterPlan,
+	DeclaredRouterPlan,
 	Device,
 	DeviceLaw,
 	DeviceResolution,
 	ElectricallyIsolatedIcWarning,
 	IcNotExecutedWarning,
 	LawedNetlist,
+	OpenIcGapClass,
 	OpenIcReason,
+	PrimitiveOp,
 	UnimplementedDeviceLawWarning,
 	MacroClockControl,
+	ClockLawParams,
 	Netlist,
 	NodeId,
 	TaperKind,
@@ -140,6 +157,14 @@ const AC_SOURCE_RMS_TO_PEAK = Math.SQRT2;
 // from this one silently -- the exact failure mode that script exists to catch.
 export const SILICON_SATURATION_CURRENT = 1e-14;
 export const SILICON_FORWARD_BETA = 100;
+/**
+ * The JFET law's own parameters when the source types neither `Vt0` nor `Beta`. Not a part: no
+ * datasheet in the corpus prints these, and a 2N5952 or 2SK30A whose document leaves them untyped
+ * runs on them regardless of its grade. Exported so `compile.ts` can name every device that does
+ * (`fet-law-default-parameters`) against the values actually stamped, not a second copy.
+ */
+export const JFET_DEFAULT_THRESHOLD_VOLTS = -2;
+export const JFET_DEFAULT_TRANSCONDUCTANCE = 1e-3;
 /**
  * A winding's DC resistance, in the three states the source can be in.
  *
@@ -392,6 +417,124 @@ function opampRails(
 }
 
 /**
+ * The rails an op-amp's output can reach: each supply rail pulled in by the part's stated drop.
+ * An unstated drop, an unknown rail, or a drop that would close the pair leaves the rails as they
+ * are, so a part with no entry renders bit-for-bit as before.
+ */
+function railsAfterSwingDrop(
+	rails: { readonly high: number | null; readonly low: number | null },
+	dropVolts: number | null,
+): { readonly high: number | null; readonly low: number | null } {
+	if (dropVolts === null || dropVolts <= 0 || rails.high === null || rails.low === null) {
+		return rails;
+	}
+	const high = rails.high - dropVolts;
+	const low = rails.low + dropVolts;
+	return high > low ? { high, low } : rails;
+}
+
+/**
+ * The one high-side and one low-side supply pin a device declares, read by the same role tokens
+ * `opampRails` uses, or `null` unless each side is declared exactly once.
+ *
+ * `gnd` counts as a low side here and not in `opampRails`: a package ground pin is never a signal
+ * input, and the MN3101 names its pair `vdd`/`gnd`. Which side is which does not matter to a
+ * conductance, which is all this is used for.
+ */
+function supplyPinNodes(device: Device): { readonly high: NodeId; readonly low: NodeId } | null {
+	const roles = device.identity.terminalRoles;
+	const statesItsInputs = roles.some((role) => role !== null && namedInputRoles.has(role));
+	const high: NodeId[] = [];
+	const low: NodeId[] = [];
+	roles.forEach((role, index) => {
+		if (role === null) {
+			return;
+		}
+		const side =
+			role === "gnd"
+				? "low"
+				: (unambiguousSupplyRoles.get(role) ??
+					(statesItsInputs ? supplyRolesNeedingNamedInputs.get(role) : undefined));
+		const node = device.nodes[index];
+		if (side === undefined || node === undefined) {
+			return;
+		}
+		(side === "high" ? high : low).push(node);
+	});
+	if (high.length !== 1 || low.length !== 1 || high[0] === low[0]) {
+		return null;
+	}
+	return { high: high[0] as NodeId, low: low[0] as NodeId };
+}
+
+/**
+ * **An IC's own supply draw, as a conductance across its supply pins**, or `null` when its part
+ * entry records no `quiescentSupplyAmps` or the pins or their voltages cannot be read.
+ *
+ * Sized at this pedal's rail span, so the device draws the datasheet current at the rail it is
+ * actually fitted to. A bipolar op-amp's supply current is close to flat with voltage (the
+ * uPC4558's curve moves 2.6 -> 2.7 mA from +/-4.5 to +/-20 V), so fixing it at the operating span
+ * is the right first-order model, and it needs no new stamp in either console.
+ *
+ * `expanded` is whether the registry split this device into its sections here, in which case it is
+ * the whole package. A device the document declared as one section of a multi-section part --
+ * `boss-ce-2`'s `IC1A` and `IC1B` are the two halves of one uPC4558C -- draws that section's share,
+ * so the package is counted once however the document split it.
+ */
+function quiescentSupplyDraw(
+	device: Device,
+	registry: PartRegistry,
+	expanded: boolean,
+	rails: { readonly high: number | null; readonly low: number | null },
+	nodeToVoltage: ReadonlyMap<NodeId, number>,
+): readonly [Device, DeviceResolution] | null {
+	const partNumber = device.identity.partNumber;
+	if (partNumber === null) {
+		return null;
+	}
+	const entry = registryEntryFor(registry, { partId: partNumber, evidence: "exact-part" });
+	const packageAmps = entry?.quiescentSupplyAmps;
+	if (entry === null || packageAmps === undefined) {
+		return null;
+	}
+	const pins = supplyPinNodes(device);
+	if (pins === null) {
+		return null;
+	}
+	const voltageAt = (node: NodeId, fallback: number | null): number | null =>
+		node === 0 ? 0 : (nodeToVoltage.get(node) ?? fallback);
+	const high = voltageAt(pins.high, rails.high);
+	const low = voltageAt(pins.low, rails.low);
+	if (high === null || low === null) {
+		return null;
+	}
+	const span = Math.abs(high - low);
+	if (!(span > 0)) {
+		return null;
+	}
+	const sections = entry.model.kind === "sections" ? entry.model.sections.length : 1;
+	const amps = expanded ? packageAmps : packageAmps / sections;
+	const id = `${device.id}#supply`;
+	return [
+		{
+			id,
+			kind: "resistor",
+			nodes: [pins.high, pins.low],
+			parameters: { ohms: span / amps },
+			control: null,
+			identity: {
+				partNumber: null,
+				declaredType: null,
+				terminalRoles: ["end", "end"],
+				declaredTerminalRoles: [null, null],
+				declaredWindings: null,
+			},
+		},
+		{ outcome: "law", device: id, law: { kind: "conductance", siemens: amps / span } },
+	];
+}
+
+/**
  * Nodes that reach a declared voltage through one two-terminal passive
  * (diode, capacitor, resistor, inductor). Covers the LT1054 → D17 → VA-rail
  * path where the charge pump's output is a diode away from the declared rail.
@@ -411,9 +554,7 @@ function buildOneHopVoltageMap(
 		) {
 			continue;
 		}
-		const a = device.nodes[0];
-		const b = device.nodes[1];
-		if (a === undefined || b === undefined) continue;
+		const [a, b] = device.nodes;
 		const va = nodeToVoltage.get(a);
 		const vb = nodeToVoltage.get(b);
 		if (va !== undefined && b !== 0 && vb === undefined) {
@@ -449,10 +590,26 @@ export function attachDeviceLaws(
 	// see nothing new -- the alternative, a fourth `DeviceResolution` outcome, would have to be
 	// understood by every consumer of one.
 	const devicesTouchingNode = deviceCountByNode(netlist);
+	// Nodes inside a registered package, numbered past every node the document uses.
+	const internalNodes = new Map<string, NodeId>();
+	const firstInternal = Math.max(0, ...netlist.nodes) + 1;
+	const internalNode = (deviceId: string, index: number): NodeId => {
+		const key = `${deviceId}\n${index}`;
+		const existing = internalNodes.get(key);
+		if (existing !== undefined) return existing;
+		const node = (firstInternal + internalNodes.size) as NodeId;
+		internalNodes.set(key, node);
+		return node;
+	};
 	const devices: Device[] = [];
 	const resolutions: DeviceResolution[] = [];
 	for (const device of netlist.devices) {
-		const expanded = sectionDevices(device, registry, rails, supply, nodeToVoltage);
+		const expanded = sectionDevices(device, registry, rails, supply, nodeToVoltage, internalNode, netlist);
+		const draw = quiescentSupplyDraw(device, registry, expanded !== null, rails, nodeToVoltage);
+		if (draw !== null) {
+			devices.push(draw[0]);
+			resolutions.push(draw[1]);
+		}
 		if (expanded === null) {
 			devices.push(device);
 			resolutions.push(
@@ -476,7 +633,14 @@ export function attachDeviceLaws(
 			resolutions.push(resolution);
 		}
 	}
-	return { netlist: { ...netlist, devices }, resolutions };
+	return {
+		netlist: {
+			...netlist,
+			devices,
+			nodes: internalNodes.size === 0 ? netlist.nodes : [...netlist.nodes, ...internalNodes.values()],
+		},
+		resolutions,
+	};
 }
 
 /**
@@ -501,7 +665,7 @@ export function attachDeviceLaws(
  */
 export function declaredRegulatorTerminals(
 	device: Device,
-	model: { readonly kind: "sections"; readonly sections: readonly PartSection[] },
+	model: { readonly kind: "sections" | "sections-core"; readonly sections: readonly PartSection[] },
 ): ReadonlyArray<readonly [Device, DeviceResolution]> | null {
 	// **Gated on the declaration, not on `device.kind`.** A document's `kind: regulator` folds to
 	// device kind `ic` by the time laws are attached -- `boss-rv-3` and `electro-harmonix-q-tron`
@@ -574,6 +738,10 @@ function sectionDevices(
 	rails: { readonly high: number | null; readonly low: number | null },
 	supply: SupplyNodes,
 	nodeToVoltage: ReadonlyMap<NodeId, number>,
+	internalNode: (deviceId: string, index: number) => NodeId = () => {
+		throw new Error("no internal-node allocator");
+	},
+	netlist?: Netlist,
 ): readonly (readonly [Device, DeviceResolution])[] | null {
 	// **`mayCarryRegistrySections`, not `requiresIdentification`.** An OTA reaches here so a
 	// registered multi-section part (the BA662A's OTA plus its Darlington buffer) can be expanded;
@@ -581,7 +749,11 @@ function sectionDevices(
 	// the device-class law, which is what every unregistered OTA keeps. An op-amp whose registered
 	// *part* is not an op-amp (`opampPartRegisteredAsOtherLaw` -- the LM339 drawn as an op-amp)
 	// reaches here the same way, and the class override is decided entirely in `identify`.
-	if (!mayCarryRegistrySections(device) && !opampPartRegisteredAsOtherLaw(device, registry)) {
+	if (
+		!mayCarryRegistrySections(device) &&
+		!opampPartRegisteredAsOtherLaw(device, registry) &&
+		!bjtPartRegisteredAsSections(device, registry)
+	) {
 		return null;
 	}
 	if (isNonExecutableIcSupportShell(device)) {
@@ -596,7 +768,7 @@ function sectionDevices(
 		return null;
 	}
 	const model = entry.model;
-	if (model.kind !== "sections") {
+	if (model.kind !== "sections" && model.kind !== "sections-core") {
 		return null;
 	}
 	// A `sections` entry's `terminals` index into the entry's canonical pin order, not the
@@ -656,7 +828,7 @@ function sectionDevices(
 	if (cleanRoleResolution) {
 		canonicalNodeAt = (index) => {
 			const position = positions[index];
-			return position === null || position === undefined ? null : (device.nodes[position] ?? null);
+			return position === null ? null : device.nodes[position];
 		};
 	} else if (!pinoutMatches(model.pinout, roles)) {
 		// **Opened and named, not refused.** The part *is* registered -- this is an arity
@@ -690,8 +862,14 @@ function sectionDevices(
 	} else {
 		canonicalNodeAt = (index) => device.nodes[index];
 	}
-	return model.sections.map((section, index) => {
-		const nodes = section.terminals.map((terminal) => canonicalNodeAt(terminal));
+	// **A section terminal past the part's own pins is a node inside the package** -- a digital
+	// transistor's base behind its built-in series resistor. Allocated once per device and index,
+	// so every section naming it shares it, and no pin of the document can reach it.
+	const pinCount = Math.max(model.pinout.length, entry.terminalRoleGroups.length);
+	const sectioned = model.sections.map((section, index) => {
+		const nodes = section.terminals.map((terminal) =>
+			terminal >= pinCount ? internalNode(device.id, terminal) : canonicalNodeAt(terminal),
+		);
 		if (nodes.some((node) => node === undefined || node === null)) {
 			return [
 				device,
@@ -704,7 +882,9 @@ function sectionDevices(
 		}
 		// Read from the section's *parent* device, which is where the package's supply pins
 		// are declared -- a section's own terminal list is only its three signal pins.
-		const sectionRails = opampRails(device, rails, nodeToVoltage);
+		const sectionDrop =
+			section.law.kind === "ideal-opamp" ? (section.law.outputSwingDropVolts ?? null) : null;
+		const sectionRails = railsAfterSwingDrop(opampRails(device, rails, nodeToVoltage), sectionDrop);
 		const railHigh = sectionRails.high;
 		const railLow = sectionRails.low;
 
@@ -724,6 +904,9 @@ function sectionDevices(
 						railLow,
 						// The registry states the part's gain; only the rails are the pedal's.
 						openLoopGain: section.law.openLoopGain,
+						// Kept on the lowered law so `findOpampLawDefaults` can tell a part that
+						// states how close it gets to the rails from one that does not.
+						...(sectionDrop === null ? {} : { outputSwingDropVolts: sectionDrop }),
 					}
 				: section.law.kind === "compandor"
 					? { ...section.law, railHigh, railLow }
@@ -750,6 +933,20 @@ function sectionDevices(
 			},
 		] as const;
 	});
+	// A `sections-core` entry additionally keeps its sampled core: the sections above
+	// become ordinary devices, and the whole device resolves as the existing macro
+	// against the core model, binding its ports to the same boundary nodes the
+	// sections share. The core keeps the package id; the sections took `#index`.
+	if (model.kind === "sections-core") {
+		return [
+			...sectioned,
+			[
+				device,
+				resolveMacro(device, identity.partId, model.core, registry, netlist),
+			] as const,
+		];
+	}
+	return sectioned;
 }
 
 /**
@@ -864,8 +1061,15 @@ function resolveMacroInner(
 	let clockControl: MacroClockControl | null = null;
 	// Provenance, so a consumer can tell a delay the circuit produced from one the source
 	// asserted. Starts as `declared` and is only promoted by an actual derivation below.
-	let delayProvenance: "derived" | "declared" = "declared";
+	// `clock-law` is the third state: the static base stays declared (it sizes the line)
+	// while the sweep is derived per sample by the open-OX2 law.
+	let delayProvenance: "derived" | "declared" | "clock-law" = "declared";
 	let delayDeclaredReason: string | null = "this part's model carries no clock derivation";
+	let clockLawFields: {
+		clockLawNode?: number | null;
+		clockLawSteeredBy?: string | null;
+		clockLawParams?: ClockLawParams | null;
+	} = {};
 
 	if (macro.modelId === "bucket-brigade-delay-line") {
 		const stages = macro.parameters.stages;
@@ -878,7 +1082,30 @@ function resolveMacroInner(
 		}
 
 		if (netlist !== undefined) {
-			const clockDerivation = deriveBbdDelayFromNetlist(device, netlist, stages, registry);
+			// The open-OX2 relaxation form first: its sweep is a per-sample law, not a
+			// static number, so the star derivation below must not claim it. Absent
+			// here falls through to the existing path untouched.
+			const openOx2 = deriveOpenOx2ClockLaw(netlist, registry);
+			if (openOx2.outcome === "recognized") {
+				delayProvenance = "clock-law";
+				delayDeclaredReason =
+					`static base is the declared DelayMs fallback; the sweep is derived per sample ` +
+					`by the open-OX2 clock law from node ${openOx2.slowNode} ` +
+					`(R ${openOx2.rOhms} C ${openOx2.cFarads}, steered by ${openOx2.steeredBy})`;
+				clockLawFields = {
+					clockLawNode: openOx2.slowNode,
+					clockLawSteeredBy: openOx2.steeredBy,
+					clockLawParams: {
+						rOhms: openOx2.rOhms,
+						cFarads: openOx2.cFarads,
+						vddVolts: OPEN_OX2_VDD_VOLTS,
+						vthVolts: OPEN_OX2_VTH_VOLTS,
+						vfVolts: OPEN_OX2_VF_VOLTS,
+						floorVolts: OPEN_OX2_FLOOR_VOLTS,
+					},
+				};
+			} else {
+				const clockDerivation = deriveBbdDelayFromNetlist(device, netlist, stages, registry);
 			delayDeclaredReason =
 				clockDerivation.outcome === "no-clock-driver"
 					? "no clock driver device is wired to this delay line"
@@ -897,8 +1124,10 @@ function resolveMacroInner(
 						farads: clockDerivation.cFarads,
 						stages: clockDerivation.stages,
 						formulaConstant: clockDerivation.formulaConstant,
+						offsetSeconds: clockDerivation.offsetSeconds,
 					};
 				}
+			}
 			}
 		}
 	} else if (macro.modelId === "digital-delay-line") {
@@ -920,6 +1149,7 @@ function resolveMacroInner(
 							farads: ptDerivation.cFarads,
 							stages: ptDerivation.stages,
 							formulaConstant: ptDerivation.formulaConstant,
+							offsetSeconds: ptDerivation.offsetSeconds,
 						};
 					}
 				}
@@ -941,6 +1171,7 @@ function resolveMacroInner(
 							farads: mDerivation.cFarads,
 							stages: mDerivation.stages,
 							formulaConstant: mDerivation.formulaConstant,
+							offsetSeconds: mDerivation.offsetSeconds,
 						};
 					}
 				}
@@ -1005,6 +1236,7 @@ function resolveMacroInner(
 					}
 				: { parameterTerminal: null, parameterReferenceVolts: null }),
 			...modulationFields,
+			...clockLawFields,
 			clockControl,
 			delayProvenance,
 			delayDeclaredReason: delayProvenance === "derived" ? null : delayDeclaredReason,
@@ -1715,6 +1947,18 @@ function resolveDevice(
 		return { outcome: "law", device: device.id, law: { kind: "open" } };
 	}
 	if (requiresIdentification(device)) {
+		// **The second resolution key, consulted only where the first has nothing.** A declared
+		// program never overrides a registered model: a fixed-function part is still identified
+		// and still takes the law its part number resolves to. It is reached when the registry
+		// has no executable model to give, which for a reprogrammable chip is always -- one
+		// catalog entry keyed on the part number cannot hold the three different effects
+		// `TC25SC080AU-104` is across this corpus.
+		//
+		// Deliberately *after* the three shell exits below. An isolated chip, a view-only source
+		// boundary and a charge pump with a declared rail are all statements that this component
+		// is not in the audio path at all, and a program declaration does not put it back.
+		const declared = (): DeviceResolution | null =>
+			resolveDeclaredProgram(device, netlist);
 		if (isNonExecutableIcSupportShell(device)) {
 			return openIc(device, "source-boundary-shell");
 		}
@@ -1738,6 +1982,8 @@ function resolveDevice(
 			// that the unmatched part number cannot support. Saying "declared type ... matched"
 			// failed would be wrong in that second case: the class matched and was refused.
 			const named = device.identity.partNumber?.trim();
+			const fromProgram = declared();
+			if (fromProgram !== null) return fromProgram;
 			return openWhereClassPermits(
 				device,
 				named !== undefined && named !== ""
@@ -1747,6 +1993,8 @@ function resolveDevice(
 		}
 		const model = registryModelFor(registry, identity, device.nodes.length);
 		if (model === null) {
+			const fromProgram = declared();
+			if (fromProgram !== null) return fromProgram;
 			return openWhereClassPermits(
 				device,
 				`part ${identity.partId} was identified but the registry supplies no model`,
@@ -1757,9 +2005,12 @@ function resolveDevice(
 			// model, which is a different claim from every other law it can supply and the only
 			// one whose consequence -- a component in the source and not in the program -- a
 			// reader has to be told about.
-			return model.law.kind === "open"
-				? openIc(device, "registry-open")
-				: { outcome: "law", device: device.id, law: model.law };
+			if (model.law.kind === "open") {
+				const fromProgram = declared();
+				if (fromProgram !== null) return fromProgram;
+				return openIc(device, "registry-open");
+			}
+			return { outcome: "law", device: device.id, law: model.law };
 		}
 		if (model.kind === "macro") {
 			return resolveMacro(device, identity.partId, model.macro, registry, netlist);
@@ -1942,6 +2193,36 @@ function resolveDevice(
 				"diode",
 			);
 			if (catalogued !== null) {
+				// Declared parameters win over the catalog, every one of them: the entries
+				// exist to fill absence, not to overrule a packet that states the value.
+				// A zener entry's forward parameters are avowed class defaults, so a source
+				// that types its own saturation current or series resistance keeps it, and
+				// a device the source declares as an LED stays one (`boss-ph-1r` declares
+				// 11 V where the registry's RD11EB3 row says 10.99, and keeps that too).
+				if (catalogued.kind === "diode") {
+					const declared = device.parameters;
+					if (
+						declared.breakdownVolts !== undefined ||
+						declared.saturationCurrent !== undefined ||
+						declared.seriesResistance !== undefined ||
+						device.isLed === true
+					) {
+						return {
+							outcome: "law",
+							device: device.id,
+							law: {
+								...catalogued,
+								breakdownVolts:
+									declared.breakdownVolts ?? catalogued.breakdownVolts,
+								saturationCurrent:
+									declared.saturationCurrent ?? catalogued.saturationCurrent,
+								seriesResistance:
+									declared.seriesResistance ?? catalogued.seriesResistance,
+								isLed: device.isLed === true ? true : catalogued.isLed,
+							},
+						};
+					}
+				}
 				return { outcome: "law", device: device.id, law: catalogued };
 			}
 			const isLed = device.isLed === true;
@@ -2018,7 +2299,11 @@ function resolveDevice(
 				},
 			};
 		case "opamp": {
-			const declaredRails = opampRails(device, rails, nodeToVoltage);
+			const declaredDrop = registryOpampSwingDrop(registry, device.identity.partNumber);
+			const declaredRails = railsAfterSwingDrop(
+				opampRails(device, rails, nodeToVoltage),
+				declaredDrop,
+			);
 			const railHigh = declaredRails.high;
 			const railLow = declaredRails.low;
 
@@ -2031,6 +2316,7 @@ function resolveDevice(
 					railLow,
 					openLoopGain:
 						device.parameters.openLoopGain ?? DEFAULT_OPEN_LOOP_GAIN,
+					...(declaredDrop === null ? {} : { outputSwingDropVolts: declaredDrop }),
 				},
 			};
 		}
@@ -2076,7 +2362,28 @@ function resolveDevice(
 				};
 			}
 			if (device.control === null) {
-				return unsupported(device, "switch is bound to no control");
+				const position = device.parameters.position ?? 1;
+				if (device.nodes.length > 2) {
+					return {
+						outcome: "law",
+						device: device.id,
+						law: {
+							kind: "fixed-selector",
+							position,
+							onOhms: SWITCH_ON_OHMS,
+							offOhms: SWITCH_OFF_OHMS,
+						},
+					};
+				}
+				const isClosed = position >= 0.5;
+				return {
+					outcome: "law",
+					device: device.id,
+					law: {
+						kind: "conductance",
+						siemens: isClosed ? 1 / SWITCH_ON_OHMS : 1 / SWITCH_OFF_OHMS,
+					},
+				};
 			}
 			// Two terminals make or break; three or more route. 84 of the corpus's 118
 			// wired switches have three or more, and stamping only the first two threw
@@ -2180,9 +2487,15 @@ function resolveDevice(
 					channel: device.parameters.pChannel === 1 ? "p" : "n",
 					// A JFET is depletion mode: it conducts at zero gate bias and pinches
 					// off as the gate goes negative, so the threshold is negative.
-					thresholdVolts: device.parameters.thresholdVolts ?? -2,
-					transconductance: device.parameters.transconductance ?? 1e-3,
+					thresholdVolts:
+						device.parameters.thresholdVolts ?? JFET_DEFAULT_THRESHOLD_VOLTS,
+					transconductance:
+						device.parameters.transconductance ?? JFET_DEFAULT_TRANSCONDUCTANCE,
 					channelLengthModulation: 0,
+					// Subthreshold conduction (see the `fet` law docs in types.ts): the
+					// gradual region a knee-biased JFET actually sweeps in. MOSFETs
+					// keep 0 below.
+					subthresholdVolts: 0.07,
 					// A JFET gate is a silicon PN junction, so it conducts once forward-biased.
 					// Saturation current and scale are **reused from the triode grid**, which
 					// `compact-mna-dynamic-triode-cell` reports 0 Newton failures with; the onset
@@ -2201,10 +2514,11 @@ function resolveDevice(
 				law: {
 					kind: "fet",
 					channel: device.parameters.pChannel === 1 ? "p" : "n",
-					// Enhancement mode: off at zero bias, so the threshold is positive.
 					thresholdVolts: device.parameters.thresholdVolts ?? 2,
 					transconductance: device.parameters.transconductance ?? 1e-3,
 					channelLengthModulation: 0,
+					// Insulated gate: no subthreshold region is modelled, behavior unchanged.
+					subthresholdVolts: 0,
 					// An insulated gate draws no current at any bias. Zero, deliberately: this
 					// is what the law did for every FET before the JFET junction was added.
 					gateSaturationCurrent: 0,
@@ -2417,6 +2731,386 @@ const unimplementedDeviceLaws: ReadonlySet<string> = new Set([
 ]);
 
 /** An `ic`/`power-amp` given no element, tagged with the branch that decided it. */
+/**
+ * A component's declared program as a resolution, or null where it declares none.
+ *
+ * **Why an unreadable declaration refuses rather than opens.** An `ic` with no model is opened and
+ * the packet renders silence, which CLAUDE.md records as the gap that cost a session: the engine
+ * cannot tell an unimplemented DSP pedal from an analog pedal with a severed net. A component that
+ * *declares* its program is not that case. The source has stated what the chip does, so failing to
+ * execute it is this pipeline's gap rather than the document's, and the console/ROM invariant
+ * applies in full -- named, never silent.
+ *
+ * Blast radius today is zero: no corpus packet declares a program, so no packet that compiles can
+ * change. That is the bound the design set for this step, and it is checked by the corpus ratchet
+ * rather than asserted here.
+ */
+function resolveDeclaredProgram(
+	device: Device,
+	netlist: Netlist | undefined,
+): DeviceResolution | null {
+	const program = device.program;
+	if (program === undefined) return null;
+	const check = checkDeclaredProgram(program);
+	if (!check.ok) {
+		return {
+			outcome: "unsupported",
+			device: device.id,
+			reason: `component declares a program this pipeline cannot execute: ${check.reason}`,
+		};
+	}
+	// A swept gain reads its knob directly, like a scanned router, so the knob it names has to be
+	// on the panel. Otherwise the gain would read a control that does not exist and sit at 0.5.
+	for (const position of check.positions) {
+		for (const op of position.ops) {
+			if (op.op !== "mix") continue;
+			for (const term of op.terms) {
+				if (term.sweep !== undefined && !controlExists(term.sweep.controlId, netlist)) {
+					return {
+						outcome: "unsupported",
+						device: device.id,
+						reason: `component's program "${position.id}" sweeps a gain with control "${term.sweep.controlId}", which this document does not declare`,
+					};
+				}
+			}
+		}
+	}
+	// The audio boundary, read from the typed roles core 0.8.1 made legal on an opaque chip.
+	// Reading the terminals' authored *names* instead is what the Typed Source Evidence rule
+	// forbids, and it is why this fact had to ship upstream before this branch could exist.
+	const roles = device.identity.declaredTerminalRoles;
+	const audioIn = roles.indexOf("input");
+	const audioOut = roles.indexOf("output");
+	if (audioIn < 0 || audioOut < 0) {
+		const missing = [
+			audioIn < 0 ? "input" : null,
+			audioOut < 0 ? "output" : null,
+		].filter((label): label is string => label !== null);
+		return {
+			outcome: "unsupported",
+			device: device.id,
+			reason: `component declares a program but no terminal declares role ${missing.join(" or ")}, so its audio boundary is unknown; a program says what the chip computes, never which pins carry the signal`,
+		};
+	}
+	// A cited control on a line's `delaySeconds` is a claim that a knob moves that length, and a
+	// claim nothing wires is a dead knob. Two routes, by how the source says the chip reads it:
+	//
+	// - **scanned / tapped**: per line, below, since a DELAY position and a TEMPO position read
+	//   different controls. The knob has to be on the panel; core checked the reader is on the
+	//   board.
+	// - **node**: a solved wiper voltage through the block's one `parameter` port, and so at most
+	//   one control across the whole block, as before.
+	for (const position of program.positions) {
+		for (const parameters of Object.values(position.lines)) {
+			for (const parameter of Object.values(parameters)) {
+				if (parameter.read === "node" || parameter.source === undefined) continue;
+				if (parameter.control === undefined || !controlExists(parameter.control, netlist)) {
+					return {
+						outcome: "unsupported",
+						device: device.id,
+						reason: `component's program "${position.id}" cites ${parameter.read} control "${parameter.control ?? "(none)"}", which this document does not declare`,
+					};
+				}
+			}
+		}
+	}
+	let declaredParameter: DeclaredParameterPlan | null = null;
+	const timeControl = citedNodeControl(program);
+	if (timeControl !== null) {
+		const node = selectorNodeFor(timeControl, netlist);
+		const supply = highestPositiveRailVolts(netlist);
+		if (typeof node === "number" && supply !== null) {
+			declaredParameter = { controlId: timeControl, node, referenceVolts: supply };
+		}
+	}
+
+	// The router. Only needed where there is a choice to make: one program runs whatever any
+	// control is doing.
+	let declaredRouter: DeclaredRouterPlan | null = null;
+	const router = program.router;
+	if (router !== null) {
+		if (router.positions < check.positions.length) {
+			return {
+				outcome: "unsupported",
+				device: device.id,
+				reason: `component declares ${check.positions.length} programs but its router says control "${router.control}" has only ${router.positions} positions`,
+			};
+		}
+		// **A scanned control has no node, by declaration.** The chip that reads it sits behind
+		// a path the source cannot state, so there is nothing to resolve and nothing to refuse;
+		// the runtime takes the control's position directly. Core has already checked that the
+		// reader named exists in the document, which is what keeps this from being a way to
+		// make any dangling control appear to work.
+		let node: NodeId | null = null;
+		let supply: number | null = null;
+		if (router.read === "node") {
+			const resolved = selectorNodeFor(router.control, netlist);
+			if (typeof resolved === "string") {
+				return { outcome: "unsupported", device: device.id, reason: resolved };
+			}
+			node = resolved;
+			supply = highestPositiveRailVolts(netlist);
+			if (supply === null) {
+				return {
+					outcome: "unsupported",
+					device: device.id,
+					reason: `component declares a router on control "${router.control}" but the document declares no positive supply rail, so the control's node has no full scale to be read against`,
+				};
+			}
+		} else if (!controlExists(router.control, netlist)) {
+			// A scanned router still has to name a control this document declares. Otherwise the
+			// knob it claims to read is not on the panel at all.
+			return {
+				outcome: "unsupported",
+				device: device.id,
+				reason: `component declares a scanned router on control "${router.control}", which this document does not declare`,
+			};
+		}
+		// Dense, one entry per detent: a lookup per sample must be an index, not a search.
+		// -1 is "the source declares no program here", which is a statement rather than a gap.
+		const byId = new Map(check.positions.map((position, index) => [position.id, index]));
+		const routes = new Array<number>(router.positions).fill(-1);
+		for (const route of router.routes) {
+			const index = byId.get(route.program);
+			if (index === undefined) {
+				return {
+					outcome: "unsupported",
+					device: device.id,
+					reason: `router sends position ${route.position} to program "${route.program}", which this component does not declare`,
+				};
+			}
+			routes[route.position] = index;
+		}
+		declaredRouter = {
+			controlId: router.control,
+			node,
+			referenceVolts: supply,
+			positions: router.positions,
+			routes,
+		};
+	} else if (check.positions.length > 1) {
+		return {
+			outcome: "unsupported",
+			device: device.id,
+			reason: `component declares ${check.positions.length} programs and no router saying which control chooses between them`,
+		};
+	}
+
+	return {
+		outcome: "macro",
+		device: device.id,
+		macro: {
+			// The part's own id, so a composition carries what chip it came from rather
+			// than a synthetic name. A declared program is not a registry model and must
+			// not borrow one's identity.
+			modelId: device.identity.partNumber?.trim() || `${device.id}-program`,
+			parameters: {},
+			portTerminals: [audioIn, audioOut],
+			audioPortImpedanceOhms: DECLARED_PROGRAM_PORT_OHMS,
+			parameterTerminal: null,
+			parameterReferenceVolts: null,
+			declaredParameter,
+			declaredPositions: check.positions.map((position) => ({
+				id: position.id,
+				ops: position.ops,
+				out: publishedTemp(position.ops),
+				lines: Object.fromEntries(
+					position.lines.map((lineId) => [
+						lineId,
+						(() => {
+							const sweep = declaredLineSweep(program, position.id, lineId);
+							return {
+								delaySeconds: declaredLineSeconds(program, position.id, lineId),
+								minSeconds: declaredLineFloorSeconds(program, position.id, lineId),
+								...(sweep === undefined ? {} : { sweep }),
+							};
+						})(),
+					]),
+				),
+			})),
+			declaredRouter,
+		},
+	};
+}
+
+/**
+ * Audio port impedances for a declared composition.
+ *
+ * A registry macro states its part's real input and output impedances. A declaration
+ * does not, and inventing per-part numbers from nothing would be exactly the guess this
+ * programme exists to remove -- so these are the neutral pair: a high input that loads
+ * the stage before it as little as a chip's input pin does, and a low output that drives
+ * the stage after it. Stated here once rather than spread as literals.
+ */
+const DECLARED_PROGRAM_PORT_OHMS = { input: 1e6, output: 1e3 } as const;
+
+/**
+ * Which temporary a declared position publishes.
+ *
+ * **The last value the graph produces**, which is the last op carrying an `out`. Not simply
+ * the last op: `delay-push` writes into a line and produces nothing, and a delay graph
+ * almost always ends with one, so taking the final index would publish a temporary that
+ * was never written and render silence on a program that is correct.
+ *
+ * The format does not state this and does not need to. A composition is evaluated top to
+ * bottom and a source may only read an earlier op, so "the last value produced" is
+ * unambiguous from the op list alone.
+ */
+function publishedTemp(ops: readonly PrimitiveOp[]): number {
+	for (let index = ops.length - 1; index >= 0; index -= 1) {
+		const op = ops[index];
+		if (op !== undefined && "out" in op) return op.out;
+	}
+	return 0;
+}
+
+/**
+ * The cited delay for one line of one position, or zero where the declaration cites none.
+ *
+ * **An uncited parameter is not set**, which is the declaration format's own rule: a
+ * number with no `source` is not evidenced and the block makes no claim on that axis.
+ * Zero here means the line has no length, which a delay op then reads as no delay -- the
+ * honest reading of "the document does not say".
+ */
+function declaredLineSeconds(
+	program: DeclaredProgram,
+	positionId: string,
+	lineId: string,
+): number {
+	const position = program.positions.find((entry) => entry.id === positionId);
+	const cited = position?.lines[lineId]?.delaySeconds;
+	if (cited === undefined || cited.source === undefined) return 0;
+	// The maximum of the cited range: the line is sized for the longest delay the mode can
+	// be asked for, exactly as a clocked macro sizes for the longest its knob can reach.
+	return Number.isFinite(cited.max) && cited.max > 0 ? cited.max : 0;
+}
+
+/**
+ * The minimum of a line's cited range, or 0 where the source cites none.
+ *
+ * The floor a control sweeps up from; the line itself is sized from the maximum. A range the
+ * source does not cite stays unset, as for the maximum, and so does a minimum that is not below
+ * the maximum -- a floor that reaches the top would silently pin the knob.
+ */
+function declaredLineFloorSeconds(
+	program: DeclaredProgram,
+	positionId: string,
+	lineId: string,
+): number {
+	const position = program.positions.find((entry) => entry.id === positionId);
+	const cited = position?.lines[lineId]?.delaySeconds;
+	if (cited === undefined || cited.source === undefined) return 0;
+	return Number.isFinite(cited.min) && cited.min > 0 && cited.min < cited.max ? cited.min : 0;
+}
+
+/**
+ * The one control a declaration's **node-read** parameters name, or null.
+ *
+ * **One, deliberately.** A composed block has a single `parameter` port, so node-read citations
+ * of two different controls have no faithful lowering, and taking the first would silently drop
+ * the second knob. Null in that case, which leaves those lengths at their stated maximum. Scanned
+ * and tapped citations do not come through here: each line carries its own (`ComposedLineSweep`).
+ */
+function citedNodeControl(program: DeclaredProgram): string | null {
+	const named = new Set<string>();
+	for (const position of program.positions) {
+		for (const parameters of Object.values(position.lines)) {
+			for (const parameter of Object.values(parameters)) {
+				if (
+					parameter.read === "node" &&
+					parameter.control !== undefined &&
+					parameter.source !== undefined
+				) {
+					named.add(parameter.control);
+				}
+			}
+		}
+	}
+	return named.size === 1 ? ([...named][0] ?? null) : null;
+}
+
+/**
+ * The per-line sweep a line's cited `delaySeconds` declares, or undefined for a fixed or
+ * node-read length.
+ */
+function declaredLineSweep(
+	program: DeclaredProgram,
+	positionId: string,
+	lineId: string,
+): ComposedLineSweep | undefined {
+	const position = program.positions.find((entry) => entry.id === positionId);
+	const cited = position?.lines[lineId]?.delaySeconds;
+	if (
+		cited === undefined ||
+		cited.source === undefined ||
+		cited.control === undefined ||
+		cited.read === "node"
+	) {
+		return undefined;
+	}
+	return { controlId: cited.control, read: cited.read, ratio: cited.ratio ?? 1 };
+}
+
+/**
+ * The node whose voltage carries a control's position, or why none does.
+ *
+ * **This is the pot's wiper, and it is deliberately not a pin of the declaring chip.** The
+ * knob does not reach the DSP; on a DD-5 it reaches the CPU's analog input, and the CPU tells
+ * the DSP which program to run. What the engine can solve is the voltage the wiper produces,
+ * and that is all a router needs. Requiring the node to sit on the declaring component would
+ * refuse every firmware-mediated control, which is most of them.
+ *
+ * The wiper is found by its declared `role`, a closed vocabulary compared whole. A control
+ * bound to a device with no wiper -- a plain switch -- has no continuous reading to quantize,
+ * and is refused by name rather than guessed at.
+ */
+function selectorNodeFor(
+	control: string,
+	netlist: Netlist | undefined,
+): NodeId | string {
+	if (netlist === undefined) {
+		return `component declares a router on control "${control}" but this stage was given no netlist to resolve it against`;
+	}
+	const bound = netlist.devices.filter((device) => device.control === control);
+	if (bound.length === 0) {
+		return `component declares a router on control "${control}", which no device in this document is bound to`;
+	}
+	const wipers: NodeId[] = [];
+	for (const device of bound) {
+		for (const [index, role] of device.identity.declaredTerminalRoles.entries()) {
+			if (role !== "wiper") continue;
+			const node = device.nodes[index];
+			if (node !== undefined) wipers.push(node);
+		}
+	}
+	const distinct = [...new Set(wipers)];
+	if (distinct.length === 0) {
+		return `component declares a router on control "${control}", but no device bound to it declares a wiper terminal, so the control produces no voltage this engine can read`;
+	}
+	if (distinct.length > 1) {
+		return `component declares a router on control "${control}", and ${distinct.length} distinct wiper nodes are bound to it, so which one carries the selection is ambiguous`;
+	}
+	return distinct[0] ?? -1;
+}
+
+/** Whether the document declares this panel control at all. */
+function controlExists(control: string, netlist: Netlist | undefined): boolean {
+	return netlist?.controls.some((candidate) => candidate.id === control) ?? false;
+}
+
+/** The highest positive rail the document declares, or null where it declares none. */
+function highestPositiveRailVolts(netlist: Netlist | undefined): number | null {
+	if (netlist === undefined) return null;
+	let highest: number | null = null;
+	for (const device of netlist.devices) {
+		if (device.kind !== "voltage-source" && device.kind !== "rail") continue;
+		const volts = device.parameters.volts;
+		if (typeof volts !== "number" || !Number.isFinite(volts) || volts <= 0) continue;
+		if (highest === null || volts > highest) highest = volts;
+	}
+	return highest;
+}
+
 function openIc(device: Device, reason: OpenIcReason): DeviceResolution {
 	return {
 		outcome: "law",
@@ -2469,6 +3163,22 @@ const classesOpenedWithoutModel: ReadonlySet<string> = new Set([
 	"circuit.resetsupervisor",
 	"circuit.crystal",
 	"circuit.sourcevisiblesubsystem",
+	// A converter is the same case as the DSP and the microcontroller above it: what it does to a
+	// sample is digital and no dump makes it modellable, so an open with a named warning is the
+	// honest outcome and a refusal that takes the whole packet down is not.
+	//
+	// Reached on `boss-dd-5` only once its supply rails were declared. Before that its AK5345-VS
+	// was excused for being electrically isolated, which is the weaker reason: a packet should
+	// not depend on a chip being unwired in order to compile.
+	//
+	"circuit.adc",
+	// Admitted on a packet, as the rule above demanded before it was. `boss-dd-5` v1.36 wires its
+	// output mixer as drawn, so its uPD6379's RO pin now drives the panning-out wet chain and the
+	// chip stopped being isolated. Same case as the ADC: the conversion is the declared program's
+	// output, what the chip does to a sample is digital, and refusing it would take a working
+	// packet down for wiring what the sheet shows. The other two corpus DACs (`boss-rv-3`,
+	// `boss-dsd-3`) compile byte-identically with and without this entry.
+	"circuit.dac",
 ]);
 
 /** Whether the source states one of {@link classesOpenedWithoutModel}. */
@@ -2773,9 +3483,359 @@ function portEngage(device: Device, supply: SupplyNodes): DeviceResolution {
  * Non-IC opens are out of scope and stay so -- a ground symbol and an unwired jack contact carry
  * no element because the symbol has none, which is not a hole in the model.
  */
+/**
+ * `digital-delay-line` as a composition of primitives (board-p3 row 4):
+ * an integer delay line plus one multiply-accumulate for the feedback mix.
+ *
+ * The op order mirrors the kernel's own evaluation order exactly -- read the
+ * delayed sample, publish it, write back tap plus feedback times delayed --
+ * so the interpreter reproduces its bits rather than approximating them.
+ * Length-mode priority mirrors the kernel's branch priority (clock control,
+ * then parameter port, else capacity). Returns `null` for anything but this
+ * model, and for a block carrying `modulation`, which the kernel has no
+ * branch for: there is no faithful composition of a port the kernel ignores.
+ */
+export function decomposeDigitalDelayLine(
+	block: Extract<Block, { kind: "macro" }>,
+): Extract<Block, { kind: "composed" }> | null {
+	if (block.modelId !== "digital-delay-line") {
+		return null;
+	}
+	if (block.modulation !== undefined && block.modulation !== null) {
+		return null;
+	}
+	const feedback = block.parameters.feedback ?? 0;
+	return {
+		kind: "composed",
+		modelSource: "registry",
+		id: block.id,
+		modelId: block.modelId,
+		parameters: block.parameters,
+		audioIn: block.audioIn,
+		audioOut: block.audioOut,
+		parameter: block.parameter,
+		clockControl: block.clockControl,
+		delayProvenance: block.delayProvenance,
+		delayDeclaredReason: block.delayDeclaredReason,
+		modulationRefusal: block.modulationRefusal,
+		router: null,
+		positions: [
+			{
+				id: "default",
+			ops: [
+				{
+					op: "delay-tap",
+					line: "dl",
+					length:
+						block.clockControl !== undefined && block.clockControl !== null
+							? { mode: "clock" }
+							: block.parameter !== null && block.parameter.referenceVolts > 0
+								? { mode: "parameter" }
+								: { mode: "capacity" },
+					out: 0,
+				},
+				{
+					op: "mix",
+					terms: [
+						{ source: { kind: "input" }, gain: 1 },
+						{ source: { kind: "temp", index: 0 }, gain: feedback },
+					],
+					out: 1,
+				},
+				{
+					op: "delay-push",
+					line: "dl",
+					input: { kind: "temp", index: 1 },
+				},
+			],
+			out: 0,
+			lines: {
+				dl: { delaySeconds: block.parameters.delaySeconds ?? 0, minSeconds: 0 },
+			},
+			},
+		],
+	};
+}
+
+/**
+ * `bucket-brigade-delay-line` as a composition of primitives (board-p3
+ * row 4): input coupling estimator, fractionally interpolated delay line,
+ * write-back.
+ *
+ * Op order mirrors the kernel exactly -- couple the tap to AC, read the
+ * delayed sample with linear interpolation, publish it, write the AC back --
+ * and length priority mirrors its branches (clock, clock-law, modulation,
+ * parameter).
+ *
+ * Deliberately no `converter` op: the shipped kernel performs no conversion
+ * stage (no companding, no quantization -- `grep compand` finds a device
+ * law and comments), so a bit-identical decomposition has nowhere to put
+ * one. The enum gains `converter` when a decomposition needs it, not before.
+ */
+export function decomposeBucketBrigadeDelayLine(
+	block: Extract<Block, { kind: "macro" }>,
+): Extract<Block, { kind: "composed" }> | null {
+	if (block.modelId !== "bucket-brigade-delay-line") {
+		return null;
+	}
+	const clockLawLength =
+		block.clockLaw !== undefined &&
+		block.clockLaw !== null &&
+		block.clockLawParams !== undefined &&
+		block.clockLawParams !== null
+			? {
+					mode: "clock-law" as const,
+					rOhms: block.clockLawParams.rOhms,
+					cFarads: block.clockLawParams.cFarads,
+					vddVolts: block.clockLawParams.vddVolts,
+					vthVolts: block.clockLawParams.vthVolts,
+					vfVolts: block.clockLawParams.vfVolts,
+					floorVolts: block.clockLawParams.floorVolts,
+					stages: block.parameters.stages ?? 0,
+				}
+			: null;
+	return {
+		kind: "composed",
+		modelSource: "registry",
+		id: block.id,
+		modelId: block.modelId,
+		parameters: block.parameters,
+		audioIn: block.audioIn,
+		audioOut: block.audioOut,
+		parameter: block.parameter,
+		clockControl: block.clockControl,
+		modulation: block.modulation,
+		// Present only when recognised: same byte-churn rule as `lower.ts` --
+		// every other program must stay digest-identical.
+		...(block.clockLaw !== undefined &&
+		block.clockLaw !== null &&
+		block.clockLawParams !== undefined &&
+		block.clockLawParams !== null
+			? { clockLaw: block.clockLaw, clockLawParams: block.clockLawParams }
+			: {}),
+		delayProvenance: block.delayProvenance,
+		delayDeclaredReason: block.delayDeclaredReason,
+		modulationRefusal: block.modulationRefusal,
+		router: null,
+		positions: [
+			{
+				id: "default",
+			ops: [
+				{ op: "filter-dcblock", input: { kind: "input" }, out: 0 },
+				{
+					op: "delay-tap-fractional",
+					line: "dl",
+					length:
+						block.clockControl !== undefined && block.clockControl !== null
+							? { mode: "clock" }
+							: clockLawLength ?? (block.modulation !== undefined && block.modulation !== null
+								? { mode: "modulation" }
+								: block.parameter !== null && block.parameter.referenceVolts > 0
+									? { mode: "parameter" }
+									: { mode: "capacity" }),
+					out: 1,
+				},
+				{
+					op: "delay-push",
+					line: "dl",
+					input: { kind: "temp", index: 0 },
+				},
+			],
+			out: 1,
+			lines: {
+				dl: { delaySeconds: block.parameters.delaySeconds ?? 0, minSeconds: 0 },
+			},
+			},
+		],
+	};
+}
+
+/**
+ * `digital-reverb-module` as a composition of primitives (board-p3 row 4):
+ * four parallel feedback combs averaged, two series allpass diffusers,
+ * output gain. A Schroeder reverb, which is what the kernel is.
+ *
+ * Arithmetic mirrors the kernel term for term: combs accumulate
+ * left-to-right then scale by exactly one quarter (a power of two, so the
+ * multiply rounds like the kernel's divide), allpasses keep the kernel's
+ * multiply order. The kernel has no clock, parameter, or modulation
+ * branches, so those ports are dropped rather than carried -- carrying a
+ * port the kernel ignores would imply behaviour the composition does not
+ * have. `decaySeconds` travels per comb op; the echo-density tables and
+ * the allpass coefficient stay interpreter-owned, exactly as today.
+ */
+export function decomposeDigitalReverbModule(
+	block: Extract<Block, { kind: "macro" }>,
+): Extract<Block, { kind: "composed" }> | null {
+	if (block.modelId !== "digital-reverb-module") {
+		return null;
+	}
+	const decaySeconds = block.parameters.decaySeconds ?? 0;
+	const outputGain = block.parameters.outputGain ?? 1;
+	return {
+		kind: "composed",
+		modelSource: "registry",
+		id: block.id,
+		modelId: block.modelId,
+		parameters: block.parameters,
+		audioIn: block.audioIn,
+		audioOut: block.audioOut,
+		parameter: null,
+		delayProvenance: block.delayProvenance,
+		delayDeclaredReason: block.delayDeclaredReason,
+		modulationRefusal: block.modulationRefusal,
+		router: null,
+		positions: [
+			{
+				id: "default",
+			ops: [
+				{ op: "comb", index: 0, decaySeconds, input: { kind: "input" }, out: 0 },
+				{ op: "comb", index: 1, decaySeconds, input: { kind: "input" }, out: 1 },
+				{ op: "comb", index: 2, decaySeconds, input: { kind: "input" }, out: 2 },
+				{ op: "comb", index: 3, decaySeconds, input: { kind: "input" }, out: 3 },
+				{
+					op: "mix",
+					terms: [
+						{ source: { kind: "temp", index: 0 }, gain: 1 },
+						{ source: { kind: "temp", index: 1 }, gain: 1 },
+						{ source: { kind: "temp", index: 2 }, gain: 1 },
+						{ source: { kind: "temp", index: 3 }, gain: 1 },
+					],
+					out: 4,
+				},
+				{
+					op: "mix",
+					// The kernel averages over its four combs; 0.25 is exact here
+					// because the interpreter's comb table is fixed at four. If
+					// that table ever grows, this literal must follow it.
+					terms: [{ source: { kind: "temp", index: 4 }, gain: 0.25 }],
+					out: 5,
+				},
+				{ op: "allpass", index: 0, input: { kind: "temp", index: 5 }, out: 6 },
+				{ op: "allpass", index: 1, input: { kind: "temp", index: 6 }, out: 7 },
+				{
+					op: "mix",
+					terms: [{ source: { kind: "temp", index: 7 }, gain: outputGain }],
+					out: 8,
+				},
+			],
+			out: 8,
+			lines: {},
+			},
+		],
+	};
+}
+
+/**
+ * Emit compositions for the three decomposed models, passthrough for
+ * everything else (board-p3 row 4, the flip). Called once per program after
+ * `couple` wires ports: decompositions read fully-resolved blocks, so an
+ * earlier flip would compose unwired placeholders. A `null` decomposition
+ * (a port the kernel ignores, a model outside the three) keeps the macro
+ * block rather than failing the program.
+ */
+export function composeMacroBlocks(
+	blocks: readonly Block[],
+): readonly Block[] {
+	return blocks.map((block) => {
+		if (block.kind !== "macro") {
+			return block;
+		}
+		// **A declared composition composes to itself.** The three decompositions below
+		// translate a registry model into ops; a declaration arrives as ops already, so
+		// there is nothing to translate and no model table to consult. That is the whole
+		// point of the second resolution key: the source states the program.
+		const declared = block.declaredPositions;
+		if (declared !== null && declared !== undefined && declared.length > 0) {
+			return {
+				kind: "composed",
+				modelSource: "declared",
+				id: block.id,
+				modelId: block.modelId,
+				parameters: block.parameters,
+				audioIn: block.audioIn,
+				audioOut: block.audioOut,
+				parameter: block.parameter,
+				clockControl: block.clockControl,
+				delayProvenance: block.delayProvenance,
+				delayDeclaredReason: block.delayDeclaredReason,
+				modulationRefusal: block.modulationRefusal,
+				positions: declared,
+				router: block.router ?? null,
+			};
+		}
+		if (block.modelId === "digital-delay-line") {
+			return decomposeDigitalDelayLine(block) ?? block;
+		}
+		if (block.modelId === "bucket-brigade-delay-line") {
+			return decomposeBucketBrigadeDelayLine(block) ?? block;
+		}
+		if (block.modelId === "digital-reverb-module") {
+			return decomposeDigitalReverbModule(block) ?? block;
+		}
+		return block;
+	});
+}
+
+/**
+ * Which phase-3 bucket a gap-candidate open IC belongs in (board-p3 row 1).
+ *
+ * Pure over typed and structural evidence only: the entry's `firmwareClass`
+ * (compared whole-value, never prose) and whether the chip shares a net with
+ * a device the program executes. `fixed-function` means no program is
+ * missing, so the only question left is what covers the chip's behaviour: an
+ * executing macro (memory inside a delay kernel, e.g. a 4164 behind an
+ * M50195P) or an executing law (a redundant view of modelled behaviour, e.g.
+ * a single-terminal divider placeholder on an executing divider's clock
+ * net). Everything else stays `programmable-no-program` -- including
+ * `undetermined` firmware, which is an open question rather than evidence of
+ * a fixed function, so the phase-3 set keeps the row until proven otherwise.
+ */
+export function classifyOpenIcGap(input: {
+	readonly firmwareClass: FirmwareClass;
+	readonly sharesNodeWithExecutedMacro: boolean;
+	readonly sharesNodeWithExecutedLaw: boolean;
+}): OpenIcGapClass {
+	if (
+		input.firmwareClass === "fixed-function" &&
+		input.sharesNodeWithExecutedMacro
+	) {
+		return "support-chip-subsumed";
+	}
+	if (
+		input.firmwareClass === "fixed-function" &&
+		input.sharesNodeWithExecutedLaw
+	) {
+		return "part-number-miss";
+	}
+	return "programmable-no-program";
+}
+
+/**
+ * The entry's firmware class for an exact part-number match, whole-value.
+ * No entry or no evidence reads `undetermined`, which classifies as
+ * `programmable-no-program`: an open question keeps the phase-3 row.
+ */
+function firmwareClassOf(
+	registry: PartRegistry,
+	partNumber: string | null,
+): FirmwareClass {
+	if (partNumber === null) {
+		return "undetermined";
+	}
+	const folded = foldPartId(partNumber);
+	for (const entry of registry.entries) {
+		if (entry.partIds.some((id) => foldPartId(id) === folded)) {
+			return entry.firmware?.firmwareClass ?? "undetermined";
+		}
+	}
+	return "undetermined";
+}
+
 export function findIcsNotExecuted(
 	lawed: LawedNetlist,
 	original: Netlist,
+	registry: PartRegistry,
 ): readonly IcNotExecutedWarning[] {
 	// **One device, one warning, and isolation is the half that speaks.** A chip sharing no net
 	// with anything is not a modelling question -- no entry at any terminal count would connect
@@ -2793,6 +3853,29 @@ export function findIcsNotExecuted(
 		),
 	);
 	const warnings: IcNotExecutedWarning[] = [];
+	const deviceById = new Map(
+		lawed.netlist.devices.map((device) => [device.id, device] as const),
+	);
+	const executedMacroNodes = new Set<NodeId>();
+	const executedLawNodes = new Set<NodeId>();
+	for (const resolution of lawed.resolutions) {
+		const resolved = deviceById.get(resolution.device);
+		if (resolved === undefined) {
+			continue;
+		}
+		if (resolution.outcome === "macro") {
+			for (const node of resolved.nodes) {
+				executedMacroNodes.add(node);
+			}
+		} else if (
+			resolution.outcome === "law" &&
+			resolution.law.kind !== "open"
+		) {
+			for (const node of resolved.nodes) {
+				executedLawNodes.add(node);
+			}
+		}
+	}
 	for (const device of lawed.netlist.devices) {
 		if (!requiresIdentification(device)) {
 			continue;
@@ -2829,12 +3912,33 @@ export function findIcsNotExecuted(
 			privatePins === 0
 				? ""
 				: ` ${privatePins} of its ${device.nodes.length} terminals sit on nodes no other component touches, which no registry entry can connect.`;
+		const gapClass =
+			reason === "registry-open" || reason === "declared-class-without-model"
+				? classifyOpenIcGap({
+						firmwareClass: firmwareClassOf(
+							registry,
+							device.identity.partNumber,
+						),
+						sharesNodeWithExecutedMacro: device.nodes.some((node) =>
+							executedMacroNodes.has(node),
+						),
+						sharesNodeWithExecutedLaw: device.nodes.some((node) =>
+							executedLawNodes.has(node),
+						),
+					})
+				: undefined;
+		const gapSuffix =
+			gapClass === "support-chip-subsumed"
+				? " Classified support-chip-subsumed (phase-1 row, not phase 3): its catalog entry states fixed-function behaviour and it shares a net with an executing macro, so no program is missing."
+				: gapClass === "part-number-miss"
+					? " Classified part-number-miss (phase-1 row, not phase 3): its catalog entry states fixed-function behaviour and it shares a net with an executing law, so it is a redundant view of modelled behaviour rather than an unmodelled core."
+					: "";
 		warnings.push({
 			code: "ic-not-executed",
 			device: device.id,
 			reason: reason ?? "unrecorded",
 			detail:
-				reason === "source-boundary-shell"
+				(reason === "source-boundary-shell"
 					? `${head}: it is registered as a source-boundary shell, drawn for topological continuity rather than execution, so it is compiled as open.`
 					: reason === "charge-pump-declared-rail"
 						? `${head}: it is a charge pump whose generated rail the document declares separately, so the rail is modelled and the pump itself is compiled as open.`
@@ -2848,8 +3952,10 @@ export function findIcsNotExecuted(
 											? `its source names no part number and declares only the generic ${device.identity.declaredType}, so there is nothing to look up`
 											: `its source declares ${device.identity.declaredType}, a class this pipeline opens rather than refusing the pedal for`
 									}. Fixing it means a registry entry, a pinout that fits, or a packet correction.`
-								: `${head}: it was compiled as open by a path that records no reason, so this cannot say which. A new opening branch in \`resolveDevice\` needs to tag itself.`,
-		});
+								: `${head}: it was compiled as open by a path that records no reason, so this cannot say which. A new opening branch in \`resolveDevice\` needs to tag itself.`
+						) + gapSuffix,
+					...(gapClass === undefined ? {} : { gapClass }),
+				});
 	}
 	return warnings;
 }

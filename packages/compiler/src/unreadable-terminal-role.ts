@@ -11,7 +11,7 @@
 // order exchanges base and collector on nearly every transistor there is.
 //
 // **Why a warning and not a refusal.** The 2026-09-02 census (R1 in
-// `thoughts/shared/plans/2026-08-31-v2-complexity-reduction-plan.md`) measured the residue after
+// `thoughts/shared/plans/archive/2026-08-31-v2-complexity-reduction-plan.md`) measured the residue after
 // the true synonyms were absorbed: five packets that compile today carry a device this would
 // refuse, and all five render. `CompileWarning`'s own contract is the rule for exactly this
 // situation -- "things that compiled but will not behave. A warning never blocks a program ... but

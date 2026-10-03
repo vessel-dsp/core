@@ -21,15 +21,20 @@
 // `src/dsp`) may be imported here.
 
 import type {
+	ComposedLineSweep,
 	Block,
+	ClockLawParams,
+	ComposedSource,
 	Control,
 	ControlId,
+	DelayLengthSpec,
 	OperatorKind,
 	Program,
 	SparseSchedule,
 	Stamp,
 } from "@vessel-dsp/compiler";
 import { admissionVerdict, type RealtimeBudget } from "./admission";
+import { computeNumericRepivot } from "./numeric-pivot";
 import type { SupplyAddress, SupplyInfo } from "./supply";
 import { taperFraction } from "./taper";
 
@@ -264,6 +269,183 @@ const REVERB_ALLPASS_SECONDS = [225 / 44100, 556 / 44100] as const;
 /** Schroeder's allpass coefficient. Shapes diffusion, not decay. */
 const REVERB_ALLPASS_GAIN = 0.7;
 /**
+ * Pitch-shift resampling window (board-p3 row 5): 4096 samples of history,
+ * wraps of 2048. Covers fundamentals down to ~23 Hz at ratio 0.5 with more
+ * than two periods in the window; the wrap cadence is the documented
+ * discontinuity, not a tunable.
+ */
+/**
+ * Where one composed block's per-position state lives.
+ *
+ * A composed block holds independent delay lines, comb sections and pitch history **per
+ * selectable program**, because two modes need not share a buffer and a switch must not have to
+ * clear one. Everything is allocated at prepare, so selecting is an index change.
+ */
+const composedStateKey = (blockId: string, position: number): string =>
+	`${blockId}#${position}`;
+
+/**
+ * Which program a composed block is running, from the pin that selects it.
+ *
+ * **The knob is not read here; the pin is.** The panel control reaches the chip through the
+ * circuit, so the mode arrives as a solved node voltage exactly as `parameter` does. The fraction
+ * is `|volts| / referenceVolts` spread across the positions and clamped, so a pin at or below
+ * 0 V picks the first program and one at or above the reference picks the last.
+ *
+ * A block with no selector, which is every composition derived from a registry macro, always runs
+ * its single position.
+ */
+const selectedPosition = (
+	block: Extract<Block, { kind: "composed" }>,
+	voltageOf: (blockId: string, node: number) => number,
+	positionOf: (controlId: string) => number,
+): number => {
+	const router = block.router;
+	if (router === null || router === undefined || block.positions.length <= 1) {
+		return 0;
+	}
+	if (router.positions < 2) {
+		return 0;
+	}
+	// **Two ways to reach the control, and the source says which.** A node is the stronger
+	// claim: the wiper drives something the solver produces. A scanned control has no node,
+	// because the chip that reads it sits behind a path the source cannot state, so the
+	// position is taken directly -- the same road `clockControl` already travels.
+	let fraction: number;
+	if (router.port === null) {
+		fraction = positionOf(router.controlId);
+	} else {
+		if (!(router.port.referenceVolts > 0)) {
+			return 0;
+		}
+		fraction =
+			Math.abs(voltageOf(router.port.block, router.port.node)) / router.port.referenceVolts;
+	}
+	if (!Number.isFinite(fraction)) {
+		return 0;
+	}
+	// **Detents, not an even split across declared programs.** An N-detent control puts detent
+	// k at k/(N-1) of full scale, so the reading rounds to the nearest detent. Dividing by the
+	// number of *declared* programs instead would smear four modes across an eleven-position
+	// knob and land them where the undeclared ones live.
+	const last = router.positions - 1;
+	const detent = Math.min(
+		last,
+		Math.max(0, Math.round(fraction * last)),
+	);
+	return router.routes[detent] ?? -1;
+};
+
+const PITCH_HISTORY = 4096;
+const PITCH_WINDOW = 2048;
+
+/**
+ * Pitch-tracking window and hop (board-p3 row 6): 2048 samples cover
+ * fundamentals down to ~23 Hz with two periods in view; lags 20..1024 span
+ * 46.9 Hz..2.4 kHz, the guitar range with margin both ends. Estimates
+ * refresh every 256 samples (5.3 ms) and hold between -- control-rate
+ * output for an octave divider, not sample-rate vibrato tracking.
+ */
+const TRACK_WINDOW = 2048;
+const TRACK_HOP = 256;
+const TRACK_MIN_LAG = 20;
+const TRACK_MAX_LAG = 1024;
+/** Below this window energy the input is silence, not unpitched audio. */
+const TRACK_SILENCE_ENERGY = 1e-12;
+
+/**
+ * Fundamental of a window by normalized autocorrelation (board-p3 row 6).
+ * Pure over its inputs so the estimator is unit-testable without a program:
+ * the lag with peak energy-normalized correlation, parabolically refined,
+ * converted to Hz. 0 when the window holds no energy. Harmonic complexes
+ * peak at the fundamental period (all partials agree there); octave errors
+ * are the documented mistuning mode, graded by the acceptance, not defined
+ * away here.
+ */
+export function trackPitchFundamental(
+	window: Float64Array,
+	sampleRate: number,
+): number {
+	let energy = 0;
+	for (let index = 0; index < window.length; index += 1) {
+		const sample = window[index] as number;
+		energy += sample * sample;
+	}
+	if (!(energy > TRACK_SILENCE_ENERGY)) {
+		return 0;
+	}
+	// YIN difference function with cumulative-mean normalization and first
+	// dip below threshold (board-p3 row 6). Correlation-max fails in opposite
+	// directions at the range ends -- biased normalization rails short (a 110 Hz
+	// sine peaks below lag 20), unbiased rails long (a 220 Hz sine ties at 4x
+	// its period) -- because both pick a global extreme. Scanning upward for
+	// the first dip instead finds the fundamental period itself: sub-period
+	// lags of a periodic signal do not dip, multiples come later and lose.
+	// Flat input (constant, DC bias without AC) dips everywhere, so a
+	// max-min variation gate reads it 0 rather than inventing 2400 Hz.
+	let peak = -Infinity;
+	let trough = Infinity;
+	for (let index = 0; index < window.length; index += 1) {
+		const sample = window[index] as number;
+		if (sample > peak) {
+			peak = sample;
+		}
+		if (sample < trough) {
+			trough = sample;
+		}
+	}
+	if (!(peak - trough > 1e-9)) {
+		return 0;
+	}
+	const maxLag = Math.min(TRACK_MAX_LAG, Math.floor(window.length / 2));
+	let running = 0;
+	let bestLag = -1;
+	for (let lag = TRACK_MIN_LAG; lag <= maxLag; lag += 1) {
+		let difference = 0;
+		for (let index = lag; index < window.length; index += 1) {
+			const delta =
+				(window[index] as number) - (window[index - lag] as number);
+			difference += delta * delta;
+		}
+		running += difference;
+		// Cumulative mean normalized difference: 1 at lag 0 by construction,
+		// dipping toward 0 at periods. The first dip under threshold wins.
+		const normalized = (difference * lag) / running;
+		if (normalized < 0.1) {
+			bestLag = lag;
+			break;
+		}
+	}
+	if (bestLag === -1) {
+		return 0;
+	}
+	// Parabolic refinement around the dip: sub-sample period without
+	// another pass over the window.
+	let refined = bestLag;
+	if (bestLag > TRACK_MIN_LAG && bestLag < maxLag) {
+		const at = (lag: number): number => {
+			let difference = 0;
+			for (let index = lag; index < window.length; index += 1) {
+				const delta =
+					(window[index] as number) - (window[index - lag] as number);
+				difference += delta * delta;
+			}
+			return difference;
+		};
+		const previous = at(bestLag - 1);
+		const center = at(bestLag);
+		const next = at(bestLag + 1);
+		const denominator = previous - 2 * center + next;
+		if (denominator > 0) {
+			refined = bestLag + (0.5 * (previous - next)) / denominator;
+		}
+	}
+	if (!(refined > 0)) {
+		return 0;
+	}
+	return sampleRate / refined;
+}
+/**
  * The comb feedback that reaches -60 dB in `decaySeconds`.
  *
  * A comb of delay `d` loses `g` per pass, so after `T60 / d` passes it is at `g^(T60/d)`, and
@@ -302,19 +484,40 @@ function reverbCombGain(delaySeconds: number, decaySeconds: number): number {
 export const DEFAULT_NEWTON_MAX_ITERATIONS = 1024;
 
 /**
- * The budget a block falls back to once it has shown that more iterations cannot help it.
+ * The budget a block falls back to for the length of a probation, once one of its samples has
+ * shown that more iterations could not help that sample.
  *
  * **This is what makes the raise above safe**, and it is the reason the stall verdict had to
  * exist first. Two verdicts gain nothing from a larger budget: a **stalled** block has stopped
  * moving with the equations unsatisfied, and a **solved-but-flagged** block already has its
- * answer and is only being refused by a limiter flag. Left on the raised budget they pay for
- * it and get nothing — `vox-ac30-top-boost` 63.8 -> 1020.6 iterations per sample and
- * `marshall-1959-super-lead-plexi` 21.7 -> 283.3 — so each reverts after its first such sample.
+ * answer and is only being refused by a limiter flag. Left on the raised budget they pay for it
+ * and get nothing: `marshall-1959-super-lead-plexi` spends 1256 of 4800 samples there and costs
+ * **7.8x** more per sample without this fallback, for an output that differs by `8e-12`.
  *
- * A block that never exhausts its budget is unaffected by either constant, which is why 126 of
- * 142 corpus packets are bit-identical across this change.
+ * A block that never exhausts its budget is unaffected by either constant, which is why 129 of
+ * the 140 compiling corpus packets never reach this code at all (measured 2026-09-19).
+ *
+ * The `vox-ac30-top-boost` half of this comment's original justification (63.8 -> 1020.6
+ * iterations per sample) no longer reproduces: on the current tree it peaks at **37** iterations
+ * and exhausts nothing, so it never falls back. Re-measured rather than deleted, because a
+ * justification that has stopped being true is the thing a reader most needs told.
  */
 const NEWTON_UNPRODUCTIVE_ITERATIONS = 64;
+
+/**
+ * How long a probation lasts before the block is offered the full budget again.
+ *
+ * **This length is insurance, not a tuned win, and the sweep that says so is the reason it is
+ * written down.** At 64, 256 and 1024 samples every measured figure in the corpus is identical
+ * -- `mf-102` and `plexi` both render the same audio at the same cost -- because a block whose
+ * flagged samples recur is re-armed faster than any of these windows expire, and a block whose
+ * do not is never on probation long enough for the length to matter. So the length is chosen for
+ * the failure it forecloses rather than for a measurement: with no expiry at all, one flagged
+ * sample condemns a block for the whole render, which is what rendered `mf-102` silent. 1024
+ * samples is 21 ms at 48 kHz and costs the pathological case one full-budget sample in 1024 --
+ * under one extra iteration per sample against the 64 it falls back to.
+ */
+const NEWTON_UNPRODUCTIVE_PROBATION_SAMPLES = 1024;
 
 /**
  * SPICE's convergence criterion: relative tolerance plus an absolute floor, per unknown.
@@ -569,6 +772,27 @@ const OPAMP_SATURATION_BAND = 8;
  * the ceiling the 12 sits safely below.
  */
 const OPAMP_DIFFERENTIAL_BAND = 12;
+
+/**
+ * Consecutive Newton iterations an op-amp's step cap may sit near its floor, limited, before the
+ * solve treats it as a **fold** rather than a straddle and reseeds that op-amp on its other rail.
+ *
+ * The halving cap (see the stamp) is built for negative feedback: the iterate straddles a
+ * solution inside the linear region, the cap halves until it lands there, the limiter releases
+ * and the solve converges. Positive feedback breaks that. A Schmitt trigger's comparator
+ * (`boss-tr-2`'s LFO, `+=31 -=32 out=53`) runs at an effective per-sample gain of about 130
+ * inside a loop whose gain is well above one, so when the timing capacitor crosses the
+ * threshold the branch the iterate starts on **ceases to exist**. The only solution is on the
+ * other rail, the Jacobian keeps pointing back at the vanished one, and the cap pins at its floor
+ * in a two-cycle it cannot leave. Measured: from iteration ~20 to the 1024 cap on every LFO edge,
+ * 51 held samples in 3 s, each costing the whole cap -- the Studio's per-quantum overrun.
+ * Oversampling thins it (51 -> 29 at 8x) and does not remove it: the fold exists at any step.
+ *
+ * A straddle lands inside the linear region once the cap is below one linear width, and an
+ * iterate there is not limited, so it cannot accumulate this streak: the floor test is an eighth
+ * of a width, three halvings past that.
+ */
+const OPAMP_FOLD_STREAK = 6;
 
 /**
  * The op-amp's half rail-to-rail swing, with a floor so a zero-width supply cannot divide by
@@ -894,7 +1118,9 @@ const IMPLEMENTED_OPERATORS: Readonly<Record<OperatorKind, true>> = {
 	ota: true,
 	compandor: true,
 	"clock-driver": true,
-	comparator: true,
+			comparator: true,
+			// Linear-control VCA cell. Reads the control node, draws nothing.
+			"linear-vca": true,
 };
 
 /**
@@ -947,6 +1173,8 @@ function unimplementedOperators(
 		"bucket-brigade-delay-line": true,
 		"digital-delay-line": true,
 		"digital-reverb-module": true,
+		"pitch-shift": true,
+		"pitch-tracker": true,
 	} as const;
 
 type ImplementedModelId = keyof typeof IMPLEMENTED_MODELS;
@@ -1016,6 +1244,240 @@ type SpringTankState = {
 /** Unique per stamp within a block, because `lower.ts` allocates `sourceIndex` that way. */
 function springKey(blockId: string, sourceIndex: number): string {
 	return `${blockId}:${sourceIndex}`;
+}
+
+
+/**
+ * One sample of `hold-loop`: the manual's idle -> record while held -> loop -> erase on the next
+ * press, on the line's buffer. Exported through the consoles' contract test only by behaviour.
+ */
+function holdLoop(
+	line: {
+		buffer: number[];
+		capacity: number;
+		hold: { state: 0 | 1 | 2; length: number; index: number; gateWas: boolean };
+	},
+	input: number,
+	gate: boolean,
+): number {
+	const hold = line.hold;
+	const rising = gate && !hold.gateWas;
+	hold.gateWas = gate;
+	if (hold.state === 0) {
+		if (rising) {
+			hold.state = 1;
+			hold.length = 0;
+		} else {
+			return 0;
+		}
+	} else if (hold.state === 2 && rising) {
+		hold.state = 0;
+		hold.length = 0;
+		hold.index = 0;
+		return 0;
+	}
+	if (hold.state === 1) {
+		if (gate && hold.length < line.capacity) {
+			line.buffer[hold.length] = input;
+			hold.length += 1;
+			return 0;
+		}
+		hold.state = hold.length > 0 ? 2 : 0;
+		hold.index = 0;
+		if (hold.state === 0) return 0;
+	}
+	const out = line.buffer[hold.index] ?? 0;
+	hold.index = (hold.index + 1) % hold.length;
+	return out;
+}
+
+/**
+ * One sample of `delay-tap-reverse`, advancing the line's segment phase.
+ *
+ * Two heads half a segment apart read backwards (`2p + 1` samples back at phase `p`), each
+ * weighted `sin^2(pi p / L)`. The weights sum to 1 at every phase, so a constant input plays back
+ * constant, and each head's jump from the end of a segment to the start of the next falls where
+ * its weight is zero. The segment is kept even so the offset is exactly half of it, which is what
+ * makes the two weights sum to 1.
+ */
+function reverseRead(
+	line: { buffer: number[]; writeIndex: number; capacity: number; reversePhase: number },
+	lengthSamples: number,
+): number {
+	// The oldest read is 2 * segment - 1 back, so an even segment may not exceed half the buffer.
+	const longest = 2 * Math.floor(line.capacity / 4);
+	const segment = Math.min(longest, Math.max(2, 2 * Math.round(lengthSamples / 2)));
+	const phase = line.reversePhase % segment;
+	let out = 0;
+	for (const offset of [0, segment / 2]) {
+		const p = (phase + offset) % segment;
+		const weight = Math.sin((Math.PI * p) / segment) ** 2;
+		const readIndex =
+			(((line.writeIndex - (2 * p + 1)) % line.capacity) + line.capacity) % line.capacity;
+		out += weight * (line.buffer[readIndex] ?? 0);
+	}
+	line.reversePhase = (phase + 1) % segment;
+	return out;
+}
+
+/**
+ * A delay-tap read length, pure over its inputs (board-p3 row 4). Factored
+ * out of the interpreter so every mode is unit-testable without a program:
+ * the smoothing arithmetic, the modulation estimator, the parameter scale,
+ * and the capacity default mirror the delay kernels branch for branch, in
+ * the same priority. `min`/`headroom`/`round` carry the kernels' shaping --
+ * DDL rounds to whole samples above 1, BBD reads fractionally above 0 with
+ * two slots of headroom -- so one function serves both without blurring them.
+ */
+export function composedDelayLength(input: {
+	readonly mode: DelayLengthSpec["mode"];
+	readonly capacity: number;
+	readonly current: number;
+	readonly target: number;
+	readonly sampleRate: number;
+	readonly paramScale: number | null;
+	/**
+	 * A tapped length in samples (a `tapped` line's interval times its ratio), or null. In
+	 * `parameter` mode it wins over `paramScale` and is clamped to `floor..capacity`.
+	 */
+	readonly tapped: number | null;
+	readonly modVolts: number | null;
+	readonly modEstimate: number;
+	readonly modSeeded: boolean;
+	/**
+	 * The open-OX2 law constants plus stage count, or null. Read only by the
+	 * `clock-law` branch; every other mode ignores it, exactly as they ignore
+	 * `modVolts` outside `modulation`. Optional so existing callers keep
+	 * compiling; absent reads as no law, and the branch falls to capacity.
+	 */
+	readonly clockLaw?: (ClockLawParams & { readonly stages: number }) | null;
+	readonly min: number;
+	/**
+	 * The shortest length, in samples, a `parameter` read may produce: the source's cited
+	 * floor. The control sweeps `floor..capacity` rather than `0..capacity`. 0 reproduces the
+	 * old `capacity x scale` reading exactly, and is what every registry decomposition passes.
+	 */
+	readonly floor: number;
+	readonly headroom: number;
+	readonly round: boolean;
+}): {
+	length: number;
+	current: number;
+	modEstimate: number;
+	modSeeded: boolean;
+} {
+	const cap = input.capacity - input.headroom;
+	const shape = (x: number): number =>
+		Math.min(
+			cap,
+			Math.max(input.min, input.round ? Math.round(x) : x),
+		);
+	if (input.mode === "clock") {
+		let next = input.current;
+		if (Math.abs(input.current - input.target) > 1e-6) {
+			const alphaSmooth = 1 - Math.exp(-1 / (0.01 * input.sampleRate));
+			next = input.current + (input.target - input.current) * alphaSmooth;
+		} else {
+			next = input.target;
+		}
+		return {
+			length: shape(next),
+			current: next,
+			modEstimate: input.modEstimate,
+			modSeeded: input.modSeeded,
+		};
+	}
+	if (input.mode === "modulation" && input.modVolts !== null) {
+		let estimate = input.modEstimate;
+		let seeded = input.modSeeded;
+		if (!seeded) {
+			estimate = input.modVolts;
+			seeded = true;
+		} else {
+			const alphaMod = 1 / (MODULATION_DC_SECONDS * input.sampleRate);
+			estimate += alphaMod * (input.modVolts - estimate);
+		}
+		const denominator =
+			Math.abs(input.modVolts) < 1e-6
+				? 1e-6 * Math.sign(input.modVolts || 1)
+				: input.modVolts;
+		const raw = estimate / denominator;
+		const scale = Math.min(
+			MODULATION_SCALE_MAX,
+			Math.max(
+				MODULATION_SCALE_MIN,
+				Number.isFinite(raw) ? raw : 1,
+			),
+		);
+		return {
+			length: shape(input.target * scale),
+			current: input.current,
+			modEstimate: estimate,
+			modSeeded: seeded,
+		};
+	}
+	if (input.mode === "clock-law" && input.modVolts !== null && input.clockLaw != null) {
+		// The open-OX2 relaxation law, absolute in the slow node's solved
+		// voltage: no DC estimator, no self-normalisation, no ratio clamp.
+		// delay = stages × R × C × ln((VDD − V0)/(VDD − Vth)) with
+		// V0 = max(V − Vf, floor). The guards are the contract with the C++
+		// console, which duplicates them and says so; a degenerate law reads
+		// capacity rather than NaN.
+		const law = input.clockLaw;
+		const v0 = Math.max(input.modVolts - law.vfVolts, law.floorVolts);
+		const chargeSpan = law.vddVolts - v0;
+		const thresholdSpan = law.vddVolts - law.vthVolts;
+		const fallback = {
+			length: cap,
+			current: input.current,
+			modEstimate: input.modEstimate,
+			modSeeded: input.modSeeded,
+		};
+		if (
+			!(law.rOhms > 0) ||
+			!(law.cFarads > 0) ||
+			!(law.stages > 0) ||
+			!(chargeSpan > 1e-9) ||
+			!(thresholdSpan > 1e-9)
+		) {
+			return fallback;
+		}
+		const chargeSeconds =
+			law.rOhms * law.cFarads * Math.log(chargeSpan / thresholdSpan);
+		if (!Number.isFinite(chargeSeconds) || !(chargeSeconds > 0)) {
+			return fallback;
+		}
+		return {
+			length: shape(law.stages * chargeSeconds * input.sampleRate),
+			current: input.current,
+			modEstimate: input.modEstimate,
+			modSeeded: input.modSeeded,
+		};
+	}
+	if (input.mode === "parameter" && input.tapped !== null) {
+		const floor = Math.min(cap, Math.max(0, input.floor));
+		return {
+			length: shape(Math.min(cap, Math.max(floor, input.tapped))),
+			current: input.current,
+			modEstimate: input.modEstimate,
+			modSeeded: input.modSeeded,
+		};
+	}
+	if (input.mode === "parameter" && input.paramScale !== null) {
+		const floor = Math.min(cap, Math.max(0, input.floor));
+		return {
+			length: shape(floor + (cap - floor) * input.paramScale),
+			current: input.current,
+			modEstimate: input.modEstimate,
+			modSeeded: input.modSeeded,
+		};
+	}
+	return {
+		length: cap,
+		current: input.current,
+		modEstimate: input.modEstimate,
+		modSeeded: input.modSeeded,
+	};
 }
 
 export class ReferenceRuntime {
@@ -1104,65 +1566,124 @@ export class ReferenceRuntime {
 	 */
 	private readonly fetHistory = new Map<number, { vgs: number; vds: number }>();
 	/**
-	 * The `bucket-brigade-delay-line` model's state: a fixed-capacity ring buffer of its tapped
-	 * audio-in history, sized in `prepare()` from its `parameters.delaySeconds` and this host's
-	 * sample rate -- a time, because that is what a delay is and what keeps the program
-	 * rate-independent. The `coupled`
-	 * port's write-back is this buffer read `effectiveLength` slots behind the write pointer --
-	 * known before this sample's driver/downstream blocks solve, because it was computed from
-	 * PAST samples, which is exactly the "a delay core's output depends only on past samples"
-	 * property the plan's decision names as what makes a per-iteration exchange unnecessary
-	 * here.
-	 *
-	 * Keyed by block id and allocated for every macro block in `prepare()`, which is exact
-	 * rather than sloppy while one model exists: `prepare()` refuses any program declaring a
-	 * model this runtime lacks before reaching that loop, so every macro block it allocates for
-	 * is a bucket brigade. A second model whose state is not a ring buffer would own its own
-	 * map and its own branch there -- named as the shape of that work rather than pre-built for
-	 * it.
+	 * One composed block's delay lines, by line id (board-p3 row 4). Same ring
+	 * discipline the retired macro state kept, but allocated from the composition's
+	 * own `lines` table rather than a model's parameters, and with the
+	 * clock-smoothing pair every delay line carries whether a macro or a
+	 * composition owns it.
 	 */
-	private readonly macroState = new Map<
+	/**
+	 * Per-block, per-position state keys, built once at prepare.
+	 *
+	 * `composedStateKey` concatenates, and `processComposedBlock` runs once per sample, so
+	 * calling it there allocated a string 48,000 times a second per composed block. Measured
+	 * as test timeouts on the brigade and reverb decks before this table existed.
+	 */
+	private readonly composedStateKeys = new Map<string, readonly string[]>();
+	/**
+	 * Per momentary control: the sample of its last press, and the interval between its last two.
+	 * A press is a rising edge through `setControl`; the time is the sample clock at that call,
+	 * which is a host block boundary, so a tap is timed to within one block (2.7 ms at 128 / 48k).
+	 */
+	private readonly tapState = new Map<
+		ControlId,
+		{
+			lastPressSample: number | null;
+			intervalSeconds: number | null;
+			/** The current run under a tap law: its first press and how many presses it holds. */
+			runStartSample: number | null;
+			runCount: number;
+		}
+	>();
+	/** The position each composed block ran last sample, to know when a mode was just selected. */
+	private readonly lastComposedPosition = new Map<string, number>();
+	private readonly composedLineState = new Map<
+		string,
+		Map<
+			string,
+			{
+				buffer: number[];
+				writeIndex: number;
+				capacity: number;
+				/**
+				 * The capacity a tap length is clamped to: the declared maximum. Equal to
+				 * `capacity` except on a line a reverse tap reads, whose buffer is twice this.
+				 */
+				lengthCapacity: number;
+				/** A reverse tap's segment phase, in samples. Unused by every other op. */
+				reversePhase: number;
+				/** A hold sampler's state: 0 idle, 1 recording, 2 looping; its length, index and gate. */
+				hold: { state: 0 | 1 | 2; length: number; index: number; gateWas: boolean };
+				/** The cited floor a `parameter` read sweeps up from, in samples. */
+				floorSamples: number;
+				targetLengthSamples: number;
+				currentLengthSamples: number;
+			}
+		>
+	>();
+	/**
+	 * Per-composed-block DC seed, carrying the `dcEstimate` /
+	 * `dcOperatingPoint` pair (board-p3 row 4). The `macro-audio-source`
+	 * stamp adds the operating point back to a block's published AC, so a
+	 * composition must carry the same seed seeded from the same tap, or the
+	 * shell solves a different source -- measured as a ULP divergence at the
+	 * first echo on `ibanez-dl5`, whose shell carries real DC bias.
+	 */
+	private readonly composedDcState = new Map<
 		string,
 		{
-			buffer: number[];
-			writeIndex: number;
-			capacity: number;
 			dcEstimate: number;
 			dcOperatingPoint: number;
-			targetLengthSamples: number;
-			currentLengthSamples: number;
-			/** Settled level of the `modulation` port's node; the delay's 1.0 reference. */
 			modDcEstimate: number;
 			modSeeded: boolean;
 		}
 	>();
 	/**
-	 * The `digital-reverb-module` model's state, and it owns its own map for the reason
-	 * `macroState`'s comment above anticipates: its state is not one ring buffer.
-	 *
-	 * A Schroeder reverberator: four parallel feedback comb filters summed, then two series
-	 * allpass sections. Delays are held in **seconds** in `REVERB_COMB_SECONDS` /
-	 * `REVERB_ALLPASS_SECONDS` and converted at `prepare()`, for the same reason a delay line's
-	 * length is a time -- the program stays rate-independent and the same ROM runs at any host
-	 * rate.
+	 * One composed block's Schroeder sections, allocated at prepare from the
+	 * composition's own comb/allpass ops (board-p3 row 4). Same buffers,
+	 * indices, and gains the reverb kernel owns -- the interpreter factors
+	 * the kernel's state per op rather than re-deriving it.
 	 */
-	private readonly reverbState = new Map<
+	private readonly composedFilterState = new Map<
 		string,
 		{
-			readonly combBuffers: Float64Array[];
-			readonly combIndices: number[];
-			readonly combGains: number[];
-			readonly allpassBuffers: Float64Array[];
-			readonly allpassIndices: number[];
+			combs: { buffer: Float64Array; index: number; gain: number }[];
+			allpasses: { buffer: Float64Array; index: number }[];
 		}
+	>();
+	/**
+	 * One pitch-shift op's resampling state, keyed by block then op position
+	 * (board-p3 row 5). Absolute positions, never wrapped counters: the read
+	 * pointer advances `ratio` per sample through a fixed history window and
+	 * wraps by whole windows when it outruns or falls behind, which is the
+	 * documented discontinuity -- no crossfade, fundamental preserved.
+	 */
+	private readonly composedPitchState = new Map<
+		string,
+		Map<
+			number,
+			{ buffer: number[]; writeAbs: number; readAbs: number; ratio: number }
+		>
+	>();
+	/**
+	 * One pitch-tracker op's estimator state, keyed by block then op
+	 * position (board-p3 row 6): the ring the autocorrelation window is
+	 * copied from, samples since the last estimate, and the held output.
+	 */
+	private readonly composedTrackerState = new Map<
+		string,
+		Map<
+			number,
+			{ buffer: number[]; writeAbs: number; sinceUpdate: number; estimate: number }
+		>
 	>();
 	/**
 	 * Each macro's current write-back value, read by a `macro-audio-source` stamp in whatever
 	 * block shares its audio-out node. Updated once per sample, when the macro block's own turn
 	 * in `program.order` comes up -- and `couple.ts`'s corrected schedule (spec clause 3) places
 	 * that turn strictly before the block reading this map, so the value read is this sample's,
-	 * not last sample's. Written by whichever model `processMacroBlock` dispatches to -- today
-	 * only `processBucketBrigadeDelayLine`.
+	 * not last sample's. Written by whichever composition publishes into it -- today
+	 * only the delay-line compositions.
 	 */
 	private readonly macroOutputVolts = new Map<string, number>();
 	/**
@@ -1194,7 +1715,33 @@ export class ReferenceRuntime {
 	 * carry one.
 	 */
 	private limitedBy: string | null = null;
+	/**
+	 * The op-amp whose limiter fired on the current iteration, with what a fold reseed needs.
+	 * `folded` means its cap sat within an eighth of a linear width. See `OPAMP_FOLD_STREAK`.
+	 */
+	private limitedOpamp: {
+		readonly key: number;
+		readonly output: number;
+		readonly centre: number;
+		readonly railHigh: number;
+		readonly railLow: number;
+		readonly band: number;
+		readonly maxStep: number;
+		readonly folded: boolean;
+	} | null = null;
 	private maxNewtonIterations = DEFAULT_NEWTON_MAX_ITERATIONS;
+	/**
+	 * Cap-hit diagnostics, **off unless `VESSEL_LIMITER_TRACE=1`**. Both are written once
+	 * per Newton iteration, so leaving the per-iteration array on costs ~1.7M pushes on a
+	 * 3 s 48 kHz render of a stiff amp -- it grows without bound and it inflates the cost
+	 * of the very solver anyone is benchmarking. Nothing in the repository reads them; they
+	 * exist for an external probe reaching in past `private`, which is why the gate is an
+	 * env var rather than a `prepare()` option.
+	 */
+	private readonly limiterTrace =
+		typeof process !== "undefined" && process.env?.VESSEL_LIMITER_TRACE === "1";
+	private limitedIterationCount = 0;
+	private limitedIterationPerSample: number[] = [];
 	/** Series ohms of whatever drives the input jack -- see `prepare()`'s option. */
 	private inputSourceOhms = 0;
 
@@ -1243,11 +1790,23 @@ export class ReferenceRuntime {
 	 * of its samples, and how badly is what supports a prediction.
 	 */
 	/**
-	 * Blocks whose budget has been revoked to `NEWTON_UNPRODUCTIVE_ITERATIONS` because a sample
-	 * of theirs stalled, or was already solved, when the budget ran out. Both verdicts mean more
-	 * iterations cannot help, so continuing to buy them is pure cost.
+	 * Blocks on probation, and the sample index each one's probation ends at.
+	 *
+	 * A block lands here when one of its samples stalled, or was already solved, at the moment
+	 * the budget ran out. Both verdicts say more iterations cannot help *that sample*, so the
+	 * ones after it are bought at `NEWTON_UNPRODUCTIVE_ITERATIONS` instead of the full budget.
+	 *
+	 * **It is a probation and not a sentence, and the difference is a packet that plays.** This
+	 * was a `Set` with no expiry until 2026-09-19: one qualifying sample revoked a block's budget
+	 * for the rest of the render, so a block that needs a one-off large budget never got one
+	 * again. `moogerfooger-mf-102` is the case -- it needs 183 iterations once and 2.1 per sample
+	 * after that (see `DEFAULT_NEWTON_MAX_ITERATIONS`), and under the permanent form it was
+	 * capped at 64 from its first flagged sample onward and rendered **digital silence** for the
+	 * whole render, while the C++ console, which has no revocation at all, played it. Measured
+	 * 2026-09-19 at 1 kHz/0.1 V over 4800 samples: RMS `0.00e+0` -> `3.10e-2`, non-converged
+	 * samples 4800 of 4800 -> 22.
 	 */
-	private readonly unproductiveBlocks = new Set<string>();
+	private readonly unproductiveUntilSample = new Map<string, number>();
 	private readonly blockNewtonCensus = new Map<
 		string,
 		{ samples: number; exhausted: number; peakIterations: number }
@@ -1346,8 +1905,11 @@ export class ReferenceRuntime {
 			/**
 			 * Row/column pairs the sparse path touches, or `null` when this block has no
 			 * schedule and the dense clear is the only correct one. See the clear sites.
+			 * Mutable because `settlePivotOrders` can take a schedule away after `prepare`
+			 * validated it against the assembled matrix -- a dropped block must rebuild
+			 * the full matrix every iteration, exactly like a block that never had one.
 			 */
-			readonly clearPairs: Int32Array | null;
+			clearPairs: Int32Array | null;
 			/**
 			 * Whether a dense `solve` has eliminated on `matrix` since it was last built in
 			 * full. **`solve` factorises in place and writes fill everywhere**, so one dense
@@ -1404,17 +1966,46 @@ export class ReferenceRuntime {
 	/** Blocks that gave up their schedule at runtime, for `solverPlan()` to report. */
 	private readonly abandonedSchedules = new Set<string>();
 
+	/**
+	 * Blocks whose shipped elimination order divides by a pivot the assembled
+	 * operating-point matrix cannot support, dropped to the dense solve at the
+	 * first `process()` call. See `settlePivotOrders`.
+	 */
+	private readonly droppedSchedules = new Set<string>();
+
+	/**
+	 * Blocks whose shipped order failed numeric validation and whose replacement
+	 * order (threshold Markowitz on the assembled operating-point matrix) was
+	 * adopted instead of dropping to dense. See `computeNumericRepivot`.
+	 */
+	private readonly repivotedSchedules = new Set<string>();
+
+	/** Set once the shipped orders have been validated against the real matrix. */
+	private pivotOrdersSettled = false;
+
 	/** Why each block took the path it did, for `solverPlan()`. */
 	private readonly solverPlanRows: {
 		readonly blockId: string;
 		readonly size: number;
-		readonly patternEntries: number;
+		patternEntries: number;
 		readonly fillIn: number;
-		readonly sparseOps: number;
+		sparseOps: number;
 		readonly denseOps: number;
-		readonly unprovenPivots: number;
-		readonly path: "sparse" | "dense";
-		readonly reason: string;
+		unprovenPivots: number;
+		path: "sparse" | "dense";
+		reason: string;
+		/** Shipped-order threshold violations at the operating point, if checked. */
+		pivotViolations: number;
+		/** Smallest `|pivot| / columnMax` over the shipped order, if checked. */
+		worstPivotRatio: number | null;
+		/**
+		 * Relative disagreement between the sparse replay and the dense solve on
+		 * the assembled operating-point matrix, if checked. This is what drops
+		 * a block; the ratios above stay on as diagnostics.
+		 */
+		pivotDisagreement: number | null;
+		/** True when the shipped order failed validation and a numeric re-pivot was adopted. */
+		repivoted: boolean;
 	}[] = [];
 
 	/**
@@ -1554,7 +2145,7 @@ export class ReferenceRuntime {
 			this.positions.set(control.id, control.defaultPosition);
 			this.controlsById.set(control.id, control);
 		}
-		for (const [index, block] of this.program.blocks.entries()) {
+		for (const [index, block] of program.blocks.entries()) {
 			this.blocksById.set(block.id, block);
 			this.blockIndexById.set(block.id, index);
 		}
@@ -1649,6 +2240,30 @@ export class ReferenceRuntime {
 				`program requires ${missingModels.length === 1 ? "a DSP model" : "DSP models"} this runtime does not implement: ${missingModels.join(", ")}`,
 			);
 		}
+		// A dispatched macro block is refused by name, never executed and never ignored.
+		//
+		// **Ordered after the model lockout on purpose.** Both can fire on the same program and
+		// they answer different questions, so the more specific one goes first: a macro naming
+		// `compander` fails above because nothing implements compander, which is the useful
+		// sentence, and "macro dispatch was retired" would be a true statement explaining the
+		// wrong thing.
+		//
+		// What reaches here is the case the lockout cannot see: a macro naming a model that *is*
+		// implemented -- which all three deleted kernels were, as compositions. Such a block
+		// passes every other check and then finds no executor, and a block that executes nothing
+		// renders silence. That is the one outcome the console/ROM contract forbids, so the block
+		// kind itself is refused. This is the gap that made deleting the kernels safe.
+		const dispatched = this.program.blocks.filter(
+			(block) => block.kind === "macro",
+		);
+		if (dispatched.length > 0) {
+			const named = dispatched
+				.map((block) => `${block.id} (${block.modelId})`)
+				.join(", ");
+			throw new RuntimeError(
+				`program carries ${dispatched.length === 1 ? "a dispatched macro block" : "dispatched macro blocks"} this runtime no longer executes: ${named}. Macro dispatch was retired in board-p3 row 7; these models ship as compositions.`,
+			);
+		}
 		if (
 			!Number.isFinite(sampleRate) ||
 			sampleRate < 1000 ||
@@ -1706,12 +2321,20 @@ export class ReferenceRuntime {
 
 		this.timeSeconds = 0;
 		this.elapsedSamples = 0;
+		// A tap timed against the previous clock would read a meaningless interval.
+		this.tapState.clear();
+		this.lastComposedPosition.clear();
+		// A latch is firmware state, and firmware powers up where its declaration says: a knob keeps
+		// its position across prepare, a latch does not.
+		for (const control of this.program.controls) {
+			if (control.latch !== undefined) this.positions.set(control.id, control.defaultPosition);
+		}
 		this.samples = 0;
 		this.nonConvergedSamples = 0;
 		this.stalledSamples = 0;
 		this.solvedButFlaggedSamples = 0;
 		this.blockNewtonCensus.clear();
-		this.unproductiveBlocks.clear();
+		this.unproductiveUntilSample.clear();
 		this.totalIterations = 0;
 		this.nonFiniteSamples = 0;
 		this.peakIterations = 0;
@@ -1726,87 +2349,205 @@ export class ReferenceRuntime {
 		this.opampHistory.clear();
 		this.opampRawState.clear();
 		this.fetHistory.clear();
-		this.macroState.clear();
-		this.reverbState.clear();
+			this.composedStateKeys.clear();
+			this.composedLineState.clear();
+			this.composedDcState.clear();
+			this.composedFilterState.clear();
+			this.composedPitchState.clear();
+			this.composedTrackerState.clear();
 		this.macroOutputVolts.clear();
 		this.sparseSchedules.clear();
 		this.abandonedSchedules.clear();
+		this.droppedSchedules.clear();
+		this.repivotedSchedules.clear();
+		this.pivotOrdersSettled = false;
 		this.solverPlanRows.length = 0;
 		this.scheduleFallbacks = 0;
 		this.scheduleSolves = 0;
 		for (const block of this.program.blocks) {
 			if (block.kind === "macro") {
-				if (block.modelId === "digital-reverb-module") {
-					// Decay is part-intrinsic (the datasheet's T60), so it arrives in
-					// `parameters` from the registry rather than from the pedal's wiring the
-					// way a delay line's length does.
-					const decaySeconds = block.parameters.decaySeconds ?? 0;
-					const lengths = REVERB_COMB_SECONDS.map((seconds) =>
-						Math.max(1, Math.round(seconds * sampleRate)),
-					);
-					this.reverbState.set(block.id, {
-						combBuffers: lengths.map((n) => new Float64Array(n)),
-						combIndices: lengths.map(() => 0),
-						combGains: REVERB_COMB_SECONDS.map((seconds) =>
-							reverbCombGain(seconds, decaySeconds),
-						),
-						allpassBuffers: REVERB_ALLPASS_SECONDS.map(
-							(seconds) =>
-								new Float64Array(Math.max(1, Math.round(seconds * sampleRate))),
-						),
-						allpassIndices: REVERB_ALLPASS_SECONDS.map(() => 0),
-					});
-					this.macroOutputVolts.set(block.id, 0);
-					continue;
-				}
-				// **A delay is a time, and the sample count is this method's to compute.** The
-				// parameter was `stages` read directly as a buffer length, which made a macro
-				// program rate-dependent -- 1024 "stages" was 21.3 ms at 48 kHz and 10.7 ms at
-				// 96 kHz, the same ROM playing as a different pedal on a different host. That
-				// contradicts `Program`'s own invariant (there is no `sampleRate` field, by
-				// construction) and it is not what a bucket brigade does: its delay is
-				// `stages / (2 * f_clock)`, a time, which the corpus states in `DelayMs` and
-				// Panasonic states as 5.12-51.2 ms across the MN3007's clock range.
-				//
-				// `prepare()` is the one place that knows the rate, so it is the one place the
-				// conversion can happen. A program carrying no delay time gets a single slot
-				// rather than a guess; `device-laws.ts` already refuses to build such a macro,
-				// so this is the backstop for a decoded program from another producer.
-				let maxDelaySeconds = block.parameters.delaySeconds ?? 0;
-				let initialDelaySeconds = maxDelaySeconds;
-
-				if (block.clockControl) {
-					const cc = block.clockControl;
-					const maxR = Math.max(cc.ohmsAtControlMin, cc.ohmsAtControlMax);
-					const maxClockDelay = cc.stages * cc.formulaConstant * maxR * cc.farads;
-					maxDelaySeconds = Math.max(maxDelaySeconds, maxClockDelay);
-
-					const pos = this.positions.get(cc.controlId) ?? 0.5;
-					const frac = taperFraction(cc.taper, pos);
-					const r = cc.ohmsAtControlMin + frac * (cc.ohmsAtControlMax - cc.ohmsAtControlMin);
-					initialDelaySeconds = cc.stages * cc.formulaConstant * r * cc.farads;
-				}
-
-				// Headroom for the `modulation` port, which lengthens as well as shortens the
-				// delay. Sized by the same ceiling the runtime clamps the scale to, so the
-				// buffer can always hold the longest delay the law can ask for.
-				if (block.modulation != null) {
-					maxDelaySeconds *= MODULATION_SCALE_MAX;
-				}
-				const capacity = Math.max(
-					2,
-					Math.ceil(maxDelaySeconds * sampleRate) + 2,
+				// Unreachable: refused at the top of `prepare()`, before any per-block state is
+				// sized. Present because narrowing by `composed` no longer yields `mna` now that
+				// the dispatched kernels are gone, and a throw is the honest way to say so.
+				throw new RuntimeError(
+					`block ${block.id} is a dispatched macro (${block.modelId}); macro dispatch was retired in board-p3 row 7`,
 				);
-				const initialSamples = Math.max(0, initialDelaySeconds * sampleRate);
-
-				this.macroState.set(block.id, {
-					buffer: new Array(capacity).fill(0),
-					writeIndex: 0,
-					capacity,
+			}
+			if (block.kind === "composed") {
+				// **Every position's state is allocated here, not on the switch.** A mode change
+				// is an index change on the audio thread, so it must not touch the heap; the cost
+				// of that is holding N sets of delay buffers, which is the right trade for a chip
+				// with a handful of programs.
+				this.composedStateKeys.set(
+					block.id,
+					block.positions.map((_, index) => composedStateKey(block.id, index)),
+				);
+				for (const [positionIndex, program] of block.positions.entries()) {
+					// Delay capacities are times, converted here where the rate lives, so a
+					// program is rate-invariant. A block with clock control sizes for the
+					// longest delay the knob can ask for, so smoothing can never address
+					// past the buffer.
+					const lines = new Map<
+						string,
+						{
+							buffer: number[];
+							writeIndex: number;
+							capacity: number;
+							lengthCapacity: number;
+							reversePhase: number;
+							hold: { state: 0 | 1 | 2; length: number; index: number; gateWas: boolean };
+							floorSamples: number;
+							targetLengthSamples: number;
+							currentLengthSamples: number;
+						}
+					>();
+					// A reverse head at phase p reads 2p + 1 back, so its line holds two segments.
+					const reversedLines = new Set(
+						program.ops.flatMap((op) => (op.op === "delay-tap-reverse" ? [op.line] : [])),
+					);
+					const clock = block.clockControl ?? null;
+					for (const [lineId, line] of Object.entries(program.lines)) {
+						let maxDelaySeconds = line.delaySeconds;
+						let initialDelaySeconds = maxDelaySeconds;
+						if (clock !== null) {
+							const maxR = Math.max(
+								clock.ohmsAtControlMin,
+								clock.ohmsAtControlMax,
+							);
+							const maxClockDelay =
+								clock.offsetSeconds +
+								clock.stages * clock.formulaConstant * maxR * clock.farads;
+							maxDelaySeconds = Math.max(maxDelaySeconds, maxClockDelay);
+							const pos = this.positions.get(clock.controlId) ?? 0.5;
+							const frac = taperFraction(clock.taper, pos);
+							const r =
+								clock.ohmsAtControlMin +
+								frac * (clock.ohmsAtControlMax - clock.ohmsAtControlMin);
+							initialDelaySeconds =
+								clock.offsetSeconds +
+								clock.stages * clock.formulaConstant * r * clock.farads;
+						}
+						// Headroom for the `modulation` port, mirroring the macro
+						// branch: it lengthens as well as shortens the delay. The
+						// `clock-law` port sweeps an absolute law over a similar
+						// span, so it shares the bound: what makes the ring
+						// buffer's size decidable is the declared base times two.
+						if (
+							(block.modulation !== undefined &&
+								block.modulation !== null) ||
+							(block.clockLaw !== undefined && block.clockLaw !== null)
+						) {
+							maxDelaySeconds *= MODULATION_SCALE_MAX;
+						}
+						const capacity = Math.max(
+							2,
+							Math.ceil(maxDelaySeconds * sampleRate) + 2,
+						);
+						const initialSamples = Math.max(
+							0,
+							initialDelaySeconds * sampleRate,
+						);
+						const bufferCapacity = reversedLines.has(lineId) ? 2 * capacity : capacity;
+						lines.set(lineId, {
+							buffer: new Array(bufferCapacity).fill(0),
+							writeIndex: 0,
+							capacity: bufferCapacity,
+							lengthCapacity: capacity,
+							reversePhase: 0,
+							hold: { state: 0, length: 0, index: 0, gateWas: false },
+							floorSamples: Math.max(0, line.minSeconds * sampleRate),
+							targetLengthSamples: initialSamples,
+							currentLengthSamples: initialSamples,
+						});
+					}
+					this.composedLineState.set(composedStateKey(block.id, positionIndex), lines);
+					const combs: { buffer: Float64Array; index: number; gain: number }[] =
+						[];
+					const allpasses: { buffer: Float64Array; index: number }[] = [];
+					for (const op of program.ops) {
+						if (op.op === "comb") {
+							if (op.index < 0 || op.index >= REVERB_COMB_SECONDS.length) {
+								throw new RuntimeError(
+									`composed block "${block.id}" names comb ${op.index} outside the interpreter's table`,
+								);
+							}
+							const seconds = REVERB_COMB_SECONDS[op.index] as number;
+							if (seconds === undefined) {
+								throw new RuntimeError(
+									`composed block "${block.id}" names comb ${op.index} outside the interpreter's table`,
+								);
+							}
+							const n = Math.max(1, Math.round(seconds * sampleRate));
+							combs.push({
+								buffer: new Float64Array(n),
+								index: 0,
+								gain: reverbCombGain(seconds, op.decaySeconds),
+							});
+						} else if (op.op === "allpass") {
+							if (op.index < 0 || op.index >= REVERB_ALLPASS_SECONDS.length) {
+								throw new RuntimeError(
+									`composed block "${block.id}" names allpass ${op.index} outside the interpreter's table`,
+								);
+							}
+							const seconds = REVERB_ALLPASS_SECONDS[op.index] as number;
+							if (seconds === undefined) {
+								throw new RuntimeError(
+									`composed block "${block.id}" names allpass ${op.index} outside the interpreter's table`,
+								);
+							}
+							const n = Math.max(1, Math.round(seconds * sampleRate));
+							allpasses.push({ buffer: new Float64Array(n), index: 0 });
+						}
+					}
+					this.composedFilterState.set(composedStateKey(block.id, positionIndex), { combs, allpasses });
+					const pitch = new Map<
+						number,
+						{ buffer: number[]; writeAbs: number; readAbs: number; ratio: number }
+					>();
+					program.ops.forEach((op, position) => {
+						if (op.op !== "pitch-shift") {
+							return;
+						}
+						if (!Number.isFinite(op.ratio) || op.ratio <= 0) {
+							throw new RuntimeError(
+								`composed block "${block.id}" carries a pitch-shift ratio that is not finite and positive: ${String(op.ratio)}`,
+							);
+						}
+						pitch.set(position, {
+							buffer: new Array<number>(PITCH_HISTORY).fill(0),
+							writeAbs: 0,
+							readAbs: 0,
+							ratio: op.ratio,
+						});
+					});
+					this.composedPitchState.set(composedStateKey(block.id, positionIndex), pitch);
+					const trackers = new Map<
+						number,
+						{
+							buffer: number[];
+							writeAbs: number;
+							sinceUpdate: number;
+							estimate: number;
+						}
+					>();
+					program.ops.forEach((op, position) => {
+						if (op.op !== "pitch-tracker") {
+							return;
+						}
+						trackers.set(position, {
+							buffer: new Array<number>(TRACK_WINDOW).fill(0),
+							writeAbs: 0,
+							sinceUpdate: TRACK_HOP,
+							estimate: 0,
+						});
+					});
+					this.composedTrackerState.set(composedStateKey(block.id, positionIndex), trackers);
+				}
+				// DC state is per block rather than per position: it estimates the offset of the
+				// block's own input tap, which every position shares because they share the pin.
+				this.composedDcState.set(block.id, {
 					dcEstimate: 0,
 					dcOperatingPoint: 0,
-					targetLengthSamples: initialSamples,
-					currentLengthSamples: initialSamples,
 					modDcEstimate: 0,
 					modSeeded: false,
 				});
@@ -1871,9 +2612,9 @@ export class ReferenceRuntime {
 				);
 			}
 
-			this.rebuildBaseMatrix(block);
+		this.rebuildBaseMatrix(block);
 
-			if (block.eliminate || this.eliminateBlocks.has(block.id)) {
+		if (block.eliminate || this.eliminateBlocks.has(block.id)) {
 				if (!block.stampPartition) {
 					throw new RuntimeError(
 						`block "${block.id}" is missing required stampPartition`,
@@ -2099,23 +2840,82 @@ export class ReferenceRuntime {
 		if (!Number.isFinite(position) || position < 0 || position > 1) {
 			throw new RuntimeError(`control position ${position} is outside 0..1`);
 		}
+		const was = this.positions.get(id) ?? 0;
 		this.positions.set(id, position);
+		if (
+			this.controlsById.get(id)?.momentary === true &&
+			was < 0.5 &&
+			position >= 0.5 &&
+			this.sampleRate !== null
+		) {
+			const now = this.elapsedSamples;
+			const tap = this.tapState.get(id) ?? {
+				lastPressSample: null,
+				intervalSeconds: null,
+				runStartSample: null,
+				runCount: 0,
+			};
+			const law = this.controlsById.get(id)?.tap;
+			if (law === undefined) {
+				if (tap.lastPressSample !== null && now > tap.lastPressSample) {
+					tap.intervalSeconds = (now - tap.lastPressSample) / this.sampleRate;
+				}
+			} else {
+				// A run of presses each within the timeout; once it is long enough, the tempo is its
+				// mean interval, updated by every further press. A longer gap starts a new run and
+				// leaves the tempo where it was.
+				const inRun =
+					tap.lastPressSample !== null &&
+					tap.runStartSample !== null &&
+					(now - tap.lastPressSample) / this.sampleRate <= law.timeoutSeconds;
+				if (inRun) {
+					tap.runCount += 1;
+				} else {
+					tap.runStartSample = now;
+					tap.runCount = 1;
+				}
+				if (tap.runCount >= law.presses && tap.runStartSample !== null && now > tap.runStartSample) {
+					tap.intervalSeconds = (now - tap.runStartSample) / (tap.runCount - 1) / this.sampleRate;
+				}
+			}
+			tap.lastPressSample = now;
+			this.tapState.set(id, tap);
+		}
+		// A press of a latch's toggle flips it, before anything reads the new state this sample.
+		if (was < 0.5 && position >= 0.5) {
+			for (const control of this.program.controls) {
+				if (control.latch?.toggledBy !== id) continue;
+				this.setControl(control.id, (this.positions.get(control.id) ?? control.defaultPosition) >= 0.5 ? 0 : 1);
+			}
+		}
 		for (const block of this.program.blocks) {
 			if (
-				block.kind === "macro" &&
+				block.kind === "composed" &&
 				block.clockControl &&
 				block.clockControl.controlId === id
 			) {
-				const state = this.macroState.get(block.id);
-				if (state !== undefined && this.sampleRate !== null) {
-					const cc = block.clockControl;
-					const frac = taperFraction(cc.taper, position);
-					const r =
-						cc.ohmsAtControlMin +
-						frac * (cc.ohmsAtControlMax - cc.ohmsAtControlMin);
-					const delaySec =
-						cc.stages * cc.formulaConstant * r * cc.farads;
-					state.targetLengthSamples = Math.max(0, delaySec * this.sampleRate);
+				const cc = block.clockControl;
+				const frac = taperFraction(cc.taper, position);
+				const r =
+					cc.ohmsAtControlMin +
+					frac * (cc.ohmsAtControlMax - cc.ohmsAtControlMin);
+				const delaySec =
+					cc.offsetSeconds + cc.stages * cc.formulaConstant * r * cc.farads;
+				{
+					// **Every position, not just the running one.** A knob moved while the
+					// pedal sits in DELAY 1 must still have moved DELAY 2's line, or the
+					// first sample after a mode change plays a length the knob left behind.
+					if (this.sampleRate !== null) {
+						for (const positionIndex of block.positions.keys()) {
+							const lines = this.composedLineState.get(
+								composedStateKey(block.id, positionIndex),
+							);
+							if (lines === undefined) continue;
+							for (const line of lines.values()) {
+								line.targetLengthSamples = Math.max(0, delaySec * this.sampleRate);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -2420,9 +3220,13 @@ export class ReferenceRuntime {
 				unprovenPivots: 0,
 				path: "dense",
 				reason: "no elimination order covers the pattern",
-			});
-			return;
-		}
+			pivotViolations: 0,
+			worstPivotRatio: null,
+			pivotDisagreement: null,
+			repivoted: false,
+		});
+		return;
+	}
 		// The gather and the right-hand side copy are per-solve costs the dense path does not
 		// pay, so they belong in the comparison rather than beside it.
 		const cost = schedule.sparseOps + schedule.slots + size;
@@ -2443,8 +3247,12 @@ export class ReferenceRuntime {
 				saving >= SCHEDULE_MINIMUM_SAVING
 					? `predicted ${saving.toFixed(1)}x`
 					: `predicted ${saving.toFixed(1)}x, below the ${SCHEDULE_MINIMUM_SAVING}x floor`,
-		};
-		this.solverPlanRows.push(row);
+		pivotViolations: 0,
+		worstPivotRatio: null as number | null,
+		pivotDisagreement: null as number | null,
+		repivoted: false,
+	};
+	this.solverPlanRows.push(row);
 		if (row.path === "dense") {
 			return;
 		}
@@ -2455,6 +3263,316 @@ export class ReferenceRuntime {
 			factors: new Float64Array(schedule.factorCount),
 			consecutiveFallbacks: 0,
 		});
+	}
+
+	/**
+	 * Assemble one block's audio-structure Jacobian at the solved operating
+	 * point, for validating the shipped elimination order before the first
+	 * audio sample replays it.
+	 *
+	 * This mirrors `iterate`'s standard audio pass exactly -- base-matrix copy,
+	 * non-constant stamps at the operating-point voltages with zero input,
+	 * ground-row overwrite -- so the matrix is what the first Newton iteration
+	 * would stamp. `applyStamp` also advances limiter histories, divider state
+	 * and clock/bucket state, which belong to the audio run, not to this probe:
+	 * every mutable stamp state it touches is snapshotted and restored, and
+	 * the state vector itself is passed as a copy, never live. A unit test
+	 * pins that the audio is bit-identical with and without this call.
+	 */
+	private assembleAudioMatrix(
+		block: Extract<Block, { kind: "mna" }>,
+	): { readonly matrix: number[][]; readonly rhs: number[] } {
+		const size = block.nodeCount + block.auxCount;
+		const base = this.baseMatrices.get(block.id);
+		if (base === undefined) {
+			throw new RuntimeError(
+				`no base matrix for block "${block.id}" -- prepare() was not called`,
+			);
+		}
+		const savedLimitedIterate = this.limitedIterate;
+		const savedLimitedBy = this.limitedBy;
+		const savedDiode = new Map(this.diodeHistory);
+		const savedBjt = new Map(this.bjtHistory);
+		const savedTriode = new Map(this.triodeHistory);
+		const savedFet = new Map(this.fetHistory);
+		const savedShifted = new Map(this.lastShiftedSample);
+		try {
+			const matrix = base.matrix.map((row) => [...row]);
+			const rhs = [...base.rhs];
+			const dt = 1 / (this.sampleRate as number);
+			// A copy, for the same reason the histories below are snapshotted:
+			// divider, clock-driver and bucket-brigade stamps advance `state`
+			// on every call, and this probe must not toggle a flip-flop.
+			const state = [...(this.capacitorState.get(block.id) ?? [])];
+			const current = this.nodeVoltages.get(block.id) ?? [];
+			const blockIndex = this.blockIndexById.get(block.id) ?? 0;
+			for (const stamp of base.nonConstantStamps) {
+				this.applyStamp(
+					stamp,
+					matrix,
+					rhs,
+					block,
+					dt,
+					state,
+					current,
+					0,
+					false,
+					1,
+					blockIndex,
+				);
+			}
+			for (let column = 0; column < size; column += 1) {
+				(matrix[0] as number[])[column] = 0;
+			}
+			(matrix[0] as number[])[0] = 1;
+			rhs[0] = 0;
+			return { matrix, rhs };
+		} finally {
+			this.limitedIterate = savedLimitedIterate;
+			this.limitedBy = savedLimitedBy;
+			this.diodeHistory.clear();
+			for (const [key, value] of savedDiode) {
+				this.diodeHistory.set(key, value);
+			}
+			this.bjtHistory.clear();
+			for (const [key, value] of savedBjt) {
+				this.bjtHistory.set(key, value);
+			}
+			this.triodeHistory.clear();
+			for (const [key, value] of savedTriode) {
+				this.triodeHistory.set(key, value);
+			}
+			this.fetHistory.clear();
+			for (const [key, value] of savedFet) {
+				this.fetHistory.set(key, value);
+			}
+			this.lastShiftedSample.clear();
+			for (const [key, value] of savedShifted) {
+				this.lastShiftedSample.set(key, value);
+			}
+		}
+	}
+
+	/**
+	 * Validate every admitted block's shipped elimination order against the
+	 * assembled operating-point matrix, once, before the first audio sample.
+	 *
+	 * The order was chosen from the stamp pattern alone, where every node
+	 * diagonal reads as a pivot candidate because the runtime adds `gmin` to
+	 * it. A pivot of `1e-12` against entries of order `1e2` is a growth factor
+	 * of `1e14` that dense partial pivoting would never choose, and replaying
+	 * it is what makes the sparse and dense solves disagree on the row-6
+	 * packets (`boss-aw-2` never converges sparsely and converges in four
+	 * iterations densely).
+	 *
+ * The gate is a comparison, not a pivot theory: both solves run on the
+ * same assembled matrix and their answers are compared. Per-pivot ratios
+ * do not separate healthy blocks from broken ones -- healthy `boss-ce-5`
+ * carries 18 pivots below any absolute-scaled threshold and still matches
+ * dense to `1e-10`, because a tiny pivot is harmless late in the order
+ * and fatal early -- so the ratios stay on as diagnostics while the
+ * disagreement drops the block. A dropped block renders exactly what the
+ * forced-dense control renders; correctness first, and the cost of the
+ * dense path belongs to phase 2.
+ *
+ * The tolerance sits in a measured canyon: the largest disagreement among
+ * kept corpus blocks is `boss-tw-1` at `7.1e-5` (whose sparse audio agrees
+ * with dense to `1e-9` and converges 100% -- dropping it would regress its
+ * 0.83x budget fix to ~850x, so the gate must NOT fire there), while the
+ * smallest dropped disagreement is `boss-aw-2` at `9.8e+3`. Dense is not
+ * assumed right -- `tw-1` diverges on 61 samples densely while converging
+ * sparsely -- the gate only fires where the replay demonstrably collapses.
+ */
+	private settlePivotOrders(): void {
+		if (this.pivotOrdersSettled) {
+			return;
+		}
+		this.pivotOrdersSettled = true;
+		for (const [blockId, entry] of this.sparseSchedules) {
+			const block = this.blocksById.get(blockId);
+			if (
+				block === undefined ||
+				block.kind !== "mna" ||
+				block.eliminate ||
+				this.eliminateBlocks.has(block.id)
+			) {
+				continue;
+			}
+			const size = block.nodeCount + block.auxCount;
+			const { matrix, rhs } = this.assembleAudioMatrix(block);
+			const schedule = entry.schedule;
+			const pivots: { row: number; column: number }[] = [];
+			for (let at = 0; at < schedule.ops.length; at += SCHEDULE_OP_WIDTH) {
+				if (schedule.ops[at] === 6) {
+					const slot = schedule.ops[at + 1] as number;
+					pivots.push({
+						row: schedule.gatherRow[slot] as number,
+						column: schedule.gatherColumn[slot] as number,
+					});
+				}
+			}
+			const columnMax = new Array<number>(size).fill(0);
+			for (
+				let slot = 0;
+				slot < schedule.gatherRow.length;
+				slot += 1
+			) {
+				const row = schedule.gatherRow[slot] as number;
+				const column = schedule.gatherColumn[slot] as number;
+				const value = Math.abs(matrix[row]?.[column] ?? 0);
+				if (value > (columnMax[column] as number)) {
+					columnMax[column] = value;
+				}
+			}
+			const working = matrix.map((row) => [...row]);
+			let violations = 0;
+			let worstRatio = Infinity;
+			for (const pivot of pivots) {
+				const max = columnMax[pivot.column] ?? 0;
+				const value = Math.abs(
+					working[pivot.row]?.[pivot.column] ?? 0,
+				);
+				const ratio = max > 0 ? value / max : 0;
+				if (ratio < worstRatio) {
+					worstRatio = ratio;
+				}
+				// Diagnostic only: the drop decision comes from the replay
+				// comparison below, not from this count.
+				if (!(value >= 1e-9 * max) || !(max > 0)) {
+					violations += 1;
+				}
+				if (value === 0) {
+					continue;
+				}
+				for (let row = 0; row < size; row += 1) {
+					if (row === pivot.row) {
+						continue;
+					}
+					const target = working[row] as number[];
+					const factor = (target[pivot.column] as number) / value;
+					if (factor === 0) {
+						continue;
+					}
+					const pivotRow = working[pivot.row] as number[];
+					for (let column = 0; column < size; column += 1) {
+						target[column] =
+							(target[column] as number) -
+							factor * (pivotRow[column] as number);
+					}
+				}
+			}
+			// Both solves on the same matrix: the replay through a scratch
+			// buffer, the dense solve on a copy (it factorises in place).
+			const values = new Float64Array(schedule.slots);
+			const scratchRhs = new Float64Array(size);
+			const factors = new Float64Array(schedule.factorCount);
+			const sparseOut = new Array<number>(size).fill(0);
+			const replayed = runSparseSchedule(
+				schedule,
+				matrix,
+				rhs,
+				values,
+				scratchRhs,
+				factors,
+				sparseOut,
+			);
+			const denseMatrix = matrix.map((row) => [...row]);
+			const denseRhs = [...rhs];
+			const denseOut = new Array<number>(size).fill(0);
+			solve(denseMatrix, denseRhs, denseOut);
+			let diffSquares = 0;
+			let denseSquares = 0;
+			for (let index = 0; index < size; index += 1) {
+				const difference =
+					(sparseOut[index] as number) - (denseOut[index] as number);
+				diffSquares += difference * difference;
+				denseSquares += (denseOut[index] as number) * (denseOut[index] as number);
+			}
+			const denseNorm = Math.sqrt(denseSquares);
+			const disagreement = replayed
+				? Math.sqrt(diffSquares) / Math.max(denseNorm, 1e-9)
+				: Infinity;
+			const planRow = this.solverPlanRows.find(
+				(candidate) => candidate.blockId === blockId,
+			);
+			if (planRow !== undefined) {
+				planRow.pivotViolations = violations;
+				planRow.worstPivotRatio = worstRatio;
+				planRow.pivotDisagreement = Number.isFinite(disagreement)
+					? disagreement
+					: null;
+			}
+			if (disagreement <= SCHEDULE_VALIDATION_TOL) {
+				continue;
+			}
+			// The shipped order failed on the real matrix. Before giving the
+			// schedule up, try a value-aware order: threshold Markowitz over the
+			// schedule's own filled pattern, replayed and compared to the same
+			// dense solve. Adoption needs the same tolerance the shipped order
+			// failed; a refused or still-disagreeing candidate drops as before.
+			const candidate = computeNumericRepivot(schedule, size, matrix);
+			if (candidate !== null) {
+				const candidateValues = new Float64Array(candidate.slots);
+				const candidateRhs = new Float64Array(size);
+				const candidateFactors = new Float64Array(candidate.factorCount);
+				const candidateOut = new Array<number>(size).fill(0);
+				const candidateReplayed = runSparseSchedule(
+					candidate,
+					matrix,
+					rhs,
+					candidateValues,
+					candidateRhs,
+					candidateFactors,
+					candidateOut,
+				);
+				let candidateDiffSquares = 0;
+				let candidateDenseSquares = 0;
+				for (let index = 0; index < size; index += 1) {
+					const difference =
+						(candidateOut[index] as number) - (denseOut[index] as number);
+					candidateDiffSquares += difference * difference;
+					candidateDenseSquares += (denseOut[index] as number) ** 2;
+				}
+				const candidateDisagreement = candidateReplayed
+					? Math.sqrt(candidateDiffSquares) /
+						Math.max(Math.sqrt(candidateDenseSquares), 1e-9)
+					: Infinity;
+				if (candidateDisagreement <= SCHEDULE_VALIDATION_TOL) {
+					this.sparseSchedules.set(blockId, {
+						schedule: candidate,
+						values: new Float64Array(candidate.slots),
+						rhs: new Float64Array(size),
+						factors: new Float64Array(candidate.factorCount),
+						consecutiveFallbacks: 0,
+					});
+					this.repivotedSchedules.add(blockId);
+					this.droppedSchedules.delete(blockId);
+					if (planRow !== undefined) {
+						planRow.path = "sparse";
+						planRow.reason = `numeric re-pivot ${candidateDisagreement.toExponential(1)} vs dense`;
+						planRow.pivotDisagreement = candidateDisagreement;
+						planRow.repivoted = true;
+						planRow.patternEntries = candidate.slots;
+						planRow.sparseOps = candidate.sparseOps;
+						planRow.unprovenPivots = candidate.unprovenPivots;
+					}
+					continue;
+				}
+			}
+			this.sparseSchedules.delete(blockId);
+			this.droppedSchedules.add(blockId);
+			const scratch = this.iterationScratch.get(blockId);
+			if (scratch !== undefined) {
+				scratch.clearPairs = null;
+			}
+			if (planRow !== undefined) {
+				planRow.path = "dense";
+				planRow.reason =
+					`shipped order disagrees with dense by ${Number.isFinite(disagreement) ? disagreement.toExponential(1) : "replay refused"} ` +
+					`on the operating-point matrix (tolerance ${SCHEDULE_VALIDATION_TOL.toExponential(0)}); ` +
+					`dropped to dense at the operating point`;
+			}
+		}
 	}
 
 	/**
@@ -2474,15 +3592,25 @@ export class ReferenceRuntime {
 			readonly unprovenPivots: number;
 			readonly path: "sparse" | "dense";
 			readonly reason: string;
+			readonly pivotViolations: number;
+			readonly worstPivotRatio: number | null;
+			readonly pivotDisagreement: number | null;
+			readonly repivoted: boolean;
 		}[];
 		/** Blocks that gave the schedule up mid-run after a run of pivot-guard trips. */
 		readonly abandoned: readonly string[];
+		/** Blocks whose shipped order failed numeric validation at the operating point. */
+		readonly dropped: readonly string[];
+		/** Blocks running a numeric re-pivot order instead of their shipped order. */
+		readonly repivoted: readonly string[];
 		readonly scheduleSolves: number;
 		readonly scheduleFallbacks: number;
 	} {
 		return {
 			blocks: this.solverPlanRows,
 			abandoned: [...this.abandonedSchedules],
+			dropped: [...this.droppedSchedules],
+			repivoted: [...this.repivotedSchedules],
 			scheduleSolves: this.scheduleSolves,
 			scheduleFallbacks: this.scheduleFallbacks,
 		};
@@ -2495,6 +3623,7 @@ export class ReferenceRuntime {
 		if (this.operatingPointPending) {
 			this.operatingPointPending = false;
 			this.solveOperatingPoint();
+			this.settlePivotOrders();
 		}
 		const output = new Float64Array(input.length);
 		this.samples += input.length;
@@ -2580,12 +3709,24 @@ export class ReferenceRuntime {
 	}
 
 	private processBlock(block: Block, input: number): number {
-		if (block.kind === "macro") {
-			this.processMacroBlock(block);
-			// A macro block never owns the output jack -- only an `mna` block's `outputNode`
+		if (block.kind === "composed") {
+			this.processComposedBlock(block);
+			// A composition never owns the output jack -- only an `mna` block's `outputNode`
 			// does -- so this return value is discarded by `process()`. It exists only because
-			// every block in `program.order` is processed through this one dispatch.
+			// every block in `program.order` is processed through this one dispatch. A
+			// composition publishes through `macroOutputVolts` for a `macro-audio-source`
+			// stamp to read instead.
 			return 0;
+		}
+		if (block.kind === "macro") {
+			// Unreachable: `prepare()` refuses a program carrying one, and nothing executes
+			// before `prepare()`. It is here because the type system asked. Narrowing the union
+			// by eliminating `composed` no longer yields `mna`, and the honest way to close that
+			// is a throw rather than a cast -- if this ever fires, the load-time refusal was
+			// bypassed, and a named error is the one outcome better than a silent wrong render.
+			throw new RuntimeError(
+				`block ${block.id} is a dispatched macro (${block.modelId}); macro dispatch was retired in board-p3 row 7`,
+			);
 		}
 		this.opampHistory.clear();
 		const dt = 1 / (this.sampleRate as number);
@@ -2697,319 +3838,550 @@ export class ReferenceRuntime {
 		return block.outputNode === null ? 0 : (solution[block.outputNode] ?? 0);
 	}
 
+
 	/**
-	 * A macro's own per-sample step, dispatched on the algorithm the program names.
+	 * The composition interpreter (board-p3 row 4): a data-driven graph of
+	 * closed-vocabulary primitive ops, evaluated top to bottom each sample.
+	 * No pedal id, no part number, no registry lookup -- the program the
+	 * packet supplies is the whole instruction, which is what makes this a
+	 * machine that runs a program rather than a library of classes the
+	 * compiler dispatches to.
 	 *
-	 * **Data-driven from the program, which is what keeps the console/ROM invariant intact.**
-	 * The branch reads `block.modelId` and nothing else -- no pedal id, no part number, no
-	 * registry lookup -- so fitting a different bucket-brigade chip to a pedal changes registry
-	 * data and this file not at all. Adding a *new algorithm* is the one case that legitimately
-	 * does require runtime work, and is precisely why the `default` below refuses instead of
-	 * running whichever algorithm happens to be implemented.
-	 *
-	 * The refusal here is a backstop, not the gate: `prepare()` already refused every model
-	 * `requiredModels` declares and this runtime lacks, before a sample. This throw is only
-	 * reachable from a program whose declaration *understates* its own blocks -- the same
-	 * relationship `applyStamp`'s unknown-operator throw has to the operator lockout.
+	 * Evaluation order is load-bearing for the bit-identical gate: float
+	 * addition is not associative, so ops run strictly in listed order and a
+	 * source may only name the block input, a constant, or an earlier op's
+	 * output. Feedback flows through delay-line state, never through
+	 * temporaries.
 	 */
-	private processMacroBlock(block: Extract<Block, { kind: "macro" }>): void {
-		const modelId = block.modelId;
-		if (!isImplementedModel(modelId)) {
-			throw new RuntimeError(
-				`macro block "${block.id}" names a DSP model this runtime does not implement: ${modelId}`,
-			);
+	/**
+	 * What a `parameter`-mode tap reads for one line: a 0..1 fraction of its range, or a tapped
+	 * length in samples, or neither (the tap then reads capacity, the cited maximum).
+	 *
+	 * Three sources, never two. A line's own `sweep` wins: `scanned` reads its control by
+	 * position through the control's taper, `tapped` reads the interval between the control's
+	 * last two presses times `ratio`. With no sweep, the block's solved `parameter` node, which is
+	 * a registry model's reading.
+	 */
+	private composedLineReading(
+		block: Extract<Block, { kind: "composed" }>,
+		sweep: ComposedLineSweep | undefined,
+	): { readonly paramScale: number | null; readonly tapped: number | null } {
+		if (sweep !== undefined) {
+			if (sweep.read === "scanned") {
+				const control = this.controlsById.get(sweep.controlId);
+				return {
+					paramScale: taperFraction(
+						control?.taper ?? "linear",
+						this.positions.get(sweep.controlId) ?? 0.5,
+					),
+					tapped: null,
+				};
+			}
+			const interval =
+				this.tapState.get(sweep.controlId)?.intervalSeconds ??
+				this.controlsById.get(sweep.controlId)?.tap?.defaultSeconds ??
+				null;
+			return {
+				paramScale: null,
+				tapped: interval === null ? null : interval * sweep.ratio * (this.sampleRate ?? 48000),
+			};
 		}
-		switch (modelId) {
-			case "bucket-brigade-delay-line":
-				this.processBucketBrigadeDelayLine(block);
-				return;
-			case "digital-delay-line":
-				this.processDigitalDelayLine(block);
-				return;
-			case "digital-reverb-module":
-				this.processDigitalReverbModule(block);
-				return;
-			default: {
-				// Exhaustiveness, the same lockout `applyStamp` uses: adding a key to
-				// `IMPLEMENTED_MODELS` makes this binding a type error until a case executes it, so
-				// the declaration cannot claim an algorithm nothing here runs.
-				const unreachable: never = modelId;
+		const port = block.parameter;
+		if (port === null || !(port.referenceVolts > 0)) return { paramScale: null, tapped: null };
+		return {
+			paramScale:
+				Math.abs(this.nodeVoltages.get(port.block)?.[port.node] ?? 0) / port.referenceVolts,
+			tapped: null,
+		};
+	}
+
+	/**
+	 * A delay core's DC transfer, derived from its own ops for the
+	 * operating-point solve: at steady state every delay line holds what is
+	 * pushed into it, so taps read line values and pushes update them, iterated
+	 * to a fixed point. Ops that are DC-blocking by construction
+	 * (`filter-dcblock`) push 0, so a core behind a DC block correctly reports
+	 * no transfer; `mix` applies its gains, including swept ones. Anything
+	 * else (combs, allpasses, pitch, hold, trackers) makes the transfer
+	 * ill-defined and returns null -- the macro then reads 0 during the
+	 * solve, exactly as before, rather than a guess.
+	 *
+	 * `null` also for programs owning no delay lines (reverb owns combs, not
+	 * lines): those keep their established no-DC behavior, which this
+	 * derivation must reproduce rather than revisit. No per-chip flag, no
+	 * name reading; the ops are the whole input. The loop is contractive
+	 * exactly when the program's own feedback is (gain < 1); capped well
+	 * past any such settling, with null on non-convergence.
+	 */
+	private composedDcTransfer(
+		block: Extract<Block, { kind: "composed" }>,
+		tap: number,
+		voltageOf: (blockId: string, node: number) => number,
+	): number | null {
+		const position = selectedPosition(
+			block,
+			voltageOf,
+			(controlId) => this.positions.get(controlId) ?? 0.5,
+		);
+		const program = position < 0 ? undefined : block.positions[position];
+		if (program === undefined) {
+			return null;
+		}
+		if (!program.ops.some((op) => op.op.startsWith("delay-tap"))) {
+			// Lines mark delay-line behavior; filter-only compositions have none.
+			// (Checked on ops rather than `lines` so a declared program with a
+			// line entry but no tap cannot claim a transfer either.)
+			return null;
+		}
+		for (const op of program.ops) {
+			if (
+				op.op !== "delay-tap" &&
+				op.op !== "delay-tap-fractional" &&
+				op.op !== "delay-tap-reverse" &&
+				op.op !== "filter-dcblock" &&
+				op.op !== "mix" &&
+				op.op !== "delay-push"
+			) {
+				return null;
+			}
+		}
+		const evalOnce = (lines: Map<string, number>): number | null => {
+			const temps = new Array<number>(program.ops.length).fill(0);
+			for (const op of program.ops) {
+				if (op.op === "delay-push") {
+					// No out temp; its value settles the line.
+					const value =
+						op.input.kind === "input"
+							? tap
+							: op.input.kind === "const"
+								? op.input.value
+								: (temps[op.input.index] ?? 0);
+					lines.set(op.line, value);
+				} else if (
+					op.op === "delay-tap" ||
+					op.op === "delay-tap-fractional" ||
+					op.op === "delay-tap-reverse"
+				) {
+					temps[op.out] = lines.get(op.line) ?? 0;
+				} else if (op.op === "filter-dcblock") {
+					temps[op.out] = 0;
+				} else if (op.op === "mix") {
+					let acc = 0;
+					for (const term of op.terms) {
+						const sweep = term.sweep;
+						const gain =
+							sweep === undefined
+								? term.gain
+								: sweep.min +
+									taperFraction(
+										this.controlsById.get(sweep.controlId)?.taper ?? "linear",
+										this.positions.get(sweep.controlId) ?? 0.5,
+									) *
+										(sweep.max - sweep.min);
+						const value =
+							term.source.kind === "input"
+								? tap
+								: term.source.kind === "const"
+									? term.source.value
+									: (temps[term.source.index] ?? 0);
+						acc += value * gain;
+					}
+					temps[op.out] = acc;
+				} else {
+					// Unreachable: the vocabulary gate above returned null for
+					// anything else. Present so a future op cannot silently join
+					// the DC evaluation.
+					return null;
+				}
+			}
+			return temps[program.out] ?? 0;
+		};
+		// Settle the lines to their fixed point: each pass pushes from the
+		// current line values and taps read them back. Contractive exactly
+		// when the program's own feedback is; anything else returns null
+		// rather than a half-settled value.
+		const lines = new Map<string, number>();
+		let previous: number | null = null;
+		for (let pass = 0; pass < 1024; pass += 1) {
+			const published = evalOnce(lines);
+			if (published === null) {
+				return null;
+			}
+			if (
+				previous !== null &&
+				Math.abs(published - previous) <=
+					1e-12 * Math.max(1, Math.abs(published))
+			) {
+				return published;
+			}
+			previous = published;
+		}
+		return null;
+	}
+
+	private processComposedBlock(block: Extract<Block, { kind: "composed" }>): void {		// Which program is running, read from the selector pin the knob drives. Resolved once
+		// per sample rather than per op: a mode cannot change mid-sample, and re-reading it
+		// inside the loop would let a half-executed graph mix two programs' temporaries.
+		const position = selectedPosition(
+			block,
+			(id, node) => this.nodeVoltages.get(id)?.[node] ?? 0,
+			(controlId) => this.positions.get(controlId) ?? 0.5,
+		);
+		const tap =
+			block.audioIn === null
+				? 0
+				: (this.nodeVoltages.get(block.audioIn.block)?.[block.audioIn.node] ??
+					0);
+		// A hold sampler's recording is erased when its program is selected afresh: the manual's
+		// "the recorded data will be erased when you change the positions of the Mode Switch".
+		if (this.lastComposedPosition.get(block.id) !== position) {
+			this.lastComposedPosition.set(block.id, position);
+			const key = this.composedStateKeys.get(block.id)?.[position];
+			for (const line of (key === undefined ? undefined : this.composedLineState.get(key))?.values() ?? []) {
+				line.hold = { state: 0, length: 0, index: 0, gateWas: false };
+			}
+		}
+		const program = position < 0 ? undefined : block.positions[position];
+		if (program === undefined) {
+			// **A detent the source declares no program for.** The chip is doing something the
+			// packet does not model, so the block makes no claim and passes its input through.
+			// Publishing zero would be silence, which is indistinguishable from a severed net,
+			// and returning early would leave the previous sample's output standing. The gap is
+			// named at compile time, where a reader sees it, rather than here every sample.
+			this.macroOutputVolts.set(block.id, tap);
+			return;
+		}
+		const stateKey = this.composedStateKeys.get(block.id)?.[position];
+		if (stateKey === undefined) {
+			return;
+		}
+		const lines = this.composedLineState.get(stateKey);
+		if (lines === undefined) {
+			return;
+		}
+		const temps = new Array<number>(program.ops.length).fill(0);
+		const read = (source: ComposedSource): number => {
+			if (source.kind === "input") {
+				return tap;
+			}
+			if (source.kind === "const") {
+				return source.value;
+			}
+			return temps[source.index] ?? 0;
+		};
+		for (const [opIndex, op] of program.ops.entries()) {
+			if (op.op === "delay-tap") {
+				const line = lines.get(op.line);
+				if (line === undefined) {
+					return;
+				}
+				// Length priority mirrors the delay kernels: a clock-smoothed
+				// control first, then a parameter-port scale, else the capacity.
+				// DDL shaping: whole samples above 1.
+				const reading =
+					op.length.mode === "parameter"
+						? this.composedLineReading(block, program.lines[op.line]?.sweep)
+						: { paramScale: null, tapped: null };
+				const paramScale = reading.paramScale;
+				const resolved = composedDelayLength({
+					mode: op.length.mode,
+					capacity: line.lengthCapacity,
+					current: line.currentLengthSamples,
+					target: line.targetLengthSamples,
+					sampleRate: this.sampleRate ?? 48000,
+					paramScale,
+					tapped: reading.tapped,
+					modVolts: null,
+					modEstimate: 0,
+					modSeeded: true,
+					clockLaw: null,
+					min: 1,
+					floor: line.floorSamples,
+					headroom: 0,
+					round: true,
+				});
+				line.currentLengthSamples = resolved.current;
+				const effectiveLength = resolved.length;
+				const readIndex =
+					(line.writeIndex - effectiveLength + line.capacity) % line.capacity;
+				temps[op.out] = line.buffer[readIndex] ?? 0;
+			} else if (op.op === "delay-tap-fractional") {
+				const line = lines.get(op.line);
+				if (line === undefined) {
+					return;
+				}
+				const dc = this.composedDcState.get(block.id);
+				if (dc === undefined) {
+					return;
+				}
+				// BBD shaping: fractional reads above 0 with two slots of
+				// headroom; only the parameter scale rounds.
+				const reading =
+					op.length.mode === "parameter"
+						? this.composedLineReading(block, program.lines[op.line]?.sweep)
+						: { paramScale: null, tapped: null };
+				const paramScale = reading.paramScale;
+				const modVolts =
+					op.length.mode === "modulation" && block.modulation != null
+						? (this.nodeVoltages.get(block.modulation.block)?.[
+								block.modulation.node
+							] ?? 0)
+						: op.length.mode === "clock-law" && block.clockLaw != null
+							? (this.nodeVoltages.get(block.clockLaw.block)?.[
+									block.clockLaw.node
+								] ?? 0)
+							: null;
+				const resolved = composedDelayLength({
+					mode: op.length.mode,
+					capacity: line.lengthCapacity,
+					current: line.currentLengthSamples,
+					target: line.targetLengthSamples,
+					sampleRate: this.sampleRate ?? 48000,
+					paramScale,
+					modVolts,
+					modEstimate: dc.modDcEstimate,
+					tapped: reading.tapped,
+					modSeeded: dc.modSeeded,
+					clockLaw:
+						op.length.mode === "clock-law"
+							? {
+									rOhms: op.length.rOhms,
+									cFarads: op.length.cFarads,
+									vddVolts: op.length.vddVolts,
+									vthVolts: op.length.vthVolts,
+									vfVolts: op.length.vfVolts,
+									floorVolts: op.length.floorVolts,
+									stages: op.length.stages,
+								}
+							: null,
+					min: 0,
+					floor: line.floorSamples,
+					headroom: 2,
+					round: op.length.mode === "parameter",
+				});
+				line.currentLengthSamples = resolved.current;
+				dc.modDcEstimate = resolved.modEstimate;
+				dc.modSeeded = resolved.modSeeded;
+				const effectiveLength = resolved.length;
+				// Fractional delay read with linear interpolation, exactly the
+				// kernel's read-before-write discipline: the slot this sample
+				// is about to occupy still holds the value from `dInt` samples
+				// ago, and reading first is what keeps it that way.
+				const dInt = Math.floor(effectiveLength);
+				const frac = effectiveLength - dInt;
+				const readIndex0 =
+					(line.writeIndex - dInt + line.capacity) % line.capacity;
+				const readIndex1 =
+					(line.writeIndex - dInt - 1 + line.capacity) % line.capacity;
+				const s0 = line.buffer[readIndex0] ?? 0;
+				const s1 = line.buffer[readIndex1] ?? 0;
+				temps[op.out] = s0 + frac * (s1 - s0);
+			} else if (op.op === "delay-tap-reverse") {
+				const line = lines.get(op.line);
+				if (line === undefined) {
+					return;
+				}
+				// The segment length resolves exactly as a `delay-tap`'s does -- whole samples,
+				// swept by the line's control -- so a mode's cited range means the same thing
+				// forwards and backwards. See `PrimitiveOp` for the two-head law.
+				const reading =
+					op.length.mode === "parameter"
+						? this.composedLineReading(block, program.lines[op.line]?.sweep)
+						: { paramScale: null, tapped: null };
+				const resolved = composedDelayLength({
+					mode: op.length.mode,
+					capacity: line.lengthCapacity,
+					current: line.currentLengthSamples,
+					target: line.targetLengthSamples,
+					sampleRate: this.sampleRate ?? 48000,
+					paramScale: reading.paramScale,
+					tapped: reading.tapped,
+					modVolts: null,
+					modEstimate: 0,
+					modSeeded: true,
+					clockLaw: null,
+					min: 2,
+					floor: line.floorSamples,
+					headroom: 0,
+					round: true,
+				});
+				line.currentLengthSamples = resolved.current;
+				temps[op.out] = reverseRead(line, resolved.length);
+			} else if (op.op === "hold-loop") {
+				const line = lines.get(op.line);
+				if (line === undefined) {
+					return;
+				}
+				const gateLevel =
+					op.gate.min +
+					taperFraction(
+						this.controlsById.get(op.gate.controlId)?.taper ?? "linear",
+						this.positions.get(op.gate.controlId) ?? 0,
+					) *
+						(op.gate.max - op.gate.min);
+				temps[op.out] = holdLoop(line, read(op.input), gateLevel >= 0.5);
+			} else if (op.op === "filter-dcblock") {
+				const dc = this.composedDcState.get(block.id);
+				if (dc === undefined) {
+					return;
+				}
+				// The BBD input coupling estimator: a 1 s one-pole that blocks
+				// true DC while passing audio, so the buffer stores signal
+				// above the operating point and feedback reinforces audio.
+				const x = read(op.input);
+				const alpha = 1 / (1.0 * (this.sampleRate ?? 48000));
+				dc.dcEstimate += alpha * (x - dc.dcEstimate);
+				temps[op.out] = x - dc.dcEstimate;
+			} else if (op.op === "delay-push") {
+				const line = lines.get(op.line);
+				if (line === undefined) {
+					return;
+				}
+				line.buffer[line.writeIndex] = read(op.input);
+				line.writeIndex = (line.writeIndex + 1) % line.capacity;
+			} else if (op.op === "comb") {
+				const filters = this.composedFilterState.get(stateKey);
+				if (filters === undefined) {
+					return;
+				}
+				const st = filters.combs[op.index];
+				if (st === undefined) {
+					return;
+				}
+				// Schroeder feedback comb, exactly the kernel's order: read
+				// the delayed sample, write back input plus gain times
+				// delayed, advance, publish the delayed sample.
+				const inVal = read(op.input);
+				const delayed = st.buffer[st.index] ?? 0;
+				st.buffer[st.index] = inVal + st.gain * delayed;
+				st.index = (st.index + 1) % st.buffer.length;
+				temps[op.out] = delayed;
+			} else if (op.op === "allpass") {
+				const filters = this.composedFilterState.get(stateKey);
+				if (filters === undefined) {
+					return;
+				}
+				const st = filters.allpasses[op.index];
+				if (st === undefined) {
+					return;
+				}
+				// Schroeder allpass diffuser, exactly the kernel's order:
+				// output disperses phase at flat magnitude, the write-back
+				// feeds input plus gain times delayed forward.
+				const inVal = read(op.input);
+				const delayed = st.buffer[st.index] ?? 0;
+				const out = delayed - REVERB_ALLPASS_GAIN * inVal;
+				st.buffer[st.index] = inVal + REVERB_ALLPASS_GAIN * delayed;
+				st.index = (st.index + 1) % st.buffer.length;
+				temps[op.out] = out;
+			} else if (op.op === "pitch-tracker") {
+				const trackers = this.composedTrackerState.get(stateKey);
+				if (trackers === undefined) {
+					return;
+				}
+				const st = trackers.get(opIndex);
+				if (st === undefined) {
+					return;
+				}
+				// Autocorrelation estimate every hop, held between: the ring
+				// takes every input sample, and each TRACK_HOP-th sample the
+				// window is copied oldest-first into estimator order for
+				// `trackPitchFundamental`. Silence estimates 0, never stale.
+				st.buffer[st.writeAbs % TRACK_WINDOW] = read(op.input);
+				st.writeAbs += 1;
+				st.sinceUpdate += 1;
+				if (st.sinceUpdate >= TRACK_HOP) {
+					st.sinceUpdate = 0;
+					const window = new Float64Array(TRACK_WINDOW);
+					for (let index = 0; index < TRACK_WINDOW; index += 1) {
+						window[index] =
+							st.buffer[(st.writeAbs + index) % TRACK_WINDOW] ?? 0;
+					}
+					st.estimate = trackPitchFundamental(
+						window,
+						this.sampleRate ?? 48000,
+					);
+				}
+				temps[op.out] = st.estimate;
+			} else if (op.op === "pitch-shift") {
+				const pitch = this.composedPitchState.get(stateKey);
+				if (pitch === undefined) {
+					return;
+				}
+				const st = pitch.get(opIndex);
+				if (st === undefined) {
+					return;
+				}
+				// Static transposition by asynchronous resampling (row 5): the
+				// write pointer takes every input sample; the read pointer
+				// advances `ratio` per output sample through linear
+				// interpolation, wrapping by whole windows when it outruns the
+				// write pointer (ratio above 1) or falls out of history
+				// (below 1). The wrap is a real discontinuity -- repeated
+				// material for upward shifts, skipped material for downward --
+				// and the fundamental survives it, which is what the
+				// acceptance measures. No crossfade, no formant correction.
+				const slot = (position: number): number =>
+					((position % PITCH_HISTORY) + PITCH_HISTORY) % PITCH_HISTORY;
+				st.buffer[slot(st.writeAbs)] = read(op.input);
+				st.writeAbs += 1;
+				const base = Math.floor(st.readAbs);
+				const frac = st.readAbs - base;
+				const s0 = st.buffer[slot(base)] ?? 0;
+				const s1 = st.buffer[slot(base + 1)] ?? 0;
+				temps[op.out] = s0 + frac * (s1 - s0);
+				st.readAbs += st.ratio;
+				while (st.readAbs > st.writeAbs) {
+					st.readAbs -= PITCH_WINDOW;
+				}
+				while (st.readAbs <= st.writeAbs - PITCH_HISTORY) {
+					st.readAbs += PITCH_WINDOW;
+				}
+			} else if (op.op === "mix") {
+				let acc = 0;
+				for (const term of op.terms) {
+					const sweep = term.sweep;
+					// A swept gain reads its knob by position through the knob's own taper,
+					// exactly as a scanned delay parameter does; absent is a fixed gain.
+					const gain =
+						sweep === undefined
+							? term.gain
+							: sweep.min +
+								taperFraction(
+									this.controlsById.get(sweep.controlId)?.taper ?? "linear",
+									this.positions.get(sweep.controlId) ?? 0.5,
+								) *
+									(sweep.max - sweep.min);
+					// A direct input term enters AC-coupled: the block's operating
+					// point rides the output (added back at the macro source), so
+					// the line must not carry it a second time or every biased
+					// input double-counts its DC through the repeat. Temp and
+					// const terms recirculate verbatim. BBD and reverb programs
+					// have no input-term mixes and behave exactly as before.
+					const value =
+						term.source.kind === "input"
+							? tap -
+								(this.composedDcState.get(block.id)?.dcOperatingPoint ?? 0)
+							: term.source.kind === "const"
+								? term.source.value
+								: read(term.source);
+					acc += value * gain;
+				}
+				temps[op.out] = acc;
+			} else {
+				// A decoded program naming a primitive this runtime lacks refuses
+				// by name -- the same fail-closed shape as an unimplemented model.
+				const kind = (op as { readonly op: string }).op;
 				throw new RuntimeError(
-					`unreachable macro model ${String(unreachable)}`,
+					`composed block "${block.id}" names a DSP primitive this runtime does not implement: ${kind}`,
 				);
 			}
 		}
+		this.macroOutputVolts.set(block.id, temps[program.out] ?? 0);
 	}
 
-	/**
-	 * The bucket-brigade delay line: an N-stage sampled analog delay, which is what an MN3007,
-	 * an MN3005 or an SAD1024 is. What differs between fittings of the same chip is the delay
-	 * time, which is `stages / (2 * f_clock)` and therefore a property of the pedal's clocking
-	 * rather than of the part -- carried as `parameters.delaySeconds`.
-	 *
-	 * This is the one behaviour that existed before models were dispatched at all, unchanged
-	 * except for now being bound to the algorithm it actually models rather than being every
-	 * macro's behaviour. It carries the `coupled` port's write-back and the `parameter` port's
-	 * read, both against state this block owns rather than against the MNA solver.
-	 *
-	 * Runs after every block it reads from -- its `audioIn` tap and its `parameter` source --
-	 * by `program.order`, which `couple.ts` (spec clause 3, the region schedule) corrects for
-	 * exactly this: the block carrying a `macro-audio-source` stamp naming this macro is
-	 * scheduled strictly AFTER it, so that block's read of `macroOutputVolts` sees this
-	 * sample's write, not last sample's. Confirmed rather than assumed: an impulse into
-	 * `hybridDelayPedal` resolves on its exact delay sample, not one sample later.
-	 */
-	private processBucketBrigadeDelayLine(
-		block: Extract<Block, { kind: "macro" }>,
-	): void {
-		const state = this.macroState.get(block.id);
-		if (state === undefined) {
-			return;
-		}
-		const tap =
-			block.audioIn === null
-				? 0
-				: (this.nodeVoltages.get(block.audioIn.block)?.[block.audioIn.node] ??
-					0);
 
-		let effectiveLength = state.capacity - 2;
 
-		if (block.clockControl) {
-			// Smooth currentLengthSamples toward targetLengthSamples (10ms smoothing filter)
-			if (Math.abs(state.currentLengthSamples - state.targetLengthSamples) > 1e-6) {
-				const alphaSmooth = 1 - Math.exp(-1 / (0.010 * (this.sampleRate ?? 48000)));
-				state.currentLengthSamples += (state.targetLengthSamples - state.currentLengthSamples) * alphaSmooth;
-			} else {
-				state.currentLengthSamples = state.targetLengthSamples;
-			}
-			effectiveLength = Math.max(
-				0,
-				Math.min(state.capacity - 2, state.currentLengthSamples),
-			);
-		} else if (block.modulation != null) {
-			// **The signal-rate branch.** Read every sample, cached nowhere.
-			//
-			// `delay = base * (Vdc / V)`: a steering transistor turns its control voltage into
-			// the charging current of the oscillator's timing capacitor, so `f_clock` rises with
-			// `V` and the delay, being `stages / (2 * f_clock)`, falls with it. Self-normalising
-			// -- at the operating point `V == Vdc` and the delay is exactly the base.
-			const modVolts =
-				this.nodeVoltages.get(block.modulation.block)?.[block.modulation.node] ?? 0;
-			if (!state.modSeeded) {
-				// Seeded from the first sample rather than ramped from zero. A one-pole starting
-				// at 0 would sweep the delay across its whole range during the first seconds of
-				// every render, which is an artefact of the estimator and not of the circuit.
-				state.modDcEstimate = modVolts;
-				state.modSeeded = true;
-			} else {
-				const alphaMod =
-					1 / (MODULATION_DC_SECONDS * (this.sampleRate ?? 48000));
-				state.modDcEstimate += alphaMod * (modVolts - state.modDcEstimate);
-			}
-			const base = state.targetLengthSamples;
-			// Guard the pole at V -> 0 before dividing, not after: the clamp below bounds the
-			// result, but `base / 0` is Infinity and `Infinity * 0` is NaN, which would poison
-			// the buffer index rather than saturate it.
-			const denominator =
-				Math.abs(modVolts) < 1e-6 ? 1e-6 * Math.sign(modVolts || 1) : modVolts;
-			const raw = state.modDcEstimate / denominator;
-			const scale = Math.min(
-				MODULATION_SCALE_MAX,
-				Math.max(MODULATION_SCALE_MIN, Number.isFinite(raw) ? raw : 1),
-			);
-			effectiveLength = Math.max(
-				0,
-				Math.min(state.capacity - 2, base * scale),
-			);
-		} else if (block.parameter !== null && block.parameter.referenceVolts > 0) {
-			const paramVolts =
-				this.nodeVoltages.get(block.parameter.block)?.[block.parameter.node] ??
-				0;
-			const scale = Math.abs(paramVolts) / block.parameter.referenceVolts;
-			effectiveLength = Math.min(
-				state.capacity - 2,
-				Math.max(0, Math.round((state.capacity - 2) * scale)),
-			);
-		}
-
-		// Read before write, deliberately: a delay of exactly `capacity` samples reads the
-		// slot this sample is about to occupy, and reading it first is what makes that slot
-		// still hold the value from `capacity` samples ago rather than this one. Writing
-		// first would silently degenerate a full-length delay into a same-sample passthrough
-		// -- measured, not assumed, when this file's own first version did exactly that.
-		// AC-couple the input: the BBD's buffer stores only the signal above the DC
-		// operating point. A real MN3008 is driven through a coupling capacitor that
-		// blocks DC; without this the bias voltage fills the buffer and the feedback
-		// loop reinforces the offset instead of the audio.
-		//
-		// The time constant is 1 s, not 1 ms: a 1 ms estimate tracks audio below 159 Hz
-		// as "DC" and strips the fundamental from a guitar signal driven from an
-		// AC-coupled op-amp (0 V bias), leaving only treble.  1 s blocks true DC
-		// (< 0.16 Hz) while passing the full 20 Hz–20 kHz band with < 0.01 dB loss.
-		const alpha = 1 / (1.0 * (this.sampleRate ?? 48000));
-		state.dcEstimate += alpha * (tap - state.dcEstimate);
-		const acIn = tap - state.dcEstimate;
-
-		// Fractional delay read with linear interpolation
-		const dInt = Math.floor(effectiveLength);
-		const frac = effectiveLength - dInt;
-		const readIndex0 =
-			(state.writeIndex - dInt + state.capacity) % state.capacity;
-		const readIndex1 =
-			(state.writeIndex - dInt - 1 + state.capacity) % state.capacity;
-		const s0 = state.buffer[readIndex0] ?? 0;
-		const s1 = state.buffer[readIndex1] ?? 0;
-		const macroOut = s0 + frac * (s1 - s0);
-
-		this.macroOutputVolts.set(block.id, macroOut);
-		state.buffer[state.writeIndex] = acIn;
-		state.writeIndex = (state.writeIndex + 1) % state.capacity;
-
-	}
-
-	/**
-	 * The digital delay line: a sample-accurate echo with a feedback tap, which is what a
-	 * fixed-function digital echo LSI such as the Mitsubishi M50195P is. It shares the bucket
-	 * brigade line's state (`buffer`, `writeIndex`, `capacity`) and its delay-length rule, and
-	 * differs in the one behaviour that makes it an echo rather than a delay: the sample it
-	 * writes back is the input *plus* a fraction of the delayed sample, the repeat/feedback path
-	 * a bucket brigade does not have (a brigade only ever shifts charge, it never regenerates).
-	 *
-	 * The feedback fraction is a model parameter, `parameters.feedback`, not a solved node. The
-	 * M50195P's repeat is set by the pedal's Repeat network (a pot in parallel with a range
-	 * trim), which is not a single pure node this runtime can read, so it is carried the way the
-	 * BBD's `stages` is -- in `parameters`, merged in by `resolveMacro` -- rather than read from
-	 * the MNA system. Absent, the line is a plain delay (no regeneration), which is the safe
-	 * default a delay is, never a guessed level standing in for one.
-	 *
-	 * The output is the delayed sample alone (the wet tap). The dry/wet mix is the pedal's own
-	 * analog shell's job, so the kernel adds nothing to the input here for the same reason the
-	 * bucket brigade line does not. Read-before-write, for the exact reason the bucket brigade
-	 * line does it: a full-length delay must still read the value from `capacity` samples ago,
-	 * not the one it is about to occupy.
-	 */
-	private processDigitalDelayLine(
-		block: Extract<Block, { kind: "macro" }>,
-	): void {
-		const state = this.macroState.get(block.id);
-		if (state === undefined) {
-			return;
-		}
-		const tap =
-			block.audioIn === null
-				? 0
-				: (this.nodeVoltages.get(block.audioIn.block)?.[block.audioIn.node] ??
-					0);
-
-		// The delay length. **`clockControl` first, which this model used to ignore.**
-		//
-		// The comment here previously claimed this was "exactly the bucket brigade line's
-		// rule". It was not: that line reads `targetLengthSamples`, this one read `capacity`
-		// and nothing else, so a digital echo always rendered the *maximum* delay its buffer
-		// was sized for and its delay control did nothing. Measured on `ibanez-dl5`: echoes at
-		// 400 ms, the capacity, while its `clockControl` resolved 310 ms at the default TIME
-		// position -- and moving TIME changed neither. `setControl` was maintaining
-		// `targetLengthSamples` for it the whole time, for any macro carrying a `clockControl`
-		// regardless of model; only the read was missing.
-		//
-		// Smoothed the same way and for the same reason as the bucket brigade line: a delay
-		// length that jumps on a control move is a click.
-		let effectiveLength = state.capacity;
-		if (block.clockControl) {
-			if (
-				Math.abs(state.currentLengthSamples - state.targetLengthSamples) > 1e-6
-			) {
-				const alphaSmooth =
-					1 - Math.exp(-1 / (0.010 * (this.sampleRate ?? 48000)));
-				state.currentLengthSamples +=
-					(state.targetLengthSamples - state.currentLengthSamples) * alphaSmooth;
-			} else {
-				state.currentLengthSamples = state.targetLengthSamples;
-			}
-			effectiveLength = Math.min(
-				state.capacity,
-				Math.max(1, Math.round(state.currentLengthSamples)),
-			);
-		} else if (block.parameter !== null && block.parameter.referenceVolts > 0) {
-			const volts =
-				this.nodeVoltages.get(block.parameter.block)?.[block.parameter.node] ?? 0;
-			const scale = Math.abs(volts) / block.parameter.referenceVolts;
-			effectiveLength = Math.min(
-				state.capacity,
-				Math.max(1, Math.round(state.capacity * scale)),
-			);
-		}
-
-		const feedback = block.parameters.feedback ?? 0;
-
-		const readIndex =
-			(state.writeIndex - effectiveLength + state.capacity) % state.capacity;
-		const out = state.buffer[readIndex] ?? 0;
-		this.macroOutputVolts.set(block.id, out);
-		state.buffer[state.writeIndex] = tap + feedback * out;
-		state.writeIndex = (state.writeIndex + 1) % state.capacity;
-	}
-
-	/**
-	 * The digital reverb module: a Schroeder reverberator, which is the algorithm class a
-	 * fixed-function digital reverb brick such as the Accutronics/Belton BTDR-2 is.
-	 *
-	 * Four parallel feedback combs summed, then two series allpass sections. **Decay is designed
-	 * rather than tuned**: each comb's feedback comes from `reverbCombGain`, the closed form that
-	 * reaches -60 dB in `parameters.decaySeconds`, so the model's T60 is the datasheet's T60 by
-	 * construction and is checked by measurement rather than assumed.
-	 *
-	 * **What is a datasheet number and what is a choice**, because this model sits behind a part
-	 * whose own packet records its internals as "not present". From the BTDR-2 datasheet: T60
-	 * (2.0 / 2.5 / 2.85 s by variant), the -3 dB per-output voltage gain, and the 10 kOhm / 220
-	 * Ohm port impedances, all carried by the registry entry. Chosen here: the comb and allpass
-	 * lengths, which set echo density and timbre. So this renders *a* reverb whose decay and
-	 * level match the published figures, and it does not claim to be the brick's own tail.
-	 *
-	 * The output is the wet signal alone. The dry/wet mix is the pedal's analog shell, exactly as
-	 * it is for the delay lines above.
-	 */
-	private processDigitalReverbModule(
-		block: Extract<Block, { kind: "macro" }>,
-	): void {
-		const state = this.reverbState.get(block.id);
-		if (state === undefined) {
-			return;
-		}
-		const tap =
-			block.audioIn === null
-				? 0
-				: (this.nodeVoltages.get(block.audioIn.block)?.[block.audioIn.node] ??
-					0);
-
-		// Four parallel feedback combs, averaged so the sum does not scale with their count.
-		let sum = 0;
-		for (let c = 0; c < state.combBuffers.length; c += 1) {
-			const buffer = state.combBuffers[c] as Float64Array;
-			const index = state.combIndices[c] as number;
-			const delayed = buffer[index] ?? 0;
-			buffer[index] = tap + (state.combGains[c] as number) * delayed;
-			state.combIndices[c] = (index + 1) % buffer.length;
-			sum += delayed;
-		}
-		sum /= state.combBuffers.length;
-
-		// Two series allpass sections, Schroeder's form: flat magnitude, dispersed phase, so
-		// they raise echo density without touching the decay the combs just set.
-		for (let a = 0; a < state.allpassBuffers.length; a += 1) {
-			const buffer = state.allpassBuffers[a] as Float64Array;
-			const index = state.allpassIndices[a] as number;
-			const delayed = buffer[index] ?? 0;
-			const out = delayed - REVERB_ALLPASS_GAIN * sum;
-			buffer[index] = sum + REVERB_ALLPASS_GAIN * delayed;
-			state.allpassIndices[a] = (index + 1) % buffer.length;
-			sum = out;
-		}
-
-		// The datasheet's per-output voltage gain, carried by the registry rather than assumed.
-		const outputGain = block.parameters.outputGain ?? 1;
-		this.macroOutputVolts.set(block.id, sum * outputGain);
-	}
 
 	/**
 	 * One Newton solve of a block, shared by a sample and by the operating point.
@@ -3044,9 +4416,24 @@ export class ReferenceRuntime {
 		worstDelta: number;
 	} {
 		const size = block.nodeCount + block.auxCount;
+		// **The DC solve is never on probation.** `solveOperatingPointForBlock` walks
+		// direct -> gmin stepping -> source stepping, and each continuation exists precisely to
+		// spend iterations on a problem the direct pass could not solve. Letting that pass's own
+		// failure cut the budget for the walk that follows it defeats the walk: the probation
+		// starts at sample 0, so every continuation pass, and then the whole first probation
+		// window, inherits a 64-iteration budget.
+		//
+		// **This did not fix `mf-102`'s operating point, and the distinction is the point.**
+		// That block still fails its DC solve with the exemption in place (`operatingPointFailures`
+		// 1, measured 2026-09-19), so the exemption removes a mechanism that could only ever make
+		// a continuation worse -- it does not explain the failure. Why that solve fails is open on
+		// phase-1 row 7.
+		const probationEnds = this.unproductiveUntilSample.get(block.id);
+		const onProbation =
+			!dc && probationEnds !== undefined && this.elapsedSamples < probationEnds;
 		const iterations = block.linear
 			? 1
-			: this.unproductiveBlocks.has(block.id)
+			: onProbation
 				? Math.min(NEWTON_UNPRODUCTIVE_ITERATIONS, this.maxNewtonIterations)
 				: this.maxNewtonIterations;
 		let converged = block.linear;
@@ -3065,7 +4452,16 @@ export class ReferenceRuntime {
 		// Resolved once per call rather than once per Newton iteration, the same reason
 		// `blockIndex` below is: a `Map.get` in the innermost loop was measured as the largest
 		// self-time in the eliminated path, and this one would run on every iteration.
-		const sparse = this.sparseSchedules.get(block.id);
+		//
+		// **`dc` takes the dense path, and that is a correctness decision before it is a cost
+		// one.** The schedule's pivot order was chosen against the transient matrix, where a
+		// capacitor contributes `2C/dt`. In a DC pass a capacitor contributes *nothing* (see
+		// `applyStamp`) and an inductor contributes a short, so entries the order depends on are
+		// exactly zero, the pivot guard trips, and the block burns its way to
+		// `SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT` before it has rendered a sample. The C++ console
+		// carries the same gate and the same reasoning; see its comment in `Engine::iterate` and
+		// `thoughts/shared/2026-09-18-sparse-schedule-runtime-audit.md` §4 for the measurement.
+		const sparse = dc ? undefined : this.sparseSchedules.get(block.id);
 		// Resolved once per call rather than once per stamp -- see `packHistoryKey2`/`3` and
 		// `bjtHistory`'s comment for what this feeds.
 		const blockIndex = this.blockIndexById.get(block.id) ?? 0;
@@ -3101,11 +4497,14 @@ export class ReferenceRuntime {
 		let alpha = NEWTON_RELAXATION_FACTOR;
 		let bestDelta = Number.POSITIVE_INFINITY;
 		let noImprovement = 0;
+		let foldStreak = 0;
+		let foldReseeded = false;
 		for (let iteration = 0; iteration < iterations; iteration += 1) {
 			used = iteration + 1;
 
 			this.limitedIterate = false;
 			this.limitedBy = null;
+			this.limitedOpamp = null;
 
 			if (isStandardAudioPass) {
 				// **This copy was the block's dominant cost, not the elimination.** It is n^2
@@ -3301,6 +4700,12 @@ export class ReferenceRuntime {
 					}
 				}
 			}
+			// Track how many iterations hit a limiter (for cap-hit diagnostics).
+			// Gated: see `limiterTrace`.
+			if (this.limiterTrace) {
+				this.limitedIterationCount += this.limitedIterate ? 1 : 0;
+				this.limitedIterationPerSample.push(this.limitedIterate ? 1 : 0);
+			}
 			// A limited iterate must not satisfy the tolerance, which is SPICE's rule and
 			// not a refinement of it. A limiter damps the step towards the solution, so
 			// while it is active the iterate is *by construction* somewhere short of it --
@@ -3345,12 +4750,57 @@ export class ReferenceRuntime {
 				converged = true;
 				break;
 			}
+			// **A fold is reseeded on the other rail, once, inside this solve.** See
+			// `OPAMP_FOLD_STREAK`. Only the Newton *guess* moves -- the folded op-amp's output
+			// node and its limiter history -- never the pole's raw state or any reactive state,
+			// so what converges is still the circuit's equations. No restart and no second
+			// budget: a sample that never folds takes exactly the path it always did.
+			// Measured on `boss-tr-2`: held samples 51 -> 0 in 3 s, peak iterations 1024 -> 52.
+			// `limitedOpamp` is written by the stamps in this iteration; TS narrows it to `null`
+			// from the reset above, so it is read through its declared type.
+			const limitedOpamp = this.limitedOpamp as ReferenceRuntime["limitedOpamp"];
+			foldStreak = limitedOpamp?.folded === true ? foldStreak + 1 : 0;
+			if (!dc && !foldReseeded && limitedOpamp !== null && foldStreak >= OPAMP_FOLD_STREAK) {
+				foldReseeded = true;
+				foldStreak = 0;
+				const wasHigh =
+					(start[limitedOpamp.output] ?? limitedOpamp.centre) >= limitedOpamp.centre;
+				current[limitedOpamp.output] = wasHigh
+					? limitedOpamp.railLow
+					: limitedOpamp.railHigh;
+				this.opampHistory.set(limitedOpamp.key, {
+					differential: wasHigh ? -limitedOpamp.band : limitedOpamp.band,
+					step: 0,
+					cap: limitedOpamp.maxStep,
+				});
+				// A clean Newton run from the reseeded point: the damping earned by the two-cycle
+				// would otherwise slow the march to the new rail.
+				relaxing = false;
+				alpha = NEWTON_RELAXATION_FACTOR;
+				bestDelta = Number.POSITIVE_INFINITY;
+				noImprovement = 0;
+			}
 		}
 		if (!converged && !block.linear && Number.isFinite(lastBlockedResidual)) {
-			if (lastBlockedResidual > NEWTON_RESIDUAL_TOLERANCE) this.stalledSamples += 1;
+			const stalled = lastBlockedResidual > NEWTON_RESIDUAL_TOLERANCE;
+			if (stalled) this.stalledSamples += 1;
 			else this.solvedButFlaggedSamples += 1;
-			// Either verdict says more iterations cannot help this block, so stop buying them.
-			this.unproductiveBlocks.add(block.id);
+			// **Only the flagged verdict buys a probation, and the residual is the reason.**
+			// Flagged means the delta is small AND the residual is under
+			// `NEWTON_RESIDUAL_TOLERANCE`: the equations are satisfied, the iterate IS a root,
+			// and the only objection is a limiter flag -- so more iterations provably cannot
+			// improve it, and `marshall-1959-super-lead-plexi` keeps the 7.8x this saves it.
+			// A **stalled** sample is the opposite claim: wedged against a non-smooth boundary
+			// with the equations unsatisfied, which says nothing about the next sample, whose
+			// operating region is different. Cutting the budget there is how `mxr-blue-box`
+			// turned one non-converged sample into 86 (measured 2026-09-19, 4800 samples).
+			// A DC pass never starts one either: see the budget site above.
+			if (!dc && !stalled) {
+				this.unproductiveUntilSample.set(
+					block.id,
+					this.elapsedSamples + NEWTON_UNPRODUCTIVE_PROBATION_SAMPLES,
+				);
+			}
 		}
 		{
 			const census = this.blockNewtonCensus.get(block.id);
@@ -3674,6 +5124,7 @@ export class ReferenceRuntime {
 			used = iteration + 1;
 			this.limitedIterate = false;
 			this.limitedBy = null;
+			this.limitedOpamp = null;
 
 			for (let p = 0; p < portCount; p += 1) {
 				(scratch.rawNl[portRows[p] as number] as number[]).fill(0);
@@ -3771,6 +5222,12 @@ export class ReferenceRuntime {
 						noImprovement = 0;
 					}
 				}
+			}
+			// Track how many iterations hit a limiter (for cap-hit diagnostics).
+			// Gated: see `limiterTrace`.
+			if (this.limiterTrace) {
+				this.limitedIterationCount += this.limitedIterate ? 1 : 0;
+				this.limitedIterationPerSample.push(this.limitedIterate ? 1 : 0);
 			}
 			const convergedNow =
 				withinTolerance(next, current) && !this.limitedIterate;
@@ -3902,10 +5359,15 @@ export class ReferenceRuntime {
 			// this operating point vulnerable to being overwritten by the first sample's Newton
 			// iterations before a later held sample ever gets to read it back out.
 			this.nodeVoltages.set(block.id, solution.slice());
-			// Seed the op-amp pole's raw state from the solved point, so the transient does not
-			// walk from zero into the operating point across the pole's ~16 ms time constant. At
-			// DC the pole is transparent, so the steady-state raw state is the full-gain product
-			// of the solved differential; `tanh` maps it to the same rail the DC solve already found.
+			// Seed the op-amp pole's raw state from the solved OUTPUT, so the transient
+			// starts exactly where the operating point is instead of walking there across
+			// the pole's ~16 ms time constant. The raw state is the compensation-node
+			// voltage the tanh output maps from, so the consistent seed is its inverse
+			// map of the solved output -- not the full-gain product of the solved
+			// differential, which Newton only knows to millivolts while the raw needs
+			// microvolts: gain×diff seeds every linear stage as railed (tanh(±large)),
+			// and a weak DC loop cannot walk that back. Clamped at ±tanh(8), which is
+			// exactly the ±8-halfSwing bound, so saturated stages seed identically.
 			const opampBlockIndex = this.blockIndexById.get(block.id) ?? 0;
 			for (const stamp of block.stamps) {
 				if (stamp.kind !== "ideal-opamp") {
@@ -3920,15 +5382,16 @@ export class ReferenceRuntime {
 					stamp.minus,
 					stamp.output,
 				);
-				const differential =
-					(solution[stamp.plus] ?? 0) - (solution[stamp.minus] ?? 0);
-				this.opampRawState.set(
-					key,
-					boundOpAmpRaw(
-						stamp.openLoopGain * differential,
-						opAmpHalfSwing(stamp.railHigh, stamp.railLow),
+				const halfSwing = opAmpHalfSwing(stamp.railHigh, stamp.railLow);
+				const centre = (stamp.railHigh + stamp.railLow) / 2;
+				const unit = Math.max(
+					-Math.tanh(8),
+					Math.min(
+						Math.tanh(8),
+						((solution[stamp.output] ?? centre) - centre) / halfSwing,
 					),
 				);
+				this.opampRawState.set(key, halfSwing * Math.atanh(unit));
 			}
 		}
 		// Seed each macro's DC estimate from the solved operating point at its audioIn tap,
@@ -3952,18 +5415,53 @@ export class ReferenceRuntime {
 		// If the DC-coupled-downstream case is real, the bias belongs at the output stage that
 		// sets it, not on the input's own `dcEstimate` tracked through a 1 s filter.
 		for (const block of this.program.blocks) {
-			if (block.kind !== "macro") {
-				continue;
-			}
-			const state = this.macroState.get(block.id);
-			if (state === undefined) {
+			if (block.kind !== "composed") {
 				continue;
 			}
 			if (block.audioIn !== null) {
 				const tap =
 					this.nodeVoltages.get(block.audioIn.block)?.[block.audioIn.node] ?? 0;
-				state.dcEstimate = tap;
-				state.dcOperatingPoint = tap;
+				{
+					// Delay-line compositions only: a reverb composition owns no DC fields,
+					// so it seeds nothing. Lines mark delay-line behavior; filter-only
+					// compositions have none.
+					const dc = this.composedDcState.get(block.id);
+					// "Is this a delay-line composition?" -- a reverb composition owns no DC
+					// fields and seeds nothing. Asked across every position, because the block
+					// is one or the other whichever program is selected.
+					const ownsDelayLines = block.positions.some(
+						(candidate) => Object.keys(candidate.lines).length > 0,
+					);
+					if (dc !== undefined && ownsDelayLines) {
+						dc.dcEstimate = tap;
+						dc.dcOperatingPoint = tap;
+					}
+				}
+				// Delay lines start filled with the settled input minus the
+				// operating point the macro source adds back: at the operating
+				// point the line has held its input forever, and pushes store
+				// AC (input terms enter stripped, above), so the settled line
+				// content is the AC rest, not the raw tap. Filling raw tap
+				// here would double-count DC through the first repeat exactly
+				// as an unstripped push would. Same tap, same site as the
+				// seeding above -- one site, not a second mechanism -- and
+				// lines only, so filter-only compositions are untouched.
+				const fillValue =
+					tap - (this.composedDcState.get(block.id)?.dcOperatingPoint ?? 0);
+				for (const [positionIndex, program] of block.positions.entries()) {
+					if (!program.ops.some((op) => op.op.startsWith("delay-tap"))) {
+						continue;
+					}
+					const lines = this.composedLineState.get(
+						composedStateKey(block.id, positionIndex),
+					);
+					if (lines === undefined) {
+						continue;
+					}
+					for (const line of lines.values()) {
+						line.buffer.fill(fillValue);
+					}
+				}
 			}
 		}
 	}
@@ -4543,10 +6041,14 @@ export class ReferenceRuntime {
 				if (stamp.breakdownVolts > 0) {
 					const beyond = -(across + stamp.breakdownVolts);
 					if (rs > 1e-6) {
+						// The same law as the branch below, I = Itest * exp((beyond - I*Rs) / scale),
+						// solved in closed form: I*Rs/scale = W0((Itest*Rs/scale) * exp(beyond/scale)).
+						// It passes Itest at BV and decays to leakage below it. An `exp - 1` form
+						// here asymptoted to +Itest into the cathode below breakdown, a current no
+						// zener carries, and pinned light-loaded rails near BV past their supply.
 						const zx = (ZENER_TEST_CURRENT_AMPS * rs) / scale;
-						const zLogZ = Math.log(zx) + zx + beyond / scale;
-						const zw = lambertW0FromLogZ(zLogZ);
-						breakdownCurrent = -((scale / rs) * zw - ZENER_TEST_CURRENT_AMPS);
+						const zw = lambertW0FromLogZ(Math.log(zx) + beyond / scale);
+						breakdownCurrent = -(scale / rs) * zw;
 						breakdownConductance = zw / (rs * (1 + zw));
 					} else {
 						const reverse = Math.exp(
@@ -5306,8 +6808,28 @@ export class ReferenceRuntime {
 					gateSource: number,
 					drainSource: number,
 				): { current: number; gm: number; gds: number } => {
-					const drive = gateSource - stamp.thresholdVolts;
-					if (drive <= 0) {
+					const driveRaw = gateSource - stamp.thresholdVolts;
+					// Subthreshold conduction (JFETs; `subthresholdVolts` is 0 for
+					// MOSFETs, which keep the legacy hard cutoff bit-identically).
+					// Effective drive via softplus, S·ln(1+e^{drive/S}): the identity
+					// far above threshold, an exponential foot below it, smooth
+					// everywhere so no Newton kink at the knee. A hard wall here makes
+					// every threshold crossing violent: a knee-biased JFET pumps
+					// audio-rate distortion alongside any sweep it produces
+					// (mxr-phase-90 measured: sweep only with grit, P9). Guarded like
+					// the gate junction's softplus below. The stamp
+					// comes from program JSON, which may predate the field.
+					const subVolts = stamp.subthresholdVolts ?? 0;
+					let drive = driveRaw;
+					if (subVolts > 0) {
+						const x = driveRaw / subVolts;
+						drive =
+							x > 40
+								? driveRaw
+								: x < -40
+									? subVolts * Math.exp(x)
+									: subVolts * Math.log1p(Math.exp(x));
+					} else if (driveRaw <= 0) {
 						// Genuinely cut off. A tiny conductance keeps the row non-singular.
 						return { current: 0, gm: 0, gds: 1e-12 };
 					}
@@ -5617,6 +7139,16 @@ export class ReferenceRuntime {
 				if (limited) {
 					this.limitedIterate = true;
 					this.limitedBy = `opamp +=${stamp.plus} -=${stamp.minus} out=${stamp.output}`;
+					this.limitedOpamp = {
+						key: opampKey,
+						output: stamp.output,
+						centre,
+						railHigh: stamp.railHigh,
+						railLow: stamp.railLow,
+						band,
+						maxStep,
+						folded: cap <= linearWidth / 8,
+					};
 				}
 				const differential = limited
 					? previousDifferential + Math.sign(step) * cap
@@ -5974,6 +7506,66 @@ export class ReferenceRuntime {
 				}
 				break;
 			}
+			case "linear-vca": {
+				// Linear-control VCA gain cell (M5207L01): the output current is
+				// the input current times the control voltage over vrefVolts,
+				// floored at minGain. Evaluated per Newton iterate with analytic
+				// derivatives (no state, unlike the compandor's held envelope:
+				// this law is piecewise-linear, so there is nothing to hold).
+				// The control input is voltage-sense ONLY: no conductance is
+				// stamped on it, so a high-impedance depth network drives it
+				// without sagging. Control is referenced to the minus input
+				// (the part's COM in single-supply use).
+				//
+				// Sign convention is the file's leaving-positive KCL (see the
+				// diode: matrix carries d(leaving)/dV, rhs carries
+				// -(I0 - dI*V0)): the stamp's physical current ENTERS the
+				// output node, so every term below is negated once.
+				const vPlus = solution[stamp.plus] ?? 0.0;
+				const vMinus = solution[stamp.minus] ?? 0.0;
+				const vControl = solution[stamp.control] ?? 0.0;
+				const vref =
+					stamp.vrefVolts > 0 ? stamp.vrefVolts : 1;
+				const vIn = vPlus - vMinus;
+				const iIn = vIn * stamp.inputSiemens;
+				const vc = vControl - vMinus;
+				const overFloor = vc / vref > stamp.minGain;
+				const gain = overFloor ? vc / vref : stamp.minGain;
+				const dGain = overFloor ? 1 / vref : 0;
+				// The datasheet's 0 dB condition (note 1, p.5-86): unity gain
+				// holds when Vc = Vref AND Ro = 2*Ri. With Vout = Iout*Ro and
+				// Iin = Vin/Ri, that forces the cell's current ratio to 1/2
+				// at Vc = Vref -- so the output current is halved once here,
+				// and the derivatives with it. Without the half, a render at
+				// Vc = 1 measures exactly twice the datasheet gain.
+				const iOut = (iIn * gain) / 2;
+				const gIn = (gain * stamp.inputSiemens) / 2;
+				const gCtrl = (iIn * dGain) / 2;
+				// Leaving-positive: the output current leaves toward the load
+				// as -iOut, so d(leaving)/dVplus is -gIn, and likewise down
+				// the row; the companion is -(I0 - dI*V0) like the diode's.
+				const leaving = -iOut;
+				const equivalent =
+					leaving -
+					(-gIn * vPlus +
+						(gIn + gCtrl) * vMinus +
+						-gCtrl * vControl);
+				if (stamp.output !== 0) {
+					if (stamp.plus !== 0) {
+						(matrix[stamp.output] as number[])[stamp.plus] += -gIn;
+					}
+					if (stamp.minus !== 0) {
+						(matrix[stamp.output] as number[])[stamp.minus] +=
+							gIn + gCtrl;
+					}
+					if (stamp.control !== 0) {
+						(matrix[stamp.output] as number[])[stamp.control] += -gCtrl;
+					}
+					rhs[stamp.output] =
+						(rhs[stamp.output] ?? 0) - equivalent;
+				}
+				break;
+			}
 			case "spring-reverb": {
 				// Two ports, both ordinary stamps; everything mechanical lives in the state
 				// advanced once per sample by `advanceSpringReverb`.
@@ -6008,11 +7600,83 @@ export class ReferenceRuntime {
 				// resolved here rather than carried on the stamp, because it changes every
 				// sample and a stamp is not the place for that.
 				const row = block.nodeCount + stamp.sourceIndex;
+				// The stamp kind keeps its name because it is a declared `OperatorKind` and
+				// renaming it would be a program-format change for nothing; since board-p3
+				// row 7 only a composition ever publishes through it.
+				// Affine DC-transfer coefficients, set below when `dc`; the transient
+				// path leaves them at zero and reads the write-back maps instead.
+				let gain = 0;
+				let offset = 0;
+				if (dc) {
+					// **The operating-point solve iterates the core with the MNA, in the
+					// matrix, not beside it.** A lagged source update (recomputing the
+					// value from the last iterate) leaves the DC loop outside the
+					// Jacobian: Newton slams the surrounding amplifiers on the first
+					// step and parks them at rails, because nothing in the linear
+					// system pulls back. Stamping the transfer's affine form instead
+					// (`V(node) = G·V(tap) + O`, from two evaluations of the ops)
+					// closes the loop inside the Newton system, exactly like any
+					// other feedback the matrix already sees. Same-block taps read
+					// the iterate being built (`solution`); cross-block taps read
+					// the last solved state, one Newton step of lag in both cases
+					// and an exact fixed point either way. Null transfer (no lines,
+					// DC-blocked, or an op outside the DC vocabulary) stamps the
+					// pre-existing 0, exactly as before.
+					// No extra `sourceScale`: both evaluations derive from the live
+					// tap, which already carries the continuation's scaling.
+					const bi = this.blockIndexById.get(stamp.macroId);
+					const composed =
+						bi === undefined ? undefined : this.program.blocks[bi];
+					if (composed !== undefined && composed.kind === "composed") {
+						const port = composed.audioIn;
+						const tapNode =
+							port === null || port.block !== block.id ? null : port.node;
+						const crossTap =
+							port === null || port.block === block.id
+								? null
+								: (this.nodeVoltages.get(port.block)?.[port.node] ?? 0);
+						const at = (t: number): number | null => {
+							if (tapNode !== null) {
+								return this.composedDcTransfer(
+									composed,
+									t,
+									(id, node) =>
+										id === block.id
+											? (solution[node] ?? 0)
+											: (this.nodeVoltages.get(id)?.[node] ?? 0),
+								);
+							}
+							return this.composedDcTransfer(
+								composed,
+								crossTap ?? 0,
+								(id, node) => this.nodeVoltages.get(id)?.[node] ?? 0,
+							);
+						};
+						// The transfer is affine in the tap: every op in the DC
+						// vocabulary (tap passthrough, DC block, mix gains) is.
+						const zero = at(0);
+						const one = at(1);
+						if (zero !== null && one !== null) {
+							gain = one - zero;
+							offset = zero;
+						}
+						if (tapNode !== null) {
+							(matrix[row] as number[])[tapNode] -= gain;
+						} else if (crossTap !== null) {
+							offset += gain * crossTap;
+							gain = 0;
+						}
+					}
+				}
 				(matrix[row] as number[])[stamp.node] += 1;
 				(matrix[stamp.node] as number[])[row] += 1;
 				(matrix[row] as number[])[row] -= stamp.sourceOhms;
+				if (dc) {
+					rhs[row] = offset;
+					break;
+				}
 				const dcBias =
-					this.macroState.get(stamp.macroId)?.dcOperatingPoint ?? 0;
+					this.composedDcState.get(stamp.macroId)?.dcOperatingPoint ?? 0;
 				rhs[row] =
 					((this.macroOutputVolts.get(stamp.macroId) ?? 0) + dcBias) *
 					sourceScale;
@@ -6205,6 +7869,22 @@ const SCHEDULE_OP_WIDTH = 4;
  * structurally present but numerically zero at this control position or this Newton iterate.
  */
 const SCHEDULE_PIVOT_FLOOR = 1e-18;
+
+/**
+ * How far the sparse replay's answer for the assembled operating-point matrix
+ * may disagree with the dense solve's before the shipped order is dropped.
+ *
+ * This is a comparison, not a pivot theory: per-pivot ratios do not separate
+ * healthy blocks from broken ones (healthy `boss-ce-5` carries 18 pivots below
+ * `1e-3 * columnMax` and matches dense to `1e-10`; broken `boss-aw-2` carries
+ * 14), because a tiny pivot is harmless late in the order and fatal early.
+ * Replaying both solves on the same matrix asks the only question that
+ * matters -- do they agree -- and the pivot ratios stay on as diagnostics for
+ * the phase-2 numeric re-ordering work. The corpus check that holds this value
+ * is `bun scripts/report-solver-plan.ts`: every block outside the row-6 set
+ * must validate clean.
+ */
+const SCHEDULE_VALIDATION_TOL = 1e-3;
 
 // A **residual check on the schedule's answer was implemented, measured and removed.** The
 // reasoning that motivated it was that a static order might produce a bad answer where a

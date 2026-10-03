@@ -89,7 +89,9 @@ export function findUnreachableOutput(
 	if (program.order.length > 0) {
 		return [];
 	}
-	const macros = program.blocks.filter((block) => block.kind === "macro").length;
+	const macros = program.blocks.filter(
+		(block) => block.kind === "macro" || block.kind === "composed",
+	).length;
 	return [
 		{
 			code: "output-port-unreachable",
@@ -97,7 +99,7 @@ export function findUnreachableOutput(
 			detail:
 				`no block reaches the output port, so this program's execution order is empty: ` +
 				`${program.blocks.length} block${program.blocks.length === 1 ? " was" : "s were"} compiled ` +
-				`(${macros} of them DSP macros) and none of them runs. It can produce no audio at any ` +
+				`(${macros} of them DSP blocks) and none of them runs. It can produce no audio at any ` +
 				"control position. The usual cause is a component on the signal path that carries no " +
 				"executable model, which an `ic-not-executed` or `electrically-isolated-ic` warning " +
 				"beside this one will name: the stages around it still compile, so the document looks " +

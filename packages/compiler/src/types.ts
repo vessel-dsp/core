@@ -190,7 +190,118 @@ export type Device = {
 	 * document, rather than its part entry, decided the shape of.
 	 */
 	readonly packageDeviceId?: string;
+	/**
+	 * The program **this instance** of a reprogrammable chip is running, as the source declares
+	 * it, or absent where it declares none.
+	 *
+	 * The second resolution key. A fixed-function part is identified and the registry supplies
+	 * its model, which is a lookup keyed on the part number. That key is wrong for shared
+	 * silicon and the corpus says so: `TC25SC080AU-104` is a delay in `boss-dd-5`, a reverb in
+	 * `boss-rv-3` and a pitch shifter in `boss-hr-2`, so one catalog entry has to hold three
+	 * answers and holds none. `@vessel-dsp/core@0.8.0` makes the program a declaration on the
+	 * component, so it is read from there instead.
+	 *
+	 * **Carried verbatim and validated where it is used.** The ops arrive as core parsed them,
+	 * an op name plus an untyped bag, because the format has no opinion about a vocabulary that
+	 * belongs to the runtime. Turning that into a `PrimitiveOp` is this compiler's job and its
+	 * refusals name the op they could not place -- which is the console/ROM invariant applied to
+	 * the source rather than to the program.
+	 */
+	readonly program?: DeclaredProgram;
 };
+
+/**
+ * One declared op, exactly as the source wrote it: a name and an untyped bag of arguments.
+ *
+ * Deliberately not `PrimitiveOp`. A declaration is source text until it has been checked, and
+ * typing it as the thing it hopes to become is how an unvalidated bag reaches lowering. The
+ * conversion is `validateDeclaredOp`, and it refuses by name.
+ */
+export type DeclaredProgramOp = Readonly<{
+	readonly op: string;
+	readonly [key: string]: unknown;
+}>;
+
+/**
+ * A declared numeric parameter with its citation.
+ *
+ * `source` is prose naming the document the numbers came from, following the triode registry that
+ * CLAUDE.md names as the provenance template. **Its absence is a statement, not a gap**: a
+ * parameter with no citation is not evidenced, so it is not set and the block makes no claim on
+ * that axis. That rule is what keeps an undocumented mode out of a landing by construction
+ * rather than by anyone remembering to leave it out.
+ */
+/**
+ * How a chip turns presses into a tempo (core 0.16.0 `ProgramTapLaw`): a run of `presses`, each
+ * within `timeoutSeconds` of the last, sets the tempo to the run's mean interval; a longer gap ends
+ * the run and keeps the tempo; `defaultSeconds` is the interval before any tempo is set.
+ */
+export type TapLaw = {
+	readonly presses: number;
+	readonly timeoutSeconds: number;
+	readonly defaultSeconds: number | null;
+};
+
+export type DeclaredProgramParameter = Readonly<{
+	readonly control?: string;
+	/**
+	 * How the parameter reaches its control, exactly as `DeclaredProgramRouter.read`: `node`
+	 * reads the control's wiper, `scanned` reads the control itself because a chip does and the
+	 * path between them is not modelled. Core 0.11.0 refuses a scanned parameter with no reader,
+	 * a reader not on the board, or no control.
+	 */
+	readonly read: "node" | "scanned" | "tapped";
+	readonly scannedBy: string | null;
+	/** `tapped` only (core 0.13.0): the value is the tapped interval times this. */
+	readonly ratio: number | null;
+	/** `tapped` only (core 0.16.0): the firmware's tap law, where a source states one. */
+	readonly tap?: TapLaw;
+	readonly min: number;
+	readonly max: number;
+	readonly source?: string;
+}>;
+
+/** One selectable program: what the chip computes while the selector sits here. */
+export type DeclaredProgramPosition = Readonly<{
+	readonly id: string;
+	readonly label: string | null;
+	readonly ops: readonly DeclaredProgramOp[];
+	/** Delay lines by name, each carrying its cited parameters. */
+	readonly lines: Readonly<
+		Record<string, Readonly<Record<string, DeclaredProgramParameter>>>
+	>;
+	/** Named parameters the ops refer to by `{ parameter: <name> }` (core 0.12.0). */
+	readonly parameters: Readonly<Record<string, DeclaredProgramParameter>>;
+}>;
+
+/**
+ * A component's declared program: a selector over compositions.
+ *
+ * **Modes are separate compositions, not a wider knob.** HOLD and REVERSE are different programs
+ * rather than extreme settings of one. A single position needs no router; more than one without
+ * a router is a declaration that cannot be executed, and core refuses it at parse rather than
+ * silently taking the first.
+ */
+export type DeclaredProgramRoute = Readonly<{
+	readonly position: number;
+	readonly program: string;
+}>;
+
+/** How the panel chooses, as the source declares it. See `ComposedRouter` for what it becomes. */
+export type DeclaredProgramRouter = Readonly<{
+	readonly control: string;
+	/** `node` reads the control's wiper; `scanned` reads the control itself. */
+	readonly read: "node" | "scanned";
+	/** The component that reads a scanned control. Core refuses a scanned router without one. */
+	readonly scannedBy: string | null;
+	readonly positions: number;
+	readonly routes: readonly DeclaredProgramRoute[];
+}>;
+
+export type DeclaredProgram = Readonly<{
+	readonly router: DeclaredProgramRouter | null;
+	readonly positions: readonly DeclaredProgramPosition[];
+}>;
 
 /**
  * How a 0..1 control position maps to a fraction of a parameter's range.
@@ -211,6 +322,11 @@ export type Control = {
 	/** Position in 0..1. Units never cross this boundary. */
 	readonly defaultPosition: number;
 	/**
+	 * Discrete position count for switches and selectors (e.g. 2 for SPST/SPDT toggle/footswitch,
+	 * N for N-way rotary selector), or `null` for continuous controls (potentiometers, rheostats).
+	 */
+	readonly positions?: number | null;
+	/**
 	 * The panel role the document declares for this control, verbatim, or `null` when it
 	 * declares none. A closed vocabulary compared as a whole value -- never matched by
 	 * substring, and never inferred from the control's id.
@@ -224,6 +340,28 @@ export type Control = {
 	readonly role?: string | null;
 	/** The panel label declared in deviceInterface.controls, or null when absent. */
 	readonly label?: string | null;
+	/**
+	 * **Derived, never declared**: the control is a contact a chip reads by its presses, so it
+	 * springs back and a panel draws it as a button. True when some declared program reads it
+	 * `tapped`. A user uploading a circuit is never asked to say a switch is momentary.
+	 */
+	readonly momentary?: boolean;
+	/**
+	 * Present when this control is not a panel part but a **latch a controller's firmware keeps**
+	 * (`@vessel-dsp/core` 0.14.0 `ComponentController`). A rising edge of `toggledBy` flips it
+	 * between 0 and 1; a program reads it as it reads a knob, and a pin the controller drives
+	 * follows it. It is state, so a panel shows it rather than offering it to turn.
+	 *
+	 * `initial` is the declared power-on state. `defaultPosition` is where a host and every
+	 * instrument start it, which differs for exactly one case: a latch toggled by a
+	 * `bypass`-role footswitch starts **engaged**, as every other pedal's bypass switch does in
+	 * this corpus (see `switchesClosedForPortPath`), because a measurement of a pedal is a
+	 * measurement of its effect. Engaged is derived: the end of the latch that a program reading
+	 * it takes as its larger gain.
+	 */
+	readonly latch?: { readonly toggledBy: ControlId; readonly initial: 0 | 1 };
+	/** The tap law a program reads this control's presses with, where its source states one. */
+	readonly tap?: TapLaw;
 };
 
 export type Ports = {
@@ -231,11 +369,20 @@ export type Ports = {
 	readonly output: NodeId;
 };
 
+export type NetlistBypass =
+	| { readonly declared: "none" }
+	| {
+			readonly declared: "switch";
+			readonly switch: string;
+			readonly engagedPosition?: string | number;
+	  };
+
 export type Netlist = {
 	readonly nodes: readonly NodeId[];
 	readonly devices: readonly Device[];
 	readonly controls: readonly Control[];
 	readonly ports: Ports;
+	readonly bypass: NetlistBypass;
 	/** What each port's own jack declares, for the chain's seam divider. `null` where absent. */
 	readonly portImpedanceOhms: {
 		readonly input: number | null;
@@ -252,6 +399,18 @@ export type Netlist = {
 		readonly input: number | null;
 		readonly output: number | null;
 	};
+	/**
+	 * The document's own declaration that its blocks need symbolic elimination for
+	 * **convergence**, not cost: the block is nonlinear and the dense-vs-sparse cost rule
+	 * refuses it, yet the iterated solve does not converge on the uneliminated system.
+	 *
+	 * Read from the typed front-matter line `convergence-opt-in: true` (a closed-vocabulary
+	 * flag compared whole, not prose -- core's interchange parser lifts a fixed allow-list
+	 * of front-matter scalars and drops unknown keys, so the document's own text is read for
+	 * the flag rather than a parsed field). It is an opt-in that overrides the cost veto in
+	 * `shouldEliminate`, never the linear / zero-port guard.
+	 */
+	readonly convergenceOptIn: boolean;
 	readonly warnings?: readonly CompileWarning[];
 };
 
@@ -314,6 +473,12 @@ export type DeviceLaw =
 			readonly taper: TaperKind;
 			readonly minOhms: number;
 			readonly maxOhms: number;
+	  }
+	| {
+			readonly kind: "fixed-selector";
+			readonly onOhms: number;
+			readonly offOhms: number;
+			readonly position: number;
 	  }
 	| {
 			/**
@@ -485,9 +650,21 @@ export type DeviceLaw =
 			readonly transconductance: number;
 			readonly channelLengthModulation: number;
 			/**
-			 * Gate-source junction conduction, the same softplus the triode's grid uses:
-			 * `Ig = gateSaturationCurrent * log1p(exp((Vgs - onset)/scale))`, with `Vgs`
-			 * already channel-signed so one law covers n and p.
+			 * Subthreshold slope in volts (natural-log): below threshold the channel
+			 * conducts `~exp(drive/subthresholdVolts)` instead of cutting dead. JFETs
+			 * carry 0.07 (≈150 mV/decade, order of real junction subthreshold — an
+			 * approximation validated by effect and parity, not a measured part
+			 * number); MOSFETs carry 0 (insulated gate, unchanged behavior). Without
+			 * it every threshold crossing is a brick wall, and a knee-biased JFET
+			 * pumps audio-rate distortion alongside any sweep it produces.
+			 */
+			readonly subthresholdVolts: number;
+			/**
+			 * Gate-junction conduction, the same softplus the triode's grid uses:
+			 * `Ig = gateSaturationCurrent * log1p(exp((Vacross - onset)/scale))`, with
+			 * voltages already channel-signed so one law covers n and p. The runtime
+			 * evaluates it at both channel ends (`Vgs` and `Vgs - Vds`) because a JFET
+			 * gate meets the source and the drain.
 			 *
 			 * **`gateSaturationCurrent: 0` disables it, and that is the correct value for a
 			 * MOSFET** — an insulated gate draws no current at any bias, which is what this
@@ -732,6 +909,30 @@ export type DeviceLaw =
 			readonly transconductance: number;
 	  }
 	| {
+			/**
+			 * Linear-control VCA gain cell (M5207L01): output current is input
+			 * current times max(minGain, (Vcontrol - Vminus) / vrefVolts),
+			 * halved once: the datasheet's 0 dB condition (unity gain iff
+			 * Vc = Vref AND Ro = 2*Ri) forces the cell current ratio to 1/2
+			 * at Vc = Vref.
+			 *
+			 * The control input is voltage-sense only: unlike the `ota` law's
+			 * bias diode it draws no current from the control node, which is
+			 * what lets a high-impedance depth network drive it (the M5207L01
+			 * datasheet specifies about 100 nA of control bias). The control
+			 * is referenced to the minus input, which is the part's COM in
+			 * single-supply use. Per-part numbers (Vref, input impedance,
+			 * floor) live in the catalog entry, never here.
+			 */
+			readonly kind: "linear-vca";
+			/** Input resistance to the minus terminal, siemens. */
+			readonly inputSiemens: number;
+			/** Control volts for unity current gain (1 V for M5207L01). */
+			readonly vrefVolts: number;
+			/** Gain floor below cutoff (0 = mute, the -100 dB the ear hears). */
+			readonly minGain: number;
+	  }
+	| {
 			/** BBD Clock Driver: propagates the slowly-varying LFO control rate. */
 			readonly kind: "clock-driver";
 			readonly defaultFrequency?: number;
@@ -772,6 +973,15 @@ export type DeviceLaw =
 			 * op-amp stiffness, the saturation band and the step limiter was taken at the default.
 			 */
 			readonly openLoopGain: number;
+			/**
+			 * How far the output stops short of each supply rail, in volts. **A drop from the rail,
+			 * not an absolute swing**: the output clamps to `railLow + drop .. railHigh - drop`, so the
+			 * same figure is right on a 9 V pedal and an 18 V one. Absent means the part states none
+			 * and the rails are used as they are. The pedal still owns the rails; the part owns only how
+			 * close to them it gets. Symmetric, so it cannot say the LM358/LM324's asymmetric swing to
+			 * ground; those parts state none.
+			 */
+			readonly outputSwingDropVolts?: number;
 	  }
 	| {
 			readonly kind: "logic-divider";
@@ -902,8 +1112,11 @@ export type MacroModel = {
 	 * them and carries the part's own numbers in `parameters`. That split is what keeps the
 	 * console/ROM invariant true for *parts* as well as for stamps: an MN3007 and an MN3005 are
 	 * both a bucket-brigade delay line differing in `stages`, so adding either is registry data
-	 * and no runtime change — while a compander, an OTA or a PT2399's digital core is a
-	 * different algorithm, and legitimately does need runtime work before it can be heard.
+	 * and no runtime change — while a PT2399's digital core is a different algorithm, and
+	 * legitimately does need runtime work before it can be heard. (A compander or an OTA is
+	 * not an example: both are analog device laws — `compandor`, `ota` — stamped into the
+	 * MNA solve, not `modelId`s. The only `modelId: "compander"` in the tree is the fixture
+	 * registry's deliberately unimplemented negative control.)
 	 *
 	 * Deliberately `string` and not a union declared here. The vocabulary belongs to whichever
 	 * runtime is executing rather than to this compiler: a second implementer (C++, WASM,
@@ -944,6 +1157,16 @@ export type MacroModel = {
 	 */
 	readonly modulationNode?: number | null;
 	readonly modulationSteeredBy?: string | null;
+	/**
+	 * The source node the open-OX2 clock law reads (the slow diode's
+	 * anode-side divider node), with the discharge transistor, resolved by
+	 * `deriveOpenOx2ClockLaw`. A **source node**, like `modulationNode`:
+	 * `couple.ts` maps it to a block row.
+	 */
+	readonly clockLawNode?: number | null;
+	readonly clockLawSteeredBy?: string | null;
+	/** The open-OX2 law constants, or absent when the form was not recognised. */
+	readonly clockLawParams?: ClockLawParams | null;
 	readonly parameterTerminal: number | null;
 	/**
 	 * The clock network's own nominal reference voltage -- part-intrinsic data, like the
@@ -960,14 +1183,30 @@ export type MacroModel = {
 	/**
 	 * Whether `parameters.delaySeconds` was DERIVED from the clock network in the packet, or
 	 * DECLARED as a `DelayMs` property and copied through. `null` for a macro whose model has no
-	 * delay at all.
+	 * delay at all. `clock-law` is the third state: the static base is declared (it sizes the
+	 * line and seeds the first samples) while the sweep is derived per sample by the open-OX2
+	 * law, so neither "derived" (the number is not) nor "declared" (the behaviour is not) is true.
 	 *
 	 * Carried so a consumer can tell a simulated delay from a reported one without re-deriving
 	 * it, and so `compile` can warn about the second without refusing it.
 	 */
-	readonly delayProvenance?: "derived" | "declared" | null;
+	readonly delayProvenance?: "derived" | "declared" | "clock-law" | null;
 	/** Why derivation did not happen, when `delayProvenance` is `declared`. */
 	readonly delayDeclaredReason?: string | null;
+	/**
+	 * The programs a *declared* composition runs, already checked against the op
+	 * vocabulary, or absent for every macro the registry supplied.
+	 *
+	 * Carried on the macro rather than emitted as a composed block directly, because
+	 * `couple.ts` runs between lowering and composition and is what wires a macro's
+	 * audio and parameter ports across blocks. A declaration needs exactly that
+	 * wiring, so it travels the same road and composition stays the last step.
+	 */
+	readonly declaredPositions?: readonly ComposedPosition[];
+	/** The router a declared program plans, or absent for every registry macro. */
+	readonly declaredRouter?: DeclaredRouterPlan | null;
+	/** The cited parameter control's node, planned the same way. */
+	readonly declaredParameter?: DeclaredParameterPlan | null;
 };
 
 export type MacroClockControl = {
@@ -978,6 +1217,13 @@ export type MacroClockControl = {
 	readonly farads: number;
 	readonly stages: number;
 	readonly formulaConstant: number;
+	/**
+	 * Additive intercept (seconds) of the knob-to-delay mapping, evaluated as
+	 * `delay = offsetSeconds + stages * formulaConstant * R * farads` everywhere
+	 * either runtime reads it. Laws through the origin set 0; the PT2399's
+	 * `29.7 ms + 11.46 ms * R_kOhm` sets 0.0297. Required, never defaulted.
+	 */
+	readonly offsetSeconds: number;
 };
 
 /**
@@ -999,6 +1245,21 @@ export type OpenIcReason =
 	| "charge-pump-declared-rail"
 	| "registry-open"
 	| "declared-class-without-model";
+
+/**
+ * Which phase-3 bucket an unmodelled core belongs in (board-p3 row 1).
+ *
+ * `engineGap` used to mean "an IC was dropped"; phase 3 means "a programmable
+ * chip has no program". Those are not the same set: a fixed-function support
+ * chip behind an executing macro (`ibanez-dl5`'s 4164 DRAM) and a redundant
+ * view of already-modelled behaviour (`boss-oc-2`'s single-terminal divider
+ * placeholder) are phase-1 rows wearing the wrong flag. Only the first class
+ * builds the phase-3 set.
+ */
+export type OpenIcGapClass =
+	| "programmable-no-program"
+	| "support-chip-subsumed"
+	| "part-number-miss";
 
 export type DeviceResolution =
 	| {
@@ -1238,6 +1499,8 @@ export type Stamp =
 			readonly thresholdVolts: number;
 			readonly transconductance: number;
 			readonly channelLengthModulation: number;
+			/** See the `fet` device law: 0 keeps the legacy hard cutoff. */
+			readonly subthresholdVolts: number;
 			/** See the `fet` device law: 0 means an insulated gate and stamps nothing. */
 			readonly gateSaturationCurrent: number;
 			readonly gateOnsetVolts: number;
@@ -1399,6 +1662,22 @@ export type Stamp =
 			readonly vee: NodeId;
 			readonly saturationCurrent: number;
 			readonly thermalVoltage: number;
+	  }
+	| {
+			/**
+			 * Linear-control VCA cell (lowered from the `linear-vca` law).
+			 * Current proportional to the input current, scaled by the
+			 * control voltage over `vrefVolts`. Reads the control node and
+			 * draws nothing from it.
+			 */
+			readonly kind: "linear-vca";
+			readonly plus: NodeId;
+			readonly minus: NodeId;
+			readonly output: NodeId;
+			readonly control: NodeId;
+			readonly inputSiemens: number;
+			readonly vrefVolts: number;
+			readonly minGain: number;
 	  }
 	| {
 			readonly kind: "logic-divider";
@@ -1637,10 +1916,21 @@ export type Block =
 			 */
 			readonly controlFree: boolean;
 			/**
-			 * True when symbolic elimination (DK reduction) is admitted for this block.
-			 * Admitted when the block is nonlinear and the reduction ratio (unknowns / portCount) >= 4.0.
+			 * True when symbolic elimination (DK reduction) is applied to this block. The
+			 * admission rule is owned by `shouldEliminate` -- a nonlinear block with port rows
+			 * is admitted when the dense-vs-sparse cost rule admits it, or when the document
+			 * opts in for convergence (`convergenceOptIn`), which overrides the cost veto and
+			 * nothing else.
 			 */
 			readonly eliminate: boolean;
+			/**
+			 * Set (to `true`) when the document declares `convergence-opt-in`, so that
+			 * `shouldEliminate` and its re-derivation in `withStamp` apply the opt-in to this
+			 * block. Compiler-internal: the runtime reads only `eliminate`. Absent (rather
+			 * than `false`) for a document that does not opt in, so a non-opting program is
+			 * byte-identical to one lowered before this flag existed.
+			 */
+			readonly convergenceOptIn?: boolean;
 			/** Null when this region does not contain the circuit's input jack. */
 			readonly inputNode: NodeId | null;
 			/** Null when this region does not contain the circuit's output jack. */
@@ -1654,6 +1944,14 @@ export type Block =
 	  }
 	| {
 			readonly kind: "macro";
+			/** See `MacroModel.declaredPositions`; consumed by composition. */
+			readonly declaredPositions?: readonly ComposedPosition[] | null;
+			/** The router as resolution planned it, before `couple.ts` can see other blocks. */
+			readonly declaredRouter?: DeclaredRouterPlan | null;
+			/** The cited parameter control's node, planned the same way. */
+			readonly declaredParameter?: DeclaredParameterPlan | null;
+			/** Wired by `couple.ts` from `declaredRouter`, the same way `parameter` is. */
+			readonly router?: ComposedRouter | null;
 			readonly id: string;
 			/**
 			 * The DSP algorithm this block executes, copied from the registry's `MacroModel` —
@@ -1684,11 +1982,11 @@ export type Block =
 			 * something a consumer has to search every block's stamps to learn.
 			 */
 			readonly audioOut: boolean;
-			/**
-			 * Whether this block's `parameters.delaySeconds` came from the packet's own clock
-			 * network or from a `DelayMs` typed into the source. See `MacroModel.delayProvenance`.
-			 */
-			readonly delayProvenance?: "derived" | "declared" | null;
+		/**
+		 * Whether this block's `parameters.delaySeconds` came from the packet's own clock
+		 * network or from a `DelayMs` typed into the source. See `MacroModel.delayProvenance`.
+		 */
+		readonly delayProvenance?: "derived" | "declared" | "clock-law" | null;
 			readonly delayDeclaredReason?: string | null;
 			/**
 			 * Set when this part declares a modulation input, the document wires it, and
@@ -1721,6 +2019,418 @@ export type Block =
 			 */
 			readonly modulation?: ModulationPort | null;
 			readonly clockControl?: MacroClockControl | null;
+			/**
+			 * The `clock-law` port: the open-OX2 slow node, read every sample by a
+			 * `clock-law` length mode. `null` unless `deriveOpenOx2ClockLaw`
+			 * recognised the form. See `ClockLawPort`.
+			 */
+			readonly clockLaw?: ClockLawPort | null;
+			/** The open-OX2 law constants, or absent when the form was not recognised. */
+			readonly clockLawParams?: ClockLawParams | null;
+		}
+	| {
+			/**
+			 * A data-driven composition of DSP primitives the packet (via the catalog)
+			 * supplies, executed by the composition interpreter instead of a dispatched
+			 * class (board-p3 row 4). `modelId` still names the algorithm -- the same
+			 * vocabulary `requiredModels` declares -- so admission pricing, the
+			 * implementer lockout, and traceability read it unchanged.
+			 */
+			readonly kind: "composed";
+			/**
+			 * Where this composition's algorithm came from, and therefore whether a runtime
+			 * has to already implement it.
+			 *
+			 * `registry` means the compiler translated a named model into ops, and `modelId`
+			 * is that model: a runtime that does not know it cannot be trusted to have the
+			 * same translation, so the name is declared in `requiredModels` and refused at
+			 * load. `declared` means the **source** carried the ops, so there is no algorithm
+			 * to have: the program is the program, and requiring a runtime to recognise the
+			 * chip's part number would refuse the one case this whole mechanism exists for.
+			 *
+			 * The op vocabulary is still enforced, per op, by name -- that check does not move.
+			 */
+			readonly modelSource: "registry" | "declared";
+			readonly id: string;
+			readonly modelId: string;
+			readonly parameters: Readonly<Record<string, number>>;
+			readonly audioIn: {
+				readonly block: string;
+				readonly node: NodeId;
+			} | null;
+		readonly audioOut: boolean;
+		readonly parameter: ParameterPort | null;
+		readonly clockControl?: MacroClockControl | null;
+		readonly modulation?: ModulationPort | null;
+		/**
+		 * The `clock-law` port and law, preserved across the composition
+		 * migration like the provenance below: a composition never gains
+		 * these, it inherits them.
+		 */
+		readonly clockLaw?: ClockLawPort | null;
+		readonly clockLawParams?: ClockLawParams | null;
+		/**
+		 * Provenance the macro carried, preserved across the composition
+		 * migration so diagnostics read the same facts: whether the delay
+		 * was derived or declared and why, and any refused modulation
+		 * input. A composition never gains these, it inherits them.
+		 */
+		readonly delayProvenance?: "derived" | "declared" | "clock-law" | null;
+			readonly delayDeclaredReason?: string | null;
+			readonly modulationRefusal?: string | null;
+			/**
+			 * The programs this block can run, in declaration order. **Never empty.**
+			 *
+			 * A composition derived from a registry macro has exactly one, because a
+			 * fixed-function part does one thing. A reprogrammable chip has one per
+			 * selector position, and `selector` says which pin chooses.
+			 *
+			 * This replaced a single `ops`/`out`/`lines` triple on the block itself.
+			 * Keeping both would have been the dual path the engineering principles
+			 * forbid, and the single-program case is not a different shape -- it is
+			 * this one with a length of 1.
+			 */
+			readonly positions: readonly ComposedPosition[];
+			/**
+			 * How the panel chooses which position runs, or null where there is nothing
+			 * to choose.
+			 *
+			 * **The knob does not reach the runtime; a pin does.** The control is wired to
+			 * the chip through the circuit, so the mode is a node voltage the MNA already
+			 * solves, exactly as `parameter` is. Reading the control directly would model a
+			 * switch the schematic does not have, and would make a packet whose panel is
+			 * unwired appear to work.
+			 */
+			readonly router: ComposedRouter | null;
+	  };
+
+/**
+ * One selectable program: the ops, the op whose output the block publishes, and the
+ * delay lines those ops address.
+ *
+ * Lines are per position because two modes need not share a buffer. Prepare allocates
+ * every position's lines, so a selector change is an index change and never an
+ * allocation -- switching modes on the audio thread must not touch the heap.
+ */
+export type ComposedPosition = {
+	/** The declaration's own id for this position, carried for diagnostics. */
+	readonly id: string;
+	/**
+	 * Ordered ops evaluated top to bottom each sample. A source may only
+	 * name the block input, a constant, or an *earlier* op's output: cycles
+	 * flow through delay-line state, never through temporaries, so a
+	 * forward reference reads 0 by construction.
+	 */
+	readonly ops: readonly PrimitiveOp[];
+	/** Which op's output this position publishes. */
+	readonly out: number;
+	/** Delay-line capacities, allocated at prepare from delay time. */
+	readonly lines: Readonly<Record<string, ComposedLine>>;
+};
+
+/**
+ * The pin that selects a composed block's running position.
+ *
+ * Same shape and same reading as `ParameterPort`, deliberately: one mechanism for
+ * "a solved node voltage drives this block", used twice. The fraction is
+ * `voltage / referenceVolts`, and the position is that fraction across the
+ * position count, clamped -- so a pin at or below 0 V selects the first position
+ * and one at or above the reference selects the last.
+ */
+export type SelectorPort = {
+	/** Which block's solved node the selection is read from. */
+	readonly block: string;
+	readonly node: NodeId;
+	readonly referenceVolts: number;
+};
+
+/**
+ * The router that turns a control's position into a running program.
+ *
+ * **This models the thing that exists.** On a DD-5 the MODE knob is an 11-detent pot
+ * whose wiper reaches the CPU's analog input; the CPU quantizes that voltage and tells
+ * the DSP which program to run. The CPU is a router. Naming it one is more honest than
+ * pretending the DSP reads the knob, and it is the only shape that can say a detent runs
+ * nothing.
+ *
+ * `routes` is dense and `positions` long: `routes[detent]` is an index into the block's
+ * `positions`, or `-1` where the source declares no program for that detent. Dense so a
+ * lookup is an array index rather than a search, because this runs every sample.
+ */
+/**
+ * A router as stage 3 can plan it: the node carrying the selection, but not yet which block
+ * owns that node.
+ *
+ * The split exists because `couple.ts` runs after every region is lowered and is the only
+ * stage that can see across blocks. Resolution knows which node the control's wiper is;
+ * only coupling knows which block's solution that node appears in.
+ */
+/**
+ * A cited control's node, planned by resolution for `couple.ts` to turn into a port.
+ *
+ * Same split and same reason as `DeclaredRouterPlan`: stage 3 knows which node the control's
+ * wiper is, and only coupling knows whose solution that node appears in.
+ */
+export type DeclaredParameterPlan = {
+	readonly controlId: string;
+	/** Null for a scanned control, which needs no node and creates no dependency. */
+	readonly node: NodeId | null;
+	readonly referenceVolts: number | null;
+};
+
+export type DeclaredRouterPlan = {
+	readonly controlId: string;
+	/** Null for a scanned control, which needs no node and creates no dependency. */
+	readonly node: NodeId | null;
+	readonly referenceVolts: number | null;
+	readonly positions: number;
+	readonly routes: readonly number[];
+};
+
+export type ComposedRouter = {
+	/**
+	 * The panel control this router reads, for diagnostics only.
+	 *
+	 * Carried for the same reason `MacroClockControl` carries one: a control that reaches the
+	 * program through a port affects nothing the circuit can see, so the inert-control check
+	 * would report it dead. A mode pot read by a high-impedance input is exactly that shape --
+	 * its wiper drives nothing, and it still chooses the program.
+	 */
+	readonly controlId: string;
+	/**
+	 * The node carrying the selection, or **null where the control is scanned** and the
+	 * runtime reads its position directly.
+	 *
+	 * A node is the stronger claim and stays the default. Null is for a control whose path to
+	 * the chip no source resolves, where modelling the transport would be precision about the
+	 * wrong thing: firmware quantizes that voltage by rules no dump exists for, and the panel
+	 * fact the router actually needs is documented.
+	 */
+	readonly port: SelectorPort | null;
+	/** The control's detent count. The reading is quantized across this. */
+	readonly positions: number;
+	/** Program index per detent, or -1 where no program is declared. */
+	readonly routes: readonly number[];
+};
+
+/**
+ * A delay line a composition addresses, sized at prepare from a delay time
+ * exactly like a macro's buffer (delaySeconds times the rate, plus headroom).
+ */
+export type ComposedLine = {
+	readonly delaySeconds: number;
+	/**
+	 * The shortest delay a `parameter`-mode tap may be asked for. The line is sized from
+	 * `delaySeconds`, the longest; a control sweeps between the two.
+	 *
+	 * **0 wherever the source states no floor**, which reproduces the old `capacity x fraction`
+	 * reading exactly -- every registry decomposition. A declared program cites both ends of each
+	 * range (`boss-dd-5` DELAY 2 is 50 to 200 ms), and reading only the top made the knob sweep
+	 * from zero: a quarter of that mode's travel produced delays its own panel legend excludes.
+	 */
+	readonly minSeconds: number;
+	/**
+	 * The control that sweeps this line's length, read directly because a chip reads it and the
+	 * path is not modelled. **Per line, not per block**: a DD-5's DELAY positions read D.TIME and
+	 * its TEMPO positions read the tapped TEMPO jack, so one block-wide control cannot hold both.
+	 * Absent where no control sweeps the line, or where a solved node does (the block's
+	 * `parameter` port, a registry model's reading).
+	 *
+	 * `scanned`: length is `minSeconds + taper(position) x (delaySeconds - minSeconds)`.
+	 * `tapped`: length is the interval between the control's last two presses times `ratio`,
+	 * clamped to `minSeconds..delaySeconds`; until two presses, `delaySeconds`.
+	 */
+	readonly sweep?: ComposedLineSweep;
+};
+
+export type ComposedLineSweep = {
+	readonly controlId: string;
+	readonly read: "scanned" | "tapped";
+	readonly ratio: number;
+};
+
+/** Where a composed op reads a sample from. */
+export type ComposedSource =
+	| { readonly kind: "input" }
+	| { readonly kind: "const"; readonly value: number }
+	| { readonly kind: "temp"; readonly index: number };
+
+/** One multiply-accumulate term: `gain` times `source`, summed left to right. */
+export type ComposedTerm = {
+	readonly source: ComposedSource;
+	readonly gain: number;
+	/**
+	 * A knob that sweeps this gain, read by position through its taper: the gain is
+	 * `min + fraction x (max - min)` and `gain` is not used. **Absent means fixed**, which is every
+	 * registry decomposition, so their programs are unchanged by the field existing.
+	 *
+	 * From a declared program parameter (`{ parameter: <name> }` on the term), scanned only: a
+	 * DD-5's F.BACK and E.LEVEL reach the CPU the way D.TIME does, and a node-read gain has no port
+	 * to arrive through, so it is refused by name rather than guessed.
+	 */
+	readonly sweep?: ComposedGainSweep;
+};
+
+export type ComposedGainSweep = {
+	readonly controlId: string;
+	readonly min: number;
+	readonly max: number;
+};
+
+/**
+ * How a delay tap op derives its read length each sample. The modes mirror
+ * the delay kernels' own branches in the same priority: a clock-smoothed
+ * control first, then a signal-rate modulation scale, then a parameter-port
+ * scale, else the full capacity. `clock-law` is the open-OX2 relaxation law:
+ * the per-sample delay of a BBD whose clock derives from its own network
+ * rather than from a declared number or a ratio around one.
+ */
+export type DelayLengthSpec =
+	| { readonly mode: "capacity" }
+	| { readonly mode: "clock" }
+	| { readonly mode: "modulation" }
+	| {
+			readonly mode: "clock-law";
+			/** Pull-up resistance (Ω) charging the timing capacitor. */
+			readonly rOhms: number;
+			/** Timing capacitance (F) between OX3 and OX1. */
+			readonly cFarads: number;
+			/** Driver supply span (V) the capacitor charges toward. */
+			readonly vddVolts: number;
+			/** Inverter input threshold (V): specimen-calibrated, disclosed. */
+			readonly vthVolts: number;
+			/** Slow-diode forward drop (V): generic-diode typical, disclosed. */
+			readonly vfVolts: number;
+			/** Yank-minus-kick bottom (V) under datasheet OX3 drive. */
+			readonly floorVolts: number;
+			/** Brigade stages: delay = stages × charge time. */
+			readonly stages: number;
+	  }
+	| { readonly mode: "parameter" };
+
+/**
+ * The closed primitive vocabulary (board-p3 row 4). Growing it is a format
+ * change with a gate; an op the runtime does not implement is a refusal
+ * naming it, never silence. Delay, mix, coupling filter, comb, allpass,
+ * and pitch-shift are implemented; `converter` and `pitch-tracker` arrive
+ * only if a decomposition (or row 6) needs them.
+ */
+export type PrimitiveOp =
+	| {
+			readonly op: "delay-tap";
+			readonly line: string;
+			readonly length: DelayLengthSpec;
+			readonly out: number;
+	  }
+	| {
+			readonly op: "delay-tap-fractional";
+			readonly line: string;
+			readonly length: DelayLengthSpec;
+			readonly out: number;
+	  }
+	| {
+			/**
+			 * Reverse playback: the line's most recent `length` samples, read backwards, one
+			 * segment after another. **A stated approximation, not a recovered law** -- no
+			 * reverse-delay firmware in the corpus has been dumped, so segmentation and crossfade
+			 * are this op's own: two read heads half a segment apart, each weighted
+			 * `sin^2(pi phase / length)`, so the weights sum to exactly 1 and every segment jump
+			 * happens under a zero weight. A head at phase `p` reads `2p + 1` samples back, so the
+			 * line holds twice its declared length. At most one per line: the phase lives there.
+			 */
+			readonly op: "delay-tap-reverse";
+			readonly line: string;
+			readonly length: DelayLengthSpec;
+			readonly out: number;
+	  }
+	| {
+			/**
+			 * A hold sampler, gated by a pedal. **A stated approximation of firmware nobody has
+			 * dumped**, taken from a manual's procedure: idle until the gate rises; then record
+			 * `input` into the line while the gate is held, up to the line's length; on release,
+			 * loop what was recorded; on the next rise, stop and erase, back to idle. Publishes 0
+			 * except while looping. The recording is also erased when the program is selected
+			 * afresh (a mode change). One per line, and no `delay-push` on the same line: the
+			 * record position lives there.
+			 */
+			readonly op: "hold-loop";
+			readonly line: string;
+			readonly input: ComposedSource;
+			/** The pedal, read like a swept gain; the gate is on at 0.5 or above. */
+			readonly gate: ComposedGainSweep;
+			readonly out: number;
+	  }
+	| {
+			readonly op: "delay-push";
+			readonly line: string;
+			readonly input: ComposedSource;
+	  }
+	| {
+			readonly op: "mix";
+			readonly terms: readonly ComposedTerm[];
+			readonly out: number;
+	  }
+	| {
+			/** One-pole AC blocker: the BBD input coupling estimator as an op. */
+			readonly op: "filter-dcblock";
+			readonly input: ComposedSource;
+			readonly out: number;
+	  }
+	| {
+			/**
+			 * Schroeder feedback comb: reads its delay, writes back input
+			 * plus gain times delayed. `index` addresses the interpreter's
+			 * fixed echo-density table (like the kernel it replaces); only
+			 * `decaySeconds` varies per fitting, carried here.
+			 */
+			readonly op: "comb";
+			readonly index: number;
+			readonly decaySeconds: number;
+			readonly input: ComposedSource;
+			readonly out: number;
+	  }
+	| {
+			/**
+			 * Schroeder allpass diffuser, same index-addressed table shape as
+			 * `comb`. The diffusion coefficient is interpreter-owned (as it
+			 * is kernel-owned today), not packet data.
+			 */
+			readonly op: "allpass";
+			readonly index: number;
+			readonly input: ComposedSource;
+			readonly out: number;
+	  }
+	| {
+			/**
+			 * Static interval transposition by asynchronous resampling
+			 * (board-p3 row 5): the read pointer advances `ratio` samples per
+			 * output sample through a fixed history window, wrapping with a
+			 * documented discontinuity when it outruns or falls behind. Justified
+			 * as a primitive by the residual rule: no composition of fixed
+			 * delay, mix, and filter transposes -- a fixed delay preserves the
+			 * fundamental by construction -- so clause 1 has no compositional
+			 * route. `doesNotReproduce`: glitch-free transposition (no
+			 * crossfade), formant preservation.
+			 */
+			readonly op: "pitch-shift";
+			readonly ratio: number;
+			readonly input: ComposedSource;
+			readonly out: number;
+	  }
+	| {
+			/**
+			 * Fundamental estimator by autocorrelation (board-p3 row 6): the
+			 * period with peak normalized correlation over a fixed window,
+			 * parabolically refined, graded against a reference with a
+			 * tolerance -- never a pin. Justified as a primitive by the same
+			 * residual rule: no composition of delay, mix, and filter
+			 * estimates a fundamental (they transform samples; none measures
+			 * periodicity). `doesNotReproduce`: octave certainty on all
+			 * timbres, overlapping voices (monophonic assumption throughout).
+			 */
+			readonly op: "pitch-tracker";
+			readonly input: ComposedSource;
+			readonly out: number;
 	  };
 
 /**
@@ -1762,6 +2472,39 @@ export type ModulationPort = {
 	readonly node: NodeId;
 	/** The device whose control terminal this is, carried for diagnostics. */
 	readonly steeredBy: string;
+};
+
+/**
+ * The `clock-law` port: a solved node read every sample, driving an open-OX2
+ * relaxation law rather than a ratio around a declared delay.
+ *
+ * **The node is the slow diode's anode-side divider node, never a steering
+ * transistor's control terminal.** The transistor's base carries the clock-rate
+ * waveform (and on the rewire it floats at millivolts); the divider node
+ * carries the LFO and nothing else. `steeredBy` names the discharge
+ * transistor for diagnostics, mirroring `ModulationPort`.
+ */
+export type ClockLawPort = {
+	/** Which block's solved node this is read from, every sample. */
+	readonly block: string;
+	readonly node: NodeId;
+	/** The discharge transistor, carried for diagnostics. */
+	readonly steeredBy: string;
+};
+
+/**
+ * The open-OX2 law constants a `clock-law` length mode evaluates per sample.
+ * R and C come from the packet's own network; the rest are the family
+ * constants derived in `bbd-clock.ts` (specimen-calibrated threshold,
+ * disclosed typicals), carried here so both consoles read the same numbers.
+ */
+export type ClockLawParams = {
+	readonly rOhms: number;
+	readonly cFarads: number;
+	readonly vddVolts: number;
+	readonly vthVolts: number;
+	readonly vfVolts: number;
+	readonly floorVolts: number;
 };
 
 /**
@@ -1855,7 +2598,7 @@ export type CostPredictors = {
 };
 
 export type Program = {
-	readonly formatVersion: 1;
+	readonly formatVersion: 6;
 	/**
 	 * Every operator this program needs a runtime to implement, sorted and without
 	 * duplicates.
@@ -1996,7 +2739,54 @@ export type Program = {
 		readonly input: number | null;
 		readonly output: number | null;
 	};
+	/**
+	 * Bypass hardware characteristics derived from declared `audio.bypass` and circuit topology.
+	 *
+	 * A discriminated union:
+	 * - `{ declared: "none" }` for packets with no declared bypass switch (core-only models).
+	 *   `kind` is strictly absent to prevent synthetic true-bypass assumptions.
+	 * - `{ declared: "switch", kind, control? }` where kind is derived from topological connectivity:
+	 *   - `buffered`: bistable latch or electronic switching gates
+	 *   - `true-bypass`: mechanical switch providing input and output isolation
+	 *   - `hardwire`: mechanical switch switching output while leaving input circuit permanently loaded
+	 */
+	readonly bypass: ProgramBypass;
 };
+
+/**
+ * How the declared bypass switch routes audio, derived from connectivity in `bypass.ts`.
+ *
+ * - `true-bypass`: a mechanical switch isolates both jacks from the effect core; the bypass
+ *   path is a wire.
+ * - `buffered`: **electronic** switching — a cross-coupled bistable, an analog-switch IC, or
+ *   JFET audio gates with their BJT drivers. The bypass path runs through the pedal's own
+ *   input and output buffers (Boss, Ibanez, DOD).
+ * - `buffered-mechanical`: a mechanical switch, but at least one port reaches the switch only
+ *   through an active stage, so the bypass path is buffered without any electronic switching
+ *   (Klon, Moog, a JFET buffer ahead of a DPDT). Added 2026-09-22: before it, such a pedal
+ *   derived as `hardwire` and the chain played its bypass as a wire, losing the buffer.
+ * - `hardwire`: the switch selects the output while the input jack stays tied to the effect
+ *   core; the bypass path is a wire that still loads the input (vintage MXR, fuzzes).
+ * - `not-in-audio-path`: the declared switch touches no audio path (an LED contact, or a
+ *   view-only shell that was dropped).
+ *
+ * `buffered` and `buffered-mechanical` both resolve to no default chain mode in
+ * `resolveBypassMode` until the buffer program exists (board-p2 row 8 step 3).
+ */
+export type ProgramBypassKind =
+	| "true-bypass"
+	| "buffered"
+	| "buffered-mechanical"
+	| "hardwire"
+	| "not-in-audio-path";
+
+export type ProgramBypass =
+	| { readonly declared: "none" }
+	| {
+			readonly declared: "switch";
+			readonly kind: ProgramBypassKind;
+			readonly control?: ControlId;
+	  };
 
 // --- results -----------------------------------------------------------------
 
@@ -2175,6 +2965,89 @@ export type UnexecutedActiveRegionWarning = {
 	readonly detail: string;
 };
 
+/**
+ * A rail that declares no voltage while something is connected to it.
+ *
+ * Such a rail lowers to `open` on purpose -- a named support shell with nothing to assert -- and
+ * three corpus packets rely on that. What must not be silent is **loads hanging off it**: they see
+ * only gmin to ground, so a supply the sheet draws at, say, 8 V solves at 0 V and every stage it
+ * powers renders dead or 20 dB down. Found 2026-09-23, when `boss-dd-5` v1.36 wired its output mixer
+ * to the sheet's unlettered up-arrow supply without a voltage: dry muted, wet 20 dB down, no
+ * diagnostic.
+ */
+export type RailWithoutVoltageWarning = {
+	readonly code: "rail-without-voltage";
+	readonly device: DeviceId;
+	readonly detail: string;
+};
+
+/**
+ * JFETs whose law runs on the fet law's own `thresholdVolts`/`transconductance`, because the
+ * source types no `Vt0`/`Beta` for them. One warning per document, naming every such device.
+ *
+ * **Why it is named.** The defaults (`JFET_DEFAULT_THRESHOLD_VOLTS`,
+ * `JFET_DEFAULT_TRANSCONDUCTANCE` in `device-laws.ts`) are not any part's values. For a
+ * switching JFET that is fully on or off they barely matter; for one biased at its knee they
+ * decide the behaviour. `mxr-phase-45`'s trim centres its gates at Vgs about -2.34 V, which the
+ * default -2 V never reaches, so its sweep reads WEAK, whereas a datasheet-centre 2N5952 crosses
+ * threshold every cycle (packet-study/mxr-phase-45, 2026-09-24). Measured the same day, 142 of
+ * 151 corpus JFETs ran on these defaults and nothing said so.
+ *
+ * **What it does not claim.** Not that the source is wrong: a packet may leave a JFET untyped on
+ * purpose, because the datasheet prints only grade limits (the 2N5952 case). The claim is only
+ * that the stamped values came from the consumer, not the source.
+ */
+export type FetLawDefaultWarning = {
+	readonly code: "fet-law-default-parameters";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	readonly detail: string;
+};
+
+/**
+ * BJTs whose law runs on the bjt law's own `saturationCurrent`/`forwardBeta`, because the
+ * source types no `IS`/`BF` for them. One warning per document, naming every such device.
+ *
+ * **Why it is named.** The defaults (`SILICON_SATURATION_CURRENT`,
+ * `SILICON_FORWARD_BETA` in `device-laws.ts`) are not any part's values: against a real
+ * 2N3904 the saturation current is 100x low (~119 mV of Vbe) and beta 2x, and the corpus
+ * registry holds per-part values the compiler has never read. For a saturated switch they
+ * barely matter; for a biased stage they decide the operating point (`tycobrahe-octavia`'s
+ * Q1 moves −115 mV Vbe on the registry IS, 17% on Ic).
+ *
+ * **What it does not claim.** Not that the source is wrong: most corpus BJTs predate any
+ * typed parameter, and a packet may leave one untyped because its datasheet prints only a
+ * beta bin. The claim is only that the stamped values came from the consumer, not the source.
+ */
+export type BjtLawDefaultWarning = {
+	readonly code: "bjt-law-default-parameters";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	readonly detail: string;
+};
+
+/**
+ * Op-amps whose output runs the full supply, because the part states no distance it stops short
+ * of the rails (`outputSwingDropVolts`). One warning per document, naming every such device.
+ *
+ * **Why it is named.** No real op-amp reaches its rails. `mxr-phase-90` read WEAK 79.6 deg on
+ * rail-to-rail TL062s and SWEEPING 106.0 deg once they stopped 1.2 V short of each rail
+ * (packet-study/mxr-phase-90, 2026-09-29), and three simulators agreed on the wrong answer
+ * because the oracle deck follows the program's rails. A comparator or LFO near the rails, or a
+ * clipper, is decided by this number.
+ *
+ * **What it does not claim.** Not that the source is wrong, and not that the stamped rails are
+ * wrong for a circuit that never nears them; a unity-gain buffer at low level is untouched.
+ * The claim is only that the swing came from the consumer's default (the supply), not the part.
+ * LM358, LM324 and TL022 are listed until an asymmetric swing can be stated.
+ */
+export type OpampLawDefaultWarning = {
+	readonly code: "opamp-law-default-parameters";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	readonly detail: string;
+};
+
 export type ElectricallyIsolatedIcWarning = {
 	readonly code: "electrically-isolated-ic";
 	readonly device: DeviceId;
@@ -2215,6 +3088,13 @@ export type IcNotExecutedWarning = {
 	readonly device: DeviceId;
 	readonly reason: OpenIcReason | "unrecorded";
 	readonly detail: string;
+	/**
+	 * Present only for gap-candidate reasons (`registry-open`,
+	 * `declared-class-without-model`): the phase-3 bucket from
+	 * `classifyOpenIcGap`. Absent for declared opens and wiring states,
+	 * which were never gap candidates and stay out of the phase-3 set.
+	 */
+	readonly gapClass?: OpenIcGapClass;
 };
 
 /**
@@ -2277,6 +3157,26 @@ export type NotPopulatedWarning = {
  */
 export type NotPopulatedWithoutValueWarning = {
 	readonly code: "not-populated-without-value";
+	readonly device: DeviceId;
+	readonly detail: string;
+};
+
+/**
+ * A component whose source states `kind: unsupported` — a real device class the format has no
+ * typed entry for, so the source transcribed it as the nearest kind and recorded the truth in
+ * `sourceTypeName`.
+ *
+ * **What happens.** The compiler skips the component from the solve rather than stamping it as
+ * a different law (a relay is not a switch, not a resistor, and not an open circuit). Whatever
+ * it does in the real pedal is absent from this program.
+ *
+ * **Why it is reported instead of refusing.** A component marked `unsupported` by the source
+ * is a deliberate decision: the transcriber faced a class the format cannot carry and chose
+ * transparency over misclassification. Refusing the pedal would punish the surrounding circuit
+ * for a source boundary the transcriber already handled.
+ */
+export type UnsupportedComponentWarning = {
+	readonly code: "unsupported-component";
 	readonly device: DeviceId;
 	readonly detail: string;
 };
@@ -2427,17 +3327,35 @@ export type CompileWarning =
 	| UnimplementedControlRoleWarning
 	| UnimplementedDeviceLawWarning
 	| ElectricallyIsolatedIcWarning
+	| RailWithoutVoltageWarning
+	| FetLawDefaultWarning
+	| BjtLawDefaultWarning
+	| OpampLawDefaultWarning
 	| IcNotExecutedWarning
 	| OutputPortUnreachableWarning
 	| InterfaceOrSourceOnlyWarning
-	| NotPopulatedWarning
-	| NotPopulatedWithoutValueWarning
-	| UnexecutedActiveRegionWarning
+| NotPopulatedWarning
+ 	| NotPopulatedWithoutValueWarning
+ 	| UnsupportedComponentWarning
+ 	| UnexecutedActiveRegionWarning
 	| OutputPortNotTransformerCoupledWarning
 	| NoOutputTransformerWarning
 	| DeclaredDelayWarning
 	| ControlPositionDisagreesWarning
-	| ModulationNotModelledWarning;
+	| BypassEngagedDisagreesWarning
+	| ModulationNotModelledWarning
+	| ConverterScaleNotModelledWarning;
+
+/**
+ * A composed program that touches a data converter but runs unity in volts, because one side's
+ * converter is unwired, ambiguous, or has no cited full scale. See `converter-scale.ts`: the
+ * pedal's gain there is the DAC's full scale over the ADC's, and the program cannot say it.
+ */
+export type ConverterScaleNotModelledWarning = {
+	readonly code: "converter-scale-not-modelled";
+	readonly device: DeviceId | null;
+	readonly detail: string;
+};
 
 /**
  * A delay macro whose modulation input the registry declares and the document wires, but which
@@ -2485,6 +3403,25 @@ export type DeclaredDelayWarning = {
  */
 export type ControlPositionDisagreesWarning = {
 	readonly code: "control-position-disagrees";
+	readonly device: DeviceId | null;
+	readonly detail: string;
+};
+
+/**
+ * The bypass switch's declared engaged position disagrees with the default
+ * the compiler derived for it.
+ *
+ * `audio.bypass.engagedPosition` states which switch position is the effect;
+ * the default is derived from connectivity, panel, and component state. When
+ * they differ, either the source misstates the engaged position (the field
+ * is unaudited boilerplate in most of the corpus) or the default is wrong --
+ * both are product defects (a pedal that shows engaged while rendering dry,
+ * or the reverse), so the disagreement is named rather than silently
+ * resolved either way. The TR-2 case (declared 1 applied as the default) is
+ * the one direction that does not warn.
+ */
+export type BypassEngagedDisagreesWarning = {
+	readonly code: "bypass-engaged-disagrees";
 	readonly device: DeviceId | null;
 	readonly detail: string;
 };

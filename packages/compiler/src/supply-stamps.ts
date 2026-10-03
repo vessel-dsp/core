@@ -38,10 +38,18 @@
 //    the other depending on grounding, while a single-ended `rail` asserts
 //    its potential on the positive terminal with the sign in its volts --
 //    except ground on the negative side: node 0 is the common return every
-//    supply shares, so it can never name a rail. A port or label rail lowers
-//    to no device and therefore maps to no stamp: it asserts nothing, so
-//    `no-stamp-for-rail` is the honest answer, not a guess at the battery
-//    beside it.
+//    supply shares, so it can never name a rail.
+// 3. Rail labels with no device. A port or label rail lowers to no device, so
+//    its own nodes cannot name a stamp -- but the domain's `sourceComponentIds`
+//    say which components feed it, and the stamp is the `dc-source` those
+//    sources lower to, read from the program through `block.nodeIds` exactly
+//    as in join 2. Only sources with DC evidence (the device-laws
+//    discriminator: a `voltage-source` without a positive finite `frequency`,
+//    a `rail` with a finite `volts`) contribute; a jack, an `ac-source`, a
+//    transformer, or an `open` never counts. Exactly one distinct stamp maps
+//    the rail (`via: "domain-source"`); zero keeps `no-stamp-for-rail` and
+//    more than one is `ambiguous-stamp`. The mains rule still runs first, so
+//    none of this can reach a mains-fed domain.
 //
 // The inputs are the `.vdsp` source text and the program compiled from it (the
 // node resolution does not depend on compile jack options, so none are taken).
@@ -68,6 +76,16 @@ export type ResolvedSupply = {
 	readonly railComponentId: string;
 	readonly role: string;
 	readonly nominalVolts: number | null;
+	/**
+	 * How the rail reached its stamp, compared as a whole value.
+	 *
+	 * `rail-device` is the rail's own lowered device matched to a stamp through
+	 * `block.nodeIds`. `domain-source` is the fallback below: the rail is a
+	 * label or port with no lowered device, and the stamp is the one the
+	 * domain's own source components lower to. A host can show or ignore the
+	 * weaker path; both are typed evidence, never names.
+	 */
+	readonly via: "rail-device" | "domain-source";
 };
 
 /**
@@ -260,6 +278,56 @@ export function resolveSupplyStamps(
 			}
 			const device = deviceById.get(rail.railComponentId);
 			if (device === undefined) {
+				// A rail binding that names a component the document does not contain is a
+				// defect in the power declaration (a typo, a deleted part). The fallback below
+				// reads the domain's sources, so applying it here would silently repair the
+				// typo and hide it: refuse by name instead.
+				if (!componentById.has(rail.railComponentId)) {
+					refused.push({
+						railComponentId: rail.railComponentId,
+						reason: "no-stamp-for-rail",
+						detail: `rail "${rail.railComponentId}" names a component the document does not contain, so no node can be resolved for it and nothing is mapped.`,
+					});
+					continue;
+				}
+				// Fallback: the rail is a label or port with no lowered device, so
+				// its own nodes cannot name a stamp. The domain's
+				// `sourceComponentIds` say which components feed it, and the stamp
+				// is the `dc-source` those sources lower to -- read from the
+				// program's lowered stamps through `block.nodeIds`, never from
+				// the components' kinds or names. A source that lowers to
+				// anything else (a jack, an `ac-source`, a transformer, an
+				// `open`) never counts. Zero such stamps keeps
+				// `no-stamp-for-rail`; more than one distinct stamp is
+				// `ambiguous-stamp`, never a pick.
+				const sourced = matchDomainSourceStamps(
+					domain.sourceComponentIds,
+					deviceById,
+					program,
+				);
+				if (sourced.length === 1) {
+					const address = sourced[0] as SupplyAddress;
+					supplies.push({
+						address,
+						railComponentId: rail.railComponentId,
+						role: rail.role,
+						nominalVolts:
+							rail.nominalVoltage?.value ?? domain.ratedVoltage?.value ?? null,
+						via: "domain-source",
+					});
+					continue;
+				}
+				if (sourced.length > 1) {
+					const at = sourced
+						.map((match) => `block ${match.blockIndex} source ${match.sourceIndex}`)
+						.join("; ");
+					refused.push({
+						railComponentId: rail.railComponentId,
+						reason: "ambiguous-stamp",
+						detail: `rail "${rail.railComponentId}" has no lowered device, and its domain's sources lower to ${sourced.length} dc-source stamps (${at}), so no single external supply can be named and nothing is mapped.`,
+					});
+					continue;
+				}
 				const component = componentById.get(rail.railComponentId);
 				refused.push({
 					railComponentId: rail.railComponentId,
@@ -271,37 +339,7 @@ export function resolveSupplyStamps(
 				});
 				continue;
 			}
-			const railNodes = new Set<number>(device.nodes);
-			const matches: SupplyAddress[] = [];
-			program.blocks.forEach((block, blockIndex) => {
-				if (block.kind !== "mna") {
-					return;
-				}
-				for (const stamp of block.stamps) {
-					if (stamp.kind !== "dc-source") {
-						continue;
-					}
-					// Either terminal may identify the rail: a battery-style
-					// supply hangs it off one end or the other depending on
-					// grounding, while a single-ended rail asserts its
-					// potential on the positive terminal with the sign in its
-					// volts (the germanium positive-ground case). Ground on
-					// the negative side never counts: node 0 is the common
-					// return every supply shares, so it cannot name a rail.
-					const positiveNode: number | undefined =
-						block.nodeIds[stamp.positive];
-					const negativeNode: number | undefined =
-						block.nodeIds[stamp.negative];
-					const touches =
-						(positiveNode !== undefined && railNodes.has(positiveNode)) ||
-						(negativeNode !== undefined &&
-							negativeNode !== GROUND &&
-							railNodes.has(negativeNode));
-					if (touches) {
-						matches.push({ blockIndex, sourceIndex: stamp.sourceIndex });
-					}
-				}
-			});
+			const matches = matchStamps(new Set<number>(device.nodes), program);
 			if (matches.length === 1) {
 				const address = matches[0] as SupplyAddress;
 				supplies.push({
@@ -310,8 +348,10 @@ export function resolveSupplyStamps(
 					role: rail.role,
 					nominalVolts:
 						rail.nominalVoltage?.value ?? domain.ratedVoltage?.value ?? null,
+					via: "rail-device",
 				});
 			} else if (matches.length === 0) {
+				const railNodes = new Set<number>(device.nodes);
 				const nodes =
 					railNodes.size === 0
 						? "no resolvable node"
@@ -339,4 +379,76 @@ export function resolveSupplyStamps(
 
 function sourceEvidenceOf(device: Device | undefined): SourceEvidence {
 	return device === undefined ? "none" : sourceEvidence(device);
+}
+
+/**
+ * Every `dc-source` stamp with a terminal on one of `nodes`, in
+ * `program.blocks` order then stamp order.
+ *
+ * Either terminal may identify the rail: a battery-style supply hangs it off
+ * one end or the other depending on grounding, while a single-ended `rail`
+ * asserts its potential on the positive terminal with the sign in its volts
+ * (the germanium positive-ground case). Ground on the negative side never
+ * counts: node 0 is the common return every supply shares, so it cannot name
+ * a rail.
+ */
+function matchStamps(nodes: Set<number>, program: Program): SupplyAddress[] {
+	const matches: SupplyAddress[] = [];
+	program.blocks.forEach((block, blockIndex) => {
+		if (block.kind !== "mna") {
+			return;
+		}
+		for (const stamp of block.stamps) {
+			if (stamp.kind !== "dc-source") {
+				continue;
+			}
+			const positiveNode: number | undefined = block.nodeIds[stamp.positive];
+			const negativeNode: number | undefined = block.nodeIds[stamp.negative];
+			const touches =
+				(positiveNode !== undefined && nodes.has(positiveNode)) ||
+				(negativeNode !== undefined &&
+					negativeNode !== GROUND &&
+					nodes.has(negativeNode));
+			if (touches) {
+				matches.push({ blockIndex, sourceIndex: stamp.sourceIndex });
+			}
+		}
+	});
+	return matches;
+}
+
+/**
+ * The distinct `dc-source` stamps the domain's source components lower to.
+ *
+ * Only sources that exist as netlist devices and carry DC evidence -- the
+ * same discriminator the device laws use, so a jack, an `ac-source`, a
+ * transformer, or an `open` never counts -- contribute their nodes; the stamp
+ * itself comes from the program's lowered result, never from a component's
+ * kind string or name. Two sources sharing one stamp still name one supply;
+ * two sources on two stamps is genuinely ambiguous.
+ */
+function matchDomainSourceStamps(
+	sourceComponentIds: readonly string[],
+	deviceById: Map<string, Device>,
+	program: Program,
+): SupplyAddress[] {
+	const seen = new Set<string>();
+	const out: SupplyAddress[] = [];
+	for (const id of sourceComponentIds) {
+		const device = deviceById.get(id);
+		if (device === undefined) {
+			continue;
+		}
+		if (sourceEvidence(device) !== "dc") {
+			continue;
+		}
+		for (const match of matchStamps(new Set<number>(device.nodes), program)) {
+			const key = `${match.blockIndex}:${match.sourceIndex}`;
+			if (!seen.has(key)) {
+				seen.add(key);
+				out.push(match);
+			}
+		}
+	}
+	return out;
 }

@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/compiler",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Headless circuit compiler turning .vdsp documents into executable simulation Programs.",
 	"keywords": [
 		"guitar-pedal",
@@ -28,6 +28,21 @@
 			"bun": "./dist/index.js",
 			"import": "./dist/index.js"
 		},
+		"./diagnostics": {
+			"types": "./dist/diagnostics.d.ts",
+			"bun": "./dist/diagnostics.js",
+			"import": "./dist/diagnostics.js"
+		},
+		"./fixtures": {
+			"types": "./dist/fixtures/index.d.ts",
+			"bun": "./dist/fixtures/index.js",
+			"import": "./dist/fixtures/index.js"
+		},
+		"./fixtures/*": {
+			"types": "./dist/fixtures/*.d.ts",
+			"bun": "./dist/fixtures/*.js",
+			"import": "./dist/fixtures/*.js"
+		},
 		"./package.json": {
 			"default": "./package.json"
 		}
@@ -45,7 +60,8 @@
 		"clean": "rm -rf dist",
 		"prepack": "bun run --cwd ../core build && bun run build",
 		"pack:dry-run": "npm pack --dry-run",
-		"typecheck": "tsc --noEmit -p tsconfig.json"
+		"typecheck": "tsc --noEmit -p tsconfig.json",
+		"test": "bun test tests"
 	},
 	"dependencies": {
 		"@vessel-dsp/core": "0.16.0",

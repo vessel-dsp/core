@@ -1,13 +1,21 @@
 // Which end of a potentiometer is the quiet one, split out of `lower.ts` (R7, 2026-09-01).
 //
 // A pot's law is a track resistance split by its 0..1 position, so lowering needs to know
-// which declared end the position counts *from*. `.vdsp` does not state it, so this module
-// infers it: a BFS over DC-conducting devices measures each end's distance to ground and to
-// an op-amp input, and the closer-to-ground end is the quiet one. That is inference over
-// inference, and it exists only because the source format has no field for the answer --
-// see R1 in `thoughts/shared/plans/2026-08-31-v2-complexity-reduction-plan.md`.
+// which declared end the position counts *from*.
 //
-// Moved verbatim: no behavior change, no role added or removed.
+// **The format CAN state it, and since 2026-09-22 the declaration is read first.**
+// `@vessel-dsp/core` owns `PotentiometerTerminalRole = ccw | wiper | cw` -- rotation, not
+// position, so it survives mirroring -- and its resolver refuses rather than guessing, saying
+// of an incomplete one: *"the source does not carry the sweep direction. Do not infer it."*
+// This module inferred it for every pot regardless, including the 15 in the corpus that
+// declare both ends, and disagreed with 4 of them. See `declaredEnds`.
+//
+// The inference remains, because 348 of the corpus's 363 pots declare `end` -- core's
+// deliberately ambiguous token -- and something has to orient them: a BFS over DC-conducting
+// devices measures each end's distance to ground and to an op-amp input, and the closer-to-
+// ground end is the quiet one. That is inference over inference, and every one of those 348 is
+// a packet backfill waiting to retire a branch of it -- see R1 in
+// `thoughts/shared/plans/archive/2026-08-31-v2-complexity-reduction-plan.md`.
 
 import { LoweringError } from "./errors";
 import { dcConductingKinds } from "./netlist";
@@ -35,6 +43,52 @@ function declaredWiperIndex(device: Device): number | null {
 }
 
 /**
+ * The two nodes a device declares as its `ccw` and `cw` ends, or null when it does not say.
+ *
+ * **`@vessel-dsp/core` owns this vocabulary and everything below is the guess it replaces.**
+ * `PotentiometerTerminalRole` is `ccw | wiper | cw`, rotation and not position, so it survives
+ * mirroring and board rotation; the resolver refuses rather than completes, and its own doc
+ * comment says of an incomplete resolution: *"False means the source does not carry the sweep
+ * direction. Do not infer it."* Inferring it is exactly what this file did, for every pot,
+ * including the ones that said.
+ *
+ * Measured over the corpus 2026-09-22: **363 pots, 15 declare both ends, 348 declare
+ * `end`** -- core's ambiguous token, which resolves to no role by design. So the quiet-distance
+ * inference below is still what almost every pot gets, and that is the *second* half of the
+ * typed-source-evidence test: the source can state the fact and does not, which makes those 348
+ * a packet backfill in `vessel-dsp/artifacts` rather than anything to fix here.
+ *
+ * On the 15 that do declare, the inference **agreed on 11 and disagreed on 4** --
+ * `electro-harmonix-frequency-analyzer`'s `P1_BLEND` and `P2_FINE_TUNE`, and
+ * `moogerfooger-mf-102`'s `P1` and `VR2`. Those four knobs swept backwards, and the packets had
+ * said so all along. A conflict is resolved in favour of the declaration, because the
+ * alternative is this repository overruling a typed source fact with a circuit guess.
+ *
+ * Both ends must resolve to one node each and the two must differ; anything else is not a
+ * declaration this stage can read, and falls through to the inference.
+ */
+function declaredEnds(device: Device): readonly [NodeId, NodeId] | null {
+	const declared = device.identity.declaredTerminalRoles;
+	const nodesFor = (role: string): ReadonlySet<NodeId> =>
+		new Set(
+			declared.flatMap((declaredRole, index) =>
+				declaredRole === role ? [device.nodes[index] as NodeId] : [],
+			),
+		);
+	const ccw = nodesFor("ccw");
+	const cw = nodesFor("cw");
+	if (ccw.size !== 1 || cw.size !== 1) {
+		return null;
+	}
+	const [ccwNode] = [...ccw];
+	const [cwNode] = [...cw];
+	if (ccwNode === undefined || cwNode === undefined || ccwNode === cwNode) {
+		return null;
+	}
+	return [ccwNode, cwNode];
+}
+
+/**
  * Adjacency among nodes joined by a DC-conducting device -- the closed `dcConductingKinds`
  * vocabulary (resistor, potentiometer, rheostat, inductor, switch, selector) `netlist.ts`'s
  * `voltagePortRails` also uses. Shared by every quiet-distance BFS in this file, computed once
@@ -42,10 +96,18 @@ function declaredWiperIndex(device: Device): number | null {
  */
 function dcConductingAdjacency(
 	netlist: Netlist,
+	/**
+	 * Kinds to conduct in addition to `dcConductingKinds`. Empty by default (pure DC graph,
+	 * the behaviour every existing caller relies on); a caller asking an AC-connectivity
+	 * question passes the kinds it wants added, e.g. `"capacitor"`.
+	 */
+	extraKinds: ReadonlySet<string> = new Set(),
 ): ReadonlyMap<NodeId, readonly NodeId[]> {
+	const conducts = (kind: string): boolean =>
+		dcConductingKinds.has(kind) || extraKinds.has(kind);
 	const adjacency = new Map<NodeId, NodeId[]>();
 	for (const device of netlist.devices) {
-		if (!dcConductingKinds.has(device.kind)) {
+		if (!conducts(device.kind)) {
 			continue;
 		}
 		for (let i = 0; i < device.nodes.length; i += 1) {
@@ -174,6 +236,113 @@ export function opampInputDistances(
 }
 
 /**
+ * How far each node sits, in hops through DC-conducting devices, from an op-amp's declared
+ * **output** terminal.
+ *
+ * The companion of `opampInputDistances` for the negative-feedback gain-stage class: a rheostat
+ * wired from an op-amp's declared output, through its track, to the same op-amp's declared
+ * inverting input is a gain-setting feedback element, and for that class a rising control must
+ * mean *more* feedback resistance (non-inverting gain is `1 + Rf/Rg`, so more `Rf` is more
+ * gain). `boss-os-2`'s `DRIVE` sits exactly there on both its 270 k sections: the wiper shares
+ * its node with the `output` terminal, the free end reaches the `inverting` terminal through a
+ * single series resistor, and the whole pocket is DC-isolated from ground, so
+ * `quietDistances` has no claim and the `opampInputDistances` tie above falls through to
+ * declaration order -- which oriented `VR3b` so its live resistance *fell* as the knob rose,
+ * running the pedal's Drive backwards (rendered: 6.3e-1 rms at 0.0 against 2.9e-1 at 1.0).
+ * The output-side distance below is the discriminating typed fact: which end the wiper is
+ * strapped to relative to the declared `output` role, not how close either end happens to sit
+ * to an input.
+ */
+export function opampOutputDistances(
+	netlist: Netlist,
+): ReadonlyMap<NodeId, number> {
+	const seeds = new Set<NodeId>();
+	for (const device of netlist.devices) {
+		if (device.kind !== "opamp") {
+			continue;
+		}
+		device.identity.declaredTerminalRoles.forEach((role, index) => {
+			if (role === "output") {
+				const node = device.nodes[index];
+				if (node !== undefined) {
+					seeds.add(node);
+				}
+			}
+		});
+	}
+	return bfsDistances(dcConductingAdjacency(netlist), seeds);
+}
+
+/**
+ * The set of nodes that are a declared op-amp **inverting** input, read from the declared
+ * `inverting` role rather than a folded terminal name (the same closed-vocabulary read
+ * `opampInputDistances` uses for its seeds, narrowed to the inverting half).
+ *
+ * Kept as a node set, not a distance map, because the one consumer below asks a yes/no
+ * question -- "does this pot's wiper sit on an inverting input?" -- not "how far is it from
+ * one". `opampInputDistances` cannot answer that: it seeds from *both* input roles, so a zero
+ * there does not say which input a node sits on.
+ */
+export function opampInvertingInputNodes(
+	netlist: Netlist,
+): ReadonlySet<NodeId> {
+	const nodes = new Set<NodeId>();
+	for (const device of netlist.devices) {
+		if (device.kind !== "opamp") {
+			continue;
+		}
+		device.identity.declaredTerminalRoles.forEach((role, index) => {
+			if (role === "inverting") {
+				const node = device.nodes[index];
+				if (node !== undefined) {
+					nodes.add(node);
+				}
+			}
+		});
+	}
+	return nodes;
+}
+
+/**
+ * How far each node sits, in hops through the **AC** graph (DC-conducting devices *plus*
+ * capacitors), from an op-amp's declared output terminal.
+ *
+ * The companion of `opampOutputDistances` for the one shape it cannot reach: a non-inverting
+ * gain pot whose wiper sits *on* the op-amp's declared inverting input. For that class the wiper
+ * is the DC hub -- both track ends reach ground, the inverting input, and the output through the
+ * wiper in exactly the same number of DC hops -- so every DC distance map this file has is a
+ * tie and is silent about which end the live half is. Capacitors are the one passive element
+ * that separates the two ends in that shape (the output couples to one end, ground to the
+ * other), so the discrimination has to follow them. `boss-ds-1`'s `VR1` is the corpus's sole
+ * instance: its two ends are a 2/2 DC-quiet tie, the wiper is on the inverting input, and
+ * only `AC` separates the output-coupled end (one cap, `C6`, from the output) from the
+ * ground-coupled end.
+ *
+ * Computed over the AC graph on purpose, not by adding a capacitor-aware variant to the DC
+ * maps: the DC maps are a validated "moves exactly 6 pots, reverses none" instrument and must
+ * stay DC, and folding a capacitor into them would change what every existing caller reads.
+ */
+export function opampOutputAcDistances(
+	netlist: Netlist,
+): ReadonlyMap<NodeId, number> {
+	const seeds = new Set<NodeId>();
+	for (const device of netlist.devices) {
+		if (device.kind !== "opamp") {
+			continue;
+		}
+		device.identity.declaredTerminalRoles.forEach((role, index) => {
+			if (role === "output") {
+				const node = device.nodes[index];
+				if (node !== undefined) {
+					seeds.add(node);
+				}
+			}
+		});
+	}
+	return bfsDistances(dcConductingAdjacency(netlist, new Set(["capacitor"])), seeds);
+}
+
+/**
  * Control roles that name a time constant rather than a level.
  *
  * `potTerminals`' quiet-distance rule exists to make a rising control mean "louder", which is
@@ -220,11 +389,30 @@ export function potTerminals(
 	quietDistance: ReadonlyMap<NodeId, number>,
 	opampInputDistance: ReadonlyMap<NodeId, number>,
 	/**
+	 * Distance to an op-amp's declared output terminal, for the negative-feedback
+	 * gain-stage tie below. Empty by default: a call site that has no netlist in hand
+	 * (the inert-control and operating-point screens) passes nothing and gets today's
+	 * behaviour exactly, as with the other two maps.
+	 */
+	opampOutputDistance: ReadonlyMap<NodeId, number> = new Map(),
+	/**
 	 * The declared role of the control that varies this pot, when the document states one.
 	 * Only consulted for the rheostat exemption below; every other path ignores it, and a
 	 * call site that has no role passes `null` and gets today's behaviour exactly.
 	 */
 	controlRole: string | null = null,
+	/**
+	 * Nodes that are a declared op-amp inverting input, for the negative-feedback gain-pot
+	 * tie below. Empty by default: a call site with no netlist in hand (the inert-control and
+	 * operating-point screens) passes nothing and gets today's behaviour exactly, as with the
+	 * other evidence maps.
+	 */
+	invertingInputNodes: ReadonlySet<NodeId> = new Set(),
+	/**
+	 * AC distance (DC + capacitors) to an op-amp's declared output, for the same gain-pot
+	 * tie. Empty by default for the same reason.
+	 */
+	acOutputDistance: ReadonlyMap<NodeId, number> = new Map(),
 ): readonly [number, number, number] {
 	// Find the wiper by role, not by sitting in the middle. 81 of the corpus's 331
 	// three-terminal pots declare it first or last -- `anode,cathode,wiper` alone is
@@ -276,6 +464,27 @@ export function potTerminals(
 	// including both unreachable -- is not evidence either way, so it falls back to declaration
 	// order exactly as before, which is what the corpus's other pots that already work this way
 	// (248 of them, before this change) rely on unchanged.
+	// **A declaration outranks every inference below.** `end2` is the end the wiper sits at when
+	// the control reads 0 -- it takes the `lower` stamp, whose share is `fraction` itself, so its
+	// half collapses to the residual at position 0 -- and position 0 is the shaft fully
+	// counter-clockwise. So `end2` is the `ccw` lug whenever the document names it, and nothing
+	// after this point is consulted. See `declaredEnds`.
+	//
+	// **Including a rheostat**, whose wiper is strapped to one of its own declared ends. That
+	// shape has no divider and the existing fallback for it reads the *control's* free-text role
+	// against a spelling table (`TIME_CONSTANT_CONTROL_ROLES`), which is prose matching on the
+	// lowering spine. A declared rotation is the typed fact that table stands in for, so it wins
+	// here too, and the arithmetic comes out right either way: with the wiper on `cw`, `end2` is
+	// `ccw` and the live half takes `share = fraction`, so its resistance grows as the shaft
+	// turns clockwise; with the wiper on `ccw`, the live half is `end1`'s and takes
+	// `1 - fraction`, and it shrinks. Both are what the shaft does.
+	// `electro-harmonix-frequency-analyzer`'s `P2_FINE_TUNE` and `moogerfooger-mf-102`'s `P1`
+	// are the corpus's two, and both ran backwards under the inference.
+	const declaredRotation = declaredEnds(device);
+	if (declaredRotation !== null) {
+		const [ccwNode, cwNode] = declaredRotation;
+		return [cwNode, wiper, ccwNode];
+	}
 	// A rheostat -- wiper strapped to one of its own ends -- has no divider to orient, and when
 	// its control names a time constant the quiet-distance rule below has no loudness signal to
 	// read. Which declared end the wiper is strapped to is then the only evidence there is, so
@@ -302,6 +511,33 @@ export function potTerminals(
 		// equally -- narrower and more reliable than "nothing reaches either", so it is left on
 		// declaration order rather than handed to the op-amp-input fallback below, which is
 		// scoped to the fully-unreachable case only.
+		//
+		// One exception, and only one: a non-inverting gain pot whose wiper sits on the op-amp's
+		// declared inverting input. For that shape the wiper is the DC hub, so the quiet, input,
+		// and output DC distances all tie exactly as here, and every DC map this file has is
+		// silent about which end the live half is -- declaration order decides, and it orients
+		// the live half backwards when the schematic lists the output-coupled end first.
+		// `boss-ds-1`'s `VR1` is the corpus's sole instance: rendered 3.0e-2 rms at 0.0 against
+		// 1.9e-2 at 1.0, its Drive running backwards. The one typed fact that separates the two
+		// ends there is AC connectivity -- the output couples (through a capacitor) to one end,
+		// ground to the other -- so when the wiper is on a declared inverting input and the ends
+		// differ in AC output distance, the end nearer the output becomes `end2`: its live half
+		// is the `lower` stamp (`share = fraction`), so a rising control adds feedback resistance
+		// (non-inverting gain is `1 + Rf/Rg`) and means more gain. A plain tie with no such
+		// discrimination stays on declaration order, as before; a tie where the wiper is not on
+		// an inverting input is left alone here and falls to its own existing evidence.
+		if (invertingInputNodes.has(wiper)) {
+			const acFirst =
+				acOutputDistance.get(declaredFirst) ?? Number.POSITIVE_INFINITY;
+			const acSecond =
+				acOutputDistance.get(declaredSecond) ?? Number.POSITIVE_INFINITY;
+			if (acFirst < acSecond) {
+				return [declaredSecond, wiper, declaredFirst];
+			}
+			if (acSecond < acFirst) {
+				return [declaredFirst, wiper, declaredSecond];
+			}
+		}
 		return [declaredFirst, wiper, declaredSecond];
 	}
 	// Both ends fully unreachable from ground/rail: `quietDistances` has made no claim at all
@@ -333,6 +569,48 @@ export function potTerminals(
 	}
 	if (secondOpampDistance < firstOpampDistance) {
 		return [declaredFirst, wiper, declaredSecond];
+	}
+	// The input distances tie, so the nearest-input evidence is silent about which end is
+	// quiet, and what used to be left was declaration order. Before falling back to it, ask
+	// the one typed fact the format does state for the negative-feedback gain-stage class:
+	// a rheostat whose wiper is strapped to the end sitting on an op-amp's declared
+	// **output**, with the free end reaching that op-amp's declared **inverting** input, is
+	// a gain-setting feedback element (non-inverting gain is `1 + Rf/Rg`), and for that
+	// class a rising control must mean *more* feedback resistance -- so the live half has
+	// to be the `lower` stamp, `share = fraction`. Declaration order got this backwards for
+	// `boss-os-2`'s `VR3b` (wiper strapped to the `output` node, `inverting` one hop away
+	// through R22): its live half landed on `upper`, where `share = 1 - fraction`, so the
+	// pedal's Drive ran backwards -- 6.3e-1 rms at 0.0 against 2.9e-1 at 1.0 -- while its
+	// gang twin `VR3a`, decided by `quietDistances` above, was already right.
+	//
+	// Scoped to the tie on purpose, like the input-distance evidence it guards: the
+	// asymmetric case above is the validated "moves exactly 6 pots and reverses none"
+	// evidence, and this rule does not override a finite decision it already made. The
+	// asymmetry guards (`outEout < outEfree`, `inEfree <= inEout`) keep the class narrow:
+	// the wiper-strapped end must be the one nearer a declared output, and the free end at
+	// least as near a declared inverting input. Both distances read declared roles and
+	// connectivity only; nothing here reads a name.
+	if (wiper === declaredFirst || wiper === declaredSecond) {
+		const outputEnd = wiper === declaredFirst ? declaredFirst : declaredSecond;
+		const freeEnd = wiper === declaredFirst ? declaredSecond : declaredFirst;
+		if (outputEnd !== freeEnd) {
+			const outEout =
+				opampOutputDistance.get(outputEnd) ?? Number.POSITIVE_INFINITY;
+			const outFree =
+				opampOutputDistance.get(freeEnd) ?? Number.POSITIVE_INFINITY;
+			const inFree =
+				opampInputDistance.get(freeEnd) ?? Number.POSITIVE_INFINITY;
+			const inEout =
+				opampInputDistance.get(outputEnd) ?? Number.POSITIVE_INFINITY;
+			if (
+				Number.isFinite(outEout) &&
+				outEout < outFree &&
+				Number.isFinite(inFree) &&
+				inFree <= inEout
+			) {
+				return [outputEnd, wiper, freeEnd];
+			}
+		}
 	}
 	return [declaredFirst, wiper, declaredSecond];
 }

@@ -40,6 +40,7 @@ export type BbdClockDerivationOutcome =
 			readonly family: ClockDriverFamily;
 			readonly stages: number;
 			readonly formulaConstant: number;
+			readonly offsetSeconds: number;
 			readonly controlId: ControlId | null;
 			readonly taper: TaperKind;
 			readonly ohmsAtControlMin: number;
@@ -1328,7 +1329,6 @@ export function deriveBbdDelayFromNetlist(
 		const formulaConstant = 2.2;
 		const fClockHz = 1 / (4.4 * rOhms * cFarads);
 		const delaySeconds = stages * formulaConstant * rOhms * cFarads;
-
 		const implausible = implausibleClock(fClockHz, stages);
 		if (implausible !== null) {
 			return { outcome: "refused", reason: implausible };
@@ -1343,6 +1343,7 @@ export function deriveBbdDelayFromNetlist(
 			family: "CD4047",
 			stages,
 			formulaConstant,
+			offsetSeconds: 0,
 			controlId,
 			taper,
 			ohmsAtControlMin,
@@ -1542,6 +1543,7 @@ export function deriveBbdDelayFromNetlist(
 			family: clockFamily,
 			stages,
 			formulaConstant,
+			offsetSeconds: 0,
 			controlId,
 			taper,
 			ohmsAtControlMin,
@@ -1556,16 +1558,340 @@ export function deriveBbdDelayFromNetlist(
 }
 
 /**
- * Princeton Technology PT2399 delay time formula from external VCO resistance R (in Ohms).
- * Sourced from PT2399 Datasheet (Table 1 & Figure 4: VCO Frequency vs Resistance).
+ * Open-OX2 clock law (CE-2 first slice, 2026-09-28).
+ *
+ * The form the MN3101 datasheet never drew: OX2 left open (N.C.) and a single
+ * relaxation loop across the OX1→OX3 inverter pair — a timing capacitor
+ * between OX3 and OX1 charged through a pull-up on OX1 and discharged by a
+ * transistor the OX3 side drives, with the LFO setting the restart level
+ * through a diode. `boss-ce-2` v1.25 is the corpus case.
+ *
+ * Family constants (per-packet R and C come from the netlist):
+ * - `OPEN_OX2_VDD_VOLTS`: the driver's supply span, 9 V nominal from the
+ *   packet's own supply port (the filtered rail measures 8.967 V, 0.4%,
+ *   disclosed and immaterial beside the threshold sensitivity).
+ * - `OPEN_OX2_VTH_VOLTS`: solved 2026-09-28 for 110 kHz at the measured
+ *   Depth-0 divider level 1.565 V against a scope specimen (DIYstompboxes
+ *   2011, one rough forum reading, disclosed), inside the 3.4–5.6 V window
+ *   the MN3101 p.60 example table allows. Re-solve, never tune: procedure in
+ *   `docs/todo-archive/2026-09-28-ce2-clock-law-analysis.md`.
+ * - `OPEN_OX2_VF_VOLTS`: generic-diode forward drop, disclosed typical.
+ * - `OPEN_OX2_FLOOR_VOLTS`: yank-minus-kick bottom under datasheet OX3 drive
+ *   (R_OH ≈ 667 Ω / R_OL ≈ 500 Ω from the I_OH2/I_OL2 minimums): a ~7 V OX3
+ *   step kicks ~6.2 V through 47 pF against cited diode maxima, landing near
+ *   −5.3 V — below the D1 floor at every measured divider level, so the D1
+ *   branch binds everywhere. Same max() form as the analysis, not a deletion.
+ */
+export const OPEN_OX2_VDD_VOLTS = 9;
+export const OPEN_OX2_VTH_VOLTS = 4.757;
+export const OPEN_OX2_VF_VOLTS = 0.65;
+export const OPEN_OX2_FLOOR_VOLTS = -5.35;
+
+export type OpenOx2ClockLawOutcome =
+	| {
+			readonly outcome: "recognized";
+			readonly slowNode: NodeId;
+			readonly steeredBy: string;
+			readonly rOhms: number;
+			readonly cFarads: number;
+	  }
+	| {
+			readonly outcome: "absent";
+			readonly reason: string;
+	  };
+
+/** How many device terminals in the whole document touch `node`. */
+function nodeDegree(netlist: Netlist, node: NodeId): number {
+	let count = 0;
+	for (const device of netlist.devices) {
+		for (const terminal of device.nodes) {
+			if (terminal === node) {
+				count += 1;
+			}
+		}
+	}
+	return count;
+}
+
+/**
+ * The node on exactly one terminal carrying `token` (whole folded value), or
+ * null when zero or several do. Orientation and identity come from the
+ * resolved roles, never from terminal order.
+ */
+function terminalNodeByRole(device: Device, token: string): NodeId | null {
+	let found: NodeId | null = null;
+	device.identity.terminalRoles.forEach((role, index) => {
+		if (role === null || foldToken(role) !== token) {
+			return;
+		}
+		const node = device.nodes[index];
+		if (node === undefined) {
+			return;
+		}
+		if (found !== null) {
+			found = null;
+			return;
+		}
+		found = node;
+	});
+	return found;
+}
+
+function isTwoTerminalBetween(
+	device: Device,
+	a: NodeId,
+	b: NodeId,
+): boolean {
+	return (
+		device.nodes.length === 2 &&
+		((device.nodes[0] === a && device.nodes[1] === b) ||
+			(device.nodes[0] === b && device.nodes[1] === a))
+	);
+}
+
+/**
+ * Recognise the open-OX2 relaxation form by connectivity, never by names or
+ * prose: an MN3101-family driver with OX2 touched by nothing but its own pin,
+ * one capacitor bridging OX3 to OX1, one pull-up resistor from OX1 to the
+ * driver's own supply pin, one resistor from OX3 into a grounded-emitter
+ * transistor's base, that transistor's collector on a pulled-up discharge
+ * node back into OX1 through a diode, and one diode from OX1 into a
+ * divider-fed slow node.
+ *
+ * Anything else is `absent` with the failed check named, and the caller falls
+ * back to the existing star/gate derivation untouched. In particular the
+ * pre-rewire collapse (capacitor on OX1–OX2), a transistor sitting directly
+ * on a timing node (the modulated refusal owns that), and the MN3102 two-leg
+ * form (a different oscillator; no corpus case) all read absent here.
+ */
+export function deriveOpenOx2ClockLaw(
+	netlist: Netlist,
+	registry: PartRegistry,
+): OpenOx2ClockLawOutcome {
+	const clockDev = findClockDriverDevice(netlist);
+	if (
+		clockDev === null ||
+		identifyClockFamily(clockDev) !== "MN3101"
+	) {
+		return { outcome: "absent", reason: "no MN3101 clock driver device" };
+	}
+	const { ox1, ox2, ox3 } = resolveMn310xPins(clockDev, registry);
+	if (ox1 === null || ox2 === null || ox3 === null) {
+		return {
+			outcome: "absent",
+			reason: "MN3101 oscillator legs not told apart (OX1/OX2/OX3)",
+		};
+	}
+	if (ox1 === ox3 || ox1 === ox2 || ox2 === ox3) {
+		return {
+			outcome: "absent",
+			reason: `MN3101 oscillator pins shorted together (OX1 ${ox1}, OX2 ${ox2}, OX3 ${ox3})`,
+		};
+	}
+	if (nodeDegree(netlist, ox2) !== 1) {
+		return {
+			outcome: "absent",
+			reason: `MN3101 OX2 (node ${ox2}) is wired into the circuit, so this is not the open-OX2 form`,
+		};
+	}
+	const timingCaps = netlist.devices.filter(
+		(d) =>
+			d.kind === "capacitor" &&
+			isTwoTerminalBetween(d, ox3, ox1) &&
+			(d.parameters.farads ?? 0) > 0 &&
+			(d.parameters.farads ?? 0) < 1e-6,
+	);
+	if (timingCaps.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one timing capacitor between OX3 and OX1, found ${timingCaps.length}`,
+		};
+	}
+	const cFarads = timingCaps[0]!.parameters.farads ?? 0;
+
+	// The pull-up returns to the driver's own supply pin: role `vdd` (whole
+	// value), else datasheet pin 3 by position. A pull-up to any other node is
+	// a different circuit, and the law's VDD is that rail.
+	let vddNode = terminalNodeByRole(clockDev, "vdd");
+	if (vddNode === null && clockDev.nodes.length >= 8) {
+		vddNode = clockDev.nodes[2] ?? null;
+	}
+	if (vddNode === null || vddNode === GROUND) {
+		return {
+			outcome: "absent",
+			reason: "MN3101 supply pin not resolved, so the OX1 pull-up has no rail to return to",
+		};
+	}
+	const pullUps = netlist.devices.filter(
+		(d) =>
+			d.kind === "resistor" &&
+			isTwoTerminalBetween(d, ox1, vddNode) &&
+			(d.parameters.ohms ?? 0) > 0,
+	);
+	if (pullUps.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one pull-up resistor from OX1 to the supply rail, found ${pullUps.length}`,
+		};
+	}
+	const rOhms = pullUps[0]!.parameters.ohms ?? 0;
+
+	// The base-drive resistor: one end on OX3, the other on a node carrying
+	// exactly one transistor base. A self-loop back onto OX3 is the collapsed
+	// form, not this one.
+	const baseRs = netlist.devices.filter(
+		(d) =>
+			d.kind === "resistor" &&
+			d.nodes.length === 2 &&
+			(d.nodes[0] === ox3 || d.nodes[1] === ox3),
+	);
+	if (baseRs.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one base-drive resistor off OX3, found ${baseRs.length}`,
+		};
+	}
+	const baseNode = baseRs[0]!.nodes.find((n) => n !== ox3) ?? null;
+	if (baseNode === null || baseNode === GROUND) {
+		return {
+			outcome: "absent",
+			reason: "the OX3 base-drive resistor returns to OX3 itself or to ground",
+		};
+	}
+	const steerers = netlist.devices.filter(
+		(d) =>
+			d.kind === "bjt" && terminalNodeByRole(d, "base") === baseNode,
+	);
+	if (steerers.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one transistor base on node ${baseNode}, found ${steerers.length}`,
+		};
+	}
+	const steerer = steerers[0]!;
+	const dischargeNode = terminalNodeByRole(steerer, "collector");
+	const emitterNode = terminalNodeByRole(steerer, "emitter");
+	if (
+		dischargeNode === null ||
+		emitterNode !== GROUND ||
+		dischargeNode === ox1 ||
+		dischargeNode === ox2 ||
+		dischargeNode === ox3 ||
+		dischargeNode === GROUND
+	) {
+		return {
+			outcome: "absent",
+			reason: `${steerer.id} is not a grounded-emitter switch onto its own discharge node`,
+		};
+	}
+	const collectorPulls = netlist.devices.filter(
+		(d) =>
+			d.kind === "resistor" &&
+			isTwoTerminalBetween(d, dischargeNode, vddNode),
+	);
+	if (collectorPulls.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one collector pull-up on node ${dischargeNode}, found ${collectorPulls.length}`,
+		};
+	}
+	const dischargeDiodes = netlist.devices.filter(
+		(d) =>
+			d.kind === "diode" &&
+			terminalNodeByRole(d, "anode") === ox1 &&
+			terminalNodeByRole(d, "cathode") === dischargeNode,
+	);
+	if (dischargeDiodes.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one discharge diode from OX1 to node ${dischargeNode}, found ${dischargeDiodes.length}`,
+		};
+	}
+	// The slow diode: cathode on OX1, anode on a divider-fed node that is
+	// neither supply, ground, timing, nor the discharge node, and that no
+	// transistor collector drives.
+	const slowCandidates = netlist.devices.filter(
+		(d) =>
+			d.kind === "diode" && terminalNodeByRole(d, "cathode") === ox1,
+	);
+	const slowDiodes = slowCandidates.filter((d) => {
+		const anodeNode = terminalNodeByRole(d, "anode");
+		if (
+			anodeNode === null ||
+			anodeNode === GROUND ||
+			anodeNode === vddNode ||
+			anodeNode === ox1 ||
+			anodeNode === ox2 ||
+			anodeNode === ox3 ||
+			anodeNode === dischargeNode
+		) {
+			return false;
+		}
+		const dividerArms = netlist.devices.filter(
+			(candidate) =>
+				TIMING_RESISTANCE_KINDS.has(candidate.kind) &&
+				candidate.nodes.includes(anodeNode),
+		);
+		if (dividerArms.length < 2) {
+			return false;
+		}
+		const driven = netlist.devices.some(
+			(candidate) =>
+				candidate.kind === "voltage-source" &&
+				candidate.nodes.includes(anodeNode),
+		);
+		if (driven) {
+			return false;
+		}
+		const collectorDriven = netlist.devices.some(
+			(candidate) =>
+				candidate.kind === "bjt" &&
+				terminalNodeByRole(candidate, "collector") === anodeNode,
+		);
+		return !collectorDriven;
+	});
+	if (slowDiodes.length !== 1) {
+		return {
+			outcome: "absent",
+			reason: `expected one slow diode from a divider-fed node into OX1, found ${slowDiodes.length}`,
+		};
+	}
+	const slowNode = terminalNodeByRole(slowDiodes[0]!, "anode");
+	if (slowNode === null) {
+		return {
+			outcome: "absent",
+			reason: "the slow diode's anode node is not determined",
+		};
+	}
+	return {
+		outcome: "recognized",
+		slowNode,
+		steeredBy: steerer.id,
+		rOhms,
+		cFarads,
+	};
+}
+/**
+ * Princeton Technology PT2399 delay time from external VCO resistance R (in Ohms).
+ *
+ * Princeton PT2399 datasheet, TABLE 1: RESISTOR/DELAY TIME VALUES (V1.4, Oct 2005;
+ * the same 28-row table is reprinted in V1.1, V1.2 and V1.6; the packet-local V1.9,
+ * Mar 2022, drops the table but still says "Please refer to Table 1 for the
+ * Resistor/Delay Time values"). Note 1 under the table states R in Ohms, so the
+ * last row's "0.5" is 0.5 Ohms (pin 6 effectively grounded, 31.3 ms), not 0.5 kOhms.
+ *
+ * The table is linear in R: with pin 6 held at 2.5 V, the page
+ * https://electrosmash.mas-effects.com/pt2399-analysis gives
+ * I_pin6 (mA) = 28.65 / (Delay_ms - 29.70), i.e. Delay_ms = 29.70 + 11.46 * R_kOhms,
+ * which reproduces all 28 cited rows within 4 ms (worst row: 27.6 kOhms, 346.0 ms
+ * predicted vs 342 ms cited). That linear form is what this returns.
+ *
+ * Deliberately no clamp and no hard maximum: the cited source states none. Quality
+ * degrades past about 350 ms (the table's own THD reaches 1.0% at 342 ms), but the
+ * delay keeps growing with R, so this extrapolates the line rather than clipping it.
  */
 export function pt2399DelayFromOhms(rOhms: number): number {
-	if (rOhms <= 500) return 0.0313;
-	if (rOhms <= 1000) return 0.0313 + ((rOhms - 500) * (0.0344 - 0.0313)) / 500;
-	if (rOhms <= 2000) return 0.0344 + ((rOhms - 1000) * (0.04 - 0.0344)) / 1000;
-	if (rOhms <= 5000) return 0.04 + ((rOhms - 2000) * (0.05 - 0.04)) / 3000;
-	if (rOhms <= 10000) return 0.05 + ((rOhms - 5000) * (0.08 - 0.05)) / 5000;
-	return 0.08 + (0.006355 * (rOhms - 10000)) / 1000;
+	return 0.0297 + (0.01146 * rOhms) / 1000;
 }
 
 /**
@@ -1656,7 +1982,11 @@ export function derivePt2399DelayFromNetlist(
 		fClockHz,
 		family: "unknown",
 		stages: 1,
-		formulaConstant: delaySeconds / timingR.rOhms,
+		formulaConstant: 0.01146 / 1000,
+		// The datasheet law's intercept, carried so the knob sweeps the law
+		// itself (`29.7 ms + 11.46 ms * R_kOhm`) rather than a line through
+		// the origin fitted at the default resistance.
+		offsetSeconds: 0.0297,
 		controlId: timingR.controlId,
 		taper: timingR.taper,
 		ohmsAtControlMin: timingR.ohmsAtControlMin,
@@ -1734,7 +2064,7 @@ export function deriveM50195DelayFromNetlist(
 		family: "unknown",
 		stages: 2048,
 		// **Scaled into the runtime's units, not left as delay-per-ohm.** `clockControl` is
-		// consumed as `delay = stages * formulaConstant * R * farads`, so a constant that
+		// consumed as `delay = offsetSeconds + stages * formulaConstant * R * farads`, so a constant that
 		// already folds in `stages` and `C` gets them applied a second time. This path
 		// declared physical `stages: 2048` and `cFarads: 5e-12` beside a `delaySeconds / R`
 		// constant, which multiplied every delay by 2048 * 5e-12 = 1.024e-8: `ibanez-dl5`
@@ -1743,6 +2073,7 @@ export function deriveM50195DelayFromNetlist(
 		// two conventions coincide.
 		formulaConstant:
 			delaySeconds / (2048 * timingR.rOhms * 5e-12),
+		offsetSeconds: 0,
 		controlId: timingR.controlId,
 		taper: timingR.taper,
 		ohmsAtControlMin: timingR.ohmsAtControlMin,

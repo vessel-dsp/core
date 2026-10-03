@@ -4,7 +4,10 @@ on:
     push:
         tags:
             - 'v*'
+            - 'compiler-v*'
+            - 'runtime-v*'
             - 'chain-v*'
+            - 'player-v*'
     workflow_dispatch:
         inputs:
             package:
@@ -20,7 +23,10 @@ on:
                     - visual-effects
                     - amp
                     - cabinet
+                    - compiler
+                    - runtime
                     - chain
+                    - player
 
 permissions:
     contents: read
@@ -47,6 +53,12 @@ jobs:
                   scope: '@vessel-dsp'
 
             - run: bun install --frozen-lockfile
+
+            # The runtime's `prepack` compiles the C++ console to wasm, so any publish that can
+            # reach `@vessel-dsp/runtime` (and `chain`/`player`, whose prepack builds it) needs em++.
+            - uses: mymindstorm/setup-emsdk@v14
+              with:
+                  version: 3.1.74
 
             - name: Verify all packages
               if: github.event_name == 'workflow_dispatch' && inputs.package == 'all'
@@ -96,6 +108,66 @@ jobs:
               if: startsWith(github.ref, 'refs/tags/chain-v') || inputs.package == 'chain'
               run: bun run --cwd packages/chain pack:dry-run
 
+            - name: Verify compiler tag matches the package version
+              if: startsWith(github.ref, 'refs/tags/compiler-v')
+              run: |
+                  expected="compiler-v$(node -p "require('./packages/compiler/package.json').version")"
+                  test "$expected" = "${{ github.ref_name }}" || { echo "Tag ${{ github.ref_name }} does not match packages/compiler/package.json ($expected)"; exit 1; }
+
+            - name: Verify runtime tag matches the package version
+              if: startsWith(github.ref, 'refs/tags/runtime-v')
+              run: |
+                  expected="runtime-v$(node -p "require('./packages/runtime/package.json').version")"
+                  test "$expected" = "${{ github.ref_name }}" || { echo "Tag ${{ github.ref_name }} does not match packages/runtime/package.json ($expected)"; exit 1; }
+
+            - name: Verify player tag matches the package version
+              if: startsWith(github.ref, 'refs/tags/player-v')
+              run: |
+                  expected="player-v$(node -p "require('./packages/player/package.json').version")"
+                  test "$expected" = "${{ github.ref_name }}" || { echo "Tag ${{ github.ref_name }} does not match packages/player/package.json ($expected)"; exit 1; }
+
+            - name: Verify runtime's @vessel-dsp dependencies are published
+              if: startsWith(github.ref, 'refs/tags/runtime-v') || inputs.package == 'runtime'
+              run: |
+                  # runtime pins its @vessel-dsp dependencies exactly. Publishing it while one is
+                  # missing from npm ships a package nobody can install, and a published version
+                  # cannot be reused. Remove this step only on purpose.
+                  node -e "const d=require('./packages/runtime/package.json').dependencies;for(const [n,v] of Object.entries(d))if(n.startsWith('@vessel-dsp/'))console.log(n+'@'+v)" | while read dep; do
+                      npm view "$dep" version >/dev/null 2>&1 || { echo "::error::$dep is not published on npm; refusing to publish runtime"; exit 1; }
+                  done
+
+            - name: Verify player's @vessel-dsp dependencies are published
+              if: startsWith(github.ref, 'refs/tags/player-v') || inputs.package == 'player'
+              run: |
+                  # player pins its @vessel-dsp dependencies exactly. Publishing it while one is
+                  # missing from npm ships a package nobody can install, and a published version
+                  # cannot be reused. Remove this step only on purpose.
+                  node -e "const d=require('./packages/player/package.json').dependencies;for(const [n,v] of Object.entries(d))if(n.startsWith('@vessel-dsp/'))console.log(n+'@'+v)" | while read dep; do
+                      npm view "$dep" version >/dev/null 2>&1 || { echo "::error::$dep is not published on npm; refusing to publish player"; exit 1; }
+                  done
+
+            - name: Verify compiler package
+              if: startsWith(github.ref, 'refs/tags/compiler-v') || inputs.package == 'compiler'
+              run: bun run --cwd packages/compiler pack:dry-run
+
+            - name: Cross-console agreement on the built wasm
+              if: startsWith(github.ref, 'refs/tags/runtime-v') || inputs.package == 'runtime'
+              run: |
+                  # The wasm is built by prepack, but the tests read it from src/wasm, so build it
+                  # once here and run the package's own suites against it. A skipped wasm test is
+                  # not a pass: refuse if the artifact is missing.
+                  bun run --cwd packages/runtime build:wasm
+                  test -f packages/runtime/src/wasm/v2_dsp.wasm
+                  bun test packages/compiler/tests packages/runtime/tests
+
+            - name: Verify runtime package
+              if: startsWith(github.ref, 'refs/tags/runtime-v') || inputs.package == 'runtime'
+              run: bun run --cwd packages/runtime pack:dry-run
+
+            - name: Verify player package
+              if: startsWith(github.ref, 'refs/tags/player-v') || inputs.package == 'player'
+              run: bun run --cwd packages/player pack:dry-run
+
             - name: Publish core package
               if: startsWith(github.ref, 'refs/tags/v') || inputs.package == 'all' || inputs.package == 'core'
               run: npm publish --workspace @vessel-dsp/core --access public --provenance
@@ -132,8 +204,26 @@ jobs:
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+            - name: Publish compiler package
+              if: startsWith(github.ref, 'refs/tags/compiler-v') || inputs.package == 'compiler'
+              run: npm publish --workspace @vessel-dsp/compiler --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Publish runtime package
+              if: startsWith(github.ref, 'refs/tags/runtime-v') || inputs.package == 'runtime'
+              run: npm publish --workspace @vessel-dsp/runtime --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
             - name: Publish chain package
               if: startsWith(github.ref, 'refs/tags/chain-v') || inputs.package == 'chain'
               run: npm publish --workspace @vessel-dsp/chain --access public --provenance
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Publish player package
+              if: startsWith(github.ref, 'refs/tags/player-v') || inputs.package == 'player'
+              run: npm publish --workspace @vessel-dsp/player --access public --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
