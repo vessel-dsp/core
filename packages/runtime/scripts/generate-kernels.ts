@@ -35,7 +35,7 @@ const programFiles = readdirSync(programsDir)
 	.filter((file) => file.endsWith(".json"))
 	.sort();
 if (programFiles.length === 0) {
-	throw new Error(`no programs in ${programsDir}; run \`the workbench's `bun scripts/export-programs.ts`\` first`);
+	throw new Error(`no programs in ${programsDir}; run the workbench export-programs script first`);
 }
 const programs: Program[] = programFiles.map(
 	(file) => JSON.parse(readFileSync(resolve(programsDir, file), "utf8")) as Program,

@@ -1,5 +1,18 @@
 # Changelog
 
+## runtime 0.2.3 / chain 0.1.3 / player 0.1.4
+
+`GeneratedKernels.cpp` regenerated for the programs that ship (137 kernels, was
+135). Four packets had a qualifying block with no kernel and ran on the
+interpreter at about 2.7x the per-op cost, with no diagnostic: `mxr-phase-90`,
+`mxr-phase-90-script`, `mxr-phase-90-early-block` and `fulltone-ocd-v1.4`.
+`mxr-phase-90` went from 22399 ns/sample (1.08x, over the real-time budget) to
+6216 (0.30x) in the worklet. Output is bit-identical between the interpreter and
+the kernel on all four (max abs delta 0). `boss-aw-2` and `mxr-dyna-comp` still
+run on the interpreter by design (their order is re-pivoted). Also fixes
+`scripts/generate-kernels.ts`, which did not parse (unescaped backticks in an
+error message). `chain` and `player` pin the runtime exactly and move with it.
+
 ## runtime 0.2.2 / chain 0.1.2 / player 0.1.3
 
 Audio-taper law: the logarithmic taper base moves from 81 to 1089/49, so a
