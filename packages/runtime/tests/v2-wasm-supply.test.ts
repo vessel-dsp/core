@@ -310,3 +310,18 @@ describe.skipIf(!wasmBinaryPresent)("V2 WASM Engine supply control", () => {
 		engine.destroy();
 	});
 });
+
+// An AudioWorkletGlobalScope has no `structuredClone`; the wasm console loads a program inside one.
+describe.skipIf(!wasmBinaryPresent)("loadProgram in a scope without structuredClone", () => {
+	it("loads and reports supplies", async () => {
+		const original = globalThis.structuredClone;
+		// @ts-expect-error -- simulate a worklet scope
+		globalThis.structuredClone = undefined;
+		try {
+			const engine = await V2WasmEngine.create(compileOrThrow(RESISTIVE_DOC));
+			expect(engine.getSupplies().length).toBe(1);
+		} finally {
+			globalThis.structuredClone = original;
+		}
+	});
+});

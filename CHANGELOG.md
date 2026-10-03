@@ -1,5 +1,16 @@
 # Changelog
 
+## runtime 0.2.1 / chain 0.1.1 / player 0.1.1
+
+Fix: `V2WasmEngine.loadProgram` called `structuredClone`, which an
+AudioWorkletGlobalScope does not expose, so the wasm console failed to load
+any program inside a worklet (`structuredClone is not defined`) in
+`@vessel-dsp/runtime` 0.2.0. It now copies the program by JSON round-trip (the
+program is JSON by construction). `chain` and `player` pin the runtime exactly,
+so they move to 0.1.1 / 0.1.1 on `@vessel-dsp/runtime` 0.2.1. Do not use
+runtime 0.2.0 or chain/player 0.1.0 in a browser worklet. A test now loads a
+program with `structuredClone` removed from the global scope.
+
 ## compiler 0.2.0 / runtime 0.2.0
 
 `@vessel-dsp/compiler` and `@vessel-dsp/runtime` are now the engine's source of

@@ -80,7 +80,9 @@ export class V2WasmEngine {
 			const errStr = errPtr ? this.mod.UTF8ToString(errPtr) : "";
 			throw new Error(`Failed to load program into V2 C++ Engine${errStr ? `: ${errStr}` : ""}`);
 		}
-		this.program = structuredClone(program);
+		// JSON round-trip, not `structuredClone`: this runs inside an AudioWorkletGlobalScope, which
+		// does not expose `structuredClone`. The program is JSON by construction (stringified above).
+		this.program = JSON.parse(json) as Program;
 	}
 
 	public prepare(options: { sampleRate?: number; maxNewtonIterations?: number; inputSourceOhms?: number } = {}): void {
