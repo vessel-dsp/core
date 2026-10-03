@@ -741,3 +741,64 @@ describe("PlayerController with a fake engine", () => {
 		controller.dispose();
 	});
 });
+
+describe("PlayerController setProgram", () => {
+	test("a precompiled program reaches engine.load and skips the src", async () => {
+		const seen: Array<{ vdsp: string; program?: unknown }> = [];
+		const listeners = new Map<PlayerEngineEventName, Set<(payload?: unknown) => void>>();
+		const fire = (event: PlayerEngineEventName, payload?: unknown): void => {
+			for (const listener of [...(listeners.get(event) ?? [])]) {
+				listener(payload);
+			}
+		};
+		const recording: PlayerEngine = {
+			load(source: { readonly vdsp: string; readonly program?: unknown }): void {
+				seen.push({ vdsp: source.vdsp, program: source.program });
+				fire("ready");
+			},
+			start(): void {},
+			stop(): void {},
+			setControl(_id: string, _value: number): void {},
+			setInput(_choice: InputChoiceDescriptor): void {},
+			setNam(_model: NamDescriptor | null): void {},
+			setIr(_ir: IrDescriptor | null): void {},
+			dispose(): void {},
+			on(event: PlayerEngineEventName, listener: (payload?: unknown) => void): () => void {
+				let set = listeners.get(event);
+				if (set === undefined) {
+					set = new Set();
+					listeners.set(event, set);
+				}
+				set.add(listener);
+				return () => {
+					set?.delete(listener);
+				};
+			},
+		};
+		setEngineFactory(() => ({ ok: true, engine: recording }));
+		const program = { formatVersion: 6, blocks: [] };
+		const controller = new PlayerController({ src: null, program });
+		await controller.settled();
+		// Expected: one load carrying the program through
+		expect(seen.length).toBe(1);
+		expect(seen[0]?.program).toBe(program);
+		// Expected: ready without any src
+		expect(controller.state).toBe("ready");
+		// A replacement program reloads with the new object
+		const program2 = { formatVersion: 6, blocks: [], controls: [] };
+		controller.setProgram(program2);
+		await controller.settled();
+		// Expected: a second load carrying the replacement
+		expect(seen.length).toBe(2);
+		expect(seen[1]?.program).toBe(program2);
+		controller.dispose();
+		// Negative control: clearing the program with no src idles
+		setEngineFactory(() => ({ ok: true, engine: recording }));
+		const second = new PlayerController({ src: null, program });
+		await second.settled();
+		second.setProgram(undefined);
+		// Expected: idle with no src and no program
+		expect(second.state).toBe("idle");
+		second.dispose();
+	});
+});

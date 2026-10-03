@@ -31,6 +31,17 @@
 			"bun": "./dist/index.js",
 			"import": "./dist/index.js"
 		},
+		"./engine": {
+			"types": "./dist/engine/register.d.ts",
+			"bun": "./dist/engine/register.js",
+			"import": "./dist/engine/register.js"
+		},
+		"./worklet-player.js": {
+			"default": "./dist/worklet/player-worklet.js"
+		},
+		"./wasm/*": {
+			"default": "./dist/wasm/*"
+		},
 		"./package.json": {
 			"default": "./package.json"
 		}
@@ -44,7 +55,8 @@
 		"LICENSE.md"
 	],
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+		"build": "rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && bun scripts/build-player-worklet.ts",
+		"build:worklet": "bun scripts/build-player-worklet.ts",
 		"clean": "rm -rf dist",
 		"prepack": "bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run --cwd ../chain build && bun run build",
 		"pack:dry-run": "npm pack --dry-run",

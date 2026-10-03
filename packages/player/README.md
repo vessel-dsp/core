@@ -125,3 +125,99 @@ throw synchronously with `unknown-nam` before the loader runs, and
 loader, `selectNam` forwards synchronously and only `unknown-nam` can fail.
 The `PlayerEngine` seam is unchanged: validation happens before the existing
 `setNam`, so fakes written against it keep working.
+
+## Real engine (`@vessel-dsp/player/engine`)
+
+The headless shell above plays nothing by itself. For live audio, import
+the opt-in subpath (never the main barrel -- the barrel stays SSR-safe and
+lean) and register once per page:
+
+```ts
+import { registerPlayerEngine } from "@vessel-dsp/player/engine";
+
+registerPlayerEngine();
+```
+
+With no arguments the engine compiles the element's `.vdsp` in the page
+(via `@vessel-dsp/compiler`), runs one program slot plus an optional NAM
+plus an optional IR inside the player's AudioWorklet on the WASM console,
+and gates every start with the runtime's admission check: a circuit that
+cannot be shown to fit in real time is refused with a typed
+`PlayerError` (`admission-refused`, naming the block and the numbers),
+never played glitching. Telemetry (`cpuLoad`, `overruns`) flows through
+the existing opaque telemetry seam; controls report at program defaults in
+`[0, 1]` and forward with `setControl`.
+
+Order matters for static HTML: register the engine factory BEFORE the
+element module is evaluated. The element self-registers at import, and
+parser-created elements upgrade synchronously at `define()` time, reading
+the factory once -- an element upgraded before any factory exists keeps a
+fallback controller. So `import "@vessel-dsp/player/engine"` (and call
+`registerPlayerEngine`) strictly before `import "@vessel-dsp/player"`,
+or create elements dynamically after registering. Framework renderers
+that create elements after module evaluation satisfy this naturally.
+
+Lazy boundary, precisely: circuit-text fetch plus compile run at `load()`
+so `ready` and the control list precede any gesture (otherwise `play()`
+could never leave `loading`). Everything audio -- `AudioContext` (48 kHz
+preferred, device rate accepted), the worklet module, both wasm binaries,
+input bytes, NAM text, and IR bytes -- waits for the first `play()`
+gesture. NAM-engine bytes are fetched only when a NAM is selected.
+
+### Options
+
+Every URL is independently overridable; unset entries resolve against the
+package's own shipped files via `import.meta.url`:
+
+| option | default | meaning |
+|---|---|---|
+| `workletUrl` | player `dist/worklet/player-worklet.js` | `addModule` target |
+| `dspWasmUrl` | player `dist/wasm/v2_dsp.wasm` | pedal console binary (posted as bytes) |
+| `namWasmUrl` | player `dist/wasm/nam-engine.wasm` | NAM binary, fetched only with a NAM |
+| `namGlueUrl` | player `dist/wasm/nam-engine-glue.js` | NAM glue, dynamic-imported only with a NAM |
+| `program` | unset (fetch + compile `src`) | precompiled Program (object or JSON) to skip compiling |
+| `inputs` | unset (silent until picked) | WAV list; the default input is the first entry |
+| `inputGainDb` | `0` | input trim, changeable later with `setInputGainDb` |
+| `micDeviceId` | unset | `deviceId` for the browser-audio input |
+| `probeNam` | built lazily from chain | injected NAM rate probe (tests) |
+| `onEngine` | unset | host hook receiving each created engine (meters, proof taps) |
+
+### Next.js usage
+
+`node_modules` is not served, and `new URL(..., import.meta.url)` points
+into it, so copy the three served files to `public/` (or a CDN) and pass
+overrides. With `app/` router, register in a client component:
+
+```bash
+# once per build (paths inside @vessel-dsp/player's dist/)
+cp node_modules/@vessel-dsp/player/dist/worklet/player-worklet.js public/vessel-player-worklet.js
+cp node_modules/@vessel-dsp/player/dist/wasm/v2_dsp.wasm public/vessel-v2_dsp.wasm
+cp node_modules/@vessel-dsp/player/dist/wasm/nam-engine.wasm public/vessel-nam-engine.wasm
+cp node_modules/@vessel-dsp/player/dist/wasm/nam-engine-glue.js public/vessel-nam-engine-glue.js
+```
+
+```tsx
+"use client";
+import { useEffect } from "react";
+import { registerPlayerEngine } from "@vessel-dsp/player/engine";
+import "@vessel-dsp/player"; // registers <vessel-player> (import engine first)
+
+export function Player() {
+  useEffect(() => {
+    registerPlayerEngine({
+      workletUrl: "/vessel-player-worklet.js",
+      dspWasmUrl: "/vessel-v2_dsp.wasm",
+      namWasmUrl: "/vessel-nam-engine.wasm",
+      namGlueUrl: "/vessel-nam-engine-glue.js",
+    });
+  }, []);
+  return <vessel-player src="/circuits/my-pedal.vdsp" />;
+}
+```
+
+Serve `.wasm` as `application/wasm`; no COOP/COEP headers are needed
+(single-threaded builds). Blog-supplied NAM/IR/WAV URLs are fetched by the
+page, so cross-origin entries need `Access-Control-Allow-Origin`;
+same-origin assets need nothing. When WebAssembly or AudioWorklet is
+missing, the factory refuses with `no-webassembly` / `no-audioworklet`
+and the element renders the `fallback` mp3 instead.

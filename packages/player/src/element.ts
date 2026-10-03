@@ -10,7 +10,7 @@
 
 import { PlayerController } from "./controller.js";
 import { parseSourceList, validateSourceItems } from "./source-list.js";
-import { PlayerError, type PlayerState, type SourceItem } from "./types.js";
+import { playerErrorMessage, type PlayerState, type SourceItem } from "./types.js";
 
 type DomGlobals = {
 	HTMLElement?: { new (): object; prototype: object };
@@ -111,6 +111,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 
 	private controller: PlayerController | null = null;
 	private unsubscribers: Array<() => void> = [];
+	private programValue: unknown = undefined;
 	private listProps: { inputs: SourceItem[]; nam: SourceItem[]; ir: SourceItem[] } = {
 		inputs: [],
 		nam: [],
@@ -192,15 +193,30 @@ export class VesselPlayerElement extends HTMLElementBase {
 	}
 
 	set fallback(value: string | null) {
-		const host = asHost(this);
-		if (host === null) {
+		const fallbackHost = asHost(this);
+		if (fallbackHost === null) {
 			return;
 		}
 		if (value === null) {
-			host.removeAttribute("fallback");
+			fallbackHost.removeAttribute("fallback");
 		} else {
-			host.setAttribute("fallback", value);
+			fallbackHost.setAttribute("fallback", value);
 		}
+	}
+
+	/**
+	 * Precompiled program bypassing the `src` fetch+compile. Accepts a
+	 * Program object or its JSON text; set before or after connect (a
+	 * set after connect reloads). Pass undefined to return to `src`.
+	 */
+	get program(): unknown {
+		return this.programValue;
+	}
+
+	set program(value: unknown) {
+		this.programValue = value;
+		this.controller?.setProgram(value);
+		this.render();
 	}
 
 	get state(): PlayerState | null {
@@ -223,6 +239,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 		this.readAllAttributes();
 		this.controller = new PlayerController({
 			src: readAttribute(this, "src"),
+			program: this.programValue,
 			inputs: this.listProps.inputs,
 			nam: this.listProps.nam,
 			ir: this.listProps.ir,
@@ -252,7 +269,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 		try {
 			await this.controller?.play();
 		} catch (unknown) {
-			this.actionError = unknown instanceof PlayerError ? unknown.message : "Playback failed.";
+			this.actionError = playerErrorMessage(unknown, "Playback failed.");
 			this.render();
 			throw unknown;
 		}
@@ -264,7 +281,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 		try {
 			await this.controller?.pause();
 		} catch (unknown) {
-			this.actionError = unknown instanceof PlayerError ? unknown.message : "Pause failed.";
+			this.actionError = playerErrorMessage(unknown, "Pause failed.");
 			this.render();
 			throw unknown;
 		}
@@ -455,14 +472,13 @@ export class VesselPlayerElement extends HTMLElementBase {
 								this.render();
 							},
 							(unknown) => {
-								this.actionError =
-									unknown instanceof PlayerError ? unknown.message : "Selection failed.";
+								this.actionError = playerErrorMessage(unknown, "Selection failed.");
 								this.render();
 							},
 						);
 					}
 				} catch (unknown) {
-					this.actionError = unknown instanceof PlayerError ? unknown.message : "Selection failed.";
+					this.actionError = playerErrorMessage(unknown, "Selection failed.");
 				}
 				this.render();
 			});
@@ -478,7 +494,7 @@ export class VesselPlayerElement extends HTMLElementBase {
 				try {
 					this.controller?.setControl(id, Number(value));
 				} catch (unknown) {
-					this.actionError = unknown instanceof PlayerError ? unknown.message : "Control change failed.";
+					this.actionError = playerErrorMessage(unknown, "Control change failed.");
 					this.render();
 				}
 			});

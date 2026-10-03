@@ -385,6 +385,78 @@ files (content-identical move, no behavior change); browser smoke pages.
 Order: shell plus fallback first, inputs second, calibration third, cut the
 audio path over to phase-2 packages the day they publish, browser deadline
 signoff last on listener hardware.
+## Cutover: where NAM and IR run (W3 decision, 2026-10-03)
+
+Resolution: option (a). `@vessel-dsp/player` ships its own worklet bundle,
+`dist/worklet/player-worklet.js`, built by esbuild in `packages/player`
+(`scripts/build-player-worklet.ts`) and served as a package file behind a
+subpath export, reusing the runtime's `./worklet.js` pattern. The bundle
+composes the runtime's console path with the chain NAM engine boundary and a
+chain-IR convolver inside ONE `ChainRuntime` in the audio thread, following
+the workbench's `v2-audio-worklet.ts` `buildSlots` slot order and seam rules
+exactly (program slots first, at most one `nam`, at most one `ir`;
+`filterFullScale` unity seam into the IR; `{ input: null, output: null }`
+NAM ports; `unscalable-seam` reported, never invented).
+
+Why not the alternatives, each checked by run rather than by reading:
+
+- Reusing the runtime's own bundle is refused by name: its `buildSlots`
+  throws for `nam`/`ir` kinds (`packages/runtime/src/worklet/
+  v2-audio-worklet.ts:261`), and the task bans engine edits in runtime, so
+  no hook was requested and none is needed. No runtime change was required.
+- A second worklet node outside the chain (NAM/IR as sibling graph nodes)
+  would give up the seam arithmetic and advisories the chain exists to
+  compute (`seamScale`, `filterFullScale`, `unscalable-seam`); the chain is
+  one `process()` call over ordered slots, and splitting it across nodes
+  reintroduces the level-staging errors section 1 documents.
+- Main-thread inference is banned by the task constraints (NAM/IR run in
+  the audio thread), and the chain's `RuntimeNode` stays documented as
+  not-real-time and never enters the worklet path.
+
+How the bundle stays dependency-clean, verified with `bun run build` plus
+the bundle-content assertions in `scripts/build-player-worklet.ts`:
+
+- Program slots: `ChainRuntime`, `programSlot`, seam/advisory/scale helpers,
+  `V2WasmEngine`, and the protocol types come from `@vessel-dsp/runtime`
+  (value imports, bundled). The v2 DSP glue is bundled statically from the
+  runtime's `./wasm/v2_dsp.cjs` subpath; the `.wasm` binary is posted as
+  bytes in `load.wasmConsole`, because the worklet scope cannot fetch.
+- NAM slots: `instantiateNamEngine`, `loadNamModel`, `namLoudness` are
+  imported from the `@vessel-dsp/chain` barrel (the chain package publishes
+  no pure NAM subpath, only `.` and `./ir-resample`, so the barrel is the
+  only reuse of that boundary rather than a third one). The NAM glue
+  (`@vessel-dsp/chain/nam-engine.js`, ESM, no `require`) is bundled
+  statically; the `nam-engine.wasm` bytes ride per-slot in
+  `V2WorkletSlot.wasmBytes` and are fetched by the page ONLY when a NAM is
+  selected (section 5 loading strategy, pinned by the lazy unit test and
+  the proof's pre-click request log).
+- IR slots: a `CabinetIrNode` (partitioned FFT convolution) from the same
+  chain barrel, wrapped as an `ExternalProcessor` with `filterFullScale`
+  bounds. Tap resampling stays caller-side on the main thread through the
+  pure `@vessel-dsp/chain/ir-resample` subpath, exactly as the workbench
+  does. No new chain subpath, no chain edit, no cycle: chain never imports
+  player, and the player main barrel never imports chain (the existing
+  `tests/player/bundle.test.ts` still guards the shell; the worklet bundle
+  is a separate esbuild entry with its own no-external-imports check).
+
+Phase-2 gate status at cutover time (ran, not inherited): the three proof
+circuits compile with `formatVersion: 6`, zero `macro` blocks
+(`bun /tmp/w3-compat.ts`: buffer 10 unknowns, fuzz 5, phase-90 42, all
+`ok`), and all three load into `V2WasmEngine` on this checkout's fresh
+`build:wasm` binary (`bun /tmp/w3-load.ts`: three `WASM-LOAD-OK` lines).
+The section 2 refusal (`unsupported program format version 1`) no longer
+fires for these programs. Nothing about Safari/Firefox, device rates other
+than 48 kHz, or listener-hardware deadlines is claimed here; those stay
+hand-verify items for the blog signoff task.
+
+Lazy boundary, stated precisely because the controller calls `load()` at
+page load: circuit-text fetch plus compile run at `load()` so `ready` and
+the control list precede any gesture (otherwise `play()` could never leave
+`loading`). Everything audio -- `AudioContext`, the worklet `addModule`,
+both wasm binaries, the NAM glue probe, input WAV bytes, NAM text, and IR
+audio bytes -- waits for the first `play()` gesture. The proof asserts
+zero `*.wasm`/worklet requests and no `AudioContext` before the click.
+
 ## 9. Work breakdown (one worker per task)
 
 1. Player shell with fake engine. Files: `packages/player/src/*` (new

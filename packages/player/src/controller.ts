@@ -2,11 +2,12 @@
 // tested with a fake engine; element.ts only maps attributes, properties
 // and events onto this class and renders.
 
-import { createEngineAttempt } from "./engine.js";
-import { NamLoadError } from "./nam/load.js";
+import { createEngineAttempt } from "./engine/factory.js";
+import { isNamLoadError } from "./nam/load.js";
 import type { NamModelInfo, NamSlotLoader } from "./nam/types.js";
 import {
 	BROWSER_AUDIO_INPUT,
+	isPlayerError,
 	PlayerError,
 	type EngineUnavailableReason,
 	type InputChoiceDescriptor,
@@ -24,6 +25,12 @@ import { isSafeSrc } from "./source-list.js";
 
 export interface PlayerControllerOptions {
 	readonly src?: string | null;
+	/**
+	 * Precompiled program bypassing the fetch+compile of `src`. Passed
+	 * through to the engine load call; the engine accepts a Program
+	 * object or its JSON text. Replace later with setProgram.
+	 */
+	readonly program?: unknown;
 	readonly inputs?: readonly SourceItem[] | null;
 	readonly nam?: readonly SourceItem[] | null;
 	readonly ir?: readonly SourceItem[] | null;
@@ -56,11 +63,11 @@ function toIrDescriptor(item: SourceItem): IrDescriptor {
 // PlayerErrorReason) with its rates and status carried over; a PlayerError
 // passes through; anything else becomes nam-load-failed naming the src.
 function toNamPlayerError(unknown: unknown, src: string): PlayerError {
-	if (unknown instanceof PlayerError) {
+	if (isPlayerError(unknown)) {
 		return unknown;
 	}
-	if (unknown instanceof NamLoadError) {
-		return new PlayerError(unknown.reason, unknown.message, {
+	if (isNamLoadError(unknown)) {
+		return new PlayerError(unknown.reason as PlayerError["reason"], unknown.message, {
 			src: unknown.src,
 			status: unknown.status,
 			expectedSampleRate: unknown.expectedSampleRate,
@@ -96,6 +103,7 @@ export class PlayerController {
 	private lastErrorValue: PlayerError | null = null;
 	private fallbackReasonValue: "no-engine" | EngineUnavailableReason | null = null;
 	private vdspValue: string | null = null;
+	private programOverride: unknown = undefined;
 	private fallbackUrlValue: string | null = null;
 	private fallbackRefusalValue: "unsafe-src" | null = null;
 	private inputSources: SourceItem[] = [];
@@ -135,6 +143,7 @@ export class PlayerController {
 		this.applyFallbackUrl(options?.fallbackUrl ?? null);
 		this.rebuildInputChoices();
 		this.vdspValue = options?.src ?? null;
+		this.programOverride = options?.program;
 		this.enterInitialState();
 		if (this.stateValue === "loading") {
 			// Defer the first load to a microtask so listeners attached
@@ -237,6 +246,28 @@ export class PlayerController {
 		if (before === "fallback" || before === "error") {
 			this.rebuildFromFactory();
 		} else if (this.engine === null || src === null) {
+			this.setState("idle");
+			this.resolveSettled();
+			return;
+		} else {
+			this.setState("loading");
+			this.armSettled();
+		}
+		const after: PlayerState = this.stateValue;
+		if (after !== "loading") {
+			return;
+		}
+		void this.doLoad();
+	}
+
+	/** Replace the precompiled program and reload through the engine. */
+	setProgram(program: unknown): void {
+		this.throwIfDisposed();
+		this.programOverride = program;
+		const before: PlayerState = this.stateValue;
+		if (before === "fallback" || before === "error") {
+			this.rebuildFromFactory();
+		} else if (this.engine === null || (this.vdspValue === null && program === undefined)) {
 			this.setState("idle");
 			this.resolveSettled();
 			return;
@@ -550,7 +581,7 @@ export class PlayerController {
 		}
 		this.engine = attempt.engine;
 		this.subscribeEngine(attempt.engine);
-		if (this.vdspValue === null) {
+		if (this.vdspValue === null && this.programOverride === undefined) {
 			this.setState("idle");
 			return;
 		}
@@ -580,7 +611,7 @@ export class PlayerController {
 		this.engine = attempt.engine;
 		this.engineReadyFired = false;
 		this.subscribeEngine(attempt.engine);
-		if (this.vdspValue === null) {
+		if (this.vdspValue === null && this.programOverride === undefined) {
 			this.setState("idle");
 			this.resolveSettled();
 			return;
@@ -634,12 +665,12 @@ export class PlayerController {
 	private async doLoad(): Promise<void> {
 		const engine = this.engine;
 		const vdsp = this.vdspValue;
-		if (engine === null || vdsp === null) {
+		if (engine === null || (vdsp === null && this.programOverride === undefined)) {
 			return;
 		}
 		this.loadCountValue += 1;
 		try {
-			const result = engine.load({ vdsp });
+			const result = engine.load({ vdsp: vdsp ?? "", program: this.programOverride });
 			if (result instanceof Promise) {
 				await result;
 			}
@@ -647,10 +678,9 @@ export class PlayerController {
 			if (this.disposed || this.engine !== engine) {
 				return;
 			}
-			const failure =
-				unknown instanceof PlayerError
-					? unknown
-					: new PlayerError("load-failed", "Loading the circuit failed.");
+			const failure = isPlayerError(unknown)
+				? unknown
+				: new PlayerError("load-failed", "Loading the circuit failed.");
 			this.lastErrorValue = failure;
 			this.setState("error");
 			this.emitError(failure);

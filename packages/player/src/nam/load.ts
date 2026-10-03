@@ -67,6 +67,32 @@ export class NamLoadError extends Error {
 	}
 }
 
+// Duck-type check for a NamLoadError from another copy of this module
+// (same dual-bundle hazard as PlayerError's isPlayerError). The reason is
+// membership-checked, so a foreign object with a bogus reason cannot pass.
+const KNOWN_NAM_REASONS: ReadonlySet<string> = new Set([
+	"unsafe-src",
+	"network-or-cors",
+	"http-status",
+	"nam-load-failed",
+	"rate-mismatch",
+]);
+
+export function isNamLoadError(value: unknown): value is NamLoadError {
+	if (value instanceof NamLoadError) {
+		return true;
+	}
+	if (value === null || typeof value !== "object") {
+		return false;
+	}
+	const candidate = value as Record<string, unknown>;
+	return (
+		candidate.name === "NamLoadError" &&
+		typeof candidate.message === "string" &&
+		typeof candidate.reason === "string" &&
+		KNOWN_NAM_REASONS.has(candidate.reason)
+	);
+}
 // Fetch the `.nam` document at src, read its stated rate through deps.probe
 // (the chain engine boundary), and accept it only when unstated or within
 // tolerance of contextSampleRate. Throws NamLoadError on every refusal.

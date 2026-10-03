@@ -104,9 +104,10 @@ export type PlayerState =
  *   carries the engine's own reason verbatim.
  * rate-mismatch: the NAM model states a rate that differs from the context
  *   rate; `expectedSampleRate` and `contextSampleRate` carry both rates.
- * The last five arrive only through the NAM slot adapter (a configured
- * namLoader): without one, selectNam forwards synchronously and only
- * unknown-nam can fail.
+ * admission-refused: the compiled circuit (plus NAM/IR when selected)
+ *   cannot be shown to fit inside the host's real-time budget; the message
+ *   names the block and the numbers. Emitted only by the real engine.
+ * The last six arrive only through the real engine or the NAM slot adapter.
  */
 export type PlayerErrorReason =
 	| "no-engine"
@@ -123,8 +124,9 @@ export type PlayerErrorReason =
 	| "unsafe-src"
 	| "network-or-cors"
 	| "http-status"
-	| "nam-load-failed"
-	| "rate-mismatch";
+  | "nam-load-failed"
+  | "rate-mismatch"
+  | "admission-refused";
 
 /** Optional typed detail a PlayerError can carry beyond its message. */
 export interface PlayerErrorDetail {
@@ -162,6 +164,56 @@ export class PlayerError extends Error {
 }
 
 /**
+ * Duck-type check for a PlayerError from ANOTHER copy of this module.
+ * The main barrel and the `/engine` subpath (or two bundles serving them
+ * as separate files) each carry their own `PlayerError` class object, so
+ * `instanceof` fails across that boundary while the shape stays identical.
+ * The reason is membership-checked, so a foreign object with a bogus
+ * reason cannot pass. Prefer this (or `playerErrorMessage`) wherever an
+ * error crosses bundles.
+ */
+const KNOWN_PLAYER_REASONS: ReadonlySet<string> = new Set([
+	"no-engine",
+	"engine-unavailable",
+	"not-ready",
+	"unknown-input",
+	"unknown-nam",
+	"unknown-ir",
+	"unknown-control",
+	"invalid-control-value",
+	"load-failed",
+	"engine-error",
+	"disposed",
+	"unsafe-src",
+	"network-or-cors",
+	"http-status",
+	"nam-load-failed",
+	"rate-mismatch",
+	"admission-refused",
+]);
+
+export function isPlayerError(value: unknown): value is PlayerError {
+	if (value instanceof PlayerError) {
+		return true;
+	}
+	if (value === null || typeof value !== "object") {
+		return false;
+	}
+	const candidate = value as Record<string, unknown>;
+	return (
+		candidate.name === "PlayerError" &&
+		typeof candidate.message === "string" &&
+		typeof candidate.reason === "string" &&
+		KNOWN_PLAYER_REASONS.has(candidate.reason)
+	);
+}
+
+/** The display message of a (possibly cross-bundle) PlayerError, or a fallback. */
+export function playerErrorMessage(value: unknown, fallback: string): string {
+	return isPlayerError(value) ? String((value as { message: unknown }).message) : fallback;
+}
+
+/**
  * Closed reasons a factory can report when it cannot supply an engine.
  * no-webassembly: WebAssembly is unavailable in this browser.
  * no-audioworklet: AudioWorklet is unavailable in this browser.
@@ -189,7 +241,12 @@ export type PlayerEngineEventName = "ready" | "controls" | "error" | "telemetry"
  * carries PlayerTelemetry.
  */
 export interface PlayerEngine {
-	load(source: { readonly vdsp: string }): void | Promise<void>;
+	/**
+	 * Load a circuit. `program` carries an optional precompiled Program
+	 * (object or JSON text) that skips fetching and compiling `vdsp`;
+	 * engines that predate the field ignore it.
+	 */
+	load(source: { readonly vdsp: string; readonly program?: unknown }): void | Promise<void>;
 	start(): void | Promise<void>;
 	stop(): void | Promise<void>;
 	setControl(id: string, value: number): void;
