@@ -1079,9 +1079,9 @@ describe("Phase 4: live BBD clock control with dynamic resistance and taper smoo
 		runtime.prepare(sampleRate);
 
 		// At control=0.5 with audio/log taper:
-		// taperFraction(0.5, "logarithmic") is ~0.1
-		// R = 10k + 0.1 * (100k - 10k) = ~19k
-		// Delay = 2048 * 2.2 * 19,000 * 100e-12 = ~0.00856 s = ~411 samples
+		// taperFraction(0.5, "logarithmic") is 0.175 (Alpha bracket midpoint)
+		// R = 10k + 0.175 * (100k - 10k) = 25.75k
+		// Delay = 2048 * 2.2 * 25,750 * 100e-12 = ~0.01160 s = ~557 samples
 		runtime.setControl("Delay", 0.5);
 		runtime.process(new Float64Array(5000));
 
@@ -1089,9 +1089,9 @@ describe("Phase 4: live BBD clock control with dynamic resistance and taper smoo
 		impulse[0] = 1.0;
 		const outMid = runtime.process(impulse);
 		const peakIndexMid = outMid.findIndex((v) => Math.abs(v) > 0.1);
-		// Much closer to 411 samples than the linear midpoint (~1189 samples)
-		expect(peakIndexMid).toBeGreaterThan(350);
-		expect(peakIndexMid).toBeLessThan(500);
+		// Much closer to 557 samples than the linear midpoint (~1189 samples)
+		expect(peakIndexMid).toBeGreaterThan(500);
+		expect(peakIndexMid).toBeLessThan(620);
 	});
 });
 

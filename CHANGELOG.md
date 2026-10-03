@@ -1,5 +1,17 @@
 # Changelog
 
+## runtime 0.2.2 / chain 0.1.2 / player 0.1.3
+
+Audio-taper law: the logarithmic taper base moves from 81 to 1089/49, so a
+logarithmic pot at half rotation reads 17.5% of the track instead of 10% (the
+midpoint of the Alpha A-taper maker's 10-25% bracket at the 150-degree test
+point, Alpha RV16AF SP16050157 section 2.4). Meter-confirmed on one RAT
+specimen: Volume 19.3%, Distortion 20%, Filter 21% at the noon mark; base 81
+under-read every audio-taper noon by about 4.4 dB. Both consoles change
+together (`taperFraction` in TypeScript and C++), so a program's audio-taper
+controls render differently at every position except the ends. `chain` and
+`player` pin the runtime exactly and move with it (chain 0.1.2, player 0.1.3).
+
 ## player 0.1.2
 
 `@vessel-dsp/player` 0.1.1 still pinned `@vessel-dsp/chain` 0.1.0, which pins

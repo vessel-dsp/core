@@ -70,19 +70,23 @@ export const quietSeedGainMid = 4.4449;
 export const quietSeedGainThreeQuarter = 5.1223;
 
 /**
- * A 10k pot with an audio (logarithmic) taper at half rotation: **exactly** a tenth of the
- * track, not approximately.
+ * A 10k pot with an audio (logarithmic) taper at half rotation: **exactly** 17.5% of
+ * the track, not approximately.
  *
- * `runtime/taper.ts` evaluates `(81^x - 1)/(81 - 1)`, and base 81 is not a fitted constant --
- * it is the value for which that expression is exactly 0.1 at `x = 0.5`, which is the audio-taper
- * convention of 10% at half rotation. `81^0.5 = 9`, so the fraction is `(9 - 1)/80 = 0.1`, and
- * the fixture measures 0.10000000 with no loading error to absorb.
+ * `runtime/taper.ts` evaluates `(b^x - 1)/(b - 1)` with base 1089/49, and that base is
+ * not a fitted constant -- it is the value for which that expression is exactly 0.175
+ * at `x = 0.5`, which is the midpoint of the Alpha A-taper maker's bracket (10-25% at
+ * the 150-degree test point; Alpha RV16AF SP16050157 p. 4 section 2.4), metered at
+ * 19-21% across the three pots of specimen RT-301860 on 2026-10-01. The previous base
+ * 81 (the bracket's 10% edge) under-read every audio-taper noon by ~4.4 dB.
+ * `(33/7 - 1)/((33/7)^2 - 1)` = 0.175, and the fixture measures 0.17500000 with no
+ * loading error to absorb.
  *
- * Stated as exact on purpose: describing it as "roughly 10%" invites a later tolerance loosening
+ * Stated as exact on purpose: describing it as "roughly 17%" invites a later tolerance loosening
  * that this reference does not need, and it is one of the few numbers in this file that is a
  * closed form rather than a hand-solved approximation.
  */
-export const logTaperMidGain = 0.1;
+export const logTaperMidGain = 0.175;
 
 /** Ideal 1:2 step-up: turns ratio Np/Ns = 0.5, so V_secondary = V_primary / 0.5. */
 export const transformerStepUpGain = 2;

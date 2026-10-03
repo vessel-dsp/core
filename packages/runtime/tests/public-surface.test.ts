@@ -177,9 +177,10 @@ describe("chain helpers: pure, deterministic, and from the barrel", () => {
 		expect(taperFraction("linear", 0.5)).toBeCloseTo(0.5, 12);
 		// reverse-linear is a real track, not reverse-logarithmic: half rotation is half the track.
 		expect(taperFraction("reverse-linear", 0.5)).toBeCloseTo(0.5, 12);
-		// 10% of the track at half rotation: base 81, the value for which (9-1)/(81-1) = 0.1.
-		expect(taperFraction("logarithmic", 0.5)).toBeCloseTo(0.1, 12);
-		expect(taperFraction("reverse-logarithmic", 0.5)).toBeCloseTo(0.9, 12);
+		// 17.5% of the track at half rotation: base 1089/49, the value for which the
+		// audio curve is exactly 0.175 at 0.5 (Alpha bracket midpoint).
+		expect(taperFraction("logarithmic", 0.5)).toBeCloseTo(0.175, 12);
+		expect(taperFraction("reverse-logarithmic", 0.5)).toBeCloseTo(0.825, 12);
 		for (const step of [0, 10, 25, 50, 75, 90, 100]) {
 			const x = step / 100;
 			expect(taperFraction("reverse-logarithmic", x)).toBeCloseTo(1 - taperFraction("logarithmic", 1 - x), 12);

@@ -498,10 +498,10 @@ describe("decision 2: controls are 0..1 and the taper is in the program", () => 
 	});
 
 	it("renders an audio (logarithmic) taper with distinct mid-travel attenuation", () => {
-		// At half rotation a linear track passes half of itself and an audio track passes a
-		// tenth. Both numbers are exact rather than nominal: `taperFraction` is
-		// `(81^x - 1)/(81 - 1)`, and base 81 exists precisely so that `x = 0.5` gives
-		// `(9 - 1)/80` = 0.1 -- see `logTaperMidGain`.
+		// At half rotation a linear track passes half of itself and an audio track passes
+		// 17.5%. Both numbers are exact rather than nominal: `taperFraction` is
+		// `(b^x - 1)/(b - 1)` with b = 1089/49, chosen precisely so that `x = 0.5` gives
+		// 0.175 -- the Alpha A-taper bracket midpoint, see `logTaperMidGain`.
 		//
 		// **Both sides declare their taper the same way, which is what makes this a control
 		// over one variable.** `potLinearTaper` and `potLogarithmicTaper` are the same fixture
@@ -517,7 +517,8 @@ describe("decision 2: controls are 0..1 and the taper is in the program", () => 
 		});
 		expect(linearGain).toBeCloseTo(0.5, 6);
 		expect(logGain).toBeCloseTo(logTaperMidGain, 6);
-		expect(linearGain).toBeGreaterThan(logGain * 4);
+		// 0.5/0.175 = 2.86x separation at mid-travel (was 5x under the 10% edge law).
+		expect(linearGain).toBeGreaterThan(logGain * 2);
 
 		// And the two declaration sites agree, which is the assertion that keeps
 		// `potLinearTaper` and `potDivider` from being a silent maintenance trap: a

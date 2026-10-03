@@ -11,8 +11,10 @@ describe("taperFraction", () => {
 		expect(taperFraction("linear", 1)).toBe(1);
 	});
 
-	it("puts roughly a tenth of the track at half rotation for an audio taper", () => {
-		expect(taperFraction("logarithmic", 0.5)).toBeCloseTo(0.1, 6);
+	it("puts 17.5% of the track at half rotation for an audio taper", () => {
+		// The Alpha A-taper bracket midpoint (10-25% at the maker's test point), metered
+		// at 19-21% on RT-301860. The 10% edge it replaces under-read noon by ~4.4 dB.
+		expect(taperFraction("logarithmic", 0.5)).toBeCloseTo(0.175, 6);
 		expect(taperFraction("logarithmic", 0)).toBeCloseTo(0, 12);
 		expect(taperFraction("logarithmic", 1)).toBeCloseTo(1, 12);
 	});
@@ -26,11 +28,11 @@ describe("taperFraction", () => {
 
 	it("reverses a linear track without bending it", () => {
 		// A reverse-linear pot is linear travelling the other way, so half rotation is
-		// still half the track. Reverse-logarithmic puts a tenth there, which is what
+		// still half the track. Reverse-logarithmic puts 82.5% there (1 - 0.175), which is what
 		// this taper was collapsing into before it had a kind of its own.
 		expect(taperFraction("reverse-linear", 0)).toBe(1);
 		expect(taperFraction("reverse-linear", 0.5)).toBeCloseTo(0.5, 12);
 		expect(taperFraction("reverse-linear", 1)).toBe(0);
-		expect(taperFraction("reverse-logarithmic", 0.5)).toBeCloseTo(0.9, 6);
+		expect(taperFraction("reverse-logarithmic", 0.5)).toBeCloseTo(0.825, 6);
 	});
 });

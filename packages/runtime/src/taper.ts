@@ -19,10 +19,14 @@ import type { TaperKind } from "@vessel-dsp/compiler";
  */
 export function taperFraction(taper: TaperKind, position: number): number {
 	const x = Math.min(1, Math.max(0, position));
-	// Base 81 is not arbitrary: it is the value for which (b^0.5 - 1)/(b - 1) is
-	// exactly 0.1, which is the audio-taper convention of 10% of the track at half
-	// rotation. Solving 0.1 = (u - 1)/(u^2 - 1) for u = sqrt(b) gives u = 9.
-	const audioBase = 81;
+	// Base 1089/49 is not arbitrary: it is the value for which (b^0.5 - 1)/(b - 1) is
+	// exactly 0.175, the midpoint of the Alpha A-taper maker's bracket (10-25% of track
+	// at the 150-degree test point of a 300-degree rotation; Alpha RV16AF SP16050157
+	// p. 4 section 2.4). Solving 0.175 = (u - 1)/(u^2 - 1) = 1/(u + 1) for u = sqrt(b)
+	// gives u = 33/7, so b = 1089/49. Meter-confirmed 2026-10-01 on specimen RT-301860:
+	// Volume 19.3%, Distortion 20%, Filter 21% at the noon mark. The previous base 81
+	// (10% edge of the same bracket) under-read every audio-taper noon by ~4.4 dB.
+	const audioBase = 1089 / 49;
 	if (taper === "logarithmic") {
 		return (audioBase ** x - 1) / (audioBase - 1);
 	}
