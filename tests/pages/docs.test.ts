@@ -436,7 +436,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(signalChainPage).toContain("CabinetIrNode");
 		expect(signalChainPage).toContain("instantiateNamEngine");
 		expect(signalChainPage).toContain("nam-engine.wasm");
-		expect(signalChainPage).toContain("not yet on npm");
+		expect(signalChainPage).toContain("is on npm");
+		expect(signalChainPage).not.toContain("not yet on npm");
 		expect(signalChainPage).toContain("ConvNet");
 		expect(signalChainPage).toContain("## Power supply");
 		expect(signalChainPage).toContain("SUPPLY_PROFILES");
