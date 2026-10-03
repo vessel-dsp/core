@@ -3,6 +3,8 @@
 // and events onto this class and renders.
 
 import { createEngineAttempt } from "./engine.js";
+import { NamLoadError } from "./nam/load.js";
+import type { NamModelInfo, NamSlotLoader } from "./nam/types.js";
 import {
 	BROWSER_AUDIO_INPUT,
 	PlayerError,
@@ -26,6 +28,15 @@ export interface PlayerControllerOptions {
 	readonly nam?: readonly SourceItem[] | null;
 	readonly ir?: readonly SourceItem[] | null;
 	readonly fallbackUrl?: string | null;
+	/**
+	 * Optional NAM validation hook. The page closes over its fetch, its
+	 * chain probe, and its AudioContext rate -- typically
+	 * `(src) => loadNam(src, context.sampleRate, { fetch, probe })`.
+	 * Absent (null, the default) means no validation: selectNam forwards
+	 * synchronously as before. Set later with setNamLoader; DOM-free
+	 * because every browser dependency is closed over by the caller.
+	 */
+	readonly namLoader?: NamSlotLoader | null;
 }
 
 function toWavDescriptor(item: SourceItem): InputChoiceDescriptor {
@@ -38,6 +49,28 @@ function toNamDescriptor(item: SourceItem): NamDescriptor {
 
 function toIrDescriptor(item: SourceItem): IrDescriptor {
 	return { id: item.id, label: item.label, src: item.src };
+}
+
+// Map a namLoader rejection onto the controller's typed surface. A
+// NamLoadError keeps its reason 1:1 (the NAM reasons are a subset of
+// PlayerErrorReason) with its rates and status carried over; a PlayerError
+// passes through; anything else becomes nam-load-failed naming the src.
+function toNamPlayerError(unknown: unknown, src: string): PlayerError {
+	if (unknown instanceof PlayerError) {
+		return unknown;
+	}
+	if (unknown instanceof NamLoadError) {
+		return new PlayerError(unknown.reason, unknown.message, {
+			src: unknown.src,
+			status: unknown.status,
+			expectedSampleRate: unknown.expectedSampleRate,
+			contextSampleRate: unknown.contextSampleRate,
+		});
+	}
+	const message = unknown instanceof Error ? unknown.message : String(unknown);
+	return new PlayerError("nam-load-failed", `NAM model refused for ${src}: ${message}`, {
+		src,
+	});
 }
 
 /**
@@ -68,6 +101,7 @@ export class PlayerController {
 	private inputSources: SourceItem[] = [];
 	private namSources: SourceItem[] = [];
 	private irSources: SourceItem[] = [];
+	private namLoaderValue: NamSlotLoader | null = null;
 	private inputChoicesValue: InputChoiceDescriptor[] = [BROWSER_AUDIO_INPUT];
 	private selectedInputValue: InputChoiceDescriptor = BROWSER_AUDIO_INPUT;
 	private selectedNamValue: NamDescriptor | null = null;
@@ -97,6 +131,7 @@ export class PlayerController {
 		this.inputSources = options?.inputs ? [...options.inputs] : [];
 		this.namSources = options?.nam ? [...options.nam] : [];
 		this.irSources = options?.ir ? [...options.ir] : [];
+		this.namLoaderValue = options?.namLoader ?? null;
 		this.applyFallbackUrl(options?.fallbackUrl ?? null);
 		this.rebuildInputChoices();
 		this.vdspValue = options?.src ?? null;
@@ -230,6 +265,17 @@ export class PlayerController {
 		}
 	}
 
+	/** Replace the NAM validation hook, or null to forward without validation. */
+	setNamLoader(loader: NamSlotLoader | null): void {
+		this.throwIfDisposed();
+		this.namLoaderValue = loader;
+	}
+
+	/** The current NAM validation hook, or null when selectNam forwards directly. */
+	get namLoader(): NamSlotLoader | null {
+		return this.namLoaderValue;
+	}
+
 	setIrSources(items: readonly SourceItem[]): void {
 		this.throwIfDisposed();
 		this.irSources = [...items];
@@ -319,8 +365,23 @@ export class PlayerController {
 		this.emitSelection({ kind: "input", id: found.id });
 	}
 
-	/** Pick a NAM model by id, or null for None. */
-	selectNam(id: string | null): void {
+	/**
+	 * Pick a NAM model by id, or null for None.
+	 *
+	 * Without a namLoader this forwards synchronously to engine.setNam and
+	 * emits the selection, exactly as before. With one, the descriptor's
+	 * src is validated through the loader first and the returned promise
+	 * rejects with a typed PlayerError (unsafe-src, network-or-cors,
+	 * http-status, nam-load-failed, or rate-mismatch carrying both rates)
+	 * without touching the engine, the selection, the state, or any event --
+	 * the same throw-only refusal unknown ids use. A rejection therefore
+	 * leaves the previous (or no) model selected and the controller ready.
+	 * Null clears synchronously and never calls the loader. Unknown ids
+	 * throw synchronously with unknown-nam before the loader is consulted.
+	 * The engine seam is unchanged: success still ends in the same
+	 * synchronous setNam plus selection event, only deferred past the await.
+	 */
+	selectNam(id: string | null): void | Promise<void> {
 		this.throwIfDisposed();
 		const engine = this.requireEngineForSelection();
 		if (id === null) {
@@ -334,6 +395,37 @@ export class PlayerController {
 			throw new PlayerError("unknown-nam", `Unknown NAM model "${id}".`);
 		}
 		const descriptor = toNamDescriptor(found);
+		const loader = this.namLoaderValue;
+		if (loader === null) {
+			this.selectedNamValue = descriptor;
+			engine.setNam(descriptor);
+			this.emitSelection({ kind: "nam", id: descriptor.id });
+			return;
+		}
+		return this.loadAndSelectNam(descriptor, loader, engine);
+	}
+
+	private async loadAndSelectNam(
+		descriptor: NamDescriptor,
+		loader: NamSlotLoader,
+		engine: PlayerEngine,
+	): Promise<void> {
+		let info: NamModelInfo;
+		try {
+			info = await loader(descriptor.src);
+		} catch (unknown) {
+			throw toNamPlayerError(unknown, descriptor.src);
+		}
+		if (this.disposed || this.engine !== engine) {
+			throw new PlayerError(
+				this.disposed ? "disposed" : "engine-unavailable",
+				"The player engine changed while the NAM model was loading.",
+			);
+		}
+		// The loaded info is a validation gate only: a resolved loader means
+		// the model's rate is accepted at the page's context rate, so the
+		// descriptor forwards exactly as in the unvalidated path.
+		void info;
 		this.selectedNamValue = descriptor;
 		engine.setNam(descriptor);
 		this.emitSelection({ kind: "nam", id: descriptor.id });

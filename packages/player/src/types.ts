@@ -96,6 +96,17 @@ export type PlayerState =
  * load-failed: the engine load call threw or rejected.
  * engine-error: the engine reported an error event mid-stream.
  * disposed: the controller was disposed; create a new one.
+ * unsafe-src: a NAM src failed the same safety check as the source lists.
+ * network-or-cors: a NAM fetch rejected, or its body read rejected.
+ * http-status: a NAM request answered with a non-ok status; `status`
+ *   carries the numeric code.
+ * nam-load-failed: the NAM engine refused the model text; the message
+ *   carries the engine's own reason verbatim.
+ * rate-mismatch: the NAM model states a rate that differs from the context
+ *   rate; `expectedSampleRate` and `contextSampleRate` carry both rates.
+ * The last five arrive only through the NAM slot adapter (a configured
+ * namLoader): without one, selectNam forwards synchronously and only
+ * unknown-nam can fail.
  */
 export type PlayerErrorReason =
 	| "no-engine"
@@ -108,16 +119,45 @@ export type PlayerErrorReason =
 	| "invalid-control-value"
 	| "load-failed"
 	| "engine-error"
-	| "disposed";
+	| "disposed"
+	| "unsafe-src"
+	| "network-or-cors"
+	| "http-status"
+	| "nam-load-failed"
+	| "rate-mismatch";
+
+/** Optional typed detail a PlayerError can carry beyond its message. */
+export interface PlayerErrorDetail {
+	readonly src?: string;
+	readonly status?: number;
+	readonly expectedSampleRate?: number | null;
+	readonly contextSampleRate?: number;
+}
 
 /** Typed controller and engine error with a display message. */
 export class PlayerError extends Error {
 	readonly reason: PlayerErrorReason;
+	readonly src?: string;
+	readonly status?: number;
+	readonly expectedSampleRate?: number | null;
+	readonly contextSampleRate?: number;
 
-	constructor(reason: PlayerErrorReason, message: string) {
+	constructor(reason: PlayerErrorReason, message: string, detail?: PlayerErrorDetail) {
 		super(message);
 		this.name = "PlayerError";
 		this.reason = reason;
+		if (detail?.src !== undefined) {
+			this.src = detail.src;
+		}
+		if (detail?.status !== undefined) {
+			this.status = detail.status;
+		}
+		if (detail?.expectedSampleRate !== undefined) {
+			this.expectedSampleRate = detail.expectedSampleRate;
+		}
+		if (detail?.contextSampleRate !== undefined) {
+			this.contextSampleRate = detail.contextSampleRate;
+		}
 	}
 }
 
@@ -136,6 +176,12 @@ export type PlayerEngineEventName = "ready" | "controls" | "error" | "telemetry"
  * The engine seam. There is no real engine in this task; tests and the
  * browser smoke page register fakes with setEngineFactory. Real-time
  * audio on WebAssembly in an AudioWorklet is explicitly out of scope.
+ *
+ * NAM validation deliberately adds no method here: the controller validates
+ * through its own optional namLoader (see PlayerController) before calling
+ * the existing synchronous setNam, so every fake written against this
+ * interface keeps working unchanged. The real engine arrives in a separate
+ * task and can keep calling setNam exactly as today.
  *
  * The event listener takes an untyped payload on purpose so fakes stay
  * one method: ready carries none, controls carries

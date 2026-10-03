@@ -436,12 +436,30 @@ export class VesselPlayerElement extends HTMLElementBase {
 				const kind = picker.getAttribute("data-picker");
 				this.actionError = null;
 				try {
+					let pending: unknown;
 					if (kind === "input") {
 						this.controller?.selectInput(value);
 					} else if (kind === "nam") {
-						this.controller?.selectNam(value === "" ? null : value);
+						// selectNam is async when a namLoader is configured:
+						// a rejection must surface in the error line, since a
+						// synchronous catch cannot see it. Success re-renders
+						// through the controller's selection event as well.
+						pending = this.controller?.selectNam(value === "" ? null : value);
 					} else if (kind === "ir") {
 						this.controller?.selectIr(value === "" ? null : value);
+					}
+					if (pending instanceof Promise) {
+						pending.then(
+							() => {
+								this.actionError = null;
+								this.render();
+							},
+							(unknown) => {
+								this.actionError =
+									unknown instanceof PlayerError ? unknown.message : "Selection failed.";
+								this.render();
+							},
+						);
 					}
 				} catch (unknown) {
 					this.actionError = unknown instanceof PlayerError ? unknown.message : "Selection failed.";
