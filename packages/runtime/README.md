@@ -11,7 +11,7 @@ Headless real time MNA simulation runtime and solver console for compiled Vessel
 bun add @vessel-dsp/runtime @vessel-dsp/compiler
 ```
 
-Subpath exports: `.` (the `ReferenceRuntime` console, chain runtime, admission, settling, and measurement helpers) and `./wasm/*` (the compiled solver console files: `v2_dsp.cjs` glue plus `v2_dsp.wasm`).
+Subpath exports: `.` (the `ReferenceRuntime` console, chain runtime, admission, settling, and measurement helpers), `./wasm/*` (the compiled solver console files: `v2_dsp.cjs` glue plus `v2_dsp.wasm`), and `./worklet.js` (the bundled v2 AudioWorkletProcessor, ready for `audioWorklet.addModule`).
 
 ## Minimal example
 
@@ -102,10 +102,29 @@ What it does not do: no mutation of the caller `Program` (two runtimes from one 
 
 A host that cannot dynamically import the glue — an `AudioWorkletGlobalScope` bundles it statically and has no `fetch` — instantiates the module from pre-fetched bytes and passes it as the second argument: `V2WasmEngine.create(program, mod)`, where `mod` comes from the glue factory called with `{ wasmBinary }` read from `@vessel-dsp/runtime/wasm/v2_dsp.wasm`. See the Runtime guide for both paths end to end; on a biased BJT stage the two consoles agree sample by sample to about 1e-7.
 
+## Worklet bundle
+
+`@vessel-dsp/runtime/worklet.js` resolves to `dist/worklet/v2-audio-worklet.js`: the v2 `AudioWorkletProcessor` (`src/worklet/v2-audio-worklet.ts`, ported from the workbench reference copy) bundled with esbuild into one file with no external imports, Emscripten glue included. `build` writes it via `bun scripts/build-worklet.ts` (after `build:wasm` provides the glue), and `prepack` ships it, so the published tarball always carries the bundle beside `dist/wasm/v2_dsp.wasm`. It runs `program` slots on the TS `ReferenceRuntime` or, when the `load` message carries `wasmConsole: { wasmBytes }`, on the WASM console; `nam`/`ir` slots are refused by name (their adapters ship in `@vessel-dsp/player`). The worklet scope has no `structuredClone`: programs cross it as JSON (see `V2WasmEngine.loadProgram`), so hosts must not depend on that binding either. Verified by `bun scripts/worklet-proof.ts`, which renders 1 s at 48 kHz in headless Chromium (also with `structuredClone` deleted from the page) and asserts agreement with the TS reference render within 1e-4 max abs.
+
+### Consuming the worklet from a bundler (Next.js)
+
+The worklet and the wasm are static files behind subpath exports, so resolve them against the importing module rather than a relative path that a bundler rewrites:
+
+```ts
+const workletUrl = new URL("@vessel-dsp/runtime/worklet.js", import.meta.url);
+const wasmUrl = new URL("@vessel-dsp/runtime/wasm/v2_dsp.wasm", import.meta.url);
+await audioContext.audioWorklet.addModule(workletUrl);
+const wasmBytes = await (await fetch(wasmUrl)).arrayBuffer();
+```
+
+For Next.js static export (or any host that serves `public/` verbatim), the copy-to-public alternative avoids bundler URL handling entirely: copy `node_modules/@vessel-dsp/runtime/dist/worklet/v2-audio-worklet.js` and `node_modules/@vessel-dsp/runtime/dist/wasm/v2_dsp.wasm` into `public/vessel-dsp/` and serve them same-origin. Serve `.wasm` as `application/wasm` and the worklet as `text/javascript`; no COOP/COEP headers are needed (single-threaded builds). Hosts that pin or CDN their assets take `workletUrl` / `dspWasmUrl` overrides instead: pass the pinned URLs to `addModule` and `fetch` and skip both patterns above. Lazy-load on first user gesture: create the context, `addModule` the worklet, fetch only the wasm bytes the chain needs, post `load`, then start — never fetch wasm or create a context on page load.
+
 ## Reference console surface
 
-Values: `ReferenceRuntime`, `DEFAULT_NEWTON_MAX_ITERATIONS`, `admissionVerdict`, `predictedWorstCaseNs`, `calibrateNsPerSolve`, `denseLinearSolveWorkload`, `ChainRuntime`, `programSlot`, `processorSlot`, `slotContract`, `resolveBypassMode`, `chainAdvisories`, `bypassNotModelledAdvisories`, `seamScale`, `dacScaleFactor`, `outputConversionFullScale`, `outputDbfs`, `supplyGroundConflicts`, `taperFraction`, `settledRender`, `settledSweepVerified`, `measureSharedWindow`, `measureInputAttributable`, `SETTLE_DEFAULTS`, `V2WasmEngine`.
+Values: `ReferenceRuntime`, `DEFAULT_NEWTON_MAX_ITERATIONS`, `admissionVerdict`, `predictedWorstCaseNs`, `calibrateNsPerSolve`, `denseLinearSolveWorkload`, `ChainRuntime`, `programSlot`, `processorSlot`, `slotContract`, `resolveBypassMode`, `chainAdvisories`, `bypassNotModelledAdvisories`, `seamScale`, `dacScaleFactor`, `outputConversionFullScale`, `outputDbfs`, `supplyGroundConflicts`, `taperFraction`, `settledRender`, `settledSweepVerified`, `measureSharedWindow`, `measureInputAttributable`, `SETTLE_DEFAULTS`, `V2WasmEngine`, `v2WorkletProcessorName`, `postV2WorkletMessage`.
 
 Types (import with `import type`): `RuntimeNodeVoltageSnapshot`, `SupplyAddress`, `SupplyInfo`, `AdmissionVerdict`, `RealtimeBudget`, `ChainSlot`, `ExternalProcessor`, `SlotContract`, `StageCoverage`, `SupplyGroundConflict`, `ChainAdvisory`, `SettleOptions`, `CalibrationResult`, and the rest in the package sources.
+
+Worklet protocol (import with `import type`, except the two values above): `V2WorkletSlot` (one chain slot: a compiled `program`, or an `ir`/`nam` descriptor the runtime worklet refuses by name), `V2WorkletInboundMessage` (`load` an ordered slot chain with optional `wasmConsole` bytes, `setControl` by slot and id, `setBypassMode` by slot), `V2WorkletOutboundMessage` (`loaded` per-slot controls plus supply-ground conflicts and chain advisories, `telemetry` per-slot solver census plus CPU histogram, `error` refusal text), `BypassMode` (`wire` skips the slot, `buffer` and `effect` run it), `V2WorkletPort` (the minimal `{ postMessage }` surface `postV2WorkletMessage` needs, so hosts need no DOM lib).
 
 `RuntimeError` is thrown for misuse: no prepare, bad rate, bad control, bad supply, unimplemented operator or model.

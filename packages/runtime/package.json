@@ -33,6 +33,9 @@
 		},
 		"./wasm/*": {
 			"default": "./dist/wasm/*"
+		},
+		"./worklet.js": {
+			"default": "./dist/worklet/v2-audio-worklet.js"
 		}
 	},
 	"main": "./dist/index.js",
@@ -44,12 +47,13 @@
 		"LICENSE.md"
 	],
 	"scripts": {
-		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm",
+		"build": "tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm && bun scripts/build-worklet.ts",
 		"clean": "rm -rf dist",
 		"prepack": "bun run --cwd ../core build && bun run --cwd ../compiler build && bun run build:wasm && bun run build",
 		"pack:dry-run": "npm pack --dry-run",
 		"typecheck": "tsc --noEmit -p tsconfig.json",
 		"build:wasm": "bash scripts/build-wasm.sh",
+		"build:worklet": "bun scripts/build-worklet.ts",
 		"test": "bun test tests",
 		"generate-kernels": "bun scripts/generate-kernels.ts"
 	},

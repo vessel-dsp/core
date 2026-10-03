@@ -44,3 +44,17 @@ export { V2WasmEngine } from "./v2-wasm-engine";
 export * from "./calibrate";
 export { admissionVerdict, predictedWorstCaseNs } from "./admission";
 export type { AdmissionVerdict, RealtimeBudget } from "./admission";
+// Worklet message contract: the only host-side surface for driving the bundled
+// `dist/worklet/v2-audio-worklet.js` (shipped behind the `./worklet.js` subpath).
+// Values: the processor name `addModule` registers, and the type-checked post
+// helper. Types: the inbound/outbound messages, the chain slot descriptors, the
+// bypass vocabulary, and the minimal port surface the helper needs.
+export {
+	postV2WorkletMessage,
+	v2WorkletProcessorName,
+	type BypassMode,
+	type V2WorkletInboundMessage,
+	type V2WorkletOutboundMessage,
+	type V2WorkletPort,
+	type V2WorkletSlot,
+} from "./worklet/v2-worklet-protocol";
