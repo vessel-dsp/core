@@ -104,7 +104,8 @@ describe("GitHub Pages documentation site", () => {
 		expect(landingPage).toContain("@vessel-dsp/runtime");
 		expect(landingPage).toContain("@vessel-dsp/chain");
 		expect(landingPage).toContain("@vessel-dsp/player");
-		expect(landingPage).toContain("not yet published to npm");
+		expect(landingPage).toContain("on npm");
+		expect(landingPage).not.toContain("not yet published to npm");
 		expect(landingPage).toContain("/core/guides/signal-chain/");
 		expect(landingPage).toContain("CircuitDocument");
 		expect(landingPage).toContain("class hooks");
