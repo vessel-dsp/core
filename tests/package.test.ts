@@ -930,8 +930,9 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
 		expect(changelog).toStartWith(
-			"# Changelog\n\n## runtime 0.2.1 / chain 0.1.1 / player 0.1.1\n\n",
+			"# Changelog\n\n## player 0.1.2\n\n",
 		);
+		expect(changelog).toContain("## runtime 0.2.1 / chain 0.1.1 / player 0.1.1");
 		expect(changelog).toContain("## compiler 0.2.0 / runtime 0.2.0");
 		expect(changelog).toContain("## chain 0.1.0");
 		expect(changelog).toContain("@vessel-dsp/control-ui");

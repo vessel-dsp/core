@@ -1,5 +1,11 @@
 # Changelog
 
+## player 0.1.2
+
+`@vessel-dsp/player` 0.1.1 still pinned `@vessel-dsp/chain` 0.1.0, which pins
+the broken `@vessel-dsp/runtime` 0.2.0 (no `structuredClone` in a worklet), so
+installing it pulled both runtimes. 0.1.2 pins `chain` 0.1.1. Use player 0.1.2.
+
 ## runtime 0.2.1 / chain 0.1.1 / player 0.1.1
 
 Fix: `V2WasmEngine.loadProgram` called `structuredClone`, which an

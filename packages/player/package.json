@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/player",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Embeddable HTML Custom Element (<vessel-player>) and Web Audio player for VesselDSP circuits, guitar profiling, NAM, and cabinet IRs.",
 	"keywords": [
 		"guitar-pedal",
@@ -51,7 +51,7 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/chain": "0.1.0",
+		"@vessel-dsp/chain": "0.1.1",
 		"@vessel-dsp/compiler": "0.2.0",
 		"@vessel-dsp/core": "0.16.0",
 		"@vessel-dsp/runtime": "0.2.1"

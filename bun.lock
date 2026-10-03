@@ -40,9 +40,9 @@
       "name": "@vessel-dsp/chain",
       "version": "0.1.1",
       "dependencies": {
-        "@vessel-dsp/compiler": "0.1.0",
-        "@vessel-dsp/core": "0.7.2",
-        "@vessel-dsp/runtime": "0.1.0",
+        "@vessel-dsp/compiler": "0.2.0",
+        "@vessel-dsp/core": "0.16.0",
+        "@vessel-dsp/runtime": "0.2.1",
       },
     },
     "packages/compiler": {
@@ -85,9 +85,9 @@
     },
     "packages/player": {
       "name": "@vessel-dsp/player",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
-        "@vessel-dsp/chain": "0.1.0",
+        "@vessel-dsp/chain": "0.1.1",
         "@vessel-dsp/compiler": "0.2.0",
         "@vessel-dsp/core": "0.16.0",
         "@vessel-dsp/runtime": "0.2.1",
@@ -1088,8 +1088,6 @@
 
     "@vessel-dsp/control-ui/@vessel-dsp/core": ["@vessel-dsp/core@0.6.16", "", { "dependencies": { "circuit-json": "0.0.433", "zod": "3" } }, "sha512-xoVYXwnJA4sJrNnuI5KMXr73PHR/YpH/aB1ezR0qG1OBDRAqHYuz5cm47AowW6a4Ew+8JGHYBN10l95G44946A=="],
 
-    "@vessel-dsp/player/@vessel-dsp/chain": ["@vessel-dsp/chain@0.1.0", "", { "dependencies": { "@vessel-dsp/compiler": "0.2.0", "@vessel-dsp/core": "0.16.0", "@vessel-dsp/runtime": "0.2.0" } }, "sha512-yBzrUBhc4mizoTX4wx+tJF0kV4mjqob9niGB+pcxxePZJVugSrMqsOknXFW4XuKLdqnecA93TxIVS+nDLWpeQA=="],
-
     "anymatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],
 
     "astro/esbuild": ["esbuild@0.27.7", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.27.7", "@esbuild/android-arm": "0.27.7", "@esbuild/android-arm64": "0.27.7", "@esbuild/android-x64": "0.27.7", "@esbuild/darwin-arm64": "0.27.7", "@esbuild/darwin-x64": "0.27.7", "@esbuild/freebsd-arm64": "0.27.7", "@esbuild/freebsd-x64": "0.27.7", "@esbuild/linux-arm": "0.27.7", "@esbuild/linux-arm64": "0.27.7", "@esbuild/linux-ia32": "0.27.7", "@esbuild/linux-loong64": "0.27.7", "@esbuild/linux-mips64el": "0.27.7", "@esbuild/linux-ppc64": "0.27.7", "@esbuild/linux-riscv64": "0.27.7", "@esbuild/linux-s390x": "0.27.7", "@esbuild/linux-x64": "0.27.7", "@esbuild/netbsd-arm64": "0.27.7", "@esbuild/netbsd-x64": "0.27.7", "@esbuild/openbsd-arm64": "0.27.7", "@esbuild/openbsd-x64": "0.27.7", "@esbuild/openharmony-arm64": "0.27.7", "@esbuild/sunos-x64": "0.27.7", "@esbuild/win32-arm64": "0.27.7", "@esbuild/win32-ia32": "0.27.7", "@esbuild/win32-x64": "0.27.7" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-IxpibTjyVnmrIQo5aqNpCgoACA/dTKLTlhMHihVHhdkxKyPO1uBBthumT0rdHmcsk9uMonIWS0m4FljWzILh3w=="],
@@ -1109,8 +1107,6 @@
     "sitemap/@types/node": ["@types/node@24.13.2", "", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-fRa09kZTgu8o71KFcDjUFuc7F+dEbZYZmkI0mg5YBTRs0yMKjYHsq/c0urDKeDb+D5qVgXOdFcuu+DZPKOITwA=="],
 
     "vite/esbuild": ["esbuild@0.27.7", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.27.7", "@esbuild/android-arm": "0.27.7", "@esbuild/android-arm64": "0.27.7", "@esbuild/android-x64": "0.27.7", "@esbuild/darwin-arm64": "0.27.7", "@esbuild/darwin-x64": "0.27.7", "@esbuild/freebsd-arm64": "0.27.7", "@esbuild/freebsd-x64": "0.27.7", "@esbuild/linux-arm": "0.27.7", "@esbuild/linux-arm64": "0.27.7", "@esbuild/linux-ia32": "0.27.7", "@esbuild/linux-loong64": "0.27.7", "@esbuild/linux-mips64el": "0.27.7", "@esbuild/linux-ppc64": "0.27.7", "@esbuild/linux-riscv64": "0.27.7", "@esbuild/linux-s390x": "0.27.7", "@esbuild/linux-x64": "0.27.7", "@esbuild/netbsd-arm64": "0.27.7", "@esbuild/netbsd-x64": "0.27.7", "@esbuild/openbsd-arm64": "0.27.7", "@esbuild/openbsd-x64": "0.27.7", "@esbuild/openharmony-arm64": "0.27.7", "@esbuild/sunos-x64": "0.27.7", "@esbuild/win32-arm64": "0.27.7", "@esbuild/win32-ia32": "0.27.7", "@esbuild/win32-x64": "0.27.7" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-IxpibTjyVnmrIQo5aqNpCgoACA/dTKLTlhMHihVHhdkxKyPO1uBBthumT0rdHmcsk9uMonIWS0m4FljWzILh3w=="],
-
-    "@vessel-dsp/player/@vessel-dsp/chain/@vessel-dsp/runtime": ["@vessel-dsp/runtime@0.2.0", "", { "dependencies": { "@vessel-dsp/compiler": "0.2.0" } }, "sha512-gpgPakpGIwUJX9XXYSWQIdgHpMx4TGlRloA2oS4iHH3WYpZHiKPnp1+H2crWgXhH7GeBaaaUE7qJUXzLJOcu8Q=="],
 
     "astro/esbuild/@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.7", "", { "os": "aix", "cpu": "ppc64" }, "sha512-EKX3Qwmhz1eMdEJokhALr0YiD0lhQNwDqkPYyPhiSwKrh7/4KRjQc04sZ8db+5DVVnZ1LmbNDI1uAMPEUBnQPg=="],
 
