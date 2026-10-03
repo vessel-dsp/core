@@ -9,7 +9,7 @@ every controller on the page uses it. It depends on `@vessel-dsp/chain`,
 
 ## Install
 
-`@vessel-dsp/player` 0.1.2 is on npm (0.1.1 pulled the broken runtime 0.2.0 through chain 0.1.0; use 0.1.2):
+`@vessel-dsp/player` 0.1.4 is on npm (0.1.1 pulled the broken runtime 0.2.0 through chain 0.1.0; use 0.1.4):
 
 ```bash
 bun add @vessel-dsp/player
@@ -73,3 +73,55 @@ The engine itself is registered per page with `setEngineFactory(factory)`
 factory registered the controller takes the fallback path and playback needs
 the blog fallback audio. There is no real engine in 0.1.0: production pages
 leave the factory unset, and the element renders the fallback.
+
+## NAM models
+
+A NAM source entry has the same shape as every other source list entry --
+`{ id, label, src }`, where `id` may be omitted and is then derived as
+`source-<index>` -- and its `src` passes the same safety check (http(s)
+absolute URLs plus same-origin relative URLs only):
+
+```html
+<vessel-player nam='[{"id":"jcm800","label":"JCM800","src":"/models/jcm800.nam"}]'></vessel-player>
+```
+
+```ts
+import { loadNam, NAM_SAMPLE_RATE_TOLERANCE_HZ } from "@vessel-dsp/player";
+
+const info = await loadNam("/models/jcm800.nam", context.sampleRate, {
+  fetch: (...args) => fetch(...args),
+  probe: (modelText) => chainProbe(modelText), // built from @vessel-dsp/chain 0.1.3: loadNamModel + _nam_getExpectedSampleRate, as NamNode.getInfo() reports
+});
+console.log(info.expectedSampleRate);
+```
+
+`loadNam(src, contextSampleRate, { fetch, probe })` fetches the `.nam` URL,
+reads the model's stated rate through the chain NAM engine boundary (the
+player never parses the model JSON itself), and compares it to the context
+rate. A model stating no rate is accepted at any rate. Nothing resamples a
+model: a stated rate differing by more than
+`NAM_SAMPLE_RATE_TOLERANCE_HZ` (0.5 Hz, mirroring chain `NamNode`) refuses
+instead. All failures throw `NamLoadError`; compare `reason` as a whole
+value, never the message text:
+
+| reason | meaning | carries |
+|---|---|---|
+| `unsafe-src` | src fails the source-list safety check; fetch is never called | `src` |
+| `network-or-cors` | fetch or the body read rejected | `src` |
+| `http-status` | non-ok response | `src`, `status` |
+| `nam-load-failed` | the engine refused the model text; the message is the engine's own text verbatim | `src` |
+| `rate-mismatch` | stated rate differs from the context rate | `src`, `expectedSampleRate`, `contextSampleRate` |
+
+Wire validation into the controller with the `namLoader` option (or
+`setNamLoader` later), closing over the page's rate -- typically
+`(src) => loadNam(src, context.sampleRate, { fetch, probe })`. With a loader
+set, `selectNam(id)` validates first and returns a promise: success forwards
+to the engine and emits the selection event as before, while a refusal
+rejects with a `PlayerError` of the same reason (rates and status carried
+over) and touches nothing -- no engine call, no selection change, no state
+change, so the controller stays ready for another pick. Unknown ids still
+throw synchronously with `unknown-nam` before the loader runs, and
+`selectNam(null)` clears synchronously without calling the loader. Without a
+loader, `selectNam` forwards synchronously and only `unknown-nam` can fail.
+The `PlayerEngine` seam is unchanged: validation happens before the existing
+`setNam`, so fakes written against it keep working.
