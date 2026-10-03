@@ -228,7 +228,8 @@ const irTaps = syntheticIr();
 const irWav = Buffer.from(writeWavFloat32(irTaps, RATE));
 const namText = syntheticNam();
 
-const BLOG = "/home/joseph/orca/workspaces/website/p5-blog/apps/blog/content/circuits";
+// The blog circuits the proof plays; override when the website checkout lives elsewhere.
+const BLOG = process.env.BLOG_CIRCUITS ?? "/home/joseph/projects/VesselDSP/website/apps/blog/content/circuits";
 const HEAVY = "/home/joseph/projects/VesselDSP/artifacts/schematics/vessel-dsp/mxr-phase-90.vdsp";
 const circuitBufferText = readFileSync(resolve(BLOG, "pickup-buffer-cable-6m.vdsp"), "utf8");
 const circuitFuzzText = readFileSync(resolve(BLOG, "pickup-cable-6m-fuzz.vdsp"), "utf8");
