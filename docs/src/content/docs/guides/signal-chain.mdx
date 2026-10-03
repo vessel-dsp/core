@@ -11,16 +11,21 @@ last. It does not open an `AudioContext`, touch the DOM, or own a device; the
 host drives it block by block.
 
 It composes the other simulation packages: `RuntimeNode` wraps a compiled
-`.vdsp` pedal `Program` from `@vessel-dsp/compiler` running on
-`@vessel-dsp/runtime`, and `NamNode` plays `.nam` captures through a vendored
+`.vdsp` pedal `Program` from `@vessel-dsp/compiler` 0.2.0 running on
+`@vessel-dsp/runtime` 0.2.1, and `NamNode` plays `.nam` captures through a vendored
 WebAssembly engine.
 
 ## Install
 
-`@vessel-dsp/chain` 0.1.0 is not yet on npm, and neither are its
-`@vessel-dsp/compiler` and `@vessel-dsp/runtime` 0.1.0 dependencies. Until those
-releases are published, use the package from this repository's workspace rather
-than an install command that will 404.
+`@vessel-dsp/chain` 0.1.1 is on npm, with its pinned `@vessel-dsp/compiler`,
+`@vessel-dsp/runtime`, and `@vessel-dsp/core` dependencies coming along
+automatically. (Earlier drafts of this guide carried a "not yet on npm"
+notice here instead of an install command; 0.1.0 is the first published
+release.)
+
+```bash
+bun add @vessel-dsp/chain
+```
 
 ## Node order
 
@@ -195,8 +200,8 @@ belongs to the caller; the node itself is synchronous.
 
 Supported architectures are whatever the pinned engine parses: `Linear`,
 `ConvNet`, `WaveNet`, `LSTM`, and the A2/slimmable variants. A synthetic
-`ConvNet` model (one channel, dilations `[1]`, no batchnorm, ReLU activation)
-loads through `NamNode` and processes audio; the node does not inspect the
+`Linear` model (receptive field 4, no bias, direct implementation) loads
+through `NamNode` and processes audio; the node does not inspect the
 model beyond the sample rate and loudness the engine reports.
 
 - The engine owns loudness normalisation. It applies NAM's `Normalized` output
@@ -273,10 +278,10 @@ needs an already-compiled program and cannot compile `.vdsp` by itself.
 ## Power supply
 
 `RuntimeNode` can apply a `SupplyProfile` to the circuit external supply.
-Pass the `.vdsp` text as the fourth constructor argument, then call
+Pass the `.vdsp` text as `source` in the fourth constructor argument, then call
 `setSupplyProfile`. The node resolves once with `resolveSupplyStamps` and
-retargets each resolved `dc-source` stamp through
-`ReferenceRuntime.setSupply`. There is no audio-domain supply processing:
+retargets each resolved `dc-source` stamp through the reference console's
+`setSupply`. There is no audio-domain supply processing:
 the old audio-domain waveshaper node was rejected and is not present. Sag is
 the circuit own current draw through the profile series resistance.
 
@@ -332,17 +337,267 @@ preset round-trips the supply setting. `reset` and `prepare` keep the
 applied profile in force. Missing source text or zero resolved supplies
 throws with the refusal reason codes and rail ids.
 
-Example with `big-muff-pi.vdsp` from the corpus, compiled with
-`pedalPartCatalog` (read-only, not a committed test):
+Worked example: a common-emitter stage on a 9 V battery rail, declared as
+the direct main supply, compiled with `emptyRegistry`. Two profiles through
+the same node:
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
 import { RuntimeNode, SUPPLY_PROFILES } from "@vessel-dsp/chain";
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
+const source = `schema: circuit-interchange/v3
+metadata:
+  name: "sagged stage sample"
+  description: "common-emitter stage on a battery rail."
+  partNumber: ""
+source:
+  format: vdsp
+  filename: sagged_stage.vdsp
+components:
+  - id: JIN
+    kind: jack
+    name: JIN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+  - id: JOUT
+    kind: jack
+    name: JOUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 2
+        position:
+          x: 200
+          y: 0
+  - id: GND1
+    kind: ground
+    name: GND1
+    sourceTypeName: Circuit.Ground
+    origin:
+      x: 0
+      y: -100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: gnd
+        node: 0
+        position:
+          x: 0
+          y: -100
+  - id: BATT1
+    kind: battery
+    name: BATT1
+    sourceTypeName: Circuit.Battery
+    origin:
+      x: 0
+      y: 100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: positive
+        node: 3
+        position:
+          x: 0
+          y: 90
+      - name: negative
+        node: 0
+        position:
+          x: 0
+          y: 110
+    properties:
+      Voltage: "9V"
+  - id: RB1
+    kind: resistor
+    name: RB1
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 3
+        position:
+          x: 0
+          y: 0
+      - name: b
+        node: 4
+        position:
+          x: 20
+          y: 20
+    properties:
+      Resistance: "470k"
+  - id: RB2
+    kind: resistor
+    name: RB2
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 0
+          y: 0
+      - name: b
+        node: 0
+        position:
+          x: 20
+          y: 20
+    properties:
+      Resistance: "100k"
+  - id: RC
+    kind: resistor
+    name: RC
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 3
+        position:
+          x: 0
+          y: 0
+      - name: b
+        node: 5
+        position:
+          x: 20
+          y: 20
+    properties:
+      Resistance: "4.7k"
+  - id: RE
+    kind: resistor
+    name: RE
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 6
+        position:
+          x: 0
+          y: 0
+      - name: b
+        node: 0
+        position:
+          x: 20
+          y: 20
+    properties:
+      Resistance: "1k"
+  - id: CIN
+    kind: capacitor
+    name: CIN
+    sourceTypeName: Circuit.Capacitor
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: 0
+          y: 0
+      - name: b
+        node: 4
+        position:
+          x: 20
+          y: 20
+    properties:
+      Capacitance: "100n"
+  - id: COUT
+    kind: capacitor
+    name: COUT
+    sourceTypeName: Circuit.Capacitor
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 5
+        position:
+          x: 20
+          y: 20
+      - name: b
+        node: 2
+        position:
+          x: 0
+          y: 0
+    properties:
+      Capacitance: "100n"
+  - id: Q1
+    kind: bjt
+    name: Q1
+    sourceTypeName: Circuit.Bjt
+    origin:
+      x: 10
+      y: 10
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: base
+        node: 4
+        position:
+          x: 0
+          y: 0
+      - name: collector
+        node: 5
+        position:
+          x: 10
+          y: 10
+      - name: emitter
+        node: 6
+        position:
+          x: 20
+          y: 20
+    properties: {}
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: declared-rails
+  domains:
+    - id: main
+      sourceComponentIds:
+        - BATT1
+      groundPolarity: negative-ground
+      rails:
+        - railComponentId: BATT1
+          role: main-supply
+          derivation: direct
+`;
 const program = (() => {
-  const result = compile(source, { registry: pedalPartCatalog });
+  const result = compile(source, { registry: emptyRegistry });
   if (result.status !== "ok") throw new Error("compile failed");
   return result.program;
 })();
@@ -360,7 +615,7 @@ for (let i = 0; i < input.length; i++) {
 
 for (const id of ["ideal", "alkaline-depleted-specimen"] as const) {
   const profile = SUPPLY_PROFILES.find((p) => p.id === id)!;
-  const node = new RuntimeNode("muff", "Big Muff", program, { source });
+  const node = new RuntimeNode("stage", "Stage", program, { source });
   node.prepare(48000);
   node.setSupplyProfile(profile);
   node.process(input);
@@ -369,14 +624,28 @@ for (const id of ["ideal", "alkaline-depleted-specimen"] as const) {
 ```
 
 ```text
-ideal rms: 0.20087
-alkaline-depleted-specimen rms: 0.19471
+ideal rms: 0.93378
+alkaline-depleted-specimen rms: 0.95255
 ```
+
+On this stage the depleted cell reads slightly louder, not quieter: sag moves
+the bias, and small-signal gain rises about two percent as the rail falls.
+Sag is a bias shift first and a level change second, so expect either sign on
+a biased stage. (For reference, the same profile pair on `big-muff-pi.vdsp`
+from the artifacts corpus, which is not bundled with any package, previously
+reported `ideal rms: 0.20087` against a depleted `0.19471`.)
+
+Call `setSupplyProfile` before `prepare()` or mid-stream, never between
+`prepare()` and the first sample: the two consoles solve the operating point
+at different moments, so that window is not guaranteed to agree. See the
+Runtime guide.
 
 Limits, stated plainly:
 
-- It uses the TypeScript reference runtime. The WebAssembly console needs
-  the same setter in its own repo and is not done.
+- It uses the TypeScript reference console. The WASM console in
+  `@vessel-dsp/runtime` 0.2.1 exposes the same `getSupplies`/`setSupply`
+  pair for hosts that drive it directly; `RuntimeNode` drives the reference
+  console.
 - Op-amp stages draw almost no supply current in the model, so sag on
   op-amp-heavy pedals is under-reported.
 - The model source can absorb current a real cell cannot, so a hard clipper

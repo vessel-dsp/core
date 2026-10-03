@@ -5,6 +5,16 @@ profiling, compiled circuit runtimes, amp shaping, NAM (`.nam`) playback,
 cabinet IR convolution, and master output. No UI, no audio runtime, no file
 access.
 
+## Install
+
+`@vessel-dsp/chain` 0.1.1 is on npm, with its pinned `@vessel-dsp/compiler`
+0.2.0, `@vessel-dsp/runtime` 0.2.1, and `@vessel-dsp/core` dependencies coming
+along automatically:
+
+```bash
+bun add @vessel-dsp/chain
+```
+
 ## Nodes
 
 - `InputProfileNode` (`input-profile`): pickup type, impedance loading,
@@ -63,22 +73,37 @@ with its glue `nam-engine/nam-engine.js` (MIT; see `nam-engine/NOTICE.md`).
   whose licences are their authors'. The package ships the engine only; the
   caller supplies the model's JSON text.
 
-Usage (Bun/Node):
+Usage (Bun/Node — the wasm bytes resolve from the installed package, since a
+worklet scope has no `fetch`):
 
 ```ts
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { instantiateNamEngine, NamNode, SignalChain } from "@vessel-dsp/chain";
 
+const model = JSON.stringify({
+  version: "0.5.0",
+  architecture: "Linear",
+  config: {
+    receptive_field: 4,
+    bias: false,
+    in_channels: 1,
+    out_channels: 1,
+    implementation: "direct",
+  },
+  weights: [0.5, -0.25, 0.125, 0.0625],
+  metadata: { loudness: -14.0 },
+  sample_rate: 48000,
+});
+
 const factory = (await import("@vessel-dsp/chain/nam-engine.js")).default;
+const wasmUrl = import.meta.resolve("@vessel-dsp/chain/nam-engine.wasm");
 const engine = await instantiateNamEngine(
-  readFileSync(new URL("./nam-engine/nam-engine.wasm", import.meta.url)),
+  readFileSync(fileURLToPath(wasmUrl)),
   factory,
 );
 const chain = new SignalChain({ sampleRate: 48000 });
-chain.addNode(new NamNode("nam-amp", "NAM Amp", {
-  engine,
-  model: readFileSync("my-amp.nam", "utf8"),
-}));
+chain.addNode(new NamNode("nam-amp", "NAM Amp", { engine, model }));
 const out = chain.process(new Float64Array(128));
 ```
 
@@ -170,52 +195,36 @@ one resolved external rail applies to the resolved one and keeps the
 refusals visible. Missing source text or zero resolved supplies throws with
 the refusal reason codes and rail ids.
 
-Example with `big-muff-pi.vdsp` from the corpus, compiled with
-`pedalPartCatalog` (read-only, not a committed test):
+Example: the resistor-divider fixture has no power section, so applying a
+profile without source text throws naming the missing join input (the Signal
+Chain guide works a resolving battery-powered stage end to end):
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { resistorDivider } from "@vessel-dsp/compiler/fixtures";
 import { RuntimeNode, SUPPLY_PROFILES } from "@vessel-dsp/chain";
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
-const program = (() => {
-  const result = compile(source, { registry: pedalPartCatalog });
-  if (result.status !== "ok") throw new Error("compile failed");
-  return result.program;
-})();
-
-function rms(values: Float64Array): number {
-  let sum = 0;
-  for (const v of values) sum += v * v;
-  return Math.sqrt(sum / values.length);
-}
-
-const input = new Float64Array(4800);
-for (let i = 0; i < input.length; i++) {
-  input[i] = 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000);
-}
-
-for (const id of ["ideal", "alkaline-depleted-specimen"] as const) {
-  const profile = SUPPLY_PROFILES.find((p) => p.id === id)!;
-  const node = new RuntimeNode("muff", "Big Muff", program, { source });
-  node.prepare(48000);
-  node.setSupplyProfile(profile);
-  node.process(input);
-  console.log(`${id} rms: ${rms(node.process(input)).toFixed(5)}`);
+const compiled = compile(resistorDivider, { registry: emptyRegistry });
+if (compiled.status !== "ok") throw new Error("compile failed");
+const node = new RuntimeNode("div", "Divider", compiled.program);
+node.prepare(48000);
+try {
+  node.setSupplyProfile(SUPPLY_PROFILES[1]);
+} catch (e) {
+  console.log("refused:", (e as Error).message);
 }
 ```
 
 ```text
-ideal rms: 0.20087
-alkaline-depleted-specimen rms: 0.19471
+refused: setSupplyProfile: no source text was given to this RuntimeNode, so no external supply can be resolved: pass the .vdsp text as the fourth constructor argument
 ```
 
 Limits, stated plainly:
 
-- It uses the TypeScript reference runtime. The WebAssembly console the
-  workbench product runs needs the same setter in the workbench repo and is
-  not done.
+- It uses the TypeScript reference console. The WASM console in
+  `@vessel-dsp/runtime` 0.2.1 exposes the same `getSupplies`/`setSupply`
+  pair for hosts that drive it directly; `RuntimeNode` drives the reference
+  console.
 - Op-amp stages draw almost no supply current in the model, so sag on
   op-amp-heavy pedals is under-reported.
 - The model source can absorb current a real cell cannot, so a hard clipper

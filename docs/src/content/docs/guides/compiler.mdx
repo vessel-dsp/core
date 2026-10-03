@@ -7,18 +7,38 @@ description: Compile .vdsp schematics into simulation Program ROMs with @vessel-
 
 ## Install
 
-`@vessel-dsp/compiler` 0.1.0 is not yet on npm, and neither is its `@vessel-dsp/core` dependency at the workspace version. Until those releases are published, use the package from this repository's workspace rather than an install command that will 404.
+`@vessel-dsp/compiler` 0.2.0 is on npm. Its runtime dependencies (`@vessel-dsp/core`, `js-yaml`) come along automatically.
+
+```bash
+bun add @vessel-dsp/compiler
+```
+
+The package publishes three entry points: `.` (compile, registries, supply-stamp join, and every `Program` type), `./diagnostics` (the report-only reach into stages for instruments), and `./fixtures` (the synthetic circuits the engine is graded on, with hand-computed expectations). A host that only compiles and runs imports the root and, for known-answer circuits, the fixtures:
+
+```ts
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { resistorDivider } from "@vessel-dsp/compiler/fixtures";
+import { OPEN_RULES } from "@vessel-dsp/compiler/diagnostics";
+
+const result = compile(resistorDivider, { registry: emptyRegistry });
+console.log(result.status);
+console.log(Object.keys(OPEN_RULES).sort().join(", "));
+```
+
+```text
+ok
+inertOffPath, opaqueHasFirmwareBlocker, subsumedNamesAnExistingMacro
+```
 
 ## What compile does and refuses
 
 `compile(source, options?)` takes `.vdsp` source text and returns a result. A document it cannot use becomes a result, never a throw. Only a compiler bug throws, because a bug reported as an unsupported pedal would be a wrong answer about someone's circuit.
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { resistorDivider } from "@vessel-dsp/compiler/fixtures";
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
-const result = compile(source, { registry: pedalPartCatalog });
+const result = compile(resistorDivider, { registry: emptyRegistry });
 
 if (result.status === "ok") {
   console.log("blocks:", result.program.blocks.length);
@@ -35,14 +55,13 @@ warnings: 0
 
 The failure shape is `{ status: "unsupported", reasons }`. Each reason carries `stage` (`netlist`, `device-laws`, `partition`, `lower`, or `link`), `device` (the component id, or null for document level refusals), and a human readable `reason`. A `device-laws` stage means a part could not be modelled; any other stage means the document itself does not support a program.
 
-One real refusal, `boss-dd-3t.vdsp` with `pedalPartCatalog`:
+One real refusal, the `unknownChip` fixture with `emptyRegistry`:
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { unknownChip } from "@vessel-dsp/compiler/fixtures";
 
-const source = readFileSync("boss-dd-3t.vdsp", "utf8");
-const result = compile(source, { registry: pedalPartCatalog });
+const result = compile(unknownChip, { registry: emptyRegistry });
 console.log(JSON.stringify(result, null, 2));
 ```
 
@@ -53,7 +72,7 @@ console.log(JSON.stringify(result, null, 2));
     {
       "stage": "device-laws",
       "device": "U1",
-      "reason": "integrated circuit has no model: its part number \"undisclosed-roland-boss-dsp\" matched no registry entry, and a declared class may not supply a macro for a part whose identity is unresolved"
+      "reason": "integrated circuit has no model: its part number \"UNKNOWN-PART-XYZ\" matched no registry entry, and a declared class may not supply a macro for a part whose identity is unresolved"
     }
   ]
 }
@@ -65,47 +84,60 @@ Options are `{ registry, inputJack, outputJack }`. The jack overrides pick which
 
 The registry is a parameter, not an import, so the compiler holds no knowledge of any specific part. `emptyRegistry` models only device class laws. `pedalPartCatalog` is the corpus facing catalog.
 
-Measured over the 121 top level packets of the artifacts corpus (read only):
+Over the eight fixtures used across this guide (`resistorDivider`, `rcLowPass`, `diodeClipper`, `invertingAmplifier`, `potDivider`, `commonEmitterAmplifier`, `emitterFollower`, `triodeGainStage` from `@vessel-dsp/compiler/fixtures`), both registries compile everything:
 
 ```ts
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   compile,
   emptyRegistry,
   pedalPartCatalog,
 } from "@vessel-dsp/compiler";
+import {
+  commonEmitterAmplifier,
+  diodeClipper,
+  emitterFollower,
+  invertingAmplifier,
+  potDivider,
+  rcLowPass,
+  resistorDivider,
+  triodeGainStage,
+} from "@vessel-dsp/compiler/fixtures";
 
-const dir = "vessel-dsp";
-const files = readdirSync(dir).filter((f) => f.endsWith(".vdsp"));
-let emptyOk = 0;
-let pedalOk = 0;
-for (const f of files) {
-  const src = readFileSync(join(dir, f), "utf8");
-  if (compile(src, { registry: emptyRegistry }).status === "ok") emptyOk++;
-  if (compile(src, { registry: pedalPartCatalog }).status === "ok") pedalOk++;
+const sources = {
+  resistorDivider,
+  rcLowPass,
+  diodeClipper,
+  invertingAmplifier,
+  potDivider,
+  commonEmitterAmplifier,
+  emitterFollower,
+  triodeGainStage,
+};
+for (const [name, registry] of [["emptyRegistry", emptyRegistry], ["pedalPartCatalog", pedalPartCatalog]] as const) {
+  let ok = 0;
+  for (const source of Object.values(sources)) {
+    if (compile(source, { registry }).status === "ok") ok++;
+  }
+  console.log(`${name}: ${ok}/${Object.keys(sources).length}`);
 }
-console.log(`emptyRegistry: ${emptyOk}/${files.length}`);
-console.log(`pedalPartCatalog: ${pedalOk}/${files.length}`);
 ```
 
 ```text
-emptyRegistry: 74/121
-pedalPartCatalog: 119/121
+emptyRegistry: 8/8
+pedalPartCatalog: 8/8
 ```
 
-The two `pedalPartCatalog` refusals are `boss-dd-3t.vdsp` and `boss-dd-5.vdsp`, both undisclosed DSP parts. Use `pedalPartCatalog` for real packets. Use `emptyRegistry` to measure what device class laws alone cover.
+The last full-corpus census (121 top level packets of the artifacts corpus, read only) read `emptyRegistry: 74/121` and `pedalPartCatalog: 119/121`, with the two `pedalPartCatalog` refusals both undisclosed DSP parts. Use `pedalPartCatalog` for real packets. Use `emptyRegistry` to measure what device class laws alone cover.
 
 ## The Program
 
-A program is rate independent: there is no sample rate field. Top level keys are `formatVersion`, `requiredOperators`, `requiredModels`, `costPredictors`, `blocks`, `order`, `controls`, `ports`, `supplyReference`, `portReferenceVolts`, `portFullScaleVolts`, `stageCoverage`, and `portImpedanceOhms`.
+A program is rate independent: there is no sample rate field. Top level keys are `formatVersion`, `requiredOperators`, `requiredModels`, `costPredictors`, `blocks`, `order`, `controls`, `ports`, `supplyReference`, `portReferenceVolts`, `portFullScaleVolts`, `stageCoverage`, `portImpedanceOhms`, and `bypass`.
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { resistorDivider } from "@vessel-dsp/compiler/fixtures";
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
-const result = compile(source, { registry: pedalPartCatalog });
+const result = compile(resistorDivider, { registry: emptyRegistry });
 if (result.status !== "ok") throw new Error("compile failed");
 const program = result.program;
 console.log("keys:", Object.keys(program).sort().join(", "));
@@ -114,29 +146,41 @@ console.log("order:", JSON.stringify(program.order));
 console.log("requiredOperators:", JSON.stringify(program.requiredOperators));
 console.log("supplyReference:", program.supplyReference);
 console.log("stageCoverage:", program.stageCoverage);
+console.log("bypass:", JSON.stringify(program.bypass));
 ```
 
 ```text
-keys: blocks, controls, costPredictors, formatVersion, order, portFullScaleVolts, portImpedanceOhms, portReferenceVolts, ports, requiredModels, requiredOperators, stageCoverage, supplyReference
-formatVersion: 1
+keys: blocks, bypass, controls, costPredictors, formatVersion, order, portFullScaleVolts, portImpedanceOhms, portReferenceVolts, ports, requiredModels, requiredOperators, stageCoverage, supplyReference
+formatVersion: 6
 order: ["analog:0"]
-requiredOperators: ["bjt","capacitor","conductance","controlled-conductance","dc-source","diode","input-source"]
-supplyReference: negative-ground
+requiredOperators: ["conductance","input-source"]
+supplyReference: unpowered
 stageCoverage: instrument
+bypass: {"declared":"none"}
 ```
 
-Stamp kinds per block for the same program: `dc-source` 1, `bjt` 4, `conductance` 22, `capacitor` 13, `controlled-conductance` 6, `diode` 4, `input-source` 1. `requiredOperators` is exactly that set, sorted, so a runtime can refuse by name at load. `supplyReference` derives from `dc-source` signs; `stageCoverage` here is `instrument`.
+Compiled `Program`s carry `formatVersion` 6. Named I/O ports and the `bufferProgram` bypass are deferred to a later `formatVersion`; from here any change to `Program`, the `Stamp` union, `ProgramJson.cpp` or `Program.h` is a package minor bump.
+
+What a consumer must not assume:
+
+- There is no sample rate anywhere in the program. The runtime supplies it at `prepare()`.
+- `blocks` may hold blocks `order` never executes. `requiredOperators`, `requiredModels`, and `costPredictors` are read off the executed blocks only, so a pruned block contributes nothing a runtime must implement or budget for.
+- `supplyReference` is read off all blocks instead: a positive-ground fuzz whose supply island misses the output is still a positive-ground fuzz, and a chain sharing one supply has to know that.
+- `portFullScaleVolts`, `portReferenceVolts`, and `portImpedanceOhms` entries may be `null` where the program states nothing to derive them from. Full scale (a ceiling derived from the rails) and reference (the 0 dBFS voltage the jack declares) are different quantities; do not substitute one for the other.
+- `bypass` of `{ declared: "none" }` means the packet declares no bypass switch. A declared switch resolves to a bypass kind, but `buffered` and `buffered-mechanical` have no default chain mode until the `bufferProgram` bypass lands, so `resolveBypassMode` returns null for them and the host must decide.
+- `formatVersion` versions the container only — which keys exist, how they nest. The instruction-set surface is `requiredOperators` plus `requiredModels`, and a runtime refuses by name at load what it does not implement.
+
+Stamp kinds for the common-emitter fixture: `dc-source` 1, `capacitor` 2, `conductance` 5, `bjt` 1, `input-source` 1. `requiredOperators` is exactly that set, sorted, so a runtime can refuse by name at load. `supplyReference` here is `negative-ground`; `stageCoverage` is `instrument`.
 
 ## Warnings
 
-Warnings never block a program. `boss-bd-2-blues-driver.vdsp` compiles with one:
+Warnings never block a program. The inverting-amplifier fixture compiles with one:
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { invertingAmplifier } from "@vessel-dsp/compiler/fixtures";
 
-const source = readFileSync("boss-bd-2-blues-driver.vdsp", "utf8");
-const result = compile(source, { registry: pedalPartCatalog });
+const result = compile(invertingAmplifier, { registry: emptyRegistry });
 if (result.status !== "ok") throw new Error("compile failed");
 console.log("warnings:", result.warnings.length);
 console.log(JSON.stringify(result.warnings[0], null, 2));
@@ -145,30 +189,32 @@ console.log(JSON.stringify(result.warnings[0], null, 2));
 ```text
 warnings: 1
 {
-  "code": "throw-or-winding-unwired",
-  "device": "VR1B",
-  "detail": "VR1B.b (role end) is alone on node 27: a potentiometer terminal joined to nothing, so the track cannot divide."
+  "code": "opamp-law-default-parameters",
+  "device": null,
+  "devices": [
+    "U1"
+  ],
+  "detail": "1 op-amp(s) swing the full supply because the part states no output-swing drop: U1. Harmless for a stage that never nears the rails; decisive for a comparator, an LFO or a clipper."
 }
 ```
 
-Each warning carries a closed `code` callers can switch on, plus human readable `detail`. A floating wiper that disconnects the circuit is a structural defect and refuses at the `link` stage instead of warning.
+Each warning carries a closed `code` callers can switch on, plus human readable `detail`. A floating wiper that disconnects the circuit is a structural defect and refuses at the `link` stage instead of warning: the `potWithFloatingWiper` fixture with `emptyRegistry` is `unsupported` at stage `link` on device `VR1`.
 
 ## Controls
 
-Controls are 0..1 positions; the taper maps the position to a fraction of the track at run time. `big-muff-pi` declares `IN`, `OUT`, `SUSTAIN`, `TONE`, and `VOLUME`, each defaulting to 0.5.
+Controls are 0..1 positions; the taper maps the position to a fraction of the track at run time. The pot-divider fixture declares one control, `Level`, continuous (`positions: null`) with default 0.5:
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { potDivider } from "@vessel-dsp/compiler/fixtures";
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
-const result = compile(source, { registry: pedalPartCatalog });
+const result = compile(potDivider, { registry: emptyRegistry });
 if (result.status !== "ok") throw new Error("compile failed");
 console.log(JSON.stringify(result.program.controls));
 ```
 
 ```text
-[{"id":"IN","taper":"linear","defaultPosition":0.5,"role":"input","label":"In"},{"id":"OUT","taper":"linear","defaultPosition":0.5,"role":"output","label":"Out"},{"id":"SUSTAIN","taper":"linear","defaultPosition":0.5,"role":"control","label":"Sustain"},{"id":"TONE","taper":"linear","defaultPosition":0.5,"role":"tone","label":"Tone"},{"id":"VOLUME","taper":"linear","defaultPosition":0.5,"role":"output-level","label":"Volume"}]
+[{"id":"Level","taper":"linear","defaultPosition":0.5,"positions":null,"role":"output-level","label":"VOLUME"}]
 ```
 
 Taper fractions at 0, 0.5, and 1, from the runtime's own curve:
@@ -192,12 +238,150 @@ reverse-linear 1.0000 0.5000 0.0000
 
 `resolveSupplyStamps(source, program)` joins the document's power domains to the compiled `dc-source` stamps. Pass the same source text the program was compiled from. Only rails in an external DC domain with `derivation: direct` and `role: main-supply` are candidates; derived rails keep their compiled values.
 
-```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog, resolveSupplyStamps } from "@vessel-dsp/compiler";
+The worked example below is a complete `.vdsp` document: a 9 V rail on node 3 with a 9k load returning to the input jack, so the supply sits in the executed signal region, plus a power section declaring the rail the direct main supply with no `sourceKind` (so the domain is inferred external DC from the rail's lowered kind):
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
-const result = compile(source, { registry: pedalPartCatalog });
+```yaml
+schema: circuit-interchange/v3
+metadata:
+  name: "supply sample"
+  description: "inline supply sample."
+  partNumber: ""
+source:
+  format: vdsp
+  filename: supply_sample.vdsp
+components:
+  - id: JIN
+    kind: jack
+    name: JIN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+  - id: JOUT
+    kind: jack
+    name: JOUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 2
+        position:
+          x: 200
+          y: 0
+  - id: GND1
+    kind: ground
+    name: GND1
+    sourceTypeName: Circuit.Ground
+    origin:
+      x: 0
+      y: -100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: gnd
+        node: 0
+        position:
+          x: 0
+          y: -100
+  - id: VPLUS_RAIL
+    kind: rail
+    name: VPLUS_RAIL
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: 100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: positive
+        node: 3
+        position:
+          x: 0
+          y: 100
+    properties:
+      Voltage:
+        raw: "9 V"
+        value: 9
+        unit: V
+  - id: RLOAD
+    kind: resistor
+    name: RLOAD
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 3
+        position:
+          x: 0
+          y: 90
+      - name: b
+        node: 1
+        position:
+          x: 0
+          y: -90
+    properties:
+      Resistance: "9k"
+  - id: R1
+    kind: resistor
+    name: R1
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: -190
+          y: 0
+      - name: b
+        node: 2
+        position:
+          x: 190
+          y: 0
+    properties:
+      Resistance: "10k"
+wires: []
+directives: []
+diagnostics: []
+rawAttributes: {}
+power:
+  schema: circuit-power/v1
+  coverage: declared-rails
+  domains:
+    - id: main
+      sourceComponentIds:
+        - VPLUS_RAIL
+      groundPolarity: negative-ground
+      rails:
+        - railComponentId: VPLUS_RAIL
+          role: main-supply
+          derivation: direct
+```
+
+```ts
+import { compile, emptyRegistry, resolveSupplyStamps } from "@vessel-dsp/compiler";
+
+const result = compile(source, { registry: emptyRegistry });
 if (result.status !== "ok") throw new Error("compile failed");
 console.log(JSON.stringify(resolveSupplyStamps(source, result.program), null, 2));
 ```
@@ -212,18 +396,41 @@ console.log(JSON.stringify(resolveSupplyStamps(source, result.program), null, 2)
       },
       "railComponentId": "VPLUS_RAIL",
       "role": "main-supply",
-      "nominalVolts": null
+      "nominalVolts": null,
+      "via": "rail-device"
     }
   ],
   "refused": []
 }
 ```
 
-The eight closed refusal reasons are `no-power-section`, `mains-ac-source`, `unknown-source-kind`, `source-kind-conflict`, `derived-rail`, `rail-not-main-supply`, `no-stamp-for-rail`, and `ambiguous-stamp`. Over the same 121 packets with `pedalPartCatalog`, 54 packets resolve at least one supply; refusals by entry are `derived-rail` 60, `no-power-section` 42, `no-stamp-for-rail` 17, `mains-ac-source` 7, and `unknown-source-kind` 4, with 2 packets not compiling at all. Mains fed amp B+ rails are refused by design: a battery profile must never be applied downstream of a rectifier.
+The eight closed refusal reasons are `no-power-section`, `mains-ac-source`, `unknown-source-kind`, `source-kind-conflict`, `derived-rail`, `rail-not-main-supply`, `no-stamp-for-rail`, and `ambiguous-stamp`. Callers switch on `reason`; `detail` is prose for a human report. Mains fed amp B+ rails are refused by design: a battery profile must never be applied downstream of a rectifier.
+
+The join itself is typed evidence only — rail ids, lowered device kinds, and stamp terminal rows, never component names or prose. The full design, with the corpus measurements and the rejected audio-domain predecessor, is the [runtime supply-control design note](https://github.com/vessel-dsp/core/blob/main/docs/design/runtime-supply-control.md).
 
 ## Artifacts and netlists
 
-`compileToArtifact(source, options)` returns `{ result, artifact }`, where the artifact is null unless compilation succeeded. `readNetlist(source, options?)` runs the first stage only and is what `resolveSupplyStamps` uses internally so rail nodes resolve exactly as they did at compile time.
+`compileToArtifact(source, options)` returns `{ result, artifact }`, where the artifact is null unless compilation succeeded. `emit` renders a program to its deterministic serializable form (`{ text, digest }`: fixed key order, so the same program always produces the same bytes). There is no public `decode` in 0.2.0: program JSON is consumed by the consoles, whose C++ side parses it through its own `ProgramJson.cpp`. `readNetlist(source, options?)` runs the first stage only and is what `resolveSupplyStamps` uses internally so rail nodes resolve exactly as they did at compile time.
+
+```ts
+import {
+  compileToArtifact,
+  emptyRegistry,
+  readNetlist,
+} from "@vessel-dsp/compiler";
+import { resistorDivider } from "@vessel-dsp/compiler/fixtures";
+
+const paired = compileToArtifact(resistorDivider, { registry: emptyRegistry });
+console.log("artifact null?", paired.artifact === null);
+console.log("digest:", paired.artifact?.digest);
+console.log("devices:", readNetlist(resistorDivider).devices.map((d) => d.id).join(","));
+```
+
+```text
+artifact null? false
+digest: 8a4b3448c712ba3d
+devices: JIN,JOUT,GND1,R1,R2
+```
 
 ## Limits
 

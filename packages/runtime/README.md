@@ -1,27 +1,28 @@
 # @vessel-dsp/runtime
 
-Headless real time MNA simulation runtime and solver console for compiled VesselDSP `Program` ROMs. It executes a `@vessel-dsp/compiler` program on audio streams with trapezoidal integration and damped Newton Raphson iteration. It depends on `@vessel-dsp/compiler` only.
+Headless real time MNA simulation runtime and solver console for compiled VesselDSP `Program` ROMs. It executes a `@vessel-dsp/compiler` program on audio streams with trapezoidal integration and damped Newton Raphson iteration. It depends on `@vessel-dsp/compiler` only. The same package ships the compiled C++/WASM console (`V2WasmEngine`) as a release artifact under `./wasm/*`.
 
 ## Install
 
-`@vessel-dsp/runtime` 0.1.0 is not yet on npm. Until the release is published, use the package from this repository's workspace rather than an install command that will 404.
+`@vessel-dsp/runtime` 0.2.1 is on npm. Use runtime 0.2.1 or later: 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
+
 
 ```bash
-# once published:
-bun add @vessel-dsp/runtime
+bun add @vessel-dsp/runtime @vessel-dsp/compiler
 ```
+
+Subpath exports: `.` (the `ReferenceRuntime` console, chain runtime, admission, settling, and measurement helpers) and `./wasm/*` (the compiled solver console files: `v2_dsp.cjs` glue plus `v2_dsp.wasm`).
 
 ## Minimal example
 
-The constructor takes the program and optional block elimination only. The sample rate goes to `prepare()`, which has no default. `process()` takes a `Float64Array` and returns a new `Float64Array`.
+The constructor takes the program and optional block elimination only. The sample rate goes to `prepare()`, which has no default. `process()` takes a `Float64Array` and returns a new `Float64Array`. The circuit below ships with the compiler under `./fixtures`, so this runs as written:
 
 ```ts
-import { readFileSync } from "node:fs";
-import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
+import { commonEmitterAmplifier } from "@vessel-dsp/compiler/fixtures";
 import { ReferenceRuntime } from "@vessel-dsp/runtime";
 
-const source = readFileSync("big-muff-pi.vdsp", "utf8");
-const compiled = compile(source, { registry: pedalPartCatalog });
+const compiled = compile(commonEmitterAmplifier, { registry: emptyRegistry });
 if (compiled.status !== "ok") throw new Error("compile failed");
 
 const runtime = new ReferenceRuntime(compiled.program);
@@ -42,7 +43,7 @@ console.log("output peak:", peak.toFixed(6));
 ```text
 output length: 128
 output is Float64Array: true
-output peak: 0.265499
+output peak: 0.896891
 ```
 
 The previous version of this example constructed `new ReferenceRuntime(program, 44100)` and called `process(inputBuffer, outputBuffer)` with `Float32Array` buffers. That throws `RuntimeError: prepare(sampleRate) was never called`, because the second constructor argument is an options object and the rate is only accepted by `prepare()`.
@@ -64,115 +65,47 @@ The previous version of this example constructed `new ReferenceRuntime(program, 
 
 ## Supply control
 
-`getSupplies()` lists every addressable `dc-source` stamp as `SupplyInfo` (`address`, `positive`, `negative`, `volts`, `sourceOhms`). `big-muff-pi` reports one supply: block 0, source 0, 9 V, 1 ohm.
+Both consoles expose the same pair: `getSupplies()` lists every addressable `dc-source` stamp as `SupplyInfo` (`address`, `positive`, `negative`, `volts`, `sourceOhms`), and `setSupply(addresses, volts, sourceOhms)` retargets them between `process()` calls with effect from the next sample. The common-emitter fixture reports one supply: block 0, source 0, 9 V, 1 ohm.
 
-`setSupply(addresses, volts, sourceOhms)` retargets supply stamps between `process()` calls with effect from the next sample. It validates every address before touching state, replaces the touched stamps on the runtime own copies (never the caller `Program`), rebuilds each affected block base matrix the way `prepare()` builds it, and bumps the control generation so eliminated path factorisation rebuilds. Re applying identical values rebuilds nothing. The DC operating point is deliberately not re solved and reactive state carries over.
+`setSupply` validates every address before touching state, replaces the touched stamps on the runtime own copies (never the caller `Program`), rebuilds each affected block base matrix the way `prepare()` builds it, and bumps the control generation so eliminated path factorisation rebuilds. Re applying identical values rebuilds nothing (`supplyRebuilds` unchanged). The DC operating point is deliberately not re solved and reactive state carries over.
 
-What it does not do: no mutation of the caller `Program` (two runtimes from one program never interact; a frozen program never throws), no envelope follower or waveshaper, no audio domain processing of any kind. This is the TypeScript reference runtime only.
+Call `setSupply` before `prepare()` or mid-stream. The two consoles solve the operating point at different moments, so a call between `prepare()` and the first sample is not guaranteed to agree across them. Which stamps are the external supply is the compiler's `resolveSupplyStamps` (see the Compiler guide); the consoles only retarget the addresses they are given.
+
+What it does not do: no mutation of the caller `Program` (two runtimes from one program never interact; a frozen program never throws), no envelope follower or waveshaper, no audio domain processing of any kind.
 
 `supplyRebuilds` counts block base matrix rebuilds so far. Bad addresses throw: unknown block index, non MNA block, or missing source index, each naming the block and index. Non finite volts and negative or non finite `sourceOhms` throw.
 
 ## Admission
 
-`admissionVerdict(chain, sampleRate, budget)` answers whether an ordered list of programs can be shown to fit inside a host CPU budget. Costs add across slots; a one program caller passes a one element list. The budget carries `nsPerSolve`, `nsPerMacroSample` (required; an unpriced model is refused by name, never costed at zero), `budgetedIterationsPerSample` (default 64, a sustained policy allowance, not the solver cap), and `cpuBudgetFraction` (default 1). The verdict is `{ fits: true }` or `{ fits: false, reason }` with the worst offender named by slot, block, unknowns, and nanoseconds. `predictedWorstCaseNs` returns the same sum as a number, or null when a model has no price.
+`admissionVerdict(chain, sampleRate, budget)` answers whether an ordered list of programs can be shown to fit inside a host CPU budget. Costs add across slots; a one program caller passes a one element list. The budget carries `nsPerSolve`, `nsPerMacroSample` (required; an unpriced model is refused by name, never costed at zero), `budgetedIterationsPerSample` (default 64, a sustained policy allowance, not the solver cap), and `cpuBudgetFraction` (default 1). The verdict is `{ fits: true }` or `{ fits: false, reason }` with the worst offender named by slot, block, unknowns, and nanoseconds. `predictedWorstCaseNs` returns the same sum as a number, or null when a model has no price. `calibrateNsPerSolve` measures this host's real per-solve cost to feed the budget instead of a guess.
 
 ## Settling and measurement
 
-These render a program until its level stops moving, so startup transients are not measured as the circuit.
-
-| Name | What it is |
-| --- | --- |
-| `findSettled` | First window at which the level holds still, or null. |
-| `measureSettled` | Render until the output level stops moving and report it. |
-| `measureSettledSignal` | Driven level with the silent part removed. |
-| `measureSharedWindow` | Several drive levels over one shared settled window. |
-| `measureInputAttributable` | Per node AC attributable to the input (driven minus silent). |
-| `settledRender` | Render until still, in a value, refusal, or diverged shape. |
-| `settledLevel` | `settledRender` level as a bare number, throwing when it cannot settle. |
-| `settledSweep` | Settle once, then measure each control setting on the same runtime. |
-| `settledSweepVerified` | Sweep with one point verified against an independent render. |
-| `sweepMatchesIndependent` | Whether a sweep point matches an independent render. |
-| `sweepIsOrderIndependent` | Whether sweep order changes the result. |
-| `settleSelfCheck` | Known answer controls for the measurement primitives. |
-| `SettleOptions` | Window, consecutive, stable dB, and ladder seconds. |
-| `SETTLE_DEFAULTS` | Corpus measured defaults (0.5 s window, 2 consecutive, 0.25 dB). |
-| `SettleCriterion` | Which criterion produced a measurement. |
-| `Settled` | `{ rms, seconds }` of the settled window. |
-| `SettledMeasurement` | `{ rms, peak, settleSeconds, renderedSeconds, flatAtZero }`. |
-| `SettledRender` | Value, refusal, or diverged outcome of `settledRender`. |
-| `SettledRenderOptions` | What to render. |
-| `SettleRefusal` | Thrown by `settledLevel` instead of an unstandable level. |
-| `SharedWindowMeasurement` | One drive behaviour over the shared window. |
-| `AttributedMeasurement` | Driven level plus attributable fraction from one window. |
-| `InputAttributableNode` | One node response with and without stimulus. |
-| `FLAT_AT_ZERO_RMS` | Level below this (1e-6) is noise, not measurement. |
-| `isFlatAtZero` | Whether a level is indistinguishable from noise. |
-
-`findSettled([1, 1.001, 1.0005, 1.0001])` returns `{ rms: 1.0005, seconds: 1.5 }`; `findSettled([1, 2, 4, 8])` returns null. `measureSettled` on `big-muff-pi` at 48000 Hz with a 0.3 V 440 Hz sine reports rms about 0.2010, peak about 0.2491, settled in 1.5 s.
+`settledRender(program, options)` renders until the output level stops moving and returns a verdict — `settled` with `rms`, `peak`, and the rendered tail, or a refusal/diverged shape — never a bare number. The resistor-divider fixture at 1 V drive settles to exactly its 0.5 ratio (`rms` 0.3536, `peak` 0.5). Alongside it: `measureSharedWindow` and `measureInputAttributable` (shared-window comparisons), `settledSweepVerified` (a control sweep with one point verified against an independent render), and `SETTLE_DEFAULTS` (corpus measured defaults: 0.5 s window, 2 consecutive, 0.25 dB).
 
 ## Chain runtime and advisories
 
-| Name | What it is |
-| --- | --- |
-| `ChainRuntime` | Ordered slots where each slot output feeds the next. |
-| `ChainSlot` | A program slot or an injected processor slot. |
-| `ChainSlotTelemetry` | One slot telemetry labelled by position. |
-| `programSlot` | A compiled circuit as a slot. |
-| `processorSlot` | An injected processor (NAM, IR, cab) as a slot. |
-| `ExternalProcessor` | A host supplied processor: NAM profile, impulse response, cab simulation. |
-| `slotContract` | The contract a slot presents to seam arithmetic. |
-| `SlotContract` | What the chain needs to know about a slot. |
-| `slotLabel` | Human readable label for a slot. |
-| `supplyGroundConflicts` | Slot pairs whose shared supply would short through grounds. |
-| `SupplyGroundConflict` | One conflicting slot pair with message. |
-| `chainAdvisories` | Seams where one side states no full scale, plus kind errors. |
-| `ChainAdvisory` | One chain problem with code, slots, and message. |
-| `chainScaleFactor` | Multiplier from two adjacent port full scales (null is unity). |
-| `chainScaleAdvisories` | Boundaries where the chain fell back to unity scaling. |
-| `ChainScaleAdvisory` | One unity fallback boundary with message. |
-| `seamScale` | Multiplier applied to the signal crossing into a slot. |
-| `seamDivider` | Resistive divider at a seam, or 1 when not computable. |
-| `dacScaleFactor` | Worklet DAC multiplier so a rail swing does not peg output. |
-| `outputDbfs` | Output level in dBFS at the DAC. |
-| `outputConversionFullScale` | Declared 0 dBFS reference where stated, else derived ceiling. |
-| `taperFraction` | Fraction of track at a 0..1 position for a taper kind. |
-| `StageCoverage` | `instrument`, `preamp`, `speaker-electrical`, or `miked`. |
+- `ChainRuntime`: ordered slots where each slot output feeds the next. `programSlot` wraps a compiled circuit; `processorSlot` wraps a host supplied processor (NAM, IR, cab). Gates the whole chain once against the admission budget, then prepares every slot ungated at the same rate. `setControl(slot, id, position)` addresses one slot; `telemetry()` returns per slot telemetry, never blended.
+- `slotContract`: the contract a slot presents to seam arithmetic. `supplyGroundConflicts([programs])`: slot groups whose shared supply would short through grounds (fires when a `positive-ground` program meets a `negative-ground` or `dual-rail` one; `unpowered` conflicts with nothing). `chainAdvisories([contracts])`: seams where one side states no full scale (`unscalable-seam`), plus kind errors (`speaker-signal-into-input`, `cab-after-miked`, `undividable-seam`, `instrument-into-speaker-stage`, `bypass-not-modelled`).
+- `seamScale`: multiplier applied to the signal crossing into a slot (1 when either side states no full scale). `dacScaleFactor`: worklet DAC multiplier so a rail swing does not peg output. `outputConversionFullScale`: declared 0 dBFS reference where stated, else derived ceiling. `outputDbfs`: output level in dBFS at the DAC.
+- `taperFraction`: fraction of track at a 0..1 position for a taper kind.
+- `resolveBypassMode`: chain bypass mode for a program bypass, or null where the host must decide (`buffered` kinds until the buffer program lands).
+- `bypassNotModelledAdvisories`: bypass requests on slots whose packet declares no bypass switch.
 
-`ChainRuntime` gates the whole chain once against the admission budget, then prepares every slot ungated at the same rate. `process()` feeds slot outputs forward with `seamScale` between them. `setControl(slot, id, position)` addresses one slot; processor slots refuse with the slot named. `telemetry()` returns per slot telemetry, never blended.
+`supplyGroundConflicts([muff, rangemaster])` reports that the positive ground treble booster and the negative ground muff cannot share one supply. See the Runtime guide for worked samples.
 
-`supplyGroundConflicts([muff, rangemaster])` reports that the positive ground treble booster and the negative ground muff cannot share one supply. `chainAdvisories` reports `unscalable-seam` where a full scale is null, `speaker-signal-into-input` where a speaker terminal feeds an instrument input, `cab-after-miked`, `undividable-seam`, and `instrument-into-speaker-stage`.
+## WASM console
 
-## WASM engine
+`V2WasmEngine` is the compiled C++/WASM console for the same programs. It ships in this package: `bun run --cwd packages/runtime build:wasm` (needs `em++`) writes `v2_dsp.cjs` plus `v2_dsp.wasm` to the gitignored `src/wasm/`, `build` copies them to `dist/wasm/`, and `prepack` does both, so the published tarball always carries a freshly built console. The 0.2.0 tarball is about 1.0 MB packed (3.1 MB unpacked): 2.1 MB of wasm plus about 15 KB of glue.
 
-| Name | What it is |
-| --- | --- |
-| `V2WasmEngine` | Exported TypeScript wrapper around the C++ V2 console. Requires a build artifact the package does not ship; not usable from the npm package today. |
-| `getV2WasmModule` | Loads the V2 Emscripten module from the missing build artifact. |
+`V2WasmEngine.create(program?)` loads the glue from the package's own `dist/wasm/` — no path to configure — and optionally loads a program. `prepare({ sampleRate, maxNewtonIterations, inputSourceOhms })` (rate defaults to 48000), `processSample` / `processBlock` on `Float32Array`s, `getControl` beside `setControl`, `getSupplies`/`setSupply` with the same validation and `RuntimeError` behaviour as the reference console, and schedule telemetry (`getScheduleTelemetry`: solves, fallbacks, kernel solves, repivoted, abandoned, dropped blocks — a healthy packet reads zero fallbacks and zero abandoned blocks).
 
-`V2WasmEngine` dynamically imports `../../build/v2_dsp.cjs`, a built artifact that is not in this repository and not in the package `files` (`dist`, `README.md`, `LICENSE.md`). From an installed tarball it fails with:
+A host that cannot dynamically import the glue — an `AudioWorkletGlobalScope` bundles it statically and has no `fetch` — instantiates the module from pre-fetched bytes and passes it as the second argument: `V2WasmEngine.create(program, mod)`, where `mod` comes from the glue factory called with `{ wasmBinary }` read from `@vessel-dsp/runtime/wasm/v2_dsp.wasm`. See the Runtime guide for both paths end to end; on a biased BJT stage the two consoles agree sample by sample to about 1e-7.
 
-```text
-Error: Cannot find module
-'/tmp/v2proof-proj/node_modules/@vessel-dsp/build/v2_dsp.cjs'
-imported from
-'/tmp/v2proof-proj/node_modules/@vessel-dsp/runtime/dist/v2-wasm-engine.js'
-```
+## Reference console surface
 
-Evidence: packed the runtime and compiler tarballs, installed both with npm into an empty project under `/tmp`, and called `getV2WasmModule()` and `V2WasmEngine.create()`. Both reject with the error above; the tarball contains `dist` only, no `build` directory. The export is kept as is (removing it is an API decision for the maintainer). Two options for the maintainer: ship the built artifact in the package `files`, or drop the export.
+Values: `ReferenceRuntime`, `DEFAULT_NEWTON_MAX_ITERATIONS`, `admissionVerdict`, `predictedWorstCaseNs`, `calibrateNsPerSolve`, `denseLinearSolveWorkload`, `ChainRuntime`, `programSlot`, `processorSlot`, `slotContract`, `resolveBypassMode`, `chainAdvisories`, `bypassNotModelledAdvisories`, `seamScale`, `dacScaleFactor`, `outputConversionFullScale`, `outputDbfs`, `supplyGroundConflicts`, `taperFraction`, `settledRender`, `settledSweepVerified`, `measureSharedWindow`, `measureInputAttributable`, `SETTLE_DEFAULTS`, `V2WasmEngine`.
 
-## Reference runtime surface
+Types (import with `import type`): `RuntimeNodeVoltageSnapshot`, `SupplyAddress`, `SupplyInfo`, `AdmissionVerdict`, `RealtimeBudget`, `ChainSlot`, `ExternalProcessor`, `SlotContract`, `StageCoverage`, `SupplyGroundConflict`, `ChainAdvisory`, `SettleOptions`, `CalibrationResult`, and the rest in the package sources.
 
-| Name | What it is |
-| --- | --- |
-| `ReferenceRuntime` | The executable semantics of the program format. |
-| `RuntimeTelemetry` | What the solver did, so failing to solve is never silent. |
-| `RuntimeBranchCurrent` | One solved branch current per auxiliary unknown. |
-| `RuntimeNodeVoltageSnapshot` | Per block node voltages. |
-| `SupplyAddress` | `{ blockIndex, sourceIndex }` naming one `dc-source` stamp. |
-| `SupplyInfo` | Address plus the stamp own positive, negative, volts, sourceOhms. |
-| `DEFAULT_NEWTON_MAX_ITERATIONS` | How long a Newton loop may try before its iterate is the answer. |
-| `RealtimeBudget` | Host measured solve costs plus iteration and fraction policy. |
-| `AdmissionVerdict` | `{ fits: true }` or `{ fits: false, reason }`. |
-| `admissionVerdict` | Whether a chain of programs fits inside a budget. |
-| `predictedWorstCaseNs` | The admission worst case sum as a number, or null. |
-| `RuntimeError` | Thrown for misuse: no prepare, bad rate, bad control, bad supply, unimplemented operator or model. |
+`RuntimeError` is thrown for misuse: no prepare, bad rate, bad control, bad supply, unimplemented operator or model.
