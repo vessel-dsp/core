@@ -189,11 +189,16 @@ log("wrote scratch root package.json (workspaces + overrides) and file: ui-theme
 
 const configPath = join(scratchBlog, "src/components/figures/livePlayerConfig.ts");
 const configText = readFileSync(configPath, "utf8");
-if (!configText.includes("export const LIVE_ENGINE = false;")) {
-	fail("scratch livePlayerConfig.ts does not contain the expected LIVE_ENGINE = false line");
+// The blog may already ship live (LIVE_ENGINE = true and the registration), in which case there is
+// nothing to patch and the proof checks the blog exactly as it is.
+if (configText.includes("export const LIVE_ENGINE = false;")) {
+	writeFileSync(configPath, configText.replace("export const LIVE_ENGINE = false;", "export const LIVE_ENGINE = true;"));
+	log("set LIVE_ENGINE = true in the scratch copy");
+} else if (configText.includes("export const LIVE_ENGINE = true;")) {
+	log("LIVE_ENGINE is already true in the blog; not patching it");
+} else {
+	fail("scratch livePlayerConfig.ts has no LIVE_ENGINE line");
 }
-writeFileSync(configPath, configText.replace("export const LIVE_ENGINE = false;", "export const LIVE_ENGINE = true;"));
-log("set LIVE_ENGINE = true in the scratch copy");
 
 const livePlayerPath = join(scratchBlog, "src/components/figures/LivePlayer.tsx");
 const livePlayerText = readFileSync(livePlayerPath, "utf8");
@@ -236,11 +241,14 @@ const newEffect = `  useEffect(() => {
       cancelled = true;
     };
   }, []);`;
-if (!livePlayerText.includes(oldEffect)) {
-	fail("scratch LivePlayer.tsx does not contain the expected registration block to patch");
+if (livePlayerText.includes("registerPlayerEngine(")) {
+	log("the blog's LivePlayer already registers the engine; not patching it");
+} else if (livePlayerText.includes(oldEffect)) {
+	writeFileSync(livePlayerPath, livePlayerText.replace(oldEffect, newEffect));
+	log("registered the engine in the scratch LivePlayer (README recipe, before the element import)");
+} else {
+	fail("scratch LivePlayer.tsx has neither a registration nor the expected block to patch");
 }
-writeFileSync(livePlayerPath, livePlayerText.replace(oldEffect, newEffect));
-log("registered the engine in the scratch LivePlayer (README recipe, before the element import)");
 
 // ---------------------------------------------------------------------------
 // 4. Install (npm, scratch only -- the repo rule about bun covers the repo).
@@ -452,7 +460,7 @@ try {
 			log(`leg ${leg.name} capturing 3 s`);
 			let captured:
 				| { error: string }
-				| { peak: number; rms: number; series: Array<{ cpuLoad: number | null; overruns: number | null }> };
+				| { peak: number; rms: number; windowRms: number[]; series: Array<{ cpuLoad: number | null; overruns: number | null }> };
 			// NOTE: the suffix stays interpolated here (see the note above
 			// at the ready wait): neither evaluate nor waitForFunction
 			// forwards an argument to a string page function.
@@ -467,18 +475,22 @@ try {
 					if (!analyser) return { error: 'no analyser' };
 					const frame = new Float32Array(analyser.fftSize);
 					const series = [];
+					const windowRms = [];
 					let peak = 0;
 					let sum = 0;
 					let count = 0;
 					const end = performance.now() + 3200;
 					const sample = () => {
 						analyser.getFloatTimeDomainData(frame);
+						let windowSum = 0;
 						for (let i = 0; i < frame.length; i += 1) {
 							const v = frame[i];
 							if (Math.abs(v) > peak) peak = Math.abs(v);
 							sum += v * v;
+							windowSum += v * v;
 							count += 1;
 						}
+						windowRms.push(Math.sqrt(windowSum / frame.length));
 						const t = controller && controller.lastTelemetry ? controller.lastTelemetry : null;
 						series.push({ cpuLoad: t ? t.cpuLoad : null, overruns: t ? t.overruns : null });
 					};
@@ -486,7 +498,7 @@ try {
 						const tick = () => {
 							sample();
 							if (performance.now() < end) setTimeout(tick, 200);
-							else resolve({ peak, rms: Math.sqrt(sum / Math.max(1, count)), series });
+							else resolve({ peak, rms: Math.sqrt(sum / Math.max(1, count)), series, windowRms });
 						};
 						tick();
 					});
@@ -494,7 +506,7 @@ try {
 					),
 				)) as
 					| { error: string }
-					| { peak: number; rms: number; series: Array<{ cpuLoad: number | null; overruns: number | null }> };
+					| { peak: number; rms: number; windowRms: number[]; series: Array<{ cpuLoad: number | null; overruns: number | null }> };
 			} catch (error) {
 				failed = true;
 				log(`leg ${leg.name} capture threw: ${error instanceof Error ? error.message.slice(0, 300) : String(error).slice(0, 300)}`);
@@ -509,10 +521,14 @@ try {
 			const overruns = captured.series.map((entry) => entry.overruns).filter((v) => v !== null) as number[];
 			const newOverruns = overruns.length > 0 ? (overruns[overruns.length - 1] as number) - (overruns[0] as number) : -1;
 			const meanLoad = loads.reduce((a, b) => a + b, 0) / Math.max(1, loads.length);
-			const silent = captured.peak < 0.05;
+			// Sustained sound, not a startup transient: a silent chain still shows one loud first window
+			// (DC settling), so the peak alone proves nothing. Most windows must carry signal.
+			const active = captured.windowRms.filter((r) => r > 1e-4).length;
+			const activeFraction = active / Math.max(1, captured.windowRms.length);
+			const silent = captured.peak < 0.05 || activeFraction < 0.8;
 			log(
 				`leg ${leg.name} peak=${captured.peak.toFixed(4)} rms=${captured.rms.toFixed(4)} ` +
-					`cpuLoadMean=${meanLoad.toFixed(2)} newOverruns=${newOverruns} ${silent ? "SILENT" : "audible"}`,
+					`cpuLoadMean=${meanLoad.toFixed(2)} newOverruns=${newOverruns} activeWindows=${(activeFraction * 100).toFixed(0)}% ${silent ? "SILENT" : "audible"}`,
 			);
 			if (silent || loads.length === 0 || newOverruns !== 0) {
 				failed = true;

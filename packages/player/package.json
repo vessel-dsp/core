@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/player",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"description": "Embeddable HTML Custom Element (<vessel-player>) and Web Audio player for VesselDSP circuits, guitar profiling, NAM, and cabinet IRs.",
 	"keywords": [
 		"guitar-pedal",

@@ -1,5 +1,16 @@
 # Changelog
 
+## player 0.2.2
+
+Fix: with the real engine, `@vessel-dsp/player` 0.2.0 and 0.2.1 played SILENCE through the circuit
+unless the page called `selectInput` by hand. The controller's default input (the first blog input)
+was state in the controller only; the engine was never told, never fetched the file, and fell back to a
+silent buffer, while the UI showed the input as selected. The controller now hands its selected input
+to the engine when it loads and when the source list changes (only when it changed, and never the
+browser microphone as a default). The browser proofs had passed on a startup transient: a silent chain
+still shows one loud first window, so the proof now requires sound in at least 80% of its windows.
+Do not use player 0.2.0 or 0.2.1 for playback. No other package changes.
+
 ## player 0.2.1
 
 Fix: `registerPlayerEngine` checked only for an `AudioContext`, so a browser that has one but no

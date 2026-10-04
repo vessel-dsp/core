@@ -118,6 +118,7 @@ export class PlayerController {
 	private controlValues = new Map<string, number>();
 	private lastTelemetryValue: PlayerTelemetry | null = null;
 	private engineReadyFired = false;
+	private lastSyncedInputId: string | null = null;
 	private loadCountValue = 0;
 	private disposed = false;
 	private engineUnsubscribers: Array<() => void> = [];
@@ -392,7 +393,11 @@ export class PlayerController {
 			throw new PlayerError("unknown-input", `Unknown input "${id}".`);
 		}
 		this.selectedInputValue = found;
-		engine.setInput(found);
+		// Picking what the engine already has changes nothing and must not rebuild the chain.
+		if (this.lastSyncedInputId !== found.id) {
+			this.lastSyncedInputId = found.id;
+			engine.setInput(found);
+		}
 		this.emitSelection({ kind: "input", id: found.id });
 	}
 
@@ -551,6 +556,29 @@ export class PlayerController {
 		return this.engine;
 	}
 
+	/**
+	 * Hand the selected input to the engine. The controller's default (the first blog input) is
+	 * state here, and the engine knows nothing of it until told: without this the engine plays its
+	 * silent fallback and the page shows an input that is not playing. Only a CHANGED choice is
+	 * sent, so a source-list refresh during playback does not rebuild the chain.
+	 */
+	private syncInputToEngine(): void {
+		const engine = this.engine;
+		if (engine === null) {
+			return;
+		}
+		if (this.lastSyncedInputId === this.selectedInputValue.id) {
+			return;
+		}
+		// The browser microphone is never a default: it is handed over only when the user picks it
+		// (`selectInput`), so a bare player does not ask for the mic on its first play.
+		if (this.selectedInputValue.id === BROWSER_AUDIO_INPUT.id) {
+			return;
+		}
+		this.lastSyncedInputId = this.selectedInputValue.id;
+		engine.setInput(this.selectedInputValue);
+	}
+
 	private rebuildInputChoices(): void {
 		const blogChoices = this.inputSources.map(toWavDescriptor);
 		this.inputChoicesValue = [...blogChoices, BROWSER_AUDIO_INPUT];
@@ -566,6 +594,7 @@ export class PlayerController {
 				this.selectedInputValue = first;
 			}
 		}
+		this.syncInputToEngine();
 	}
 
 	private enterInitialState(): void {
@@ -670,6 +699,7 @@ export class PlayerController {
 		}
 		this.loadCountValue += 1;
 		try {
+			this.syncInputToEngine();
 			const result = engine.load({ vdsp: vdsp ?? "", program: this.programOverride });
 			if (result instanceof Promise) {
 				await result;

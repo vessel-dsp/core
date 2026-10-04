@@ -324,6 +324,25 @@ describe("parseSourceList", () => {
 });
 
 describe("PlayerController with a fake engine", () => {
+	test("the default input reaches the engine before it loads (no silent playback)", async () => {
+		// The controller's default is the first blog input. The engine only knows what it is told:
+		// without the hand-over it falls back to a silent buffer while the page shows an input.
+		const fake = new FakeEngine();
+		useEngine(fake);
+		const controller = new PlayerController({
+			src: "https://blog.example.com/pedal.vdsp",
+			inputs: [{ id: "take", label: "Guitar take", src: "/audio/take.wav" }],
+		});
+		await controller.settled();
+		// Expected: the engine was handed the blog WAV exactly once
+		expect(fake.inputCalls.length).toBe(1);
+		expect(fake.inputCalls[0]).toMatchObject({ kind: "wav", id: "take", src: "/audio/take.wav" });
+		// Expected: a later list refresh with the same selection does not hand it over again
+		controller.setInputSources([{ id: "take", label: "Guitar take", src: "/audio/take.wav" }]);
+		expect(fake.inputCalls.length).toBe(1);
+		controller.dispose();
+	});
+
 	test("loads once with the vdsp source and reaches ready", async () => {
 		const fake = new FakeEngine();
 		useEngine(fake);
@@ -415,10 +434,13 @@ describe("PlayerController with a fake engine", () => {
 		controller.on("selection", (selection) => {
 			seen.push(`${selection.kind}:${selection.id ?? "none"}`);
 		});
-		controller.selectInput("loop-a");
-		// Expected: the engine receives the loop-a wav descriptor
+		// Expected: the engine was already handed the default (first) input when it loaded
 		expect(fake.inputCalls.length).toBe(1);
-		expect(fake.inputCalls[0]).toEqual({
+		expect(fake.inputCalls[0]).toMatchObject({ kind: "wav", id: "di-guitar" });
+		controller.selectInput("loop-a");
+		// Expected: the engine then receives the loop-a wav descriptor
+		expect(fake.inputCalls.length).toBe(2);
+		expect(fake.inputCalls[1]).toEqual({
 			kind: "wav",
 			id: "loop-a",
 			label: "Loop A",
@@ -477,8 +499,9 @@ describe("PlayerController with a fake engine", () => {
 		// Expected: unknown IR refused with unknown-ir
 		expect(badIr).toBeInstanceOf(PlayerError);
 		expect((badIr as PlayerError).reason).toBe("unknown-ir");
-		// Expected: zero engine selection calls after the three refusals
-		expect(fake.inputCalls.length).toBe(0);
+		// Expected: the refusals added no engine input call (the one call is the default hand-over)
+		expect(fake.inputCalls.length).toBe(1);
+		expect(fake.inputCalls[0]).toMatchObject({ id: "di-guitar" });
 		expect(fake.namCalls.length).toBe(0);
 		expect(fake.irCalls.length).toBe(0);
 		// Expected: zero selection events after the three refusals
