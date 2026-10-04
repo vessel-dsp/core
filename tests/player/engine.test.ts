@@ -880,7 +880,14 @@ describe("registration", () => {
 		// Negative control: with a stubbed AudioContext the same call succeeds
 		const globals = globalThis as Record<string, unknown>;
 		const saved = globals.AudioContext;
+		const savedNode = globals.AudioWorkletNode;
 		globals.AudioContext = class {};
+		// An AudioContext without AudioWorkletNode (a browser that predates worklets) is refused too:
+		// it would otherwise reach `ready` and fail at the first play instead of using the fallback.
+		registerPlayerEngine({});
+		expect(getEngineFactory()?.()).toEqual({ ok: false, reason: "no-audioworklet" });
+		setEngineFactory(null);
+		globals.AudioWorkletNode = class {};
 		try {
 			let seen: unknown = null;
 			registerPlayerEngine({ onEngine: (engine) => { seen = engine; } });
@@ -898,6 +905,11 @@ describe("registration", () => {
 				delete globals.AudioContext;
 			} else {
 				globals.AudioContext = saved;
+			}
+			if (savedNode === undefined) {
+				delete globals.AudioWorkletNode;
+			} else {
+				globals.AudioWorkletNode = savedNode;
 			}
 			setEngineFactory(null);
 		}

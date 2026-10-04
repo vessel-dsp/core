@@ -1,5 +1,12 @@
 # Changelog
 
+## player 0.2.1
+
+Fix: `registerPlayerEngine` checked only for an `AudioContext`, so a browser that has one but no
+`AudioWorkletNode` (one that predates worklets) was admitted, reached `ready`, and failed at the
+first play instead of using the fallback mp3. The factory now refuses it with `no-audioworklet`.
+No other package changes: runtime 0.3.0 and chain 0.1.4 stay current.
+
 ## runtime 0.3.0 / chain 0.1.4 / player 0.2.0
 
 The player gets a real engine. `@vessel-dsp/runtime` 0.3.0 packages the AudioWorklet

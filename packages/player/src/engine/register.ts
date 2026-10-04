@@ -31,7 +31,9 @@ function capabilities(): { ok: true } | { ok: false; reason: "no-webassembly" | 
 	}
 	const audioContext =
 		globals.AudioContext ?? (globals as Record<string, unknown>).webkitAudioContext;
-	if (typeof audioContext !== "function") {
+	// An AudioContext alone is not enough: browsers that predate AudioWorklet have the former
+	// without the latter, and would reach `ready` and then fail at the first play.
+	if (typeof audioContext !== "function" || typeof globals.AudioWorkletNode !== "function") {
 		return { ok: false, reason: "no-audioworklet" };
 	}
 	return { ok: true };
