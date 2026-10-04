@@ -236,8 +236,8 @@ missing, the factory refuses with `no-webassembly` / `no-audioworklet`
 and the element renders the `fallback` mp3 instead.
 
 Admission on a real page: every start is gated by the cost measured on the
-device itself (in-worklet timing plus NAM/IR extras against half the sample
-budget). A circuit that cannot be shown to fit is refused with a typed
+device itself (in-worklet timing plus NAM/IR extras against a quarter of the sample
+period, `ADMISSION_CPU_FRACTION`). A circuit that cannot be shown to fit is refused with a typed
 `admission-refused` error naming the measured numbers -- never played
 glitching. The measurement is load-sensitive (about ±40% observed between
 idle and loaded runs on one box), so a marginal pedal may play on an idle

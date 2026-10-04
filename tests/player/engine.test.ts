@@ -10,6 +10,7 @@
 // the gated fetch moves earlier. The mutation run is recorded in the W3
 // report, not re-run here.
 
+import { ADMISSION_CPU_FRACTION } from "../../packages/player/src/engine/player-engine";
 import { afterEach, describe, expect, test } from "bun:test";
 import { resistorDivider } from "@vessel-dsp/compiler/fixtures/circuits";
 import type { Program } from "@vessel-dsp/compiler";
@@ -646,19 +647,35 @@ describe("refusals", () => {
 
 	test("a worklet measurement that fits overrules a refusing static model", async () => {
 		// Pins the §7 policy: measured cost wins over the static model
-		// (mxr-phase-90: 89 us predicted against 7.8 us measured).
+		// (a heavy program: tens of us predicted against 4 us measured).
 		const harness = makeEngine(
 			{ "/dsp.wasm": MINIMAL_WASM },
 			{ program: heavyProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
 		);
 		await harness.engine.load({ vdsp: "/circuit.vdsp" });
 		const pending = Promise.resolve(harness.engine.start());
-		// Expected: 7800 ns fits inside the 10417 ns budget at 48 kHz, so
+		// Expected: 4000 ns fits inside the 5208 ns budget at 48 kHz, so
 		// start resolves despite the static model refusing this program
-		await replyOnceLoaded(harness, loadedReply([], 7800));
+		await replyOnceLoaded(harness, loadedReply([], 4000));
 		await pending;
 		expect(harness.contexts[0]?.resumes).toBe(1);
 		harness.engine.dispose();
+	});
+
+	test("a chain that costs a third of a period is refused, headroom is policy", async () => {
+		// 7800 ns is 37% of a 48 kHz period: the measured case where a heavy pedal overran in the
+		// browser. The admission share is 25%, so this is refused naming the 5208 ns allowance.
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(harness, loadedReply([{ slot: 0, id: "Gain" }], 7800));
+		const thrown = await catchAsync(() => pending);
+		expect((thrown as PlayerError).reason).toBe("admission-refused");
+		expect((thrown as PlayerError).message).toContain("5208 ns/sample");
+		expect(ADMISSION_CPU_FRACTION).toBe(0.25);
 	});
 
 	test("a worklet measurement over budget refuses naming the numbers", async () => {
@@ -674,9 +691,9 @@ describe("refusals", () => {
 		expect(thrown).toBeInstanceOf(PlayerError);
 		expect((thrown as PlayerError).reason).toBe("admission-refused");
 		// Expected: the message names the measured figure and the budget
-		// (50000 ns measured against 10417 ns at 48 kHz)
+		// (50000 ns measured against 5208 ns at 48 kHz)
 		expect((thrown as PlayerError).message).toContain("measured 50000 ns");
-		expect((thrown as PlayerError).message).toContain("10417 ns/sample");
+		expect((thrown as PlayerError).message).toContain("5208 ns/sample");
 		// Negative control: a fitting measurement on the same program plays
 		const fitting = makeEngine(
 			{ "/dsp.wasm": MINIMAL_WASM },

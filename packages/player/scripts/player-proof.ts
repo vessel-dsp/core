@@ -644,7 +644,8 @@ async function runLeg(
 			// played glitching -- that outcome passes the harvest.
 			if (leg.harvestOnly === true && typeof state.error === "string") {
 				const priced = state.error.match(/measured (\d+) ns/);
-				if (state.error.includes("admission-refused") && priced !== null) {
+				// The element shows the refusal MESSAGE, not the reason code, so match its wording.
+				if (state.error.includes("cannot be shown to fit") && priced !== null) {
 					console.log(
 						`player-proof: leg ${leg.name} HARVEST admission-refused with measured ${priced[1]} ns ` +
 							`(refusal text: ${state.error})`,

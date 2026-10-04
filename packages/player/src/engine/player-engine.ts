@@ -161,6 +161,15 @@ function toPlayerError(unknown: unknown, fallback: string): PlayerError {
 	return new PlayerError("load-failed", `${fallback}: ${message}`);
 }
 
+/**
+ * The share of one audio period a chain may cost and still be admitted. Measured, not guessed:
+ * in the browser proof a pedal that costs ~40% of a quantum on average (mxr-phase-90) overran 10
+ * to 166 times in 3 s on every box load tried, while chains at 2-14% never overran; live CPU
+ * also runs above the offline figure, so the share leaves a hiccup's worth of margin. A chain
+ * over it is refused with its numbers rather than played into dropouts.
+ */
+export const ADMISSION_CPU_FRACTION = 0.25;
+
 export class RealPlayerEngine implements PlayerEngine {
 	private readonly options: RealPlayerEngineOptions;
 	private readonly assetUrls: { workletUrl: string; dspWasmUrl: string; namWasmUrl: string; namGlueUrl: string };
@@ -841,16 +850,16 @@ export class RealPlayerEngine implements PlayerEngine {
 			// are refused above, so this is never consulted for them.
 			nsPerMacroSample: () => 0,
 			budgetedIterationsPerSample: 2,
-			cpuBudgetFraction: 0.5,
+			cpuBudgetFraction: ADMISSION_CPU_FRACTION,
 		};
 		const verdict = admissionVerdict([program], rate, budget);
 		const predicted = predictedWorstCaseNs([program], budget);
-		const availableNs = (1e9 / rate) * 0.5;
+		const availableNs = (1e9 / rate) * ADMISSION_CPU_FRACTION;
 		return { verdict, predictedNs: predicted, availableNs };
 	}
 
 	private gateTotal(rate: number, programNs: number, namNsPerSample: number, irNsPerSample: number, priced: string): void {
-		const availableNs = (1e9 / rate) * 0.5;
+		const availableNs = (1e9 / rate) * ADMISSION_CPU_FRACTION;
 		const extras = namNsPerSample + irNsPerSample;
 		const totalNs = programNs + extras;
 		if (!(totalNs <= availableNs)) {

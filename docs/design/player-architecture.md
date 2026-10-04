@@ -510,12 +510,15 @@ mid-playback would itself be a dropout, so rebuild `load`s carry
 `playerMeasureProgram: false` (absent means measure -- the fail-closed
 direction). A new program always goes through a measuring start.
 
-Heavy-pedal note (same task): mxr-phase-90 sits at ~75-105% of the
-admission budget depending on ambient box load (in-worklet measurements of
-6250, 7813, and 10938 ns across runs at 1-min loads 3.4-6.1; budget 10417
-ns at 48 kHz), so on a loaded box the gate refuses it with the numbers
-rather than playing it into overruns. The browser proof's harvest leg
-reports that refusal as its cost figure. Kernel counters ride every
+Heavy-pedal note (revised after the coordinator's re-run): mxr-phase-90 measures 6250, 7813 and
+10938 ns in the worklet (30%, 37% and 52% of a 48 kHz period) and, in the live browser proof,
+costs 40-53% of a quantum on average with 10-166 overruns in 3 s, WORSE on a quieter box
+(load ~2: 53% mean, 166 overruns) than a loaded one, so the overruns are not contention alone: a
+chain whose average cost is that close to the deadline has no margin for any hiccup, and live CPU
+runs above the offline figure (the scoreboard reads this pedal at 0.28x). Chains at 2-14% never
+overran. The admission share is therefore 25% of the period (`ADMISSION_CPU_FRACTION`, 5208 ns
+at 48 kHz), not 50%: a heavier chain is refused with its numbers instead of played into dropouts.
+The browser proof's harvest leg reports that refusal as its cost figure. Kernel counters ride every
 `loaded` reply, so the kernel path is auditable per load
 (`kernelSolves === solves`, `fallbacks === 0` on the measured runs).
 
