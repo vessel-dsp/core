@@ -634,9 +634,24 @@ async function runLeg(
 		try {
 			await page.waitForFunction(playingFn, null, { timeout: 60000 });
 		} catch {
-			const state = await page.evaluate(
+			const state = (await page.evaluate(
 				"({ state: document.querySelector('#p') ? document.querySelector('#p').state : null, error: document.querySelector('#p') && document.querySelector('#p').shadowRoot ? document.querySelector('#p').shadowRoot.querySelector('.error').textContent : null })",
-			);
+			)) as { state?: string; error?: string };
+			// Harvest legs report cost, not playback: an admission refusal
+			// IS the harvest when the worklet-measured cost is over budget
+			// (the refusal text names the measured nanoseconds). A heavy
+			// pedal that does not fit is refused with its numbers, never
+			// played glitching -- that outcome passes the harvest.
+			if (leg.harvestOnly === true && typeof state.error === "string") {
+				const priced = state.error.match(/measured (\d+) ns/);
+				if (state.error.includes("admission-refused") && priced !== null) {
+					console.log(
+						`player-proof: leg ${leg.name} HARVEST admission-refused with measured ${priced[1]} ns ` +
+							`(refusal text: ${state.error})`,
+					);
+					return { cpuLoads: [], overruns: 0, failed: failures.length > 0 };
+				}
+			}
 			failures.push(`never reached playing: ${JSON.stringify(state)}`);
 			console.log(`player-proof: leg ${leg.name} never reached playing: ${JSON.stringify(state)}`);
 			return { cpuLoads: [], overruns: -1, failed: true };

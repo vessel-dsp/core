@@ -184,8 +184,19 @@ package's own shipped files via `import.meta.url`:
 
 ### Next.js usage
 
+Proven against a real production build: Next.js 16.2.10 (Turbopack) `next
+build` succeeds with no `fs` stub, no webpack config, and no bundler plugin
+-- the page bundle never imports the node-flavoured wasm glue, because the
+admission cost is timed inside the worklet -- which bundles the wasm glue
+statically with its node-only branch stubbed and loads by URL, never
+through the page bundle -- so the page bundle never imports the
+node-flavoured glue and no stub or bundler plugin is needed. Requires the release train that
+carries the worklet exports (`postV2WorkletMessage` -- newer than runtime
+0.2.3 on npm, which lacks it): upgrade runtime first, then chain, then
+player, so every package resolves the exports it imports.
+
 `node_modules` is not served, and `new URL(..., import.meta.url)` points
-into it, so copy the three served files to `public/` (or a CDN) and pass
+into it, so copy the four served files to `public/` (or a CDN) and pass
 overrides. With `app/` router, register in a client component:
 
 ```bash
@@ -216,8 +227,19 @@ export function Player() {
 ```
 
 Serve `.wasm` as `application/wasm`; no COOP/COEP headers are needed
-(single-threaded builds). Blog-supplied NAM/IR/WAV URLs are fetched by the
+(single-threaded builds). The wasm bytes are fetched as `arrayBuffer`, never
+streaming-compiled, so the MIME type is not load-bearing, but serve it
+correctly anyway. Blog-supplied NAM/IR/WAV URLs are fetched by the
 page, so cross-origin entries need `Access-Control-Allow-Origin`;
 same-origin assets need nothing. When WebAssembly or AudioWorklet is
 missing, the factory refuses with `no-webassembly` / `no-audioworklet`
 and the element renders the `fallback` mp3 instead.
+
+Admission on a real page: every start is gated by the cost measured on the
+device itself (in-worklet timing plus NAM/IR extras against half the sample
+budget). A circuit that cannot be shown to fit is refused with a typed
+`admission-refused` error naming the measured numbers -- never played
+glitching. The measurement is load-sensitive (about ±40% observed between
+idle and loaded runs on one box), so a marginal pedal may play on an idle
+machine and refuse under load; that refusal is the gate working, not a bug.
+Heavy pedals belong behind this gate, not around it.

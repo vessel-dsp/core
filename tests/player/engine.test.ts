@@ -357,8 +357,21 @@ async function startAndReply(harness: Harness, reply: PostedMessage): Promise<vo
 	await pending;
 }
 
-function loadedReply(controls: Array<{ slot: number; id: string }>): PostedMessage {
-	return { type: "loaded", controls, supplyGroundConflicts: [], chainAdvisories: [] };
+function loadedReply(
+	controls: Array<{ slot: number; id: string }>,
+	measuredNsPerSample: number | null = null,
+): PostedMessage {
+	// The worklet times the program on the shipped console and rides the
+	// figure back on `loaded`; null means nothing was measured and the
+	// static verdict decides (fail closed).
+	return {
+		type: "loaded",
+		controls,
+		supplyGroundConflicts: [],
+		chainAdvisories: [],
+		measuredNsPerSample,
+		programSchedule: [],
+	};
 }
 
 async function catchAsync(fn: () => Promise<unknown>): Promise<unknown> {
@@ -613,12 +626,99 @@ describe("refusals", () => {
 			{ program: heavyProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
 		);
 		await harness.engine.load({ vdsp: "/circuit.vdsp" });
-		const thrown = await catchAsync(() => Promise.resolve(harness.engine.start()));
+		const pending = Promise.resolve(harness.engine.start());
+		// The load IS posted before the refusal: the decisive cost can only
+		// be measured inside the worklet, so the gate decides after `loaded`
+		// (null measurement here, so the static verdict decides). The old
+		// zero-load-posts expectation encoded the main-thread probe.
+		await replyOnceLoaded(harness, loadedReply([], null));
+		const thrown = await catchAsync(() => pending);
 		// Expected: a PlayerError is thrown for the too-heavy program
 		expect(thrown).toBeInstanceOf(PlayerError);
 		expect((thrown as PlayerError).reason).toBe("admission-refused");
-		// Expected: the worklet never loaded (zero load posts after the refusal)
-		expect(harness.ports.flatMap((port) => port.posted).filter((message) => message.type === "load").length).toBe(0);
+		// Expected: never glitching -- no input source started, the context
+		// never resumed, and the failed start closed the context
+		expect(harness.contexts[0]?.sources.length).toBe(0);
+		expect(harness.contexts[0]?.resumes).toBe(0);
+		expect(harness.contexts[0]?.closes).toBe(1);
+		harness.engine.dispose();
+	});
+
+	test("a worklet measurement that fits overrules a refusing static model", async () => {
+		// Pins the §7 policy: measured cost wins over the static model
+		// (mxr-phase-90: 89 us predicted against 7.8 us measured).
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: heavyProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		// Expected: 7800 ns fits inside the 10417 ns budget at 48 kHz, so
+		// start resolves despite the static model refusing this program
+		await replyOnceLoaded(harness, loadedReply([], 7800));
+		await pending;
+		expect(harness.contexts[0]?.resumes).toBe(1);
+		harness.engine.dispose();
+	});
+
+	test("a worklet measurement over budget refuses naming the numbers", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(harness, loadedReply([{ slot: 0, id: "Gain" }], 50_000));
+		const thrown = await catchAsync(() => pending);
+		// Expected: admission-refused for the measured overrun
+		expect(thrown).toBeInstanceOf(PlayerError);
+		expect((thrown as PlayerError).reason).toBe("admission-refused");
+		// Expected: the message names the measured figure and the budget
+		// (50000 ns measured against 10417 ns at 48 kHz)
+		expect((thrown as PlayerError).message).toContain("measured 50000 ns");
+		expect((thrown as PlayerError).message).toContain("10417 ns/sample");
+		// Negative control: a fitting measurement on the same program plays
+		const fitting = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await fitting.engine.load({ vdsp: "/circuit.vdsp" });
+		const pendingFit = Promise.resolve(fitting.engine.start());
+		await replyOnceLoaded(fitting, loadedReply([{ slot: 0, id: "Gain" }], 1500));
+		await pendingFit;
+		// Expected: the fitting start resumed the context exactly once
+		expect(fitting.contexts[0]?.resumes).toBe(1);
+		harness.engine.dispose();
+		fitting.engine.dispose();
+	});
+
+	test("a selection rebuild reuses the start-time measurement without re-measuring", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(harness, loadedReply([{ slot: 0, id: "Gain" }], 1500));
+		await pending;
+		const loads = (): PostedMessage[] =>
+			harness.ports.flatMap((port) => port.posted).filter((message) => message.type === "load");
+		// Expected: the start-time load asked the worklet to measure
+		expect(loads().length).toBe(1);
+		expect((loads()[0] as Record<string, unknown>).playerMeasureProgram).toBe(true);
+		// A no-op selection change rebuilds the chain through the same program
+		harness.engine.setNam(null);
+		for (let waited = 0; waited < 2000 && loads().length < 2; waited += 1) {
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		}
+		// Expected: the rebuild posted a second load that skips the
+		// audio-thread measurement (it would itself be a dropout)...
+		expect(loads().length).toBe(2);
+		expect((loads()[1] as Record<string, unknown>).playerMeasureProgram).toBe(false);
+		harness.ports[0]?.fire(loadedReply([{ slot: 0, id: "Gain" }], null));
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		// ...and the cached 1500 ns re-gated cleanly: no error event, still playing
+		expect(harness.events.some((entry) => entry.event === "error")).toBe(false);
 		harness.engine.dispose();
 	});
 

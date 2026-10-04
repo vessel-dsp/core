@@ -22,6 +22,11 @@
 // the `load` message because this scope cannot fetch.
 
 import type { ControlId, Program } from "@vessel-dsp/compiler";
+import type {
+	PlayerLoadedMeasurement,
+	PlayerLoadMeasurementFlag,
+	PlayerProgramScheduleEntry,
+} from "../admission-report.js";
 import {
 	bypassNotModelledAdvisories,
 	ChainRuntime,
@@ -251,7 +256,14 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 
 	private handleMessage(message: V2WorkletInboundMessage): void {
 		if (message.type === "load") {
-			void this.loadChain(message.slots, message.wasmConsole);
+			// Player-specific extension (see admission-report.ts): the
+			// runtime protocol carries no such field and the runtime
+			// worklet ignores it. Absent means measure -- a load that does
+			// not explicitly opt out gets a measured cost, the fail-closed
+			// direction for the admission gate.
+			const measure =
+				(message as V2WorkletInboundMessage & PlayerLoadMeasurementFlag).playerMeasureProgram !== false;
+			void this.loadChain(message.slots, message.wasmConsole, measure);
 			return;
 		}
 		if (message.type === "setControl") {
@@ -400,6 +412,7 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 	private async loadChain(
 		descriptors: readonly V2WorkletSlot[],
 		wasmConsole?: { readonly wasmBytes: ArrayBuffer },
+		measureProgram = true,
 	): Promise<void> {
 		try {
 			for (const handle of this.namHandles) {
@@ -421,7 +434,9 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 					controls: [],
 					supplyGroundConflicts: [],
 					chainAdvisories: [],
-				});
+					measuredNsPerSample: null,
+					programSchedule: [],
+				} as V2WorkletOutboundMessage);
 				return;
 			}
 			this.isPassthrough = false;
@@ -474,17 +489,86 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 			const programs = descriptors
 				.filter((descriptor) => descriptor.kind === "program")
 				.map((descriptor) => descriptor.program);
+			// The admission measurement, timed HERE on the shipped console
+			// on the audio thread -- never on the main thread, which is why
+			// the page bundle needs no copy of the node-flavoured glue (see
+			// docs/design/player-architecture.md, "Cutover" admission note).
+			// Same 128-frame warmed median-of-3 method the main-thread
+			// probe used, so the figures stay comparable with the §7 table.
+			let measuredNsPerSample: number | null = null;
+			let programSchedule: PlayerProgramScheduleEntry[] = [];
+			if (measureProgram) {
+				const measured = this.measureProgramEngines();
+				measuredNsPerSample = measured.nsPerSample;
+				programSchedule = measured.schedule;
+			}
 			this.post({
 				type: "loaded",
 				controls,
 				supplyGroundConflicts: supplyGroundConflicts(programs),
 				chainAdvisories: [...chainAdvisories(slots.map(slotContract)), ...bypassNotModelledAdvisories(slots)],
-			});
+				measuredNsPerSample,
+				programSchedule,
+			} as V2WorkletOutboundMessage);
 		} catch (error) {
 			this.runtime = null;
 			this.isPassthrough = false;
 			this.isWasmActive = false;
 			this.post({ type: "error", message: errorMessage(error) });
+		}
+	}
+
+	private measureProgramEngines(): { nsPerSample: number | null; schedule: PlayerProgramScheduleEntry[] } {
+		// This program's own per-sample cost on the shipped console, timed
+		// on the audio thread during load: the decisive real-time number
+		// for the admission gate. Only primary program engines (slot < 1000;
+		// the 1000+ slots are bypass-mode buffer mirrors that do not run in
+		// effect mode) priced, summed across program slots. A program the
+		// console cannot run measures nothing (null) and the static verdict
+		// decides instead -- fail closed, never played unpriced.
+		try {
+			const entries = [...this.wasmEngines.entries()].filter(([slot]) => slot < 1000);
+			if (entries.length === 0) {
+				return { nsPerSample: null, schedule: [] };
+			}
+			const clock: () => number =
+				typeof performance !== "undefined" && typeof performance.now === "function"
+					? () => performance.now() * 1e6
+					: () => Date.now() * 1e6;
+			const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+			let totalNs = 0;
+			const schedule: PlayerProgramScheduleEntry[] = [];
+			for (const [slot, engine] of entries) {
+				engine.prepare({ sampleRate: currentSr });
+				const frames = 128;
+				const input = new Float32Array(frames).fill(0.1);
+				const output = new Float32Array(frames);
+				for (let warm = 0; warm < 4; warm += 1) {
+					engine.processBlock(input, output);
+				}
+				const samples: number[] = [];
+				for (let sample = 0; sample < 3; sample += 1) {
+					const blocks = 5;
+					const t0 = clock();
+					for (let block = 0; block < blocks; block += 1) {
+						engine.processBlock(input, output);
+					}
+					const elapsed = clock() - t0;
+					if (elapsed >= 0 && Number.isFinite(elapsed)) {
+						samples.push(elapsed / (blocks * frames));
+					}
+				}
+				if (samples.length === 0) {
+					return { nsPerSample: null, schedule: [] };
+				}
+				samples.sort((a, b) => a - b);
+				totalNs += samples[Math.floor(samples.length / 2)] as number;
+				const counters = engine.getScheduleTelemetry();
+				schedule.push({ slot, ...counters });
+			}
+			return { nsPerSample: totalNs, schedule };
+		} catch {
+			return { nsPerSample: null, schedule: [] };
 		}
 	}
 

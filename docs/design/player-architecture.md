@@ -457,6 +457,68 @@ both wasm binaries, the NAM glue probe, input WAV bytes, NAM text, and IR
 audio bytes -- waits for the first `play()` gesture. The proof asserts
 zero `*.wasm`/worklet requests and no `AudioContext` before the click.
 
+## Cutover admission, second cut (W3b decision, 2026-10-03)
+
+Problem: the W3 engine timed the decisive admission cost in a main-thread
+WASM console, dynamically importing the runtime's `v2_dsp.cjs` glue. The
+glue's node-only branch (`require("node:fs")`) hard-fails a real consumer
+build -- reproduced: `next build` (Next.js 16.2.10, Turbopack) fails with
+`Module not found: Can't resolve 'fs' in
+.../@vessel-dsp/runtime/dist/wasm/v2_dsp.cjs`, import trace `LivePlayer.tsx
+-> .../player/dist/engine/register.js -> .../player/dist/engine/
+player-engine.js -> v2_dsp.cjs`. The W3 report's "may need an fs stub"
+understated this: the real stack fails the build, and a stub is not
+something to ask of every blog consumer.
+
+Resolution: option (a). The admission measurement moved INSIDE the player
+worklet, which already hosts the same console and the same wasm binary,
+and the figure rides the `loaded` reply back over the port
+(`measuredNsPerSample` plus per-slot schedule counters, as player-only
+extra properties -- the runtime protocol is untouched). The main thread
+keeps the static gate (calibration, macro refusal, model verdict) but no
+longer refuses on it: after `loaded`, the measured figure plus the NAM/IR
+extras gate decisively, and only when nothing was measured does the static
+verdict decide (fail closed). The lazy-until-gesture rule, the typed
+`admission-refused` refusal naming the numbers, and the §7 policy
+(measured cost wins over the static model) are unchanged; the unit tests
+pin all three, including a test where a fitting worklet measurement
+overrules a refusing static model.
+
+Why not the alternatives:
+
+- (b) A prebuilt measuring module loaded by URL would duplicate the
+  console the worklet already bundles and time a different engine instance
+  than the one that plays -- the worklet times the instance that plays, so
+  there is nothing to keep in sync.
+- (c) A web-only glue build (`-sENVIRONMENT=web`) would fix only the
+  explicit import; the page bundle would still traverse the runtime and
+  chain barrels, whose graphs contain the same node-flavoured glue edge
+  (verified with esbuild: even an entry importing only
+  `{ admissionVerdict }` from the runtime dist fails a strict browser
+  bundle). Whether Turbopack/webpack prune that unused edge under
+  `sideEffects: false` is settled empirically by the real proof, not by
+  reasoning: `packages/player/scripts/next-bundle-proof.ts` runs a real
+  `next build` of a scratch blog on packed current-workspace tarballs and
+  greps the client chunks for `v2_dsp`. No `packages/runtime/scripts`
+  change was needed and none was made.
+
+Selection rebuilds (NAM/IR/input picked mid-play) reuse the start-time
+worklet measurement from a per-engine cache (same program object, same
+rate) and re-gate with the fresh extras BEFORE replacing the chain, so a
+refusal still touches nothing. Re-measuring on the audio thread
+mid-playback would itself be a dropout, so rebuild `load`s carry
+`playerMeasureProgram: false` (absent means measure -- the fail-closed
+direction). A new program always goes through a measuring start.
+
+Heavy-pedal note (same task): mxr-phase-90 sits at ~75-105% of the
+admission budget depending on ambient box load (in-worklet measurements of
+6250, 7813, and 10938 ns across runs at 1-min loads 3.4-6.1; budget 10417
+ns at 48 kHz), so on a loaded box the gate refuses it with the numbers
+rather than playing it into overruns. The browser proof's harvest leg
+reports that refusal as its cost figure. Kernel counters ride every
+`loaded` reply, so the kernel path is auditable per load
+(`kernelSolves === solves`, `fallbacks === 0` on the measured runs).
+
 ## 9. Work breakdown (one worker per task)
 
 1. Player shell with fake engine. Files: `packages/player/src/*` (new

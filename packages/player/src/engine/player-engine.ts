@@ -25,7 +25,8 @@ import {
 	denseLinearSolveWorkload,
 	postV2WorkletMessage,
 	predictedWorstCaseNs,
-	V2WasmEngine,
+	type AdmissionVerdict,
+	type V2WorkletInboundMessage,
 	type V2WorkletSlot,
 } from "@vessel-dsp/runtime";
 import {
@@ -53,6 +54,11 @@ import {
 import { resolvePlayerAssetUrls, type PlayerAssetUrls } from "./asset-urls.js";
 import { createChainNamProbe } from "./chain-probe.js";
 import { playerWorkletProcessorName } from "./processor-name.js";
+import type {
+	PlayerLoadedMeasurement,
+	PlayerLoadMeasurementFlag,
+	PlayerProgramScheduleEntry,
+} from "./admission-report.js";
 
 export type EngineFetchResponse = {
 	readonly ok: boolean;
@@ -92,6 +98,13 @@ export type RealPlayerEngineOptions = {
 type LoadedChain = {
 	readonly program: Program;
 	readonly controls: readonly PlayerControlInfo[];
+};
+
+/** What the engine keeps from a worklet `loaded` reply for gating. */
+type LoadedReply = {
+	readonly controls: Array<{ slot: number; id: string }>;
+	readonly measuredNsPerSample: number | null;
+	readonly programSchedule: readonly PlayerProgramScheduleEntry[];
 };
 
 function defaultFetch(src: string): Promise<EngineFetchResponse> {
@@ -167,9 +180,13 @@ export class RealPlayerEngine implements PlayerEngine {
 	private irSelection: IrDescriptor | null = null;
 	private pendingControls = new Map<string, number>();
 	private probePromise: Promise<NamProbeFn> | null = null;
-	private dspModulePromise: Promise<unknown> | null = null;
+	// The program cost the worklet measured during the last load, keyed by
+	// the program object and the context rate. Selection rebuilds reuse it
+	// (same program, same rate) instead of re-measuring on the audio thread
+	// mid-playback, which would itself be a dropout.
+	private measuredProgram: { program: Program; rate: number; nsPerSample: number | null } | null = null;
 	private loadAwaiters: Array<{
-		resolve: (info: { controls: Array<{ slot: number; id: string }> }) => void;
+		resolve: (info: LoadedReply) => void;
 		reject: (error: Error) => void;
 		timer: ReturnType<typeof setTimeout>;
 	}> = [];
@@ -437,7 +454,14 @@ export class RealPlayerEngine implements PlayerEngine {
 			const nam = await this.resolveNam(rate);
 			const ir = await this.resolveIr(rate);
 			const dspBytes = await this.fetchWasmBytes(this.assetUrls.dspWasmUrl, "DSP console");
-			await this.gateAdmission(chain.program, rate, dspBytes, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0);
+			// Static numbers first, WITHOUT refusing yet: the worklet
+			// measurement below, when available, wins over the static model
+			// (measured 11x over-estimate for mxr-phase-90: 89 us predicted
+			// against 7.8 us measured), and refusing a runnable pedal on the
+			// model alone is the failure the decisive gate exists to avoid.
+			// Macro-bearing programs refuse here: there is no measured macro
+			// price, so nothing later can price them either.
+			const stat = this.staticAdmission(chain.program, rate);
 			const createNode = this.options.createWorkletNode ?? ((ctx, name) => new AudioWorkletNode(ctx, name));
 			await context.audioWorklet.addModule(this.assetUrls.workletUrl);
 			const node = createNode(context, playerWorkletProcessorName);
@@ -454,8 +478,22 @@ export class RealPlayerEngine implements PlayerEngine {
 			this.attachPort(node.port);
 			const slots = this.buildSlots(chain.program, nam, ir);
 			const loaded = this.waitForLoaded();
-			postV2WorkletMessage(node.port, { type: "load", slots, wasmConsole: { wasmBytes: dspBytes } });
+			// The decisive cost is timed INSIDE the worklet on the shipped
+			// console and rides the `loaded` reply back: the page bundle
+			// never imports the node-flavoured glue, so no bundler ever sees
+			// its `fs` branch. `playerMeasureProgram` is a player-only field
+			// the runtime protocol passes through untouched.
+			postV2WorkletMessage(node.port, {
+				type: "load",
+				slots,
+				wasmConsole: { wasmBytes: dspBytes },
+				playerMeasureProgram: true,
+			} as V2WorkletInboundMessage & PlayerLoadMeasurementFlag);
 			const info = await loaded;
+			// Decisive gate BEFORE anything audible: a refusal tears the
+			// graph down and the gesture never glitches.
+			this.gateMeasured(rate, stat, info.measuredNsPerSample, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0);
+			this.measuredProgram = { program: chain.program, rate, nsPerSample: info.measuredNsPerSample };
 			this.applyLoadedControls(chain, info);
 			await this.startInputSource(context, gain);
 			try {
@@ -523,12 +561,22 @@ export class RealPlayerEngine implements PlayerEngine {
 		const nam = await this.resolveNam(rate);
 		const ir = await this.resolveIr(rate);
 		const dspBytes = await this.fetchWasmBytes(this.assetUrls.dspWasmUrl, "DSP console");
-		// Re-gate: a NAM/IR added after the first play brings its own
-		// measured cost, priced exactly as at start.
-		await this.gateAdmission(chain.program, rate, dspBytes, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0);
+		// Re-gate BEFORE replacing the chain: a NAM/IR added after the
+		// first play brings its own measured cost, priced exactly as at
+		// start, and a refusal touches nothing. The program cost comes from
+		// the start-time worklet measurement (same program, same rate --
+		// cached), never from a re-measure on the audio thread mid-play.
+		const stat = this.staticAdmission(chain.program, rate);
+		const programNs = this.cachedProgramNs(chain.program, rate, stat);
+		this.gateTotal(rate, programNs, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0, "measured");
 		const slots = this.buildSlots(chain.program, nam, ir);
 		const loaded = this.waitForLoaded();
-		postV2WorkletMessage(node.port, { type: "load", slots, wasmConsole: { wasmBytes: dspBytes } });
+		postV2WorkletMessage(node.port, {
+			type: "load",
+			slots,
+			wasmConsole: { wasmBytes: dspBytes },
+			playerMeasureProgram: false,
+		} as V2WorkletInboundMessage & PlayerLoadMeasurementFlag);
 		const info = await loaded;
 		this.applyLoadedControls(chain, info);
 	}
@@ -536,7 +584,10 @@ export class RealPlayerEngine implements PlayerEngine {
 	private attachPort(port: { onmessage: unknown; postMessage: unknown }): void {
 		(port as { onmessage: ((event: { data: unknown }) => void) | null }).onmessage = (event) => {
 			const message = (event as { data: { type: string } }).data as
-				| { type: "loaded"; controls: Array<{ slot: number; id: string }>; [key: string]: unknown }
+				| ({
+					type: "loaded";
+					controls: Array<{ slot: number; id: string }>;
+				} & PlayerLoadedMeasurement & { [key: string]: unknown })
 				| { type: "error"; message: string }
 				| {
 						type: "telemetry";
@@ -549,9 +600,15 @@ export class RealPlayerEngine implements PlayerEngine {
 			if (message.type === "loaded") {
 				const awaiters = this.loadAwaiters;
 				this.loadAwaiters = [];
+				const reply: LoadedReply = {
+					controls: [...message.controls],
+					measuredNsPerSample:
+						typeof message.measuredNsPerSample === "number" ? message.measuredNsPerSample : null,
+					programSchedule: Array.isArray(message.programSchedule) ? [...message.programSchedule] : [],
+				};
 				for (const waiter of awaiters) {
 					clearTimeout(waiter.timer);
-					waiter.resolve({ controls: [...message.controls] });
+					waiter.resolve(reply);
 				}
 				return;
 			}
@@ -585,7 +642,7 @@ export class RealPlayerEngine implements PlayerEngine {
 		};
 	}
 
-	private waitForLoaded(): Promise<{ controls: Array<{ slot: number; id: string }> }> {
+	private waitForLoaded(): Promise<LoadedReply> {
 		return new Promise((resolve, reject) => {
 			// A silent worklet (crashed processor, hung instantiate) must
 			// surface as a refusal, never hang the gesture that started it.
@@ -597,7 +654,7 @@ export class RealPlayerEngine implements PlayerEngine {
 		});
 	}
 
-	private applyLoadedControls(chain: LoadedChain, info: { controls: Array<{ slot: number; id: string }> }): void {
+	private applyLoadedControls(chain: LoadedChain, info: LoadedReply): void {
 		const reported = new Set(info.controls.filter((entry) => entry.slot === 0).map((entry) => entry.id));
 		const controls = chain.controls.filter((control) => reported.has(control.id));
 		this.emit("controls", [...controls]);
@@ -738,13 +795,14 @@ export class RealPlayerEngine implements PlayerEngine {
 		return { id: selection.id, taps, nsPerSample };
 	}
 
-	private async gateAdmission(
+	private staticAdmission(
 		program: Program,
 		rate: number,
-		dspBytes: ArrayBuffer,
-		namNsPerSample: number,
-		irNsPerSample: number,
-	): Promise<void> {
+	): {
+		readonly verdict: AdmissionVerdict;
+		readonly predictedNs: number | null;
+		readonly availableNs: number;
+	} {
 		const macroBlocks = program.costPredictors?.macroBlocks ?? [];
 		if (macroBlocks.length > 0) {
 			const named = macroBlocks.map((block) => `"${block.modelId}"`).join(", ");
@@ -788,126 +846,87 @@ export class RealPlayerEngine implements PlayerEngine {
 		const verdict = admissionVerdict([program], rate, budget);
 		const predicted = predictedWorstCaseNs([program], budget);
 		const availableNs = (1e9 / rate) * 0.5;
+		return { verdict, predictedNs: predicted, availableNs };
+	}
+
+	private gateTotal(rate: number, programNs: number, namNsPerSample: number, irNsPerSample: number, priced: string): void {
+		const availableNs = (1e9 / rate) * 0.5;
+		const extras = namNsPerSample + irNsPerSample;
+		const totalNs = programNs + extras;
+		if (!(totalNs <= availableNs)) {
+			throw new PlayerError(
+				"admission-refused",
+				`The chain cannot be shown to fit inside ${availableNs.toFixed(0)} ns/sample at ${rate} Hz: ` +
+					`${priced} ${(programNs).toFixed(0)} ns plus NAM/IR ${extras.toFixed(0)} ns.`,
+			);
+		}
+	}
+
+	private cachedProgramNs(
+		program: Program,
+		rate: number,
+		stat: { verdict: AdmissionVerdict; predictedNs: number | null },
+	): number {
+		const cached = this.measuredProgram;
+		if (
+			cached !== null &&
+			cached.program === program &&
+			cached.rate === rate &&
+			cached.nsPerSample !== null
+		) {
+			return cached.nsPerSample;
+		}
+		// Defensive only: rebuilds always follow a measuring start for the
+		// same program and rate. With nothing measured, fail closed on the
+		// static number -- and refuse when the static model does.
+		if (!stat.verdict.fits) {
+			throw new PlayerError("admission-refused", stat.verdict.reason);
+		}
+		return stat.predictedNs ?? Number.POSITIVE_INFINITY;
+	}
+
+	private gateMeasured(
+		rate: number,
+		stat: { verdict: AdmissionVerdict; predictedNs: number | null; availableNs: number },
+		measured: number | null,
+		namNsPerSample: number,
+		irNsPerSample: number,
+	): void {
 		// Decisive gate: the program's own per-sample cost measured on the
-		// shipped console on this machine, plus the measured NAM/IR extras.
-		// When the static model refuses but the console measurement fits,
-		// the measurement wins: the model prices the reference interpreter
-		// (measured 11x over for mxr-phase-90: 89 us predicted against
-		// 7.8 us measured), and refusing a runnable pedal is the failure
-		// this gate exists to avoid in the other direction.
-		const measured = await this.measureWasmNsPerSample(program, rate, dspBytes);
+		// shipped console on the audio thread (it rode the `loaded` reply),
+		// plus the measured NAM/IR extras. When the static model refuses but
+		// the console measurement fits, the measurement wins: the model
+		// prices the reference interpreter (measured 11x over for
+		// mxr-phase-90: 89 us predicted against 7.8 us measured), and
+		// refusing a runnable pedal is the failure this gate exists to
+		// avoid in the other direction. When nothing could be measured, the
+		// static verdict decides (fail closed).
 		const extras = namNsPerSample + irNsPerSample;
 		if (measured !== null) {
 			const totalNs = measured + extras;
-			if (!(totalNs <= availableNs)) {
+			if (!(totalNs <= stat.availableNs)) {
 				throw new PlayerError(
 					"admission-refused",
-					`The chain cannot be shown to fit inside ${availableNs.toFixed(0)} ns/sample at ${rate} Hz: ` +
+					`The chain cannot be shown to fit inside ${stat.availableNs.toFixed(0)} ns/sample at ${rate} Hz: ` +
 						`measured ${(measured).toFixed(0)} ns plus NAM/IR ${extras.toFixed(0)} ns.`,
 				);
 			}
 			return;
 		}
-		if (!verdict.fits) {
-			throw new PlayerError("admission-refused", verdict.reason);
+		if (!stat.verdict.fits) {
+			throw new PlayerError("admission-refused", stat.verdict.reason);
 		}
-		const totalNs = (predicted ?? Number.POSITIVE_INFINITY) + extras;
-		if (!(totalNs <= availableNs)) {
+		const totalNs = (stat.predictedNs ?? Number.POSITIVE_INFINITY) + extras;
+		if (!(totalNs <= stat.availableNs)) {
 			throw new PlayerError(
 				"admission-refused",
-				`The chain cannot be shown to fit inside ${availableNs.toFixed(0)} ns/sample at ${rate} Hz: ` +
-					`circuit ${(predicted ?? Number.POSITIVE_INFINITY).toFixed(0)} ns plus ` +
+				`The chain cannot be shown to fit inside ${stat.availableNs.toFixed(0)} ns/sample at ${rate} Hz: ` +
+					`circuit ${(stat.predictedNs ?? Number.POSITIVE_INFINITY).toFixed(0)} ns plus ` +
 					`NAM ${namNsPerSample.toFixed(0)} ns plus IR ${irNsPerSample.toFixed(0)} ns.`,
 			);
 		}
 	}
 
-	private async measureWasmNsPerSample(
-		program: Program,
-		rate: number,
-		dspBytes: ArrayBuffer,
-	): Promise<number | null> {
-		// The decisive real-time number: this program's own per-sample cost
-		// on the shipped console on this machine. The module compiles once
-		// per engine; a program the console cannot load measures nothing
-		// (null) and the static verdict decides instead.
-		try {
-			if (!isWasmBinary(dspBytes)) {
-				return null;
-			}
-			if (this.dspModulePromise === null) {
-				const glue = (await import("@vessel-dsp/runtime/wasm/v2_dsp.cjs")) as {
-					default: (options: {
-						instantiateWasm: (
-							imports: WebAssembly.Imports,
-							receive: (instance: WebAssembly.Instance) => void,
-						) => Record<string, never>;
-					}) => Promise<unknown>;
-				};
-				const bytes = dspBytes.slice(0);
-				// The glue's own promise never settles when the inner
-				// instantiate fails (its hook path has no rejection
-				// channel), so failures reject the wrapper explicitly:
-				// a measurement that cannot run measures nothing.
-				this.dspModulePromise = new Promise<unknown>((resolve, reject) => {
-					void glue
-						.default({
-							instantiateWasm: (imports, receive) => {
-								void WebAssembly.instantiate(bytes, imports).then(
-									(result) => {
-										// `receive` runs the glue's own instance
-										// wiring, which throws on a module without
-										// the console's exports: route it to the
-										// rejection, never to an unhandled one.
-										try {
-											receive(result.instance);
-										} catch (error) {
-											reject(error);
-										}
-									},
-									reject,
-								);
-								return {};
-							},
-						})
-						.then(resolve, reject);
-				});
-			}
-			const mod = await this.dspModulePromise;
-			const engine = await V2WasmEngine.create(program, mod);
-			try {
-				engine.prepare({ sampleRate: rate });
-				const frames = 128;
-				const input = new Float32Array(frames).fill(0.1);
-				const output = new Float32Array(frames);
-				for (let warm = 0; warm < 4; warm += 1) {
-					engine.processBlock(input, output);
-				}
-				const clock = this.options.now ?? defaultNowNs;
-				const samples: number[] = [];
-				for (let sample = 0; sample < 3; sample += 1) {
-					const blocks = 5;
-					const t0 = clock();
-					for (let block = 0; block < blocks; block += 1) {
-						engine.processBlock(input, output);
-					}
-					const elapsed = clock() - t0;
-					if (elapsed >= 0 && Number.isFinite(elapsed)) {
-						samples.push(elapsed / (blocks * frames));
-					}
-				}
-				if (samples.length === 0) {
-					return null;
-				}
-				samples.sort((a, b) => a - b);
-				return samples[Math.floor(samples.length / 2)] as number;
-			} finally {
-				engine.destroy();
-			}
-		} catch {
-			return null;
-		}
-	}
 
 	private async measureNamNsPerSample(modelJson: string, rate: number): Promise<number> {
 		const fetchFn = this.options.fetch ?? defaultFetch;
