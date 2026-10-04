@@ -9,7 +9,7 @@ every controller on the page uses it. It depends on `@vessel-dsp/chain`,
 
 ## Install
 
-`@vessel-dsp/player` 0.1.4 is on npm (0.1.1 pulled the broken runtime 0.2.0 through chain 0.1.0; use 0.1.4):
+`@vessel-dsp/player` 0.2.0 is on npm (0.1.1 pulled the broken runtime 0.2.0 through chain 0.1.0; 0.1.x has no real engine, use 0.2.0 or later):
 
 ```bash
 bun add @vessel-dsp/player

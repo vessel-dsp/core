@@ -1,5 +1,22 @@
 # Changelog
 
+## runtime 0.3.0 / chain 0.1.4 / player 0.2.0
+
+The player gets a real engine. `@vessel-dsp/runtime` 0.3.0 packages the AudioWorklet
+(`dist/worklet/v2-audio-worklet.js`, exported as `./worklet.js`) and exports its protocol
+(`postV2WorkletMessage`, `v2WorkletProcessorName` and the `V2Worklet*` message types); the packaged
+worklet runs `program` slots only. `@vessel-dsp/player` 0.2.0 adds `@vessel-dsp/player/engine`
+(`registerPlayerEngine`): a player-owned worklet bundle running pedal, NAM and IR in one chain on
+the audio thread, a main-thread engine that loads nothing until the first user gesture, and an
+admission gate that times the program inside the worklet and refuses, naming the numbers, any
+chain that costs more than 25% of one audio period (`ADMISSION_CPU_FRACTION`): a pedal at about 40%
+overran 10 to 166 times in 3 s in the browser, chains at 2-14% never did. The player also gains
+`selectNam` validation with a typed `rate-mismatch` refusal and a `program` property for
+precompiled circuits. No page bundle imports the Emscripten glue: a real `next build` of the blog
+with the engine registered succeeds with no `v2_dsp.cjs` in client chunks
+(`packages/player/scripts/next-bundle-proof.ts`). `chain` 0.1.4 only re-pins the runtime.
+Do not use runtime 0.2.x with player 0.2.0: 0.2.x has no worklet exports.
+
 ## runtime 0.2.3 / chain 0.1.3 / player 0.1.4
 
 `GeneratedKernels.cpp` regenerated for the programs that ship (137 kernels, was

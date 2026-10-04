@@ -4,7 +4,7 @@ Headless real time MNA simulation runtime and solver console for compiled Vessel
 
 ## Install
 
-`@vessel-dsp/runtime` 0.2.1 is on npm. Use runtime 0.2.1 or later: 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
+`@vessel-dsp/runtime` 0.3.0 is on npm. Use runtime 0.2.1 or later (0.3.0 adds the packaged worklet): 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
 
 
 ```bash
