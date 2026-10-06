@@ -111,6 +111,60 @@ function zenerLaw(partIds: readonly string[], breakdownVolts: number): PartEntry
  * still graded, and a zener entry is never mistaken for a forward claim.
  */
 
+// --- Switch JFETs: per-part silicon gate data, channel deliberately unrefined -----------------
+//
+// The JFET class default (`device-laws.ts`'s `case "jfet"`) is avowedly no part's values, and
+// its gate prefactor (`gateSaturationCurrent: 1e-5`, reused from the triode grid) parks a
+// series switch whose gate sits ~0.4 V above its channel in the junction's exponential foot,
+// rectifying microamp signal currents into the audio path. Measured 2026-10-06 on
+// `ibanez-ts9` Q102 (Vgs +0.392, gate peaks 5 uA): the engine's H2 sits at -29.6 dB there
+// against -57 to -64 dB on the physical reissue specimen and -77.9 dB with the FET replaced
+// by 100 ohm; killing only the gate terms reproduces the resistor swap to the printed digit,
+// and ngspice with the stock-card-equivalent NJF mapping agrees with the engine to 0.1/0.8 dB,
+// so the defect is the parameter value, not the solver. The TS9 H2 is channel-inert (a
+// 52-to-836-ohm Rds sweep moves it 0.2 dB), so the entry below refines the gate term only.
+//
+// The entry carries the class channel by construction, not by measurement:
+// `thresholdVolts`, `transconductance`, `channelLengthModulation` and `subthresholdVolts`
+// repeat the class default, and `device-laws.ts` reads only the gate term from a part
+// entry. The channel is rank-dependent (an unbinned 2SK30A spans IDSS 0.3-6.5 mA across
+// R/O/Y/GR), and the database row's beta.typ disagrees with `boss-sg-1-slow-gear`'s
+// recorded gain-cell island (report 4: the island's own Beta=1.2m reproduces its 59.9x,
+// beta.typ 0.0004664 would halve it), so refining the channel here would trade one
+// packet's fix for another's regression on evidence neither side owns. A rank-binned
+// channel fit belongs in the packet or a rank-suffixed entry, not here.
+//
+// Provenance and uncertainty, stated rather than fitted: the gate transcribes the device
+// database's silicon-junction convention (`saturationCurrent.typ` 1e-14, the same constant
+// as `SILICON_SATURATION_CURRENT`); onset/scale stay class. The Toshiba 2SK30A sheet
+// (`parts/jfets/2SK30A/datasheets/toshiba-2sk30a.pdf`, curated in `parts/jfets/2SK30A.md`)
+// prints IDSS ranks, VGS(off) and Yfs, and no forward gate current at all (only reverse
+// IGSS). The gate IS is therefore a silicon-junction order choice, not a measured 2SK30A
+// forward current: it puts the foot current at switch biases three orders below signal
+// currents (verified H2-free for gateSaturationCurrent in {1e-7, 1e-8, 1e-9, 0}; 1e-14 sits
+// inside that verified-flat region at the repo's silicon constant). Never fitted to a specimen.
+//
+// Coverage is deliberately a single exact id: the part `ibanez-ts9` declares.
+// The match is `registryLawFor`'s whole folded id (`2sk30a`), with no prefix or
+// substring rule anywhere on the path, so `2SK30ATM`, `2SK30ATM-Y` and `2SK44SPC
+// do not match. `boss-cs-2` (2SK30ATM-Y), `boss-ds-1` (2SK30ATM), `boss-dm-2`
+// (2SK30ATM-Y) and `ibanez-ts808` (2SK44SPC) each need their own packet study
+// before their behaviour may move, so they stay on the class default until then.
+// `boss-sg-1-slow-gear` declares the same id; its gate sits 0.5 V below onset in
+// every state, so the gate refinement is inert there (a ~0.02 dB Vgs shift from the
+// removed 4.5 nA foot current, measured in the report-5 rerun).
+function fetLaw(
+	partIds: readonly string[],
+	law: Extract<DeviceLaw, { kind: "fet" }>,
+): PartEntry {
+	return {
+		partIds,
+		declaredTypes: [],
+		terminalRoleGroups: [],
+		model: { kind: "law", law },
+	};
+}
+
 // --- Zener diodes: reverse breakdown from the device database ------------------------------------
 //
 // `breakdownVolts` only; forward behaviour repeats the class default by construction (see
@@ -6748,7 +6802,32 @@ const entries: readonly PartEntry[] = [
 	...zenerBreakdownVolts.map(([partIds, breakdownVolts]) =>
 		zenerLaw(partIds, breakdownVolts),
 	),
+
+	// 2SK30A series/shunt switches (`ibanez-ts9` Q102/Q104, the only packet with
+	// specimen evidence; `boss-sg-1-slow-gear` declares the same id and its gate is
+	// inert there). Channel repeats the class default by construction (see above);
+	// only `gateSaturationCurrent` carries part data.
+	fetLaw(["2SK30A"], {
+		kind: "fet",
+		channel: "n",
+		thresholdVolts: -2,
+		transconductance: 1e-3,
+		channelLengthModulation: 0,
+		subthresholdVolts: 0.07,
+		gateSaturationCurrent: 1e-14,
+		gateOnsetVolts: 0.5,
+		gateScaleVolts: 0.06,
+	}),
 ];
+
+/**
+ * Every part id whose `fet` entry refines the gate term only, folded for comparison.
+ * `report-part-store-drift.ts` keys its channel-field exclusion on this set -- a catalog
+ * product -- rather than on the registry row, so a gate-only entry's avowed class channel
+ * is never graded against the database's beta/lambda/Vp the way a transcribed channel
+ * would be. Mirrors `zenerCatalogPartIds` above.
+ */
+export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(["2sk30a"]);
 
 /**
  * The catalog the corpus-facing scripts inject.

@@ -31,7 +31,7 @@ import { link } from "./link";
 import { lower } from "./lower";
 import { readNetlist } from "./netlist";
 import { partition } from "./partition";
-import { emptyRegistry, type PartRegistry } from "./registry";
+import { emptyRegistry, registryLawFor, type PartRegistry } from "./registry";
 import {
 	findDanglingActiveTerminals,
 	synthesizeOpampImplicitBias,
@@ -230,7 +230,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 			...findDeclaredDelays(program),
 			...findUnmodelledModulation(program),
 		...findRailsWithoutVoltage(netlist),
-		...findFetLawDefaults(netlist),
+		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist),
 		...findOpampLawDefaults(lawed),
 		...scaled.warnings,
@@ -334,12 +334,19 @@ function findRailsWithoutVoltage(netlist: Netlist): readonly RailWithoutVoltageW
 }
 
 /** JFETs stamped with the fet law's own defaults. See `FetLawDefaultWarning`. */
-function findFetLawDefaults(netlist: Netlist): readonly FetLawDefaultWarning[] {
+function findFetLawDefaults(
+	netlist: Netlist,
+	registry: PartRegistry,
+): readonly FetLawDefaultWarning[] {
 	const defaulted = netlist.devices.filter(
 		(device) =>
 			device.kind === "jfet" &&
 			(device.parameters.thresholdVolts === undefined ||
-				device.parameters.transconductance === undefined),
+				device.parameters.transconductance === undefined) &&
+			// A registered part runs on its catalog entry, not the class default --
+			// naming it here would claim the opposite. Exact part id only, the same
+			// rung `device-laws.ts` refines on.
+			registryLawFor(registry, device.identity.partNumber, "fet") === null,
 	);
 	if (defaulted.length === 0) return [];
 	const listed = defaulted.map((device) => {

@@ -59,6 +59,8 @@ import {
 	invertingAmplifier,
 	invertingAmplifierReordered,
 	jfetFollower,
+	jfetGateLoadedDivider,
+	jfetGateLoadedDivider2SK30A,
 	jfetReverseBiased,
 	knownChip,
 	ledClipper,
@@ -1749,6 +1751,69 @@ describe("a FET channel conducts both ways", () => {
 		expect(drain).toBeGreaterThan(0.5);
 		// And the drain really is below the source, so this is the reverse branch.
 		expect(drain).toBeLessThan(sourceNode);
+	});
+
+	// A JFET gate loads its bias network, and a registered switch part does not.
+	//
+	// Every terminal idles on its own 1M/1M divider off 9 V, so the unloaded point is
+	// 4.5 V everywhere and the channel (Vds = 0) carries nothing: the only current is
+	// the gate's own, 2 * 1e-5 * softplus((0 - 0.5) / 0.06) = 4.8 nA, which sags the
+	// 0.5M-thevenin gate divider 2.4 mV and lifts each channel divider 1.2 mV. Solved
+	// before it was measured; ngspice with the exact B-source softplus form of the
+	// same law reports 4.497722 / 4.501129 / 4.501129, matching to six digits.
+	function gateDividerVoltages(
+		source: string,
+		registry: PartRegistry = emptyRegistry,
+	): { gate: number; source: number; drain: number } {
+		const result = compile(source, { registry });
+		expect(result.status).toBe("ok");
+		if (result.status !== "ok") {
+			throw new Error("fixture did not compile");
+		}
+		const runtime = new ReferenceRuntime(result.program);
+		runtime.prepare(48_000);
+		runtime.process(new Float64Array(1));
+		const snapshot = runtime
+			.nodeVoltageSnapshot()
+			.find((entry) => entry.nodeIds.includes(5));
+		expect(snapshot).toBeDefined();
+		const at = (node: number): number =>
+			snapshot?.voltages[snapshot.nodeIds.indexOf(node)] ?? Number.NaN;
+		return { gate: at(5), source: at(6), drain: at(7) };
+	}
+
+	it("sags the gate divider by the class gate law's own current", () => {
+		const { gate, source, drain } = gateDividerVoltages(jfetGateLoadedDivider);
+		expect(gate).toBeCloseTo(4.49772, 4);
+		expect(source).toBeCloseTo(4.50113, 4);
+		expect(drain).toBeCloseTo(4.50113, 4);
+	});
+
+	it("leaves an unregistered JFET on the class law under the part catalog", () => {
+		// The catalog refines registered parts only; the same copper without a part
+		// number renders identically with or without it.
+		const without = gateDividerVoltages(
+			jfetGateLoadedDivider,
+			pedalPartCatalog,
+		);
+		expect(without.gate).toBeCloseTo(4.49772, 4);
+	});
+
+	it("draws nothing through a registered 2SK30A gate", () => {
+		// Same copper with the part number: the catalog's silicon gate data replaces
+		// the microamp class clamp, so every divider sits at its unloaded point
+		// (4.5 V less the rail's own 1-ohm sag, solved, not assumed).
+		const { gate, source, drain } = gateDividerVoltages(
+			jfetGateLoadedDivider2SK30A,
+			pedalPartCatalog,
+		);
+		expect(gate).toBeCloseTo(4.49999, 4);
+		expect(source).toBeCloseTo(4.49999, 4);
+		expect(drain).toBeCloseTo(4.49999, 4);
+		// And it is unambiguously above the class law's sagged gate, so a future
+		// change that silently drops the refinement fails here rather than hiding
+		// inside a tolerance.
+		expect(gate).toBeGreaterThan(4.49772 + 0.002);
 	});
 	it("reports the supply's branch current, signed", () => {
 		// `diodeProtectingSupply` is hand-computable at DC: a 9 V rail at node 3 feeds node 2

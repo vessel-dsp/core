@@ -22,6 +22,8 @@ import {
 	dcMainsDivider,
 	diodeClipper,
 	dualSectionChip,
+	jfetGateLoadedDivider,
+	jfetGateLoadedDivider2SK30A,
 	knownChip,
 	potAntiLogarithmicTaper,
 	potDivider,
@@ -129,6 +131,86 @@ describe("attachDeviceLaws", () => {
 		if (d1?.outcome === "law" && d1.law.kind === "diode") {
 			expect(d1.law.isLed).toBe(true);
 			expect(d1.law.breakdownVolts).toBe(5.1);
+		}
+	});
+
+	it("gives a registered 2SK30A the catalog gate over the class channel", () => {
+		const lawed = attachDeviceLaws(
+			readNetlist(jfetGateLoadedDivider2SK30A),
+			pedalPartCatalog,
+		);
+		const q1 = lawed.resolutions.find(
+			(resolution) => resolution.device === "Q1",
+		);
+		expect(q1?.outcome).toBe("law");
+		if (q1?.outcome === "law" && q1.law.kind === "fet") {
+			// Gate-only refinement: the channel repeats the class default
+			// byte-for-byte, only the gate term carries part data.
+			expect(q1.law.thresholdVolts).toBe(-2);
+			expect(q1.law.transconductance).toBe(1e-3);
+			expect(q1.law.channelLengthModulation).toBe(0);
+			expect(q1.law.gateSaturationCurrent).toBe(1e-14);
+		}
+	});
+
+	it("keeps declared Vt0/Beta over a 2SK30A catalog match", () => {
+		const declared = jfetGateLoadedDivider2SK30A.replace(
+			'PartNumber: "2SK30A"',
+			'PartNumber: "2SK30A"\n      Vt0: "-1.5 V"\n      Beta: "0.7m"',
+		);
+		const lawed = attachDeviceLaws(readNetlist(declared), pedalPartCatalog);
+		const q1 = lawed.resolutions.find(
+			(resolution) => resolution.device === "Q1",
+		);
+		expect(q1?.outcome).toBe("law");
+		if (q1?.outcome === "law" && q1.law.kind === "fet") {
+			expect(q1.law.thresholdVolts).toBe(-1.5);
+			expect(q1.law.transconductance).toBe(0.0007);
+			// Declared values win, but the entry still supplies the gate term.
+			expect(q1.law.gateSaturationCurrent).toBe(1e-14);
+		}
+	});
+
+	it("leaves an unregistered JFET on the class gate default", () => {
+		const lawed = attachDeviceLaws(
+			readNetlist(jfetGateLoadedDivider),
+			pedalPartCatalog,
+		);
+		const q1 = lawed.resolutions.find(
+			(resolution) => resolution.device === "Q1",
+		);
+		expect(q1?.outcome).toBe("law");
+		if (q1?.outcome === "law" && q1.law.kind === "fet") {
+			expect(q1.law.thresholdVolts).toBe(-2);
+			expect(q1.law.transconductance).toBe(1e-3);
+			expect(q1.law.channelLengthModulation).toBe(0);
+			expect(q1.law.gateSaturationCurrent).toBe(1e-5);
+		}
+	});
+
+	it("leaves a suffixed 2SK30ATM-Y id on the class default stamp byte-for-byte", () => {
+		// The catalog covers the exact folded id `2sk30a` only: `registryLawFor`
+		// compares whole folded ids with no prefix rule, so a binned or suffixed
+		// spelling must not match. `boss-cs-2`, `boss-ds-1` and `boss-dm-2` declare
+		// exactly these spellings and stay on the class law until their packet
+		// studies land.
+		const suffixed = jfetGateLoadedDivider2SK30A.replace(
+			'PartNumber: "2SK30A"',
+			'PartNumber: "2SK30ATM-Y"',
+		);
+		const lawed = attachDeviceLaws(readNetlist(suffixed), pedalPartCatalog);
+		const q1 = lawed.resolutions.find(
+			(resolution) => resolution.device === "Q1",
+		);
+		expect(q1?.outcome).toBe("law");
+		if (q1?.outcome === "law" && q1.law.kind === "fet") {
+			expect(q1.law.thresholdVolts).toBe(-2);
+			expect(q1.law.transconductance).toBe(1e-3);
+			expect(q1.law.channelLengthModulation).toBe(0);
+			expect(q1.law.subthresholdVolts).toBe(0.07);
+			expect(q1.law.gateSaturationCurrent).toBe(1e-5);
+			expect(q1.law.gateOnsetVolts).toBe(0.5);
+			expect(q1.law.gateScaleVolts).toBe(0.06);
 		}
 	});
 

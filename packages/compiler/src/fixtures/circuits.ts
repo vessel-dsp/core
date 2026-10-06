@@ -1643,6 +1643,500 @@ wires: []
 `;
 
 /**
+ * A JFET whose gate, source and drain each sit on their own 1M/1M divider off 9 V,
+ * so every terminal idles at 4.5 V and the channel (Vds = 0) carries nothing. The only
+ * current in the circuit is the gate's own: each junction draws
+ * `gateSaturationCurrent * softplus((0 - 0.5) / 0.06)` ~ 2.4 nA, and the two together
+ * sag the 0.5M-thevenin gate divider ~2.4 mV while lifting the source/drain dividers
+ * ~1.2 mV each. A voltmeter on the gate therefore reads the gate law directly.
+ *
+ * Unregistered, so this is the class default under test, not any part. The registered
+ * twin below (`jfetGateLoadedDivider2SK30A`) is the same copper with a part number,
+ * and the pair pins the per-part refinement: same dividers, no sag.
+ */
+export const jfetGateLoadedDivider = `${header("Gate-Loaded Divider Fixture")}components:
+${jacks}  - id: VP
+    kind: rail
+    name: V_PLUS
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: -100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: end
+        node: 4
+        position:
+          x: 0
+          y: -100
+    properties:
+      Voltage: "9"
+      Description: "Divider supply."
+  - id: RG1
+    kind: resistor
+    name: R_GATE_UPPER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -60
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: -60
+          y: -70
+      - name: b
+        node: 5
+        position:
+          x: -60
+          y: -30
+    properties:
+      Resistance: "1M"
+      Description: "Gate divider upper."
+  - id: RG2
+    kind: resistor
+    name: R_GATE_LOWER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -60
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 5
+        position:
+          x: -60
+          y: 30
+      - name: b
+        node: 0
+        position:
+          x: -60
+          y: 70
+    properties:
+      Resistance: "1M"
+      Description: "Gate divider lower."
+  - id: RS1
+    kind: resistor
+    name: R_SOURCE_UPPER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 60
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 60
+          y: -70
+      - name: b
+        node: 6
+        position:
+          x: 60
+          y: -30
+    properties:
+      Resistance: "1M"
+      Description: "Source divider upper."
+  - id: RS2
+    kind: resistor
+    name: R_SOURCE_LOWER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 60
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 6
+        position:
+          x: 60
+          y: 30
+      - name: b
+        node: 0
+        position:
+          x: 60
+          y: 70
+    properties:
+      Resistance: "1M"
+      Description: "Source divider lower."
+  - id: RD1
+    kind: resistor
+    name: R_DRAIN_UPPER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 140
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 140
+          y: -70
+      - name: b
+        node: 7
+        position:
+          x: 140
+          y: -30
+    properties:
+      Resistance: "1M"
+      Description: "Drain divider upper."
+  - id: RD2
+    kind: resistor
+    name: R_DRAIN_LOWER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 140
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 7
+        position:
+          x: 140
+          y: 30
+      - name: b
+        node: 0
+        position:
+          x: 140
+          y: 70
+    properties:
+      Resistance: "1M"
+      Description: "Drain divider lower."
+  - id: RJIN
+    kind: resistor
+    name: R_INPUT_TERMINATION
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -140
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: -140
+          y: -20
+      - name: b
+        node: 0
+        position:
+          x: -140
+          y: 20
+    properties:
+      Resistance: "1M"
+      Description: "Input termination."
+  - id: RJOUT
+    kind: resistor
+    name: R_OUTPUT_TERMINATION
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 220
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 2
+        position:
+          x: 220
+          y: -20
+      - name: b
+        node: 0
+        position:
+          x: 220
+          y: 20
+    properties:
+      Resistance: "1M"
+      Description: "Output termination."
+  - id: Q1
+    kind: jfet
+    name: GATE_LOADED_FET
+    sourceTypeName: Circuit.JFET
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: gate
+        role: gate
+        node: 5
+        position:
+          x: -20
+          y: 0
+      - name: drain
+        role: drain
+        node: 7
+        position:
+          x: 0
+          y: 20
+      - name: source
+        role: source
+        node: 6
+        position:
+          x: 0
+          y: -20
+    properties:
+      Description: "Gate-law probe; no part number, so the class default applies."
+wires: []
+`;
+
+/**
+ * The same copper as `jfetGateLoadedDivider` with the 2SK30A part number, so the
+ * catalog's per-part gate data applies instead of the class default: the gate draws
+ * ~1e-18 A and every divider sits at its unloaded 4.5 V. The two fixtures render the
+ * same circuit with different gate laws, which is what makes their pair a regression
+ * test for the refinement rather than two readings of one law.
+ */
+export const jfetGateLoadedDivider2SK30A = `${header("Gate-Loaded Divider Fixture, 2SK30A")}components:
+${jacks}  - id: VP
+    kind: rail
+    name: V_PLUS
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: -100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: end
+        node: 4
+        position:
+          x: 0
+          y: -100
+    properties:
+      Voltage: "9"
+      Description: "Divider supply."
+  - id: RG1
+    kind: resistor
+    name: R_GATE_UPPER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -60
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: -60
+          y: -70
+      - name: b
+        node: 5
+        position:
+          x: -60
+          y: -30
+    properties:
+      Resistance: "1M"
+      Description: "Gate divider upper."
+  - id: RG2
+    kind: resistor
+    name: R_GATE_LOWER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -60
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 5
+        position:
+          x: -60
+          y: 30
+      - name: b
+        node: 0
+        position:
+          x: -60
+          y: 70
+    properties:
+      Resistance: "1M"
+      Description: "Gate divider lower."
+  - id: RS1
+    kind: resistor
+    name: R_SOURCE_UPPER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 60
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 60
+          y: -70
+      - name: b
+        node: 6
+        position:
+          x: 60
+          y: -30
+    properties:
+      Resistance: "1M"
+      Description: "Source divider upper."
+  - id: RS2
+    kind: resistor
+    name: R_SOURCE_LOWER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 60
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 6
+        position:
+          x: 60
+          y: 30
+      - name: b
+        node: 0
+        position:
+          x: 60
+          y: 70
+    properties:
+      Resistance: "1M"
+      Description: "Source divider lower."
+  - id: RD1
+    kind: resistor
+    name: R_DRAIN_UPPER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 140
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 140
+          y: -70
+      - name: b
+        node: 7
+        position:
+          x: 140
+          y: -30
+    properties:
+      Resistance: "1M"
+      Description: "Drain divider upper."
+  - id: RD2
+    kind: resistor
+    name: R_DRAIN_LOWER
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 140
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 7
+        position:
+          x: 140
+          y: 30
+      - name: b
+        node: 0
+        position:
+          x: 140
+          y: 70
+    properties:
+      Resistance: "1M"
+      Description: "Drain divider lower."
+  - id: RJIN
+    kind: resistor
+    name: R_INPUT_TERMINATION
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -140
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: -140
+          y: -20
+      - name: b
+        node: 0
+        position:
+          x: -140
+          y: 20
+    properties:
+      Resistance: "1M"
+      Description: "Input termination."
+  - id: RJOUT
+    kind: resistor
+    name: R_OUTPUT_TERMINATION
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 220
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 2
+        position:
+          x: 220
+          y: -20
+      - name: b
+        node: 0
+        position:
+          x: 220
+          y: 20
+    properties:
+      Resistance: "1M"
+      Description: "Output termination."
+  - id: Q1
+    kind: jfet
+    name: GATE_LOADED_FET
+    sourceTypeName: Circuit.JFET
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: gate
+        role: gate
+        node: 5
+        position:
+          x: -20
+          y: 0
+      - name: drain
+        role: drain
+        node: 7
+        position:
+          x: 0
+          y: 20
+      - name: source
+        role: source
+        node: 6
+        position:
+          x: 0
+          y: -20
+    properties:
+      PartNumber: "2SK30A"
+      Description: "Gate-law probe with the registered switch part."
+wires: []
+`;
+
+/**
  * A supply with a protection diode wired the wrong way round: anode on the 9 V rail, cathode on
  * ground, so the whole supply forward biases it.
  *

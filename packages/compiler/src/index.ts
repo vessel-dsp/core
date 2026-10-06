@@ -22,7 +22,7 @@ export {
 	type PartSection,
 } from "./registry";
 export { canonicalPartId } from "./part-number";
-export { pedalPartCatalog, zenerCatalogPartIds } from "./part-catalog";
+export { pedalPartCatalog, zenerCatalogPartIds, gateOnlyFetPartIds } from "./part-catalog";
 export {
 	resolveSupplyStamps,
 	type RefusedSupply,

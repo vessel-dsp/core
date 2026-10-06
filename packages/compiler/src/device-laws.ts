@@ -2478,7 +2478,26 @@ function resolveDevice(
 					leakageAmps: device.parameters.leakageAmps ?? 0,
 				},
 			};
-		case "jfet":
+		case "jfet": {
+			// A registered part refines the class gate, exactly as `GENERIC_TUBE_GRID`'s
+			// note says a registry entry should. Exact part number only -- see
+			// `registryLawFor`. The refinement is the gate term alone: the channel
+			// stays the declared-or-class law byte-for-byte (rank-dependent, and the
+			// database beta disagrees with at least one packet's record), so a covered
+			// part's channel is indistinguishable from an unregistered one's. Declared
+			// Vt0/Beta win over everything, every time: the entries exist to fill
+			// absence, not to overrule a packet that states the value (the same overlay
+			// the diode case applies). Unregistered parts keep the class default
+			// bit-identically, including the microamp gate clamp that `boss-cs-2` Q2
+			// and `boss-ds-2` Q15 lean on -- a global change there would trade their
+			// readable operating points for the switch fix.
+			const catalogued = registryLawFor(
+				registry,
+				device.identity.partNumber,
+				"fet",
+			);
+			const entry =
+				catalogued !== null && catalogued.kind === "fet" ? catalogued : null;
 			return {
 				outcome: "law",
 				device: device.id,
@@ -2499,14 +2518,16 @@ function resolveDevice(
 					// A JFET gate is a silicon PN junction, so it conducts once forward-biased.
 					// Saturation current and scale are **reused from the triode grid**, which
 					// `compact-mna-dynamic-triode-cell` reports 0 Newton failures with; the onset
-					// is moved from a tube grid's 0.05 V to a silicon junction's 0.5 V. These are
-					// not measured against any specific JFET and a registry entry should refine
-					// them -- the same caveat the triode's grid defaults carry.
-					gateSaturationCurrent: 1.0e-5,
+					// is moved from a tube grid's 0.05 V to a silicon junction's 0.5 V. The
+					// class default is not measured against any specific JFET: a registered
+					// part refines the current through its catalog entry, and the
+					// unregistered default stays exactly what it was.
+					gateSaturationCurrent: entry?.gateSaturationCurrent ?? 1.0e-5,
 					gateOnsetVolts: 0.5,
 					gateScaleVolts: 0.06,
 				},
 			};
+		}
 		case "mosfet":
 			return {
 				outcome: "law",
