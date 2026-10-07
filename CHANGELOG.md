@@ -1,5 +1,18 @@
 # Changelog
 
+## compiler 0.3.0 / runtime 0.3.1 / chain 0.1.5 / player 0.2.3
+
+Fix: the exact part id `2SK30A` now carries its own silicon gate-junction data (`gateSaturationCurrent` 1e-14,
+the device database's value for every JFET row; channel left at the class default). The JFET default's gate
+junction (1e-5, reused from the triode grid and never measured against a JFET) sat 0.11 V under its onset in a
+switching JFET biased on, drew microamps from the signal path and put an even harmonic and about 3.5 dB of
+loss on the effect path: `ibanez-ts9` second harmonic -29.6 to -78.0 dB, fundamental +3.6 dB at 30 mV in
+(Drive 0.5, Tone 0.5, Level 0.3, direct tap), engine and ngspice agreeing. Unregistered parts, and the aliased
+ids `2SK30ATM` / `2SK30ATM-Y` / `2SK44SPC`, keep the class default byte-for-byte (`boss-cs-2`, `boss-ds-1`,
+`boss-dm-2`, `boss-ds-2`, `boss-bd-2-blues-driver`, `ibanez-ts808` program and render hashes unchanged);
+`boss-sg-1-slow-gear` declares `2SK30A` exactly and moves -0.018 dB (its gate is 0.5 V below onset). Adds the
+public export `gateOnlyFetPartIds` (compiler minor bump); runtime, chain and player only re-pin the compiler.
+
 ## player 0.2.2
 
 Fix: with the real engine, `@vessel-dsp/player` 0.2.0 and 0.2.1 played SILENCE through the circuit

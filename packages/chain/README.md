@@ -7,7 +7,7 @@ access.
 
 ## Install
 
-`@vessel-dsp/chain` 0.1.4 is on npm, with its pinned `@vessel-dsp/compiler`
+`@vessel-dsp/chain` 0.1.5 is on npm, with its pinned `@vessel-dsp/compiler`
 0.2.0, `@vessel-dsp/runtime` 0.2.1, and `@vessel-dsp/core` dependencies coming
 along automatically:
 
@@ -222,7 +222,7 @@ refused: setSupplyProfile: no source text was given to this RuntimeNode, so no e
 Limits, stated plainly:
 
 - It uses the TypeScript reference console. The WASM console in
-  `@vessel-dsp/runtime` 0.3.0 exposes the same `getSupplies`/`setSupply`
+  `@vessel-dsp/runtime` 0.3.1 exposes the same `getSupplies`/`setSupply`
   pair for hosts that drive it directly; `RuntimeNode` drives the reference
   console.
 - Op-amp stages draw almost no supply current in the model, so sag on
