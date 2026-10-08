@@ -7,14 +7,13 @@
 // What belongs here is the contract a caller depends on, which is that the option is invisible
 // except for being more accurate.
 import { describe, expect, it } from "bun:test";
-import { compile } from "@vessel-dsp/compiler";
-import { emptyRegistry } from "@vessel-dsp/compiler";
+import type { Program } from "@vessel-dsp/compiler";
+import { compile, emptyRegistry } from "@vessel-dsp/compiler";
 import {
 	clippingOverdriveStage,
 	resistorDivider,
 } from "@vessel-dsp/compiler/fixtures/circuits";
 import { ReferenceRuntime } from "../src/reference-runtime";
-import type { Program } from "@vessel-dsp/compiler";
 
 const RATE = 48_000;
 
@@ -75,17 +74,48 @@ describe("solver oversampling", () => {
 		}
 	});
 
-	it("leaves a working circuit's output where it was", () => {
+	it("leaves a working circuit's gain where it was, after the resampler's delay", () => {
 		// A divider is exact and rate-independent, so oversampling it must be a no-op to within
-		// floating point. This is the property that makes the option safe to raise on a packet
-		// that already agrees with ngspice: it buys accuracy where the solve was stiff and
-		// changes nothing where it was not.
+		// the resampler's own passband ripple once its group delay has passed. Sample-by-sample
+		// equality cannot hold: the band-limited path delays the output by `oversampleLatency()`
+		// host samples (41.25 at 4x, fractional, so no integer shift can align it either).
+		// What is pinned here is the gain: the fundamental of the settled output at 4x agrees
+		// with the 1x fundamental to well within the 0.01 dB passband-ripple budget.
 		const program = programFor(resistorDivider);
-		const plain = render(program, 1);
-		const fourTimes = render(program, 4);
-		const settled = Math.floor(plain.length / 2);
-		for (let index = settled; index < plain.length; index += 1) {
-			expect(fourTimes[index]).toBeCloseTo(plain[index] ?? 0, 9);
+		const fundamental = (output: Float64Array, hz: number): number => {
+			let cc = 0;
+			let cs = 0;
+			let ss = 0;
+			let tc = 0;
+			let ts = 0;
+			for (let index = 0; index < output.length; index += 1) {
+				const phase = (2 * Math.PI * hz * index) / RATE;
+				const cos = Math.cos(phase);
+				const sin = Math.sin(phase);
+				cc += cos * cos;
+				cs += cos * sin;
+				ss += sin * sin;
+				tc += (output[index] ?? 0) * cos;
+				ts += (output[index] ?? 0) * sin;
+			}
+			const det = cc * ss - cs * cs;
+			return Math.hypot((tc * ss - ts * cs) / det, (cc * ts - cs * tc) / det);
+		};
+		for (const hz of [100, 1000, 8000]) {
+			const input = new Float64Array(9600);
+			for (let index = 0; index < input.length; index += 1) {
+				input[index] = 0.3 * Math.sin((2 * Math.PI * hz * index) / RATE);
+			}
+			const plain = new ReferenceRuntime(program);
+			plain.prepare(RATE);
+			const settled1x = plain.process(input).subarray(4800);
+			const over = new ReferenceRuntime(program);
+			over.prepare(RATE, { oversample: 4 });
+			const settled4x = over.process(input).subarray(4800);
+			const ratioDb =
+				20 *
+				Math.log10(fundamental(settled4x, hz) / fundamental(settled1x, hz));
+			expect(Math.abs(ratioDb)).toBeLessThan(0.01);
 		}
 	});
 
@@ -95,5 +125,57 @@ describe("solver oversampling", () => {
 		const runtime = new ReferenceRuntime(program);
 		runtime.prepare(RATE, { oversample: 0 });
 		expect(runtime.hostSampleRate()).toBe(RATE);
+	});
+
+	it("reports the resampler latency in host samples, and none on the legacy path", () => {
+		// The band-limited path delays the output by the half-band cascade's group delay;
+		// the held path adds nothing. `null` before `prepare()`, like `hostSampleRate()`.
+		const program = programFor(resistorDivider);
+		const idle = new ReferenceRuntime(program);
+		expect(idle.oversampleLatency()).toBeNull();
+		for (const [oversample, latency] of [
+			[1, 0],
+			[2, 27.5],
+			[4, 41.25],
+			[8, 48.125],
+		] as const) {
+			const runtime = new ReferenceRuntime(program);
+			runtime.prepare(RATE, { oversample });
+			expect(runtime.oversampleLatency()).toBe(latency);
+		}
+		// A factor that is not a power of two keeps the legacy path: no stages, no latency.
+		const legacy = new ReferenceRuntime(program);
+		legacy.prepare(RATE, { oversample: 3 });
+		expect(legacy.oversampleLatency()).toBe(0);
+		expect(legacy.process(sine(480, 0.3)).length).toBe(480);
+	});
+
+	it("renders bit-identically however the input is split across process() calls", () => {
+		// The resampler state is carried on the stages, so block boundaries are invisible --
+		// at every factor, on a nonlinear circuit. One long call is the reference.
+		const program = programFor(clippingOverdriveStage);
+		for (const oversample of [1, 2, 4, 8]) {
+			const renderIn = (splits: readonly number[]): Float64Array => {
+				const runtime = new ReferenceRuntime(program);
+				runtime.prepare(RATE, oversample === 1 ? {} : { oversample });
+				const full = sine(480, 0.3);
+				const output = new Float64Array(full.length);
+				let at = 0;
+				for (const split of splits) {
+					output.set(runtime.process(full.subarray(at, at + split)), at);
+					at += split;
+				}
+				return output;
+			};
+			const whole = renderIn([480]);
+			const tenths = renderIn(Array(10).fill(48));
+			const ones = renderIn(Array(480).fill(1));
+			expect(tenths.length).toBe(whole.length);
+			expect(ones.length).toBe(whole.length);
+			for (let index = 0; index < whole.length; index += 1) {
+				expect(tenths[index]).toBe(whole[index]);
+				expect(ones[index]).toBe(whole[index]);
+			}
+		}
 	});
 });

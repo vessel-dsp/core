@@ -35,6 +35,12 @@ import type {
 } from "@vessel-dsp/compiler";
 import { admissionVerdict, type RealtimeBudget } from "./admission";
 import { computeNumericRepivot } from "./numeric-pivot";
+import {
+	HalfBandStage2x,
+	cascadeLatencyHostSamples,
+	designHalfBand2x,
+	RESAMPLE_HALF_BAND_TAPS,
+} from "./resample";
 import type { SupplyAddress, SupplyInfo } from "./supply";
 import { taperFraction } from "./taper";
 
@@ -1491,6 +1497,20 @@ export class ReferenceRuntime {
 	 * correct at the sub-sample rate. `hostSampleRate()` is the rate a caller passed in.
 	 */
 	private oversample = 1;
+	/**
+	 * Band-limited resampling around the solver, one 2x half-band stage per
+	 * entry, cascaded for 4x and 8x. Empty unless `oversample` is a power of
+	 * two greater than 1; any other factor keeps the legacy hold-and-last
+	 * path below. Built fresh (zero state) in `prepare()`, so the filter
+	 * state never leaks across renders and block splits stay bit-identical.
+	 */
+	private resampleUp: HalfBandStage2x[] = [];
+	private resampleDown: HalfBandStage2x[] = [];
+	/** Scratch for the sub-sample streams, sized to `oversample` in `prepare()`. */
+	private resampleBufA: Float64Array = new Float64Array(0);
+	private resampleBufB: Float64Array = new Float64Array(0);
+	/** Total resampler group delay in host samples (0 on the legacy path). */
+	private resampleLatencyHost = 0;
 	private readonly positions = new Map<ControlId, number>();
 	private readonly lastShiftedSample = new Map<string, number>();
 	/**
@@ -2202,10 +2222,23 @@ export class ReferenceRuntime {
 			 * multiplier spends the most where it buys least, so the factor belongs with whoever
 			 * knows the packet -- `report-newton-deadline` computes the stiffness signal.
 			 *
-			 * **What it does not do.** Decimation here is zero-order: the last sub-sample of each
-			 * host sample is the output. That is what the 47-to-50 measurement was taken with. A
-			 * band-limiting decimator is a real improvement for broadband content and is *not*
-			 * implemented, because a single 1 kHz tone cannot justify a filter choice.
+			 * **What it does.** At a power-of-two factor (2, 4, 8, ...), each
+			 * host sample is band-limited interpolated up by cascaded half-band
+			 * FIR 2x stages, solved at the sub-sample rate, and FIR-decimated
+			 * back to one host sample per input sample. The interpolation
+			 * removes the input hold's sinc droop and the decimation removes
+			 * folded harmonics, so a 48 kHz host at 4x renders like a true
+			 * 192 kHz simulation of the band-limited host signal. The filters
+			 * are linear-phase, designed in `prepare()` from the stage alone
+			 * (never the circuit), with their state carried across `process()`
+			 * calls; the total group delay in host samples is reported by
+			 * `oversampleLatency()`.
+			 *
+			 * **What it does not do.** At factor 1, or a factor that is not a
+			 * power of two, decimation here is zero-order: the last
+			 * sub-sample of each host sample is the output. That is what the
+			 * 47-to-50 measurement was taken with. A band-limiting decimator
+			 * for non-power-of-two factors is not implemented.
 			 */
 			readonly oversample?: number;
 		} = {},
@@ -2314,6 +2347,35 @@ export class ReferenceRuntime {
 		// The solver runs at the sub-sample rate. Delay lines and pole coefficients are held in
 		// *seconds* and converted here, so they stay correct without knowing about oversampling.
 		this.sampleRate = sampleRate * oversample;
+		// The band-limited resampler is designed here, from the stage alone: one
+		// windowed-sinc half-band prototype shared by every 2x stage, fresh
+		// zero-state instances per direction, so `prepare()` clears the filter
+		// state and a re-prepared run starts clean. Powers of two only; any
+		// other factor keeps the legacy hold-and-last path in `process()`.
+		const resampleStages = Math.log2(oversample);
+		if (Number.isInteger(resampleStages) && resampleStages >= 1) {
+			const prototype = designHalfBand2x(RESAMPLE_HALF_BAND_TAPS);
+			this.resampleUp = Array.from(
+				{ length: resampleStages },
+				() => new HalfBandStage2x(prototype),
+			);
+			this.resampleDown = Array.from(
+				{ length: resampleStages },
+				() => new HalfBandStage2x(prototype),
+			);
+			this.resampleBufA = new Float64Array(oversample);
+			this.resampleBufB = new Float64Array(oversample);
+			this.resampleLatencyHost = cascadeLatencyHostSamples(
+				resampleStages,
+				RESAMPLE_HALF_BAND_TAPS,
+			);
+		} else {
+			this.resampleUp = [];
+			this.resampleDown = [];
+			this.resampleBufA = new Float64Array(0);
+			this.resampleBufB = new Float64Array(0);
+			this.resampleLatencyHost = 0;
+		}
 		this.maxNewtonIterations = maxNewtonIterations;
 		// Negative would be a source that supplies energy under load; refuse the nonsense
 		// rather than solve it.
@@ -3630,72 +3692,156 @@ export class ReferenceRuntime {
 		// `samples` and the non-converged counters stay in **host** samples however many
 		// sub-samples each one costs, because their only job is to report the share of rendered
 		// audio that is untrustworthy, and a listener hears host samples.
-		for (let index = 0; index < input.length; index += 1) {
-			// Every block is solved, but the result comes from the block that owns the
-			// output jack -- not from whichever ran last. Regions are independent
-			// subcircuits; only their shared nodes couple them.
-			const sample = input[index] ?? 0;
-			let hostResult = 0;
-			let hostNonConverged = false;
-			let hostNonFinite = false;
-			// The input is **held** across the sub-samples rather than interpolated. A host
-			// sample is one measurement and inventing intermediate values is inventing signal;
-			// holding is the zero-order reading of what was actually delivered.
-			for (let sub = 0; sub < this.oversample; sub += 1) {
-			// Sample `n` is the circuit at `t = n / sampleRate`, counted from `prepare`. Set here
-			// so every block in this sample sees one time, and advanced below so buffer
-			// boundaries are invisible.
-			this.timeSeconds = this.elapsedSamples / (this.sampleRate as number);
-			let result = 0;
-			// A sample is counted once however many of its blocks failed. Counting each
-			// failing block instead let `nonConvergedSamples` exceed `samples` in a
-			// multi-region program, so the number could not be read as the share of audio
-			// that is untrustworthy -- which is the only thing it is for.
-			this.sampleNonConverged = false;
-			this.sampleNonFinite = false;
-			for (const id of this.program.order) {
-				const block = this.blocksById.get(id);
-				if (block === undefined) {
-					continue;
-				}
-				const blockOutput = this.processBlock(block, sample);
-				if (block.kind === "mna" && block.outputNode !== null) {
-					result = blockOutput;
-				}
+		if (this.resampleUp.length === 0) {
+			for (let index = 0; index < input.length; index += 1) {
+				output[index] = this.processHeldSample(input[index] ?? 0);
 			}
+		} else {
+			for (let index = 0; index < input.length; index += 1) {
+				output[index] = this.processResampledSample(input[index] ?? 0);
+			}
+		}
+		return output;
+	}
+
+	/**
+	 * One host sample through the legacy path: the input held flat across the
+	 * sub-samples, the last sub-sample kept. Bit-identical to the behaviour
+	 * before the band-limited resampler existed, which is what makes factor 1
+	 * (and non-power-of-two factors) cost nothing and change nothing.
+	 */
+	private processHeldSample(sample: number): number {
+		// Every block is solved, but the result comes from the block that owns the
+		// output jack -- not from whichever ran last. Regions are independent
+		// subcircuits; only their shared nodes couple them.
+		let hostResult = 0;
+		let hostNonConverged = false;
+		let hostNonFinite = false;
+		// The input is **held** across the sub-samples rather than interpolated. A host
+		// sample is one measurement and inventing intermediate values is inventing signal;
+		// holding is the zero-order reading of what was actually delivered.
+		for (let sub = 0; sub < this.oversample; sub += 1) {
+			hostResult = this.solveSubSample(sample);
 			if (this.sampleNonConverged) {
 				hostNonConverged = true;
 			}
 			if (this.sampleNonFinite) {
 				hostNonFinite = true;
 			}
-			// The rendered supply peak, read from the solved branch unknowns. Every sample, because
-			// a rectifier's current is a pulse a few samples wide and a coarser sampling of it
-			// would report a smaller number for no physical reason.
-			for (const branch of this.supplyBranchSlots) {
-				const amps = this.nodeVoltages.get(branch.blockId)?.[branch.slot] ?? 0;
-				const magnitude = Math.abs(amps);
-				if (magnitude > this.renderedSupplyPeakAmps) {
-					this.renderedSupplyPeakAmps = magnitude;
-				}
-			}
-			this.elapsedSamples += 1;
-			hostResult = result;
-			}
-			// Zero-order decimation: the last sub-sample is the host sample. This is what the
-			// 47-to-50 parity measurement was taken with, and on `boss-ce-5` it is bit-identical
-			// to a boxcar average because the limit cycle oversampling removes is *gone* rather
-			// than moved above Nyquist. A band-limiting decimator is a real improvement for
-			// broadband content and deliberately not guessed at here.
-			if (hostNonConverged) {
-				this.nonConvergedSamples += 1;
-			}
-			if (hostNonFinite) {
-				this.nonFiniteSamples += 1;
-			}
-			output[index] = hostResult;
 		}
-		return output;
+		// Zero-order decimation: the last sub-sample is the host sample. This is what the
+		// 47-to-50 parity measurement was taken with, and on `boss-ce-5` it is bit-identical
+		// to a boxcar average because the limit cycle oversampling removes is *gone* rather
+		// than moved above Nyquist.
+		if (hostNonConverged) {
+			this.nonConvergedSamples += 1;
+		}
+		if (hostNonFinite) {
+			this.nonFiniteSamples += 1;
+		}
+		return hostResult;
+	}
+
+	/**
+	 * One host sample through the band-limited path: half-band interpolate up
+	 * by 2 per stage, solve each sub-sample, FIR-decimate back to one host
+	 * sample. The resampler state lives on the stages across `process()`
+	 * calls, so any block split renders bit-identically to one long call;
+	 * the group delay this adds is reported by `oversampleLatency()`.
+	 */
+	private processResampledSample(sample: number): number {
+		const stages = this.resampleUp.length;
+		// Up cascade: alternate the two scratch buffers, doubling each stage.
+		let cur = this.resampleBufA;
+		let next = this.resampleBufB;
+		(this.resampleUp[0] as HalfBandStage2x).interpolate(sample, cur, 0);
+		let width = 2;
+		for (let stage = 1; stage < stages; stage += 1) {
+			for (let i = 0; i < width; i += 1) {
+				(this.resampleUp[stage] as HalfBandStage2x).interpolate(
+					cur[i] as number,
+					next,
+					2 * i,
+				);
+			}
+			const swap = cur;
+			cur = next;
+			next = swap;
+			width *= 2;
+		}
+		// Solve every sub-sample; outputs land in the idle buffer.
+		let hostNonConverged = false;
+		let hostNonFinite = false;
+		for (let sub = 0; sub < width; sub += 1) {
+			next[sub] = this.solveSubSample(cur[sub] as number);
+			if (this.sampleNonConverged) {
+				hostNonConverged = true;
+			}
+			if (this.sampleNonFinite) {
+				hostNonFinite = true;
+			}
+		}
+		// Down cascade, highest rate first, halving in place of `next`.
+		const hi = next;
+		for (let stage = stages - 1; stage >= 0; stage -= 1) {
+			const half = width / 2;
+			for (let i = 0; i < half; i += 1) {
+				hi[i] = (this.resampleDown[stage] as HalfBandStage2x).decimate(
+					hi[2 * i] as number,
+					hi[2 * i + 1] as number,
+				);
+			}
+			width = half;
+		}
+		if (hostNonConverged) {
+			this.nonConvergedSamples += 1;
+		}
+		if (hostNonFinite) {
+			this.nonFiniteSamples += 1;
+		}
+		return hi[0] as number;
+	}
+
+	/**
+	 * One sub-sample solve at the solver rate: every block stepped once at
+	 * `t = elapsedSamples / sampleRate`, returning the output jack's value.
+	 * Shared by the held and the resampled paths, so factor 1 executes the
+	 * same operations in the same order as before the resampler existed.
+	 */
+	private solveSubSample(subInput: number): number {
+		// Sample `n` is the circuit at `t = n / sampleRate`, counted from `prepare`. Set here
+		// so every block in this sample sees one time, and advanced below so buffer
+		// boundaries are invisible.
+		this.timeSeconds = this.elapsedSamples / (this.sampleRate as number);
+		let result = 0;
+		// A sample is counted once however many of its blocks failed. Counting each
+		// failing block instead let `nonConvergedSamples` exceed `samples` in a
+		// multi-region program, so the number could not be read as the share of audio
+		// that is untrustworthy -- which is the only thing it is for.
+		this.sampleNonConverged = false;
+		this.sampleNonFinite = false;
+		for (const id of this.program.order) {
+			const block = this.blocksById.get(id);
+			if (block === undefined) {
+				continue;
+			}
+			const blockOutput = this.processBlock(block, subInput);
+			if (block.kind === "mna" && block.outputNode !== null) {
+				result = blockOutput;
+			}
+		}
+		// The rendered supply peak, read from the solved branch unknowns. Every sample, because
+		// a rectifier's current is a pulse a few samples wide and a coarser sampling of it
+		// would report a smaller number for no physical reason.
+		for (const branch of this.supplyBranchSlots) {
+			const amps = this.nodeVoltages.get(branch.blockId)?.[branch.slot] ?? 0;
+			const magnitude = Math.abs(amps);
+			if (magnitude > this.renderedSupplyPeakAmps) {
+				this.renderedSupplyPeakAmps = magnitude;
+			}
+		}
+		this.elapsedSamples += 1;
+		return result;
 	}
 
 	/**
@@ -3706,6 +3852,18 @@ export class ReferenceRuntime {
 	 */
 	hostSampleRate(): number | null {
 		return this.sampleRate === null ? null : this.sampleRate / this.oversample;
+	}
+
+	/**
+	 * The resampler's total group delay in **host** samples, or `null` before
+	 * `prepare()`. Zero when the resampler is bypassed (factor 1, or a factor
+	 * that is not a power of two and keeps the legacy path): the held path
+	 * adds no latency by construction. At 2x/4x/8x this is 27.5/41.25/48.125
+	 * host samples for the 57-tap half-band cascade -- a real, reported
+	 * latency the caller must absorb or declare, not a hidden one.
+	 */
+	oversampleLatency(): number | null {
+		return this.sampleRate === null ? null : this.resampleLatencyHost;
 	}
 
 	private processBlock(block: Block, input: number): number {
