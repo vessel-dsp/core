@@ -348,6 +348,32 @@ export class V2WasmEngine {
 	 * A healthy packet reads `fallbacks === 0` and `abandonedBlocks === 0`. Anything else is a
 	 * cost defect even though the audio is correct.
 	 */
+	/**
+	 * Newton start predictor telemetry, the console-side mirror of the reference's
+	 * `newtonStartHistory` decisions: `seedsUsed` counts standard-pass solves that started
+	 * from an extrapolated solution (order > 0), `oneIterationSolves` those that converged in
+	 * exactly one iteration -- the saving itself, attributable on the shipping console.
+	 * Counted since `prepare()`/`reset()`. `predictorOrder(blockIdx)` reads the order the
+	 * block's next solve will seed from (0 = previous solution, 1 = linear, 2 = quadratic;
+	 * -1 for a bad index), so a decision can be compared against the reference per sample.
+	 */
+	public getPredictorTelemetry(): {
+		readonly seedsUsed: number;
+		readonly oneIterationSolves: number;
+		/** Newton iterations over every block solve since prepare/reset (the reference's `totalIterations`). */
+		readonly totalIterations: number;
+	} {
+		return {
+			seedsUsed: this.mod._v2_engine_get_predictor_seeds(this.handle),
+			oneIterationSolves: this.mod._v2_engine_get_one_iteration_solves(this.handle),
+			totalIterations: this.mod._v2_engine_get_total_iterations(this.handle),
+		};
+	}
+
+	public getPredictorOrder(blockIdx: number): number {
+		return this.mod._v2_engine_get_predictor_order(this.handle, blockIdx);
+	}
+
 	public getScheduleTelemetry(): {
 		readonly solves: number;
 		readonly fallbacks: number;

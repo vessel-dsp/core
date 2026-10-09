@@ -1,0 +1,17 @@
+$ bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run --cwd packages/control-ui build && bun run --cwd packages/visual-effects build && bun run --cwd packages/amp build && bun run --cwd packages/cabinet build && bun run --cwd packages/compiler build && bun run --cwd packages/runtime build && bun run --cwd packages/chain build && bun run --cwd packages/player build && bun run check:dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && cp src/styles.css dist/styles.css
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm && bun scripts/build-worklet.ts
+build-worklet: wrote /tmp/npw-verify/packages/runtime/dist/worklet/v2-audio-worklet.js (297123 bytes, no external imports)
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && bun scripts/build-player-worklet.ts
+build-player-worklet: wrote /tmp/npw-verify/packages/player/dist/worklet/player-worklet.js (355037 bytes, no external imports)
+build-player-worklet: staged dist/wasm/ (2147645 + 420095 wasm bytes)
+$ node scripts/check-dist-entrypoints.mjs
+dist entrypoints ok
+exit 0

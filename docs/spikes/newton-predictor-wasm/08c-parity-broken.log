@@ -1,0 +1,10 @@
+[broken-gate] parity: two-tone 440@0.25+1320@0.1, cap 1024, settle 100 / window 2048; bars r>=0.9999 & maxDelta<1e-4
+packet    os | maxDelta   r          relRms    | TS it/host  WASM peak  TS peak | verdict
+muff       1 | 8.249e-8  1.000000  1.34e-7 |      2.692         12       12 | PASS
+muff       4 | 1.674e-8  1.000000  5.18e-8 |      4.868          7        6 | PASS
+sd1        1 | 7.717e-6  1.000000  4.38e-5 |      2.885         27       26 | PASS
+sd1        4 | 7.748e-6  1.000000  4.45e-5 |      5.754          7        6 | PASS
+ts808      1 | 1.337e-6  1.000000  2.60e-6 |      2.830         10        8 | PASS
+ts808      4 | 2.159e-7  1.000000  3.27e-7 |      4.958          4        4 | PASS
+gro100     1 | 7.421e-9  1.000000  2.41e-8 |      2.010         30       26 | PASS
+gro100     4 | 7.427e-9  1.000000  2.50e-8 |      4.860         18       11 | PASS

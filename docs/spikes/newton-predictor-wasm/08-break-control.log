@@ -1,0 +1,25 @@
+8bd0e300273fd33be4cf5545bebb3e16642ae60fbf9cff0631e85262f3da7155  packages/runtime/src/cpp/Engine.cpp
+1
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/home/joseph/projects/VesselDSP/core/newton-iteration-budget/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+broken build:
+4623b928bddc1f5145a96d614503b3b324bcf9e9450797bee0fbe3ac86731efa  packages/runtime/src/wasm/v2_dsp.wasm
+restored source:
+8bd0e300273fd33be4cf5545bebb3e16642ae60fbf9cff0631e85262f3da7155  packages/runtime/src/cpp/Engine.cpp
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/home/joseph/projects/VesselDSP/core/newton-iteration-budget/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+restored build:
+aef38274384e36db5433963f6893a1f32045daf8685f7d10df9aeba0c01adf02  packages/runtime/src/wasm/v2_dsp.wasm
+af9897c81b08fb6f7546ca7f72acf8b83c21449a3cf2f68428148b815159a567  packages/runtime/src/wasm/v2_dsp.cjs

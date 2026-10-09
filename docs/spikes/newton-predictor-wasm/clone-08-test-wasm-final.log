@@ -1,0 +1,10 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/chain/ir-convolution.test.ts:
+48000-tap IR: 33.4 ms for 1 s audio (29.96x realtime)
+
+ 1994 pass
+ 0 fail
+ 513949 expect() calls
+Ran 1994 tests across 142 files. [76.25s]
+exit 0

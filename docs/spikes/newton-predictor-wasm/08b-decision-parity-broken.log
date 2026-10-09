@@ -1,0 +1,12 @@
+decision parity: 1000 Hz @0.1 V, 2400 host samples, cap 1024, one-sample process calls; per sample: order per block, cumulative seeds / one-iteration solves / total iterations
+packet    os | samples | seeds TS/WASM | one-it TS/WASM | iterations TS/WASM | samples whose per-sample order / counter deltas differ | first | verdict
+muff       1 | 2400 | 21/1985 | 6/6 | 8595/8385 | samples differing: order 1965, seeds 1964, one-it 0, iterations 1233 | sample 3: order of analog:0 TS 0 WASM 2 | DIVERGE
+muff       4 | 2400 | 8995/9520 | 6406/6410 | 13569/13593 | samples differing: order 94, seeds 222, one-it 3, iterations 167 | sample 18: order of analog:0 TS 0 WASM 1 | DIVERGE
+sd1        1 | 2400 | 1568/2347 | 250/250 | 6540/7266 | samples differing: order 780, seeds 779, one-it 0, iterations 578 | sample 2: order of analog:0 TS 0 WASM 1 | DIVERGE
+sd1        4 | 2400 | 8934/9591 | 7244/7243 | 12865/12706 | samples differing: order 200, seeds 201, one-it 3, iterations 203 | sample 13: order of analog:0 TS 0 WASM 2 | DIVERGE
+ts808      1 | 2400 | 899/2397 | 0/0 | 6705/6055 | samples differing: order 1499, seeds 1498, one-it 0, iterations 1249 | sample 2: order of analog:0 TS 0 WASM 1 | DIVERGE
+ts808      4 | 2400 | 9585/9587 | 7925/7925 | 11277/11277 | samples differing: order 0, seeds 1, one-it 0, iterations 0 | sample 15: seeds this sample TS 2 WASM 4 | DIVERGE
+gro100     1 | 2400 | 2158/2370 | 454/476 | 4842/4708 | samples differing: order 212, seeds 212, one-it 24, iterations 227 | sample 2: order of analog:0 TS 0 WASM 1 | DIVERGE
+gro100     4 | 2400 | 9300/9586 | 8267/8339 | 11395/11325 | samples differing: order 166, seeds 190, one-it 207, iterations 284 | sample 0: order of analog:0 TS 0 WASM 2 | DIVERGE
+
+decision parity: DIVERGENCE (see rows)

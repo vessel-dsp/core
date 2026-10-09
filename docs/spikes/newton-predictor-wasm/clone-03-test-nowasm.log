@@ -1,0 +1,51 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/package.test.ts:
+864 | 		const controlUi = await readPackageJson("control-ui");
+865 | 		const visualEffects = await readPackageJson("visual-effects");
+866 | 		const amp = await readPackageJson("amp");
+867 | 		const cabinet = await readPackageJson("cabinet");
+868 | 		const changelog = await readChangelog();
+869 | 		const distIndex = await readCoreDistIndexJs();
+                                ^
+ENOENT: no such file or directory, open '/tmp/npw-verify/packages/core/dist/index.js'
+    path: "/tmp/npw-verify/packages/core/dist/index.js",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at async <anonymous> (/tmp/npw-verify/tests/package.test.ts:869:27)
+(fail) release metadata > pins the current package release and changelog entry [0.80ms]
+
+tests/chain/ir-convolution.test.ts:
+48000-tap IR: 33.5 ms for 1 s audio (29.83x realtime)
+
+packages/runtime/tests/delay-tap-reverse.test.ts:
+error: Cannot find module './wasm/v2_dsp.cjs' from '/tmp/npw-verify/packages/runtime/src/v2-wasm-engine.ts'
+(fail) delay-tap-reverse > agrees between the two consoles [10.97ms]
+
+packages/runtime/tests/public-surface.test.ts:
+src/wasm/v2_dsp.cjs is absent: run `bun run build:wasm`. WASM-console tests SKIPPED, not passed.
+
+packages/runtime/tests/declared-program.test.ts:
+error: Cannot find module './wasm/v2_dsp.cjs' from '/tmp/npw-verify/packages/runtime/src/v2-wasm-engine.ts'
+(fail) a declared program is compiled and switched by its pin > agrees with the C++ console bit-exactly in both positions [20.86ms]
+
+packages/runtime/tests/hold-loop.test.ts:
+error: Cannot find module './wasm/v2_dsp.cjs' from '/tmp/npw-verify/packages/runtime/src/v2-wasm-engine.ts'
+(fail) hold-loop > agrees between the two consoles [2.54ms]
+
+packages/runtime/tests/tap-law.test.ts:
+error: Cannot find module './wasm/v2_dsp.cjs' from '/tmp/npw-verify/packages/runtime/src/v2-wasm-engine.ts'
+(fail) a tap law > agrees between the two consoles [3.02ms]
+
+packages/runtime/tests/controller-latch.test.ts:
+error: Cannot find module './wasm/v2_dsp.cjs' from '/tmp/npw-verify/packages/runtime/src/v2-wasm-engine.ts'
+(fail) a controller latch > agrees between the two consoles across a press [3.48ms]
+
+ 1953 pass
+ 36 skip
+ 6 fail
+ 87380 expect() calls
+Ran 1995 tests across 142 files. [62.01s]
+exit 1

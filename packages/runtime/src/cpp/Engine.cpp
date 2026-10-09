@@ -1338,6 +1338,9 @@ void Engine::prepare(const EngineOptions& options) {
     controlGeneration_ = 1;
     scheduleSolves_ = 0;
     scheduleFallbacks_ = 0;
+    predictorSeeds_ = 0;
+    oneIterationSolves_ = 0;
+    totalIterations_ = 0;
 
     macroOutputVolts_.clear();
     reverbStates_.clear();
@@ -1392,6 +1395,14 @@ void Engine::prepare(const EngineOptions& options) {
     for (size_t bIdx = 0; bIdx < numBlocks; ++bIdx) {
         const auto& block = program_.blocks[bIdx];
         auto& scratch = blockScratch_[bIdx];
+        // `resize` keeps a re-prepared engine's old scratch objects: the predictor ring is
+        // history and starts empty, like the reference's `newtonStartHistory.clear()`.
+        scratch.predictorX1.clear();
+        scratch.predictorX2.clear();
+        scratch.predictorX3.clear();
+        scratch.predictorCandidate.clear();
+        scratch.predictorChain = 0;
+        scratch.predictorOrder = 0;
 
 
         if (block.kind == BlockKind::Composed) {
@@ -2044,6 +2055,9 @@ void Engine::settlePivotOrders() {
 void Engine::reset() {
     scheduleSolves_ = 0;
     scheduleFallbacks_ = 0;
+    predictorSeeds_ = 0;
+    oneIterationSolves_ = 0;
+    totalIterations_ = 0;
     // The resampler's histories are streaming state, like the capacitor
     // states below: cleared, never rebuilt, so a reset run starts clean and
     // renders identically to a freshly prepared one.
@@ -2057,6 +2071,12 @@ void Engine::reset() {
         scratch.cachedControlGeneration = -1;
         scratch.matrix = scratch.baseMatrix;
         scratch.rhs = scratch.baseRhs;
+        // The predictor ring is streaming state: a reset run starts with no history.
+        scratch.predictorX1.clear();
+        scratch.predictorX2.clear();
+        scratch.predictorX3.clear();
+        scratch.predictorChain = 0;
+        scratch.predictorOrder = 0;
         // **Abandonment is measured state, and `reset()` clears measured state.** It was the
         // one thing here that survived, so a block that gave its schedule up under one
         // operating condition stayed dense for the life of the engine even after the condition
@@ -2494,8 +2514,21 @@ Engine::SolveResult Engine::iterate(
     auto& scratch = blockScratch_[blockIdx];
     int32_t size = scratch.size;
 
-    for (int32_t i = 0; i < size; ++i) {
-        scratch.solutionA[i] = start[i];
+    // On a standard audio pass of a nonlinear block the seed is the predicted start (see
+    // `recordNewtonSolution`), falling back to `start`. `start` itself stays the previous
+    // solution for the fold reseed below. The same predicate as the reference's
+    // `predictorPass`.
+    const bool predictorPass = !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
+    const double* seed = predictorPass ? predictedNewtonStart(scratch, size) : nullptr;
+    if (seed != nullptr) {
+        predictorSeeds_++;
+        for (int32_t i = 0; i < size; ++i) {
+            scratch.solutionA[i] = seed[i];
+        }
+    } else {
+        for (int32_t i = 0; i < size; ++i) {
+            scratch.solutionA[i] = start[i];
+        }
     }
     double* current = scratch.solutionA.data();
     double* next = scratch.solutionB.data();
@@ -2764,8 +2797,123 @@ Engine::SolveResult Engine::iterate(
         res.worstNode = worstDifferenceIndex(current, next, size);
     }
 
+    if (predictorPass) {
+        recordNewtonSolution(scratch, current, size, res.converged, res.used);
+    }
+
     std::memcpy(outSolution, current, size * sizeof(double));
     return res;
+}
+
+// Order-`order` extrapolation of a block's converged-solution history (the mirror of the
+// reference's `extrapolateNewtonStart`) written into `out`: the previous solution, the
+// linear `2*x1 - x2`, or the quadratic `3*x1 - 3*x2 + x3`, with the reference's operand
+// order so the doubles agree bit for bit. Returns false, writing nothing, when the chain is
+// shorter than the order needs.
+static bool extrapolateNewtonStart(const BlockScratch& scratch, int32_t order, int32_t size, double* out) {
+    const size_t n = static_cast<size_t>(size);
+    const auto& x1 = scratch.predictorX1;
+    const auto& x2 = scratch.predictorX2;
+    const auto& x3 = scratch.predictorX3;
+    if (order == 0) {
+        if (scratch.predictorChain < 1 || x1.size() != n) return false;
+        for (int32_t i = 0; i < size; ++i) out[i] = x1[i];
+        return true;
+    }
+    if (order == 1) {
+        if (scratch.predictorChain < 2 || x1.size() != n || x2.size() != n) return false;
+        for (int32_t i = 0; i < size; ++i) out[i] = 2.0 * x1[i] - x2[i];
+        return true;
+    }
+    if (scratch.predictorChain < 3 || x1.size() != n || x2.size() != n || x3.size() != n) return false;
+    for (int32_t i = 0; i < size; ++i) out[i] = 3.0 * x1[i] - 3.0 * x2[i] + x3[i];
+    return true;
+}
+
+const double* Engine::predictedNewtonStart(BlockScratch& scratch, int32_t size) {
+    if (scratch.predictorOrder == 0) {
+        return nullptr;
+    }
+    if (scratch.predictorCandidate.size() != static_cast<size_t>(size)) {
+        scratch.predictorCandidate.assign(static_cast<size_t>(size), 0.0);
+    }
+    return extrapolateNewtonStart(scratch, scratch.predictorOrder, size, scratch.predictorCandidate.data())
+        ? scratch.predictorCandidate.data()
+        : nullptr;
+}
+
+void Engine::recordNewtonSolution(BlockScratch& scratch, const double* solution, int32_t size, bool converged, int32_t used) {
+    // Mirrors `ReferenceRuntime.recordNewtonSolution`. The predictor is the one place a
+    // console decides something from its own history, so the decision -- which order, and
+    // therefore which first iterate -- must be the same on both consoles wherever the
+    // inputs are: same scoring, same strict comparisons, same tie rule, same gate, same
+    // double arithmetic in the same order.
+    if (!converged) {
+        scratch.predictorChain = 0;
+        scratch.predictorOrder = 0;
+        return;
+    }
+    const size_t n = static_cast<size_t>(size);
+    const auto& x1 = scratch.predictorX1;
+    const auto& x2 = scratch.predictorX2;
+    const auto& x3 = scratch.predictorX3;
+    const bool has1 = scratch.predictorChain >= 1 && x1.size() == n;
+    const bool has2 = has1 && scratch.predictorChain >= 2 && x2.size() == n;
+    const bool has3 = has2 && scratch.predictorChain >= 3 && x3.size() == n;
+    double error0 = has1 ? 0.0 : HUGE_VAL;
+    double error1 = has2 ? 0.0 : HUGE_VAL;
+    double error2 = has3 ? 0.0 : HUGE_VAL;
+    if (has1) {
+        for (int32_t index = 0; index < size; ++index) {
+            const double s = solution[index];
+            const double magnitude = std::abs(s);
+            const double v1 = x1[index];
+            const double ratio0 = std::abs(v1 - s) /
+                (NEWTON_RELATIVE_TOLERANCE * std::max(std::abs(v1), magnitude) + NEWTON_VOLTAGE_TOLERANCE);
+            if (ratio0 > error0) error0 = ratio0;
+            if (!has2) continue;
+            const double v2 = x2[index];
+            const double guess1 = 2.0 * v1 - v2;
+            const double ratio1 = std::abs(guess1 - s) /
+                (NEWTON_RELATIVE_TOLERANCE * std::max(std::abs(guess1), magnitude) + NEWTON_VOLTAGE_TOLERANCE);
+            if (ratio1 > error1) error1 = ratio1;
+            if (!has3) continue;
+            const double guess2 = 3.0 * v1 - 3.0 * v2 + x3[index];
+            const double ratio2 = std::abs(guess2 - s) /
+                (NEWTON_RELATIVE_TOLERANCE * std::max(std::abs(guess2), magnitude) + NEWTON_VOLTAGE_TOLERANCE);
+            if (ratio2 > error2) error2 = ratio2;
+        }
+    }
+    // Strictly better only: a tie keeps the lower order, so a flat signal (where every
+    // order predicts the same point) stays on the previous-solution start.
+    int32_t best = 0;
+    double bestError = error0;
+    if (error1 < bestError) {
+        best = 1;
+        bestError = error1;
+    }
+    if (error2 < bestError) {
+        best = 2;
+    }
+    // Smooth-regime gate: extrapolate only after a solve that took at most two iterations
+    // (one step and one check -- the floor). See the reference for the measurement.
+    if (used > 2) {
+        best = 0;
+    }
+    scratch.predictorOrder = best;
+    if (used == 1) {
+        oneIterationSolves_++;
+    }
+    // Rotate the ring without allocating: the oldest buffer receives the new solution.
+    std::swap(scratch.predictorX3, scratch.predictorX2);
+    std::swap(scratch.predictorX2, scratch.predictorX1);
+    if (scratch.predictorX1.size() != n) {
+        scratch.predictorX1.assign(n, 0.0);
+    }
+    for (int32_t index = 0; index < size; ++index) {
+        scratch.predictorX1[index] = solution[index];
+    }
+    scratch.predictorChain += 1;
 }
 
 void Engine::buildLinearBackground(
@@ -2924,8 +3072,19 @@ Engine::SolveResult Engine::iterateEliminated(
         }
     };
 
-    for (int32_t p = 0; p < portCount; ++p) {
-        scratch.yCurrent[p] = start[portRows[p]];
+    // The predicted start (see `recordNewtonSolution`), falling back to `start`: the same
+    // rule as `iterate`, applied through the port unknowns the reduced solve iterates on.
+    const bool predictorPass = !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
+    const double* seed = predictorPass ? predictedNewtonStart(scratch, size) : nullptr;
+    if (seed != nullptr) {
+        predictorSeeds_++;
+        for (int32_t p = 0; p < portCount; ++p) {
+            scratch.yCurrent[p] = seed[portRows[p]];
+        }
+    } else {
+        for (int32_t p = 0; p < portCount; ++p) {
+            scratch.yCurrent[p] = start[portRows[p]];
+        }
     }
     reconstructFull(scratch.yCurrent.data(), scratch.fullCurrent.data());
 
@@ -3045,6 +3204,10 @@ Engine::SolveResult Engine::iterateEliminated(
             res.converged = true;
             break;
         }
+    }
+
+    if (predictorPass) {
+        recordNewtonSolution(scratch, current, size, res.converged, res.used);
     }
 
     std::memcpy(outSolution, current, size * sizeof(double));
@@ -4415,6 +4578,7 @@ double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
 
     lastIterationCount_ = res.used;
     lastConverged_ = res.converged;
+    totalIterations_ += res.used;
     if (res.used > maxIterationsObserved_) {
         maxIterationsObserved_ = res.used;
     }

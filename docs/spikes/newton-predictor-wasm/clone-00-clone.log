@@ -1,0 +1,8 @@
+ee650f2 runtime: gated Newton start predictor (order 0/1/2 extrapolation of the last three converged solutions, used only after a <=2-iteration solve); spike report, harness and tests
+apply exit 0
+ M packages/runtime/scripts/build-wasm.sh
+ M packages/runtime/src/cpp/Engine.cpp
+ M packages/runtime/src/cpp/V2Exports.cpp
+ M packages/runtime/src/cpp/include/v2/Engine.h
+ M packages/runtime/src/v2-wasm-engine.ts
+?? packages/runtime/tests/v2-wasm-newton-predictor.test.ts

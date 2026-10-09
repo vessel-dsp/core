@@ -331,6 +331,33 @@ V2_EXPORT double v2_engine_get_schedule_fallbacks(void* handle) {
     return static_cast<double>(ctx->engine.scheduleFallbacks());
 }
 
+// Newton start predictor telemetry (see `Engine::predictorSeeds`). Doubles for the same
+// reason as the schedule counters above.
+V2_EXPORT double v2_engine_get_predictor_seeds(void* handle) {
+    if (!handle) return 0.0;
+    auto* ctx = static_cast<V2WasmContext*>(handle);
+    return static_cast<double>(ctx->engine.predictorSeeds());
+}
+
+V2_EXPORT double v2_engine_get_one_iteration_solves(void* handle) {
+    if (!handle) return 0.0;
+    auto* ctx = static_cast<V2WasmContext*>(handle);
+    return static_cast<double>(ctx->engine.oneIterationSolves());
+}
+
+V2_EXPORT double v2_engine_get_total_iterations(void* handle) {
+    if (!handle) return 0.0;
+    auto* ctx = static_cast<V2WasmContext*>(handle);
+    return static_cast<double>(ctx->engine.totalIterations());
+}
+
+/** The order (0/1/2) the block's next standard-pass solve seeds from; -1 for a bad index. */
+V2_EXPORT int32_t v2_engine_get_predictor_order(void* handle, int32_t blockIdx) {
+    if (!handle || blockIdx < 0) return -1;
+    auto* ctx = static_cast<V2WasmContext*>(handle);
+    return ctx->engine.predictorOrder(static_cast<size_t>(blockIdx));
+}
+
 V2_EXPORT double v2_engine_get_kernel_solves(void* handle) {
     if (!handle) return 0.0;
     auto* ctx = static_cast<V2WasmContext*>(handle);

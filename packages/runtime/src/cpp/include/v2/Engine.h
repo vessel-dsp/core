@@ -89,6 +89,20 @@ struct BlockScratch {
     uint64_t cachedControlGen = 0;
     bool canUseSelectiveMatrixCopy = false;
 
+    /**
+     * Newton start predictor: the mirror of `reference-runtime.ts`'s `newtonStartHistory`
+     * (see `Engine::recordNewtonSolution` for the rule). A ring of the last three converged
+     * standard-pass solutions (`predictorX1` newest), the unbroken-chain length, the
+     * extrapolation order the next solve seeds from (0 = the previous solution, 1 = linear,
+     * 2 = quadratic) and the reused candidate scratch. Cleared by `prepare()` and `reset()`.
+     */
+    std::vector<double> predictorX1;
+    std::vector<double> predictorX2;
+    std::vector<double> predictorX3;
+    std::vector<double> predictorCandidate;
+    int32_t predictorChain = 0;
+    int32_t predictorOrder = 0;
+
     // Per-stamp nonlinear history (indexed by stamp index within block)
     std::vector<double> diodeHistory;
     std::vector<std::pair<double, double>> bjtHistory;
@@ -267,6 +281,26 @@ public:
     int64_t scheduleFallbacks() const { return scheduleFallbacks_; }
     /** Solves that took the generated straight-line kernel instead of the interpreter. */
     int64_t kernelSolves() const { return kernelSolves_; }
+    /**
+     * Newton start predictor telemetry, counted over every standard audio pass of a
+     * nonlinear block since `prepare()`/`reset()`: solves seeded from an extrapolated start
+     * (order > 0 with a long enough chain), and solves that converged in exactly one
+     * iteration (the predictor's whole saving: one step where the previous-solution start
+     * needs a step and a check). The reference has the same quantities by construction
+     * (`predictedNewtonStart` returning non-null; `recordNewtonSolution` with `used === 1`).
+     */
+    int64_t predictorSeeds() const { return predictorSeeds_; }
+    int64_t oneIterationSolves() const { return oneIterationSolves_; }
+    /**
+     * Newton iterations summed over every block solve since `prepare()`/`reset()`: the
+     * reference's `telemetry().totalIterations`, which the per-solve `lastIterationCount`
+     * cannot reconstruct once a host sample holds several sub-samples or blocks.
+     */
+    int64_t totalIterations() const { return totalIterations_; }
+    /** The extrapolation order the block's next standard-pass solve seeds from; -1 for a bad index. */
+    int32_t predictorOrder(size_t blockIdx) const {
+        return blockIdx < blockScratch_.size() ? blockScratch_[blockIdx].predictorOrder : -1;
+    }
     /** Blocks whose shipped order failed validation and a numeric re-pivot was adopted. */
     int64_t repivotedScheduleBlocks() const { return repivotedScheduleBlocks_; }
     /** Blocks that were admitted at `prepare()` and have since given their schedule up. */
@@ -325,6 +359,9 @@ private:
     int64_t scheduleSolves_ = 0;
     int64_t scheduleFallbacks_ = 0;
     int64_t kernelSolves_ = 0;
+    int64_t predictorSeeds_ = 0;
+    int64_t oneIterationSolves_ = 0;
+    int64_t totalIterations_ = 0;
     int64_t repivotedScheduleBlocks_ = 0;
 
     std::unordered_map<std::string, double> controlPositions_;
@@ -568,6 +605,20 @@ private:
         double gmin = 1e-12,
         double sourceScale = 1.0
     );
+
+    /**
+     * The start the predictor selects for a standard-pass solve, written into the block's
+     * candidate scratch, or `nullptr` to start from the caller's previous solution (order 0,
+     * or a chain too short for the chosen order). Mirrors `predictedNewtonStart`.
+     */
+    const double* predictedNewtonStart(BlockScratch& scratch, int32_t size);
+    /**
+     * Record a finished standard-pass solve: on convergence score orders 0/1/2 against the
+     * solution in tolerance units (one fused pass), keep the best (strict `<`, ties keep the
+     * lower order, `used > 2` forces 0) and rotate the ring; on failure break the chain.
+     * Mirrors `recordNewtonSolution` statement for statement.
+     */
+    void recordNewtonSolution(BlockScratch& scratch, const double* solution, int32_t size, bool converged, int32_t used);
 
     void applyStamp(
         const Stamp& stamp,

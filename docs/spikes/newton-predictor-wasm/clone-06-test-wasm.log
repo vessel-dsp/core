@@ -1,0 +1,26 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/chain/ir-convolution.test.ts:
+48000-tap IR: 33.5 ms for 1 s audio (29.87x realtime)
+
+packages/runtime/tests/v2-wasm-newton-predictor.test.ts:
+165 | 		expect(r.wasm.seedsUsed).toBe(r.seeds);
+166 | 		expect(r.wasm.seedsUsed).toBeLessThan(20);
+167 | 		expect(r.orders).toEqual([0]);
+168 | 		const sine = (index: number) => 0.5 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+169 | 		const c = await lockstep(program, 1, sine, 1440);
+170 | 		expect(c.orderMismatches).toBe(0);
+                                  ^
+error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 36
+
+      at <anonymous> (/tmp/npw-verify/packages/runtime/tests/v2-wasm-newton-predictor.test.ts:170:29)
+(fail) V2WasmEngine Newton start predictor > decides the same order on a clipping signal at x1, where the gate and the tie rule do the work [22.78ms]
+
+ 1993 pass
+ 1 fail
+ 513945 expect() calls
+Ran 1994 tests across 142 files. [70.54s]
+exit 1

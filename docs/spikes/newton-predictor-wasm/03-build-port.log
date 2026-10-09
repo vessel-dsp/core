@@ -1,0 +1,12 @@
+command: bun run --cwd packages/runtime build:wasm  (= bash scripts/build-wasm.sh, em++ -O3 -msimd128 -std=c++17 -fwasm-exceptions)
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/home/joseph/projects/VesselDSP/core/newton-iteration-budget/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+exit 0
+aef38274384e36db5433963f6893a1f32045daf8685f7d10df9aeba0c01adf02  packages/runtime/src/wasm/v2_dsp.wasm
+af9897c81b08fb6f7546ca7f72acf8b83c21449a3cf2f68428148b815159a567  packages/runtime/src/wasm/v2_dsp.cjs

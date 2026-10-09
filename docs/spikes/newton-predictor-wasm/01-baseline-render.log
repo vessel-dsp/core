@@ -1,0 +1,13 @@
+[baseline-wasm-1b98ea79] renders: 1 kHz 10 mV 1 s 48 kHz cap 1024 block 512
+muff  os1 WASM sha256=3ad1d88d16cb8b33b3eb535d0b42cebbaa9b83913d8ca4d4d20ed9f5c231d1ad peak=6 | TS sha256=89aaa8d7788fa24937ebcdbe28866e93ffadf5993ef53f1de3ebf6976cfc16b4 it/host=2.833 peak=6 NC=0 | TS-vs-WASM maxAbs=2.07e-8
+muff  os4 WASM sha256=c29814a27c46465a2823d383e8a02cc6f0deb380a1655ac96e944a8cd22ed525 peak=3 | TS sha256=b3fd0070a3180dd2ed2e106c7e98e37362a529a2b87cf750f8da4aeebeed8625 it/host=5.625 peak=2 NC=0 | TS-vs-WASM maxAbs=1.23e-8
+sd1   os1 WASM sha256=59f86113c62a704fbfff1d3ff34db4985de4bdf369af324728e540f1c49c072d peak=4 | TS sha256=2810d7d4a526981702da2c41d2920597a6b20937f8acd8f860f4edd227059a7a it/host=2.354 peak=4 NC=0 | TS-vs-WASM maxAbs=8.27e-6
+sd1   os4 WASM sha256=0f3da34092c9462aabf6e67a0f2f9828ba9a2c351fb60b167ca6fabdd1e939aa peak=3 | TS sha256=456a1fd370cf13a726bca81f8703091601211f261d52819f2efcf2b857982db2 it/host=4.585 peak=2 NC=0 | TS-vs-WASM maxAbs=8.59e-6
+ts9   os1 WASM sha256=c1a4c043ae0f9ae60f31c1b3eb5cbaa57bd67276e591a5045fe96dc04fd24a92 peak=3 | TS sha256=35a1ed9575311d37e4f9f82d1c7ed32036e1e34f57697429284f7adff284d9b3 it/host=1.708 peak=2 NC=0 | TS-vs-WASM maxAbs=2.84e-5
+ts9   os4 WASM sha256=a9547177836e01e5ef64e99eb1d7de00cb0dd6729ecdcd9a42a56b82bba71ea7 peak=2 | TS sha256=5b758de8c514cc85cec28f0ceed61985e1cfe6a942cb44896be9606c4f64caf4 it/host=4.043 peak=2 NC=0 | TS-vs-WASM maxAbs=2.95e-5
+resistor-divider (linear only): x1 WASM sha256=2532e45838c2ca6f165f0e22bed2b67df7073de228d4eb71df8078e994209f56
+rc-low-pass (linear only): x1 WASM sha256=5aeec084333528aeb0dd359014e263dc98d1c71a790d8527275fa2f223cf6323
+ts9 os1 render sha=c1a4c043ae0f9ae6 render->reset->render sha=290b0bac640a5f5f DIFFERENT
+ts9 os4 render sha=a9547177836e01e5 render->reset->render sha=fd54a127f9be79d3 DIFFERENT
+muff os1 render sha=3ad1d88d16cb8b33 render->reset->render sha=3ad1d88d16cb8b33 EQUAL
+muff os4 render sha=c29814a27c46465a render->reset->render sha=c29814a27c46465a EQUAL

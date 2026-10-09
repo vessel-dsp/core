@@ -1,0 +1,10 @@
+$ tsc --noEmit && bun run --cwd packages/control-ui typecheck && bun run --cwd packages/visual-effects typecheck && bun run --cwd packages/amp typecheck && bun run --cwd packages/cabinet typecheck && bun run --cwd packages/compiler typecheck && bun run --cwd packages/runtime typecheck && bun run --cwd packages/chain typecheck && bun run --cwd packages/player typecheck
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+$ tsc --noEmit -p tsconfig.json
+exit 0
