@@ -60,10 +60,19 @@ std::vector<double> designHalfBand2x(int32_t taps, double beta) {
     return out;
 }
 
-const std::vector<double>& resamplePrototype() {
-    static const std::vector<double> prototype =
-        designHalfBand2x(kResampleHalfBandTaps, kResampleKaiserBeta);
-    return prototype;
+double cascadeLatencyHostSamples(int32_t stages) {
+    if (stages < 1) {
+        throw std::runtime_error(
+            "resampler cascade needs a positive integer stage count (got " +
+            std::to_string(stages) + ")");
+    }
+    double total = 0.0;
+    for (int32_t s = 0; s < stages; ++s) {
+        const double center =
+            (static_cast<double>(resampleStageSpec(s).taps) - 1.0) / 2.0;
+        total += (2.0 * center - 1.0) / std::pow(2.0, static_cast<double>(s + 1));
+    }
+    return total;
 }
 
 HalfBandStage2x::HalfBandStage2x(const std::vector<double>& prototype) {
@@ -121,12 +130,6 @@ double HalfBandStage2x::decimate(double first, double second) {
         acc += odd_[j] * histDown_[2 * j + 1];
     }
     return acc;
-}
-
-double cascadeLatencyHostSamples(int32_t stages, int32_t taps) {
-    const int32_t center = (taps - 1) / 2;
-    return (2.0 * static_cast<double>(center) - 1.0) *
-           (1.0 - std::pow(2.0, -static_cast<double>(stages)));
 }
 
 } // namespace vessel_dsp::v2

@@ -238,8 +238,8 @@ public:
      * `prepare()`, mirroring `ReferenceRuntime.oversampleLatency()`'s null.
      * Zero when the resampler is bypassed (factor 1, or a factor that is not
      * a power of two and keeps the legacy path): the held path adds no
-     * latency by construction. At 2x/4x/8x this is 27.5/41.25/48.125 host
-     * samples for the 57-tap half-band cascade.
+     * latency by construction. At 2x/4x/8x this is 19.5/26.25/28.625 host
+     * samples for the stage-specific half-band cascade.
      */
     double oversampleLatency() const { return prepared_ ? resampleLatencyHost_ : -1.0; }
     const std::vector<double>& operatingPoint(size_t blockIdx) const { return blockOperatingPoints_[blockIdx]; }

@@ -1298,11 +1298,13 @@ void Engine::prepare(const EngineOptions& options) {
     oversample_ = options.oversample < 1 ? 1 : options.oversample;
     hostSampleRate_ = options.sampleRate;
     options_.sampleRate = options.sampleRate * static_cast<double>(oversample_);
-    // The band-limited resampler is designed here, from the stage alone: the
-    // shared windowed-sinc half-band prototype, fresh zero-state instances
-    // per direction, so `prepare()` clears the filter state and a re-prepared
-    // run starts clean. Powers of two only; any other factor keeps the legacy
-    // hold-and-last path in `processSample`.
+    // The band-limited resampler is designed here, from the stage alone: one
+    // windowed-sinc half-band prototype per 2x stage (`resampleStageSpec`,
+    // generated fresh by the same `designHalfBand2x` the reference calls --
+    // never a hard-coded table), fresh zero-state instances per direction, so
+    // `prepare()` clears the filter state and a re-prepared run starts clean.
+    // Powers of two only; any other factor keeps the legacy hold-and-last
+    // path in `processSample`.
     resampleUp_.clear();
     resampleDown_.clear();
     resampleBufA_.clear();
@@ -1311,17 +1313,18 @@ void Engine::prepare(const EngineOptions& options) {
     if (oversample_ >= 2 && (oversample_ & (oversample_ - 1)) == 0) {
         int32_t stages = 0;
         for (int32_t t = oversample_; t > 1; t >>= 1) ++stages;
-        const std::vector<double>& prototype = resamplePrototype();
         resampleUp_.reserve(static_cast<size_t>(stages));
         resampleDown_.reserve(static_cast<size_t>(stages));
         for (int32_t s = 0; s < stages; ++s) {
+            const ResampleStageSpec spec = resampleStageSpec(s);
+            const std::vector<double> prototype =
+                designHalfBand2x(spec.taps, spec.beta);
             resampleUp_.emplace_back(prototype);
             resampleDown_.emplace_back(prototype);
         }
         resampleBufA_.assign(static_cast<size_t>(oversample_), 0.0);
         resampleBufB_.assign(static_cast<size_t>(oversample_), 0.0);
-        resampleLatencyHost_ =
-            cascadeLatencyHostSamples(stages, kResampleHalfBandTaps);
+        resampleLatencyHost_ = cascadeLatencyHostSamples(stages);
     }
     elapsedSamples_ = 0;
     // A tap timed against the previous clock would read a meaningless interval.

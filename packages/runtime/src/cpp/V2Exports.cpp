@@ -78,20 +78,55 @@ V2_EXPORT double v2_engine_get_oversample_latency(void* handle) {
     return ctx->engine.oversampleLatency();
 }
 
-// Test-only access to the shared half-band prototype, so a test can assert
-// the C++ coefficients equal the TypeScript reference's bit for bit. Valid
-// indices are 0 .. length-1; anything else reads quiet NaN. Not part of the
-// shipping surface: no caller outside a test should link against these.
-V2_EXPORT int32_t v2_resample_prototype_length() {
-    return kResampleHalfBandTaps;
+// Test-only access to the per-stage half-band prototypes, so a test can assert
+// the C++ coefficients equal the TypeScript reference's bit for bit. `stage`
+// follows the same clamp-to-last rule as `resampleStageSpec` (stages past the
+// table reuse the last entry); a negative stage reads 0 taps / quiet NaN.
+// Valid tap indices are 0 .. length-1; anything else reads quiet NaN. Each
+// prototype is generated fresh by the same `designHalfBand2x` the engine's
+// `prepare()` calls -- never a hard-coded table. Not part of the shipping
+// surface: no caller outside a test should link against these.
+V2_EXPORT int32_t v2_resample_stage_count() {
+    return kResampleStageSpecCount;
 }
 
-V2_EXPORT double v2_resample_prototype_tap(int32_t index) {
-    const std::vector<double>& prototype = resamplePrototype();
-    if (index < 0 || index >= static_cast<int32_t>(prototype.size())) {
+namespace {
+// Generated once from the stage table (same calls `prepare()` makes); the
+// values are identical to designing fresh per query, since the design is a
+// pure function of the stage.
+const std::vector<std::vector<double>>& resampleStagePrototypes() {
+    static const std::vector<std::vector<double>> prototypes = [] {
+        std::vector<std::vector<double>> out;
+        for (int32_t s = 0; s < kResampleStageSpecCount; ++s) {
+            const ResampleStageSpec spec = resampleStageSpec(s);
+            out.push_back(designHalfBand2x(spec.taps, spec.beta));
+        }
+        return out;
+    }();
+    return prototypes;
+}
+
+const std::vector<double>* resampleStagePrototypeOrNull(int32_t stage) {
+    if (stage < 0) return nullptr;
+    const int32_t clamped =
+        stage < kResampleStageSpecCount ? stage : kResampleStageSpecCount - 1;
+    return &resampleStagePrototypes()[static_cast<size_t>(clamped)];
+}
+} // namespace
+
+V2_EXPORT int32_t v2_resample_prototype_length(int32_t stage) {
+    const std::vector<double>* prototype = resampleStagePrototypeOrNull(stage);
+    if (prototype == nullptr) return 0;
+    return static_cast<int32_t>(prototype->size());
+}
+
+V2_EXPORT double v2_resample_prototype_tap(int32_t stage, int32_t index) {
+    const std::vector<double>* prototype = resampleStagePrototypeOrNull(stage);
+    if (prototype == nullptr || index < 0 ||
+        index >= static_cast<int32_t>(prototype->size())) {
         return std::numeric_limits<double>::quiet_NaN();
     }
-    return prototype[static_cast<size_t>(index)];
+    return (*prototype)[static_cast<size_t>(index)];
 }
 
 // Test-only round-trip through the C++ half-band cascades with no circuit:
@@ -110,8 +145,10 @@ V2_EXPORT void* v2_testonly_resample_create(int32_t stages) {
     if (stages < 1 || stages > 8) return nullptr;
     auto* cascade = new (std::nothrow) V2TestResampleCascade();
     if (cascade == nullptr) return nullptr;
-    const std::vector<double>& prototype = resamplePrototype();
     for (int32_t s = 0; s < stages; ++s) {
+        const ResampleStageSpec spec = resampleStageSpec(s);
+        const std::vector<double> prototype =
+            designHalfBand2x(spec.taps, spec.beta);
         cascade->up.emplace_back(prototype);
         cascade->down.emplace_back(prototype);
     }

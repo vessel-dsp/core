@@ -12,7 +12,13 @@ import {
 	resistorDivider,
 } from "@vessel-dsp/compiler/fixtures/circuits";
 import { ReferenceRuntime, RuntimeError } from "../src/reference-runtime";
-import { designHalfBand2x, HalfBandStage2x } from "../src/resample";
+import {
+	cascadeLatencyHostSamples,
+	designHalfBand2x,
+	HalfBandStage2x,
+	RESAMPLE_STAGE_SPECS,
+	resampleStageSpec,
+} from "../src/resample";
 import { getV2WasmModule, V2WasmEngine } from "../src/v2-wasm-engine";
 import { WASM_SKIP_REASON, wasmBinaryPresent } from "./wasm-presence";
 
@@ -107,17 +113,25 @@ function renderTs(program: Program, input: Float64Array, oversample: number): Fl
 describe.skipIf(!wasmBinaryPresent)(
 	`V2WasmEngine band-limited oversampling${WASM_SKIP_REASON ? ` (${WASM_SKIP_REASON})` : ""}`,
 	() => {
-		it("designs the half-band prototype bit-for-bit like the reference", async () => {
-			// Coefficients are designed once at prepare() from (taps, beta)
-			// exactly as `designHalfBand2x`; the test-only getter exposes the
-			// C++ prototype so this pins all 57 taps with Object.is.
+		it("designs each stage's half-band prototype bit-for-bit like the reference", async () => {
+			// Each 2x stage owns its prototype from RESAMPLE_STAGE_SPECS; the
+			// test-only getters expose every stage's coefficients so this pins
+			// each stage's taps with Object.is. Stage 3 (oversample 16) reuses
+			// the last spec entry by the clamp-to-last rule, so it must read
+			// identically to stage 2. The (57, 8.3) designHalfBand2x defaults
+			// stay as the parity anchor.
+			expect(designHalfBand2x().length).toBe(57);
 			const mod = await getV2WasmModule();
-			expect(mod._v2_resample_prototype_length()).toBe(57);
-			const expected = designHalfBand2x();
-			expect(expected.length).toBe(57);
-			for (let index = 0; index < expected.length; index += 1) {
-				const actual = mod._v2_resample_prototype_tap(index) as number;
-				expect(Object.is(actual, expected[index])).toBe(true);
+			expect(mod._v2_resample_stage_count()).toBe(RESAMPLE_STAGE_SPECS.length);
+			for (let stage = 0; stage <= RESAMPLE_STAGE_SPECS.length; stage += 1) {
+				const [taps, beta] = resampleStageSpec(stage);
+				expect(mod._v2_resample_prototype_length(stage)).toBe(taps);
+				const expected = designHalfBand2x(taps, beta);
+				expect(expected.length).toBe(taps);
+				for (let index = 0; index < expected.length; index += 1) {
+					const actual = mod._v2_resample_prototype_tap(stage, index) as number;
+					expect(Object.is(actual, expected[index])).toBe(true);
+				}
 			}
 		});
 
@@ -137,7 +151,7 @@ describe.skipIf(!wasmBinaryPresent)(
 			expect(engine.hostSampleRate()).toBe(RATE);
 			expect(engine.oversampleLatency()).toBe(0);
 			engine.prepare({ sampleRate: RATE, oversample: 2.7 });
-			expect(engine.oversampleLatency()).toBe(27.5);
+			expect(engine.oversampleLatency()).toBe(19.5);
 			engine.destroy();
 		});
 
@@ -149,9 +163,11 @@ describe.skipIf(!wasmBinaryPresent)(
 			idle.destroy();
 			for (const [oversample, latency] of [
 				[1, 0],
-				[2, 27.5],
-				[4, 41.25],
-				[8, 48.125],
+				[2, 19.5],
+				[4, 26.25],
+				[8, 28.625],
+				[16, cascadeLatencyHostSamples(4)],
+				[32, cascadeLatencyHostSamples(5)],
 			] as const) {
 				const engine = await V2WasmEngine.create(program);
 				engine.prepare({ sampleRate: RATE, oversample });
@@ -179,7 +195,7 @@ describe.skipIf(!wasmBinaryPresent)(
 			// is the reference, in 512-sample blocks like the probe harness.
 			const program = programFor(clippingOverdriveStage);
 			const full = sine(4800, 1000, 0.3);
-			for (const oversample of [1, 2, 3, 4, 8]) {
+			for (const oversample of [1, 2, 3, 4, 8, 16]) {
 				const renderIn = async (splits: readonly number[]): Promise<Float32Array> => {
 					const engine = await V2WasmEngine.create(program);
 					engine.prepare({ sampleRate: RATE, oversample });
@@ -216,7 +232,7 @@ describe.skipIf(!wasmBinaryPresent)(
 			const program = programFor(clippingOverdriveStage);
 			const source = sine(480, 1000, 0.3);
 			const quantized = Float32Array.from(source);
-			for (const oversample of [1, 2, 3, 4, 8]) {
+			for (const oversample of [1, 2, 3, 4, 8, 16]) {
 				const viaSamples = await (async () => {
 					const engine = await V2WasmEngine.create(program);
 					engine.prepare({ sampleRate: RATE, oversample });
@@ -242,7 +258,7 @@ describe.skipIf(!wasmBinaryPresent)(
 			// Render, reset, render again: identical. Prepare again likewise.
 			const program = programFor(clippingOverdriveStage);
 			const input = Float32Array.from(sine(2400, 1000, 0.3));
-			for (const oversample of [2, 4, 8]) {
+			for (const oversample of [2, 4, 8, 16]) {
 				const engine = await V2WasmEngine.create(program);
 				engine.prepare({ sampleRate: RATE, oversample });
 				const first = new Float32Array(input.length);
@@ -270,7 +286,7 @@ describe.skipIf(!wasmBinaryPresent)(
 			// comparison, not the solver.
 			const program = programFor(clippingOverdriveStage);
 			const input = sine(2048, 1000, 0.3);
-			for (const oversample of [1, 2, 3, 4, 8]) {
+			for (const oversample of [1, 2, 3, 4, 8, 16]) {
 				const expected = renderTs(program, input, oversample);
 				const actualF64 = await renderWasmSamples(
 					program,
@@ -291,17 +307,20 @@ describe.skipIf(!wasmBinaryPresent)(
 
 		it("drives the C++ cascades alone as accurately as the TS stages", async () => {
 			// No circuit in the loop: the test-only round-trip (up-cascade,
-			// identity, down-cascade) against the same wiring of TS stages.
-			// Impulse fully characterizes the linear system; swept sine is
-			// the second confirmation. Bar: 1e-12 relative.
+			// identity, down-cascade) against the same wiring of TS stages,
+			// each stage built from its own RESAMPLE_STAGE_SPECS entry (stages
+			// past the table reuse the last one, exactly as both consoles'
+			// prepare() paths do). Impulse fully characterizes the linear
+			// system and must agree exactly (max abs diff 0); swept sine is
+			// the second confirmation (1e-12 relative). Bar: 1e-12 relative.
 			const mod = await getV2WasmModule();
-			for (const stages of [1, 2, 3]) {
+			for (const stages of [1, 2, 3, 4]) {
 				const factor = 2 ** stages;
 				const wireTs = () => {
-					const prototype = designHalfBand2x();
+					const specs = Array.from({ length: stages }, (_, s) => resampleStageSpec(s));
 					return {
-						up: Array.from({ length: stages }, () => new HalfBandStage2x(prototype)),
-						down: Array.from({ length: stages }, () => new HalfBandStage2x(prototype)),
+						up: specs.map(([taps, beta]) => new HalfBandStage2x(designHalfBand2x(taps, beta))),
+						down: specs.map(([taps, beta]) => new HalfBandStage2x(designHalfBand2x(taps, beta))),
 						bufA: new Float64Array(factor),
 						bufB: new Float64Array(factor),
 					};
@@ -329,7 +348,7 @@ describe.skipIf(!wasmBinaryPresent)(
 					}
 					return hi[0] ?? 0;
 				};
-				const check = (input: Float64Array): number => {
+				const check = (input: Float64Array): { worst: number; norm: number } => {
 					const handle = mod._v2_testonly_resample_create(stages) as number;
 					expect(handle).toBeGreaterThan(0);
 					const w = wireTs();
@@ -343,16 +362,17 @@ describe.skipIf(!wasmBinaryPresent)(
 						norm = Math.max(norm, Math.abs(b));
 					}
 					mod._v2_testonly_resample_destroy(handle);
-					expect(worst / Math.max(norm, 1e-30)).toBeLessThan(1e-12);
-					return worst;
+					return { worst, norm };
 				};
 				// Impulse: 1 followed by zeros (fully characterizes the round trip).
+				// Identical doubles in identical order: exactly 0, not just small.
 				const impulse = new Float64Array(512);
 				impulse[0] = 1;
-				check(impulse);
+				expect(check(impulse).worst).toBe(0);
 				// Swept sine across the audio band at the host rate.
 				for (const hz of [100, 1000, 8000, 19000]) {
-					check(sine(2048, hz, 0.9));
+					const { worst, norm } = check(sine(2048, hz, 0.9));
+					expect(worst / Math.max(norm, 1e-30)).toBeLessThan(1e-12);
 				}
 			}
 		});
@@ -360,7 +380,15 @@ describe.skipIf(!wasmBinaryPresent)(
 		it("is transparent: osN at a 48 kHz host matches a native 48k*N render", async () => {
 			// The spike's central result, now on the console that ships: the
 			// RC low-pass renders osN at 48 kHz and natively at 48k*N, and the
-			// fundamental ratio must read <= 0.001 dB.
+			// fundamental ratio must read <= 0.01 dB. The bar was 0.001 dB for
+			// the old uniform-57 cascade; the adopted stage-specific cascade
+			// (41-tap first stage, ripple 0.0076 dB to 19.2 kHz -- see
+			// docs/spikes/2026-10-09-resampler-latency.md section 2, round-trip
+			// <= 0.0061 dB worst) honestly reads up to 0.0048 dB here, and the
+			// TS reference reads identically digit-for-digit (twin run:
+			// 0.00473 vs 0.00473, TS-vs-WASM relative 3.8e-9), so the residual
+			// is the reference's own answer, not a port defect. The pedal-level
+			// acceptance (0.1 dB to 8 kHz) still has >20x margin.
 			const program = programFor(rcLowPass);
 			const renderNative = async (rate: number, hz: number): Promise<number> => {
 				const engine = await V2WasmEngine.create(program);
@@ -403,7 +431,7 @@ describe.skipIf(!wasmBinaryPresent)(
 				const osFund = await renderOs(oversample, hz);
 				const nativeFund = await renderNative(RATE * oversample, hz);
 				const db = Math.abs(20 * Math.log10(osFund / nativeFund));
-				expect(db).toBeLessThan(0.001);
+				expect(db).toBeLessThan(0.01);
 			}
 		});
 	},
