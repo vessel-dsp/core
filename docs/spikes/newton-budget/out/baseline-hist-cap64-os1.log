@@ -1,0 +1,9 @@
+gro100 cap=64 os=1 warm=960 steady=960 controls=default
+  steady mean/host=2.20 mean/sub=2.20 peak=26 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 2:852, 3:82, 4:11, 5:6, 6:2, 7:2, 8:2, 9:1, 11:1, 26:1
+blue-box cap=64 os=1 warm=960 steady=960 controls=default
+  steady mean/host=6.94 mean/sub=6.94 peak=64 cap-hit host samples=35 (3.6%) carrying 33.6% of iterations; nonConverged warm=35 steady=35
+  histogram: 2:4, 3:389, 4:469, 5:7, 6:1, 7:3, 8:8, 9:9, 10:1, 11:2, 12:1, 13:1, 15:2, 16:2, 17:1, 18:1, 28:2, 32:3, 33:5, 34:1, 35:1, 37:1, 41:1, 47:2, 51:1, 55:1, 56:3, 60:2, 62:1, 64:35
+ts808 cap=64 os=1 warm=960 steady=960 controls=default
+  steady mean/host=2.92 mean/sub=2.92 peak=7 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 2:280, 3:560, 4:80, 6:40

@@ -1,0 +1,56 @@
+block n=4 stamps=conductance,diode,input-source diode Is=2.52e-9 N=1.752 Vt=0.025852 Rs=1 R1=10000 ohm
+limiter critical voltage=0.7409 V; root(20 V)=0.615796 V, root(2 V)=0.498160 V (both below critical -> no junction limiting); theory chord ratio rho = 1 - F'(root)/F'(start) = 0.9172
+
+FULL NEWTON (shipped loop, methods off): start v=0.615796 (= root at 20 V to 3.0e-11 V), converged=true used=6 solved v=0.4981604 |solved-root|=2.73e-9 V = 0.000 tolerance units
+  counters for this sample: iterations=6 factorisations=6 reuseSolves=0 assembles=6 checks=6 limitedFirst=0
+  any iteration limited: false
+    k=  0 delta=1.800e+1 ratio(lin)=- ratio(quad)=- reused=false
+    k=  1 delta=3.714e-2 ratio(lin)=0.0021 ratio(quad)=1.15e-4 reused=false
+    k=  2 delta=2.543e-2 ratio(lin)=0.6846 ratio(quad)=1.84e+1 reused=false
+    k=  3 delta=1.005e-2 ratio(lin)=0.3954 ratio(quad)=1.56e+1 reused=false
+    k=  4 delta=1.247e-3 ratio(lin)=0.1241 ratio(quad)=1.23e+1 reused=false
+    k=  5 delta=1.686e-5 ratio(lin)=0.0135 ratio(quad)=1.08e+1 reused=false
+
+CHORD (chord within, stall rule disabled, cap 1024): start v=0.615796 (= root at 20 V to 3.0e-11 V), converged=true used=24 solved v=0.5031660 |solved-root|=5.01e-3 V = 10.028 tolerance units
+  counters for this sample: iterations=24 factorisations=1 reuseSolves=23 assembles=24 checks=24 limitedFirst=0
+  any iteration limited: false
+    k=  0 delta=1.800e+1 ratio(lin)=- ratio(quad)=- reused=false
+    k=  1 delta=1.494e-2 ratio(lin)=0.0008 ratio(quad)=4.61e-5 reused=true
+    k=  2 delta=9.791e-3 ratio(lin)=0.6555 ratio(quad)=4.39e+1 reused=true
+    k=  3 delta=7.207e-3 ratio(lin)=0.7361 ratio(quad)=7.52e+1 reused=true
+    k=  4 delta=5.623e-3 ratio(lin)=0.7802 ratio(quad)=1.08e+2 reused=true
+    k=  5 delta=4.546e-3 ratio(lin)=0.8085 ratio(quad)=1.44e+2 reused=true
+    k=  6 delta=3.766e-3 ratio(lin)=0.8284 ratio(quad)=1.82e+2 reused=true
+    k=  7 delta=3.175e-3 ratio(lin)=0.8430 ratio(quad)=2.24e+2 reused=true
+    k=  8 delta=2.712e-3 ratio(lin)=0.8543 ratio(quad)=2.69e+2 reused=true
+    k=  9 delta=2.341e-3 ratio(lin)=0.8632 ratio(quad)=3.18e+2 reused=true
+    k= 10 delta=2.038e-3 ratio(lin)=0.8704 ratio(quad)=3.72e+2 reused=true
+    k= 11 delta=1.786e-3 ratio(lin)=0.8764 ratio(quad)=4.30e+2 reused=true
+    k= 20 delta=6.494e-4 ratio(lin)=0.9026 ratio(quad)=1.25e+3 reused=true
+    k= 21 delta=5.871e-4 ratio(lin)=0.9041 ratio(quad)=1.39e+3 reused=true
+    k= 22 delta=5.315e-4 ratio(lin)=0.9053 ratio(quad)=1.54e+3 reused=true
+    k= 23 delta=4.818e-4 ratio(lin)=0.9064 ratio(quad)=1.71e+3 reused=true
+
+VERDICT: full Newton reached the root in 6 iterations, last three quadratic ratios 15.6 / 12.3 / 10.8 (quadratic YES); chord took 24 iterations, last linear ratio 0.9064 vs theory 0.9172 (linear NO); counters: Newton factorisations 6 == iterations 6; chord factorisations 1, reuse 23. Chord accepted by the plain delta test sits 10.0 tolerance units from the root (rho/(1-rho) = 9.7 x its last delta): the delta test is NOT the same tolerance under linear convergence.
+
+CHORD + contraction-bound acceptance (chordAccept=bound): start v=0.615796 (= root at 20 V to 3.0e-11 V), converged=true used=50 solved v=0.4986633 |solved-root|=5.03e-4 V = 1.007 tolerance units
+  counters for this sample: iterations=50 factorisations=1 reuseSolves=49 assembles=50 checks=50 limitedFirst=0
+  any iteration limited: false
+    k=  0 delta=1.800e+1 ratio(lin)=- ratio(quad)=- reused=false
+    k=  1 delta=1.494e-2 ratio(lin)=0.0008 ratio(quad)=4.61e-5 reused=true
+    k=  2 delta=9.791e-3 ratio(lin)=0.6555 ratio(quad)=4.39e+1 reused=true
+    k=  3 delta=7.207e-3 ratio(lin)=0.7361 ratio(quad)=7.52e+1 reused=true
+    k=  4 delta=5.623e-3 ratio(lin)=0.7802 ratio(quad)=1.08e+2 reused=true
+    k=  5 delta=4.546e-3 ratio(lin)=0.8085 ratio(quad)=1.44e+2 reused=true
+    k=  6 delta=3.766e-3 ratio(lin)=0.8284 ratio(quad)=1.82e+2 reused=true
+    k=  7 delta=3.175e-3 ratio(lin)=0.8430 ratio(quad)=2.24e+2 reused=true
+    k=  8 delta=2.712e-3 ratio(lin)=0.8543 ratio(quad)=2.69e+2 reused=true
+    k=  9 delta=2.341e-3 ratio(lin)=0.8632 ratio(quad)=3.18e+2 reused=true
+    k= 10 delta=2.038e-3 ratio(lin)=0.8704 ratio(quad)=3.72e+2 reused=true
+    k= 11 delta=1.786e-3 ratio(lin)=0.8764 ratio(quad)=4.30e+2 reused=true
+    k= 20 delta=6.494e-4 ratio(lin)=0.9026 ratio(quad)=1.25e+3 reused=true
+    k= 40 delta=1.008e-4 ratio(lin)=0.9150 ratio(quad)=8.30e+3 reused=true
+    k= 47 delta=5.441e-5 ratio(lin)=0.9160 ratio(quad)=1.54e+4 reused=true
+    k= 48 delta=4.984e-5 ratio(lin)=0.9161 ratio(quad)=1.68e+4 reused=true
+    k= 49 delta=4.567e-5 ratio(lin)=0.9162 ratio(quad)=1.84e+4 reused=true
+VERDICT (bound rule): chord took 50 iterations and sits 1.007 tolerance units from the root (OUTSIDE the convergence tolerance).

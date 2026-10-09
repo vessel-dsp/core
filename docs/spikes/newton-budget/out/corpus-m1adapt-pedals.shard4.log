@@ -1,0 +1,23 @@
+corpus sweep method=m1adapt pedals cap=64 x1 2400+9600
+big-muff-pi                              n= 30 it/host 3.082 -> 3.125 (1.4%) NC 0/0 (dense 0) peak 11/10 vsDense 6.4e-12 -> 9.9e-7 vsShipped 9.9e-7 devTol 0.003 dev>1 0 1-step 0.0% xRT 7.00 -> 27.08
+boss-bf-3                                n=  8 it/host 0.000 -> 0.000 (NaN%) NC 0/0 (dense 0) peak 0/0 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.01 -> 0.01
+boss-cs-2                                n= 51 it/host 3.583 -> 2.642 (-26.2%) NC 0/0 (dense 0) peak 7/10 vsDense 1.9e-11 -> 2.6e-5 vsShipped 2.6e-5 devTol 0.091 dev>1 0 1-step 0.0% xRT 22.21 -> 122.91
+boss-dd-5                                n= 65 it/host 2.000 -> 1.800 (-10.0%) NC 0/0 (dense 0) peak 6/6 vsDense 3.3e-10 -> 3.3e-10 vsShipped 1.1e-11 devTol 4.960e-4 dev>1 0 1-step 20.0% xRT 16.87 -> 75.26
+boss-fa-1                                n= 35 it/host 2.000 -> 1.813 (-9.4%) NC 0/0 (dense 0) peak 3/2 vsDense 0.0e+0 -> 2.5e-8 vsShipped 2.5e-8 devTol 1.906e-4 dev>1 0 1-step 18.8% xRT 3.75 -> 24.58
+boss-mt-2                                n= 93 it/host 4.017 -> 4.314 (7.4%) NC 9/10 (dense 3) peak 64/64 vsDense 6.0e-3 -> 1.3e-2 vsShipped 1.3e-2 devTol 998.996 dev>1 2 1-step 0.0% xRT 47.30 -> 612.12
+boss-os-2                                n= 70 it/host 3.598 -> 4.251 (18.2%) NC 0/0 (dense 0) peak 30/32 vsDense 1.7e-6 -> 1.8e-5 vsShipped 1.8e-5 devTol 1.047 dev>1 59 1-step 0.0% xRT 28.70 -> 294.08
+boss-rt-2                                n=  3 it/host 1.000 -> 0.000 (-100.0%) NC 0/0 (dense 0) peak 1/1 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.20 -> 0.32
+boss-sp-1-spectrum                       n= 55 it/host 2.316 -> 2.046 (-11.6%) NC 0/0 (dense 0) peak 4/5 vsDense 2.4e-11 -> 2.5e-11 vsShipped 2.4e-11 devTol 0.004 dev>1 0 1-step 18.8% xRT 9.99 -> 52.05
+dallas-arbiter-fuzz-face-ac128           n= 13 it/host 3.021 -> 2.629 (-13.0%) NC 0/0 (dense 0) peak 14/13 vsDense 5.5e-14 -> 2.1e-6 vsShipped 2.1e-6 devTol 0.009 dev>1 0 1-step 12.5% xRT 2.64 -> 5.13
+dod-preamp-250                           n= 19 it/host 2.000 -> 1.833 (-8.3%) NC 0/0 (dense 0) peak 3/2 vsDense 0.0e+0 -> 2.1e-8 vsShipped 2.1e-8 devTol 4.996e-5 dev>1 0 1-step 16.7% xRT 2.63 -> 9.42
+electro-harmonix-frequency-analyzer      n= 46 it/host 3.152 -> 3.064 (-2.8%) NC 0/0 (dense 0) peak 9/9 vsDense 1.3e-10 -> 1.3e-10 vsShipped 3.1e-15 devTol 0.025 dev>1 0 1-step 0.0% xRT 12.53 -> 50.43
+ernie-ball-vp-jr                         n=  4 it/host 1.000 -> 0.000 (-100.0%) NC 0/0 (dense 0) peak 1/1 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.37 -> 0.22
+ibanez-ts9-reissue                       n= 51 it/host 2.625 -> 2.500 (-4.8%) NC 0/0 (dense 0) peak 7/8 vsDense 3.1e-9 -> 4.4e-6 vsShipped 4.4e-6 devTol 0.012 dev>1 0 1-step 0.0% xRT 12.05 -> 81.71
+jim-dunlop-cry-baby-gcb-95               n= 20 it/host 2.000 -> 1.958 (-2.1%) NC 0/0 (dense 0) peak 2/2 vsDense 0.0e+0 -> 7.9e-10 vsShipped 7.9e-10 devTol 1.273e-5 dev>1 0 1-step 4.2% xRT 3.25 -> 10.92
+marshall-blues-breaker                   n= 34 it/host 2.875 -> 2.146 (-25.4%) NC 0/0 (dense 0) peak 4/4 vsDense 1.2e-9 -> 9.5e-9 vsShipped 9.6e-9 devTol 0.002 dev>1 0 1-step 0.0% xRT 7.43 -> 30.08
+mxr-dyna-comp                            n= 27 it/host 64.000 -> 64.000 (0.0%) NC 9600/9600 (dense 9600) peak 64/64 vsDense 6.2e-10 -> 9.1e+0 vsShipped 9.1e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 128.77 -> 324.26
+mxr-phase-90-early-block                 n= 38 it/host 8.144 -> 8.148 (0.1%) NC 0/0 (dense 0) peak 53/58 vsDense 1.3e-7 -> 5.4e-7 vsShipped 4.5e-7 devTol 62.724 dev>1 5765 1-step 0.0% xRT 17.87 -> 58.66
+pro-co-rat                               n= 31 it/host 2.688 -> 2.605 (-3.1%) NC 0/0 (dense 0) peak 11/12 vsDense 2.4e-10 -> 2.8e-6 vsShipped 2.8e-6 devTol 0.014 dev>1 0 1-step 0.0% xRT 2.37 -> 12.46
+tape-echo                                n= 32 it/host 2.000 -> 1.792 (-10.4%) NC 0/0 (dense 0) peak 2/2 vsDense 2.7e-10 -> 3.5e-10 vsShipped 2.2e-10 devTol 5.398e-7 dev>1 0 1-step 20.8% xRT 2.50 -> 7.91
+
+packets=20 fewer iterations=14 more iterations=4 more non-converged=1 deviation>1 tol unit on some sub-sample=3 wall faster=1 slower=19 (wall is load-noisy here; see the dedicated timing section)

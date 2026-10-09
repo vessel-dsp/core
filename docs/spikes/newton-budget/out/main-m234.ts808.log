@@ -1,0 +1,23 @@
+measure cap=64 warmup=2400 samples=9600 host samples, 1 kHz 0.1 V, fixedPoint=true
+
+ts808 os=1: shipped-vs-dense (known positive) relRms=7.1e-10 maxAbs=3.0e-10 denseRms=7.55e-2 sNC=0 dNC=0 shippedHash=04bdcd49fcc3
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  m2within       4.563     1.708     4.563    2.854      0.0      0     0    35   6400     0    400      0   4.2e-4   6.4e-5 116.24    0.645      0   3400    2.958     0 120ec13c3919
+  m2within25     4.167     1.792     4.167    2.375      0.0      0     0    39   7000     0    600      0   1.3e-4   2.3e-5  99.11    0.220      0   3000    2.958     0 2948be3f14cc
+  m2across       5.375     0.875     5.375    4.500      0.0      0     0    37   8000     0    400      0   3.7e-4   6.4e-5 106.82    0.603      0   7800    2.958     0 efc560e550f6
+  m2nostall      5.556     0.000     5.556    5.556      0.0      0   191    64      0     0      0      0   8.9e-1   1.2e-1 261.40 1556.314   9406   1233    8.535     0 afca036be9b5
+  m3within       4.188     1.625     4.188    2.563      0.0      0     0    42   5200     0    800   9400   8.8e-5   1.6e-5 112.32    0.202      0   3000    2.958     0 aa4be6e71fce
+  m3across       5.083     0.708     5.083    4.375      0.0      0     0    36   6000     0    800  25600   6.7e-5   2.5e-5  93.14    0.220      0   8200    2.938     0 3c2af0bcfe6c
+  m4             5.229     1.042     5.229    4.188      0.0      0     0    36   8400     0   1600      0   6.7e-4   1.1e-4 102.31    1.748    400   6000    2.958     0 f24d9656d3f1
+  m4adapt        2.729     1.167     2.729    1.563      0.0      0     0    35   1600     0      0      0   3.1e-4   4.9e-5 113.75    0.967      0    800    2.917     0 b097df6f8a96
+
+ts808 os=4: shipped-vs-dense (known positive) relRms=1.9e-9 maxAbs=8.6e-10 denseRms=7.56e-2 sNC=0 dNC=0 shippedHash=c88f1063b114
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  m2within       8.792     4.000     8.792    4.792      0.0      0     0     5      0     0      0      0   6.7e-5   1.0e-5 334.48    0.158      0    400    8.792     0 b21f96be60a4
+  m2within25     8.792     4.042     8.792    4.750      0.0      0     0     4    400     0      0      0   5.7e-5   1.1e-5 330.42    0.158      0    400    8.792     0 c9e9affa63a2
+  m2across      13.083     0.250    13.083   12.833      0.0      0     0     6   2400     0      0      0   8.5e-4   1.4e-4 297.32    1.973   1000  32800    8.792     0 814425aae563
+  m2nostall     23.821     0.000    23.821   23.821      0.0      0    23    64      0     0      0      0   5.7e-3   1.1e-3 309.51    3.377   5000  35378    8.750     0 aea808cb45a3
+  m3within       8.792     4.000     8.792    4.792      0.0      0     0     4      0     0      0   7600   7.0e-5   1.1e-5 241.29    0.146      0    400    8.792     0 e38d0f5ad73d
+  m3across      13.458     0.229    13.458   13.229      0.0      0     0     5   2200     0      0  87400   1.8e-4   3.5e-5 251.09    0.982      0  32000    8.792     0 bfcaa313be15
+  m4             8.375     0.188     8.375    8.188      3.1      0     0     5   1800     0      0      0   1.3e-3   2.3e-4 213.26    4.437   1400   2200    8.813     0 1f8ec41e0bbe
+  m4adapt        4.646     4.000     4.646    0.646     83.9      0     0     3      0     0      0      0   2.1e-6   3.9e-7 137.86    0.064      0      0    8.792     0 85039651557d

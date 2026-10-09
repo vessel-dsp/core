@@ -1,0 +1,14 @@
+muff      os=1 shipped=da9a14da93f72058 scratch=da9a14da93f72058 IDENTICAL it/host shipped=3.563 scratch=3.563 NC 0/0 scratchCounters it=34204 fac=34204 asm=34204
+muff      os=4 shipped=d2adeddef70c6e78 scratch=d2adeddef70c6e78 IDENTICAL it/host shipped=9.063 scratch=9.063 NC 0/0 scratchCounters it=87002 fac=87002 asm=87002
+sd1       os=1 shipped=2356f19c1c8b0c6c scratch=2356f19c1c8b0c6c IDENTICAL it/host shipped=3.042 scratch=3.042 NC 0/0 scratchCounters it=29201 fac=29201 asm=29201
+sd1       os=4 shipped=1d2ee08f4ccd8a5c scratch=1d2ee08f4ccd8a5c IDENTICAL it/host shipped=8.938 scratch=8.938 NC 0/0 scratchCounters it=85800 fac=85800 asm=85800
+ts9       os=1 shipped=6d7c279e30f0d0e9 scratch=6d7c279e30f0d0e9 IDENTICAL it/host shipped=2.625 scratch=2.625 NC 0/0 scratchCounters it=25200 fac=25200 asm=25200
+ts9       os=4 shipped=93d0dd4fe386eb07 scratch=93d0dd4fe386eb07 IDENTICAL it/host shipped=8.375 scratch=8.375 NC 0/0 scratchCounters it=80400 fac=80400 asm=80400
+ts808     os=1 shipped=04bdcd49fcc3c731 scratch=04bdcd49fcc3c731 IDENTICAL it/host shipped=2.917 scratch=2.917 NC 0/0 scratchCounters it=28000 fac=28000 asm=28000
+ts808     os=4 shipped=c88f1063b11412e3 scratch=c88f1063b11412e3 IDENTICAL it/host shipped=8.792 scratch=8.792 NC 0/0 scratchCounters it=84400 fac=84400 asm=84400
+gro100    os=1 shipped=80b79a967e9541cb scratch=80b79a967e9541cb IDENTICAL it/host shipped=2.197 scratch=2.197 NC 0/0 scratchCounters it=21094 fac=21094 asm=21094
+gro100    os=4 shipped=0a342f88e44526fb scratch=0a342f88e44526fb IDENTICAL it/host shipped=8.218 scratch=8.218 NC 0/0 scratchCounters it=78893 fac=78893 asm=78893
+blue-box  os=1 shipped=cef5a8467d154abb scratch=cef5a8467d154abb IDENTICAL it/host shipped=64.000 scratch=64.000 NC 9600/9600 scratchCounters it=614400 fac=614400 asm=614400
+blue-box  os=4 shipped=e37cb43d897a44f2 scratch=e37cb43d897a44f2 IDENTICAL it/host shipped=14.832 scratch=14.832 NC 0/0 scratchCounters it=142387 fac=142387 asm=142387
+
+bit-identity: PASS

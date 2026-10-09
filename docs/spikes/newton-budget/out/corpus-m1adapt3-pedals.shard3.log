@@ -1,0 +1,23 @@
+corpus sweep method=m1adapt3 pedals cap=64 x1 2400+9600
+big-muff-pi-v3                           n= 36 it/host 3.042 -> 3.021 (-0.7%) NC 0/0 (dense 0) peak 11/11 vsDense 0.0e+0 -> 3.8e-7 vsShipped 3.8e-7 devTol 0.001 dev>1 0 1-step 0.0% xRT 3.18 -> 15.23
+boss-bf-2                                n= 38 it/host 3.833 -> 2.833 (-26.1%) NC 0/0 (dense 0) peak 2/2 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.001 dev>1 0 1-step 58.3% xRT 4.48 -> 14.20
+boss-ch-1                                n=100 it/host 4.481 -> 4.481 (0.0%) NC 0/0 (dense 0) peak 11/11 vsDense 5.6e-9 -> 5.6e-9 vsShipped 0.0e+0 devTol 3.535e-6 dev>1 0 1-step 0.0% xRT 15.18 -> 234.85
+boss-dd-3t                               compile unsupported
+boss-dsd-3                               n=  3 it/host 1.000 -> 0.000 (-100.0%) NC 0/0 (dense 0) peak 1/1 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.12 -> 0.15
+boss-md-2                                n= 74 it/host 2.750 -> 1.999 (-27.3%) NC 0/0 (dense 0) peak 3/3 vsDense 3.1e-10 -> 1.3e-7 vsShipped 1.3e-7 devTol 0.816 dev>1 0 1-step 7.1% xRT 4.90 -> 72.67
+boss-od-3                                n= 57 it/host 3.000 -> 3.000 (0.0%) NC 0/0 (dense 0) peak 3/3 vsDense 5.4e-8 -> 5.4e-8 vsShipped 0.0e+0 devTol 0.001 dev>1 0 1-step 0.0% xRT 4.93 -> 38.49
+boss-ps-2                                n=  0 it/host 0.000 -> 0.000 (NaN%) NC 0/0 (dense 0) peak 0/0 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.01 -> 0.01
+boss-sg-1-slow-gear                      n= 37 it/host 2.625 -> 2.000 (-23.8%) NC 0/0 (dense 0) peak 3/3 vsDense 1.8e-10 -> 7.2e-8 vsShipped 7.2e-8 devTol 0.002 dev>1 0 1-step 0.0% xRT 2.68 -> 10.94
+boss-vb-2                                n=  6 it/host 2.000 -> 0.000 (-100.0%) NC 0/0 (dense 0) peak 1/1 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.20 -> 0.31
+dod-fx59-thrashmaster                    n= 80 it/host 2.083 -> 1.875 (-10.0%) NC 0/0 (dense 0) peak 3/3 vsDense 1.1e-11 -> 2.5e-8 vsShipped 2.5e-8 devTol 6.567e-4 dev>1 0 1-step 12.5% xRT 4.30 -> 30.47
+electro-harmonix-electric-mistress       n=  6 it/host 2.000 -> 0.000 (-100.0%) NC 0/0 (dense 0) peak 1/1 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.27 -> 0.33
+electro-harmonix-small-stone             n= 40 it/host 2.000 -> 1.750 (-12.5%) NC 0/0 (dense 0) peak 2/2 vsDense 1.5e-6 -> 1.5e-6 vsShipped 7.0e-9 devTol 3.362e-8 dev>1 0 1-step 25.0% xRT 2.22 -> 8.30
+ibanez-ts808                             n= 46 it/host 2.917 -> 2.792 (-4.3%) NC 0/0 (dense 0) peak 7/7 vsDense 7.1e-10 -> 4.5e-6 vsShipped 4.5e-6 devTol 0.012 dev>1 0 1-step 0.0% xRT 2.48 -> 21.26
+jhs-morning-glory                        n= 34 it/host 2.750 -> 2.349 (-14.6%) NC 0/0 (dense 0) peak 4/4 vsDense 6.4e-9 -> 2.8e-7 vsShipped 2.8e-7 devTol 0.003 dev>1 0 1-step 0.0% xRT 1.84 -> 9.11
+maestro-fz-1a                            n= 15 it/host 2.813 -> 2.333 (-17.0%) NC 0/0 (dense 0) peak 3/3 vsDense 6.4e-12 -> 6.6e-10 vsShipped 6.6e-10 devTol 6.084e-6 dev>1 0 1-step 0.0% xRT 0.96 -> 1.74
+mxr-distortion-plus                      n= 17 it/host 2.646 -> 2.521 (-4.7%) NC 0/0 (dense 0) peak 15/15 vsDense 1.5e-9 -> 1.5e-7 vsShipped 1.5e-7 devTol 1.526e-4 dev>1 0 1-step 0.0% xRT 0.78 -> 2.34
+mxr-phase-45                             n= 33 it/host 4.000 -> 4.000 (0.0%) NC 0/0 (dense 0) peak 4/4 vsDense 3.3e-8 -> 1.2e-7 vsShipped 1.2e-7 devTol 0.022 dev>1 0 1-step 0.0% xRT 2.72 -> 14.17
+pro-co-rat-2-v4b-op07cp                  n= 26 it/host 2.542 -> 2.563 (0.8%) NC 0/0 (dense 0) peak 10/10 vsDense 0.0e+0 -> 1.2e-6 vsShipped 1.2e-6 devTol 0.009 dev>1 0 1-step 0.0% xRT 0.97 -> 6.60
+sola-sound-tone-bender-professional-mkii n= 16 it/host 3.625 -> 3.521 (-2.9%) NC 0/0 (dense 0) peak 22/22 vsDense 4.0e-14 -> 2.2e-11 vsShipped 2.2e-11 devTol 0.003 dev>1 0 1-step 0.0% xRT 1.20 -> 3.40
+
+packets=19 fewer iterations=14 more iterations=1 more non-converged=0 deviation>1 tol unit on some sub-sample=0 wall faster=1 slower=18 (wall is load-noisy here; see the dedicated timing section)

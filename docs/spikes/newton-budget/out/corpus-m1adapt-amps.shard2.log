@@ -1,0 +1,10 @@
+corpus sweep method=m1adapt amps cap=64 x1 2400+9600
+fender-5f1-champ                         n= 37 it/host 2.973 -> 2.052 (-31.0%) NC 0/0 (dense 0) peak 5/5 vsDense 3.6e-11 -> 8.2e-9 vsShipped 8.2e-9 devTol 58.177 dev>1 1728 1-step 2.1% xRT 4.43 -> 32.39
+fender-super-reverb                      n= 73 it/host 2.587 -> 2.005 (-22.5%) NC 0/0 (dense 0) peak 7/6 vsDense 2.1e-10 -> 3.1e-10 vsShipped 3.2e-10 devTol 2.891e-4 dev>1 0 1-step 0.0% xRT 17.58 -> 116.26
+marshall-1959-super-lead-plexi           n= 62 it/host 9.622 -> 8.201 (-14.8%) NC 948/948 (dense 5398) peak 64/64 vsDense 2.5e-2 -> 2.5e-2 vsShipped 8.3e-8 devTol 626.503 dev>1 2093 1-step 8.1% xRT 57.45 -> 1433.33
+mesa-boogie-dual-rectifier               n= 83 it/host 4.277 -> 3.651 (-14.6%) NC 0/0 (dense 0) peak 23/23 vsDense 6.8e-12 -> 3.8e-9 vsShipped 3.8e-9 devTol 1.139 dev>1 3 1-step 4.7% xRT 11.70 -> 84.60
+orange-rockerverb                        n=108 it/host 2.709 -> 2.189 (-19.2%) NC 0/0 (dense 0) peak 9/9 vsDense 3.9e-12 -> 1.3e-9 vsShipped 1.3e-9 devTol 9.027 dev>1 54 1-step 7.7% xRT 21.70 -> 138.07
+soldano-slo-100                          n= 77 it/host 3.147 -> 2.438 (-22.5%) NC 0/0 (dense 0) peak 8/8 vsDense 0.0e+0 -> 3.4e-9 vsShipped 3.4e-9 devTol 5.765e-4 dev>1 0 1-step 0.0% xRT 5.95 -> 26.25
+vox-ac15-ef86-channel                    n= 12 it/host 2.042 -> 1.750 (-14.3%) NC 0/0 (dense 0) peak 3/2 vsDense 7.7e-12 -> 2.3e-10 vsShipped 2.3e-10 devTol 5.097e-6 dev>1 0 1-step 25.0% xRT 1.23 -> 3.68
+
+packets=7 fewer iterations=7 more iterations=0 more non-converged=0 deviation>1 tol unit on some sub-sample=4 wall faster=0 slower=7 (wall is load-noisy here; see the dedicated timing section)

@@ -1,0 +1,11 @@
+corpus sweep method=m1adapt amps cap=64 x1 2400+9600
+fender-5e3-deluxe-tweed                  n= 48 it/host 2.920 -> 2.009 (-31.2%) NC 0/0 (dense 0) peak 4/3 vsDense 1.2e-10 -> 1.3e-9 vsShipped 1.3e-9 devTol 8.581e-4 dev>1 0 1-step 1.6% xRT 10.97 -> 45.14
+fender-super-reverb-aa1069               n= 73 it/host 2.631 -> 2.003 (-23.8%) NC 0/0 (dense 0) peak 6/5 vsDense 1.8e-10 -> 2.8e-10 vsShipped 2.8e-10 devTol 1.949e-4 dev>1 0 1-step 0.0% xRT 14.04 -> 138.26
+hiwatt-dr103                             n= 79 it/host 4.539 -> 3.935 (-13.3%) NC 24/21 (dense 22) peak 64/64 vsDense 6.2e-2 -> 8.5e-2 vsShipped 7.9e-2 devTol 14.622 dev>1 9550 1-step 0.3% xRT 35.89 -> 397.20
+marshall-jtm45                           n= 64 it/host 2.943 -> 1.946 (-33.9%) NC 0/0 (dense 0) peak 9/9 vsDense 6.8e-10 -> 6.4e-8 vsShipped 6.4e-8 devTol 0.003 dev>1 0 1-step 6.8% xRT 14.99 -> 106.47
+orange-gro100                            n= 88 it/host 2.197 -> 1.958 (-10.9%) NC 0/0 (dense 0) peak 35/31 vsDense 0.0e+0 -> 9.6e-10 vsShipped 9.6e-10 devTol 51.340 dev>1 364 1-step 20.9% xRT 68.79 -> 185.25
+roland-jc-120-jazz-chorus                n= 27 it/host 2.000 -> 2.000 (0.0%) NC 0/0 (dense 0) peak 2/2 vsDense 0.0e+0 -> 4.3e-14 vsShipped 4.3e-14 devTol 5.764e-9 dev>1 0 1-step 0.0% xRT 3.88 -> 16.72
+trainwreck-express                       n= 65 it/host 2.594 -> 2.320 (-10.6%) NC 0/0 (dense 0) peak 10/9 vsDense 2.6e-8 -> 2.8e-8 vsShipped 9.3e-9 devTol 57.469 dev>1 2940 1-step 2.1% xRT 12.87 -> 110.20
+vox-ac30-top-boost                       n= 72 it/host 4.044 -> 4.296 (6.2%) NC 0/0 (dense 0) peak 34/36 vsDense 4.1e-10 -> 1.8e-4 vsShipped 1.8e-4 devTol 3.361 dev>1 16 1-step 0.0% xRT 19.27 -> 166.46
+
+packets=8 fewer iterations=6 more iterations=1 more non-converged=0 deviation>1 tol unit on some sub-sample=4 wall faster=0 slower=8 (wall is load-noisy here; see the dedicated timing section)

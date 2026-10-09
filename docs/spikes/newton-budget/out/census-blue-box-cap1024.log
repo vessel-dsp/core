@@ -1,0 +1,8 @@
+blue-box cap=1024: settled 144000 host samples in 14 s; settle NC=1 mean it/host=6.28 peak=1024
+measured 48000 host samples in 9 s: it/host=6.21 NC=0 twin NC=0 twin it/host=6.21 cap-hit sub-samples=0 (0.0%) carrying 0.0% of iterations; worst deviation (converged pairs) 0.000 tol units
+histogram (sub-samples of nonlinear blocks): 3:22000, 4:23500, 8:500, 54:1000, 80:1000
+>10 iterations: 2000 (4.2%), >20: 2000, >=64: 1000, >=1024: 0
+class (a): 0
+class (b): 0
+class (c): 0
+class (d): 0

@@ -1,0 +1,24 @@
+corpus sweep method=m1adapt3 pedals cap=64 x1 2400+9600
+big-muff-pi-ec3003-rev-f                 n= 36 it/host 3.563 -> 3.563 (0.0%) NC 0/0 (dense 0) peak 10/10 vsDense 0.0e+0 -> 2.3e-10 vsShipped 2.3e-10 devTol 2.684e-6 dev>1 0 1-step 0.0% xRT 6.71 -> 17.11
+boss-bd-2-blues-driver                   n= 70 it/host 2.792 -> 2.208 (-20.9%) NC 0/0 (dense 0) peak 3/3 vsDense 2.1e-11 -> 1.2e-7 vsShipped 1.2e-7 devTol 5.720e-4 dev>1 0 1-step 0.0% xRT 12.12 -> 114.31
+boss-ce-5                                n=110 it/host 3.000 -> 3.000 (0.0%) NC 0/0 (dense 0) peak 9/9 vsDense 6.5e-11 -> 6.5e-11 vsShipped 0.0e+0 devTol 1.858e-5 dev>1 0 1-step 0.0% xRT 10.00 -> 169.73
+boss-dd-3b                               n= 50 it/host 1.000 -> 1.001 (0.1%) NC 0/0 (dense 0) peak 64/64 vsDense 2.2e-7 -> 2.2e-7 vsShipped 1.3e-13 devTol 0.604 dev>1 0 1-step 99.9% xRT 2.68 -> 7.65
+boss-ds-2                                n= 84 it/host 2.356 -> 1.798 (-23.7%) NC 0/0 (dense 0) peak 3/3 vsDense 2.2e-8 -> 5.9e-8 vsShipped 5.5e-8 devTol 0.538 dev>1 0 1-step 20.2% xRT 4.78 -> 47.29
+boss-lm-2                                n= 78 it/host 3.873 -> 3.873 (0.0%) NC 0/0 (dense 0) peak 4/4 vsDense 2.0e-9 -> 2.0e-9 vsShipped 0.0e+0 devTol 3.264e-7 dev>1 0 1-step 0.0% xRT 7.42 -> 71.30
+boss-od-1                                n= 41 it/host 2.167 -> 1.917 (-11.5%) NC 0/0 (dense 0) peak 17/17 vsDense 1.8e-10 -> 9.9e-6 vsShipped 9.9e-6 devTol 0.409 dev>1 0 1-step 12.5% xRT 2.32 -> 11.81
+boss-pq-4                                n= 86 it/host 3.000 -> 3.000 (0.0%) NC 0/0 (dense 0) peak 3/3 vsDense 2.7e-10 -> 2.7e-10 vsShipped 0.0e+0 devTol 1.823e-4 dev>1 0 1-step 0.0% xRT 6.97 -> 64.28
+boss-sd-1                                n= 51 it/host 3.021 -> 2.688 (-11.0%) NC 0/0 (dense 0) peak 13/13 vsDense 6.1e-12 -> 2.3e-7 vsShipped 2.3e-7 devTol 0.003 dev>1 0 1-step 10.4% xRT 2.72 -> 24.19
+boss-tw-1                                n= 47 it/host 3.000 -> 3.000 (0.0%) NC 0/0 (dense 0) peak 64/64 vsDense 1.8e-3 -> 1.8e-3 vsShipped 0.0e+0 devTol 6.765e-6 dev>1 0 1-step 0.0% xRT 3.32 -> 18.60
+dod-envelope-filter-440-vintage-green    n= 26 it/host 2.806 -> 2.593 (-7.6%) NC 0/0 (dense 0) peak 5/5 vsDense 3.2e-10 -> 5.4e-8 vsShipped 5.4e-8 devTol 3.522e-4 dev>1 0 1-step 0.0% xRT 0.91 -> 3.41
+electro-harmonix-deluxe-memory-man       n=126 it/host 4.000 -> 4.000 (0.0%) NC 0/0 (dense 0) peak 7/7 vsDense 1.5e-12 -> 1.5e-12 vsShipped 0.0e+0 devTol 1.048e-4 dev>1 0 1-step 0.0% xRT 9.60 -> 90.78
+electro-harmonix-slapback-echo           n= 46 it/host 4.000 -> 4.000 (0.0%) NC 0/0 (dense 0) peak 4/4 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 2.439e-8 dev>1 0 1-step 0.0% xRT 4.89 -> 17.03
+ibanez-pql                               n= 48 it/host 2.000 -> 1.958 (-2.1%) NC 0/0 (dense 0) peak 2/2 vsDense 5.5e-14 -> 5.5e-14 vsShipped 1.4e-14 devTol 2.701e-7 dev>1 0 1-step 4.2% xRT 1.30 -> 6.45
+jhs-clover                               n=  6 it/host 1.000 -> 0.000 (-100.0%) NC 0/0 (dense 0) peak 1/1 vsDense 0.0e+0 -> 0.0e+0 vsShipped 0.0e+0 devTol 0.000 dev>1 0 1-step 0.0% xRT 0.05 -> 0.06
+klon-centaur                             n= 46 it/host 2.000 -> 1.917 (-4.2%) NC 0/0 (dense 0) peak 2/2 vsDense 0.0e+0 -> 6.7e-10 vsShipped 6.7e-10 devTol 7.126e-6 dev>1 0 1-step 8.3% xRT 1.89 -> 7.17
+mxr-carbon-copy                          n=118 it/host 3.027 -> 3.027 (0.0%) NC 0/0 (dense 0) peak 4/4 vsDense 1.8e-11 -> 1.8e-11 vsShipped 0.0e+0 devTol 9.563e-7 dev>1 0 1-step 0.0% xRT 7.13 -> 96.75
+mxr-noise-gate-line-driver               n= 30 it/host 2.917 -> 2.750 (-5.7%) NC 0/0 (dense 0) peak 12/12 vsDense 3.6e-10 -> 4.1e-8 vsShipped 4.1e-8 devTol 5.156e-4 dev>1 0 1-step 0.0% xRT 1.17 -> 5.02
+pigtronix-philosophers-tone              n= 55 it/host 2.232 -> 2.169 (-2.8%) NC 0/0 (dense 0) peak 3/3 vsDense 4.3e-14 -> 1.1e-13 vsShipped 1.1e-13 devTol 0.049 dev>1 0 1-step 0.0% xRT 3.76 -> 13.25
+sola-sound-mki-tone-bender               n= 15 it/host 3.663 -> 3.438 (-6.1%) NC 0/0 (dense 0) peak 23/23 vsDense 3.8e-11 -> 1.5e-7 vsShipped 1.5e-7 devTol 0.007 dev>1 0 1-step 12.5% xRT 0.65 -> 2.09
+zvex-fuzz-factory                        n= 18 it/host 2.968 -> 2.311 (-22.2%) NC 0/0 (dense 0) peak 9/9 vsDense 0.0e+0 -> 1.9e-8 vsShipped 1.9e-8 devTol 0.007 dev>1 0 1-step 0.0% xRT 0.67 -> 2.06
+
+packets=21 fewer iterations=12 more iterations=1 more non-converged=0 deviation>1 tol unit on some sub-sample=0 wall faster=0 slower=21 (wall is load-noisy here; see the dedicated timing section)

@@ -1,0 +1,465 @@
+diff --git a/packages/runtime/src/reference-runtime.ts b/packages/runtime/src/reference-runtime.ts
+index f012b48..9ad037a 100644
+--- a/packages/runtime/src/reference-runtime.ts
++++ b/packages/runtime/src/reference-runtime.ts
+@@ -1827,6 +1827,48 @@ export class ReferenceRuntime {
+ 	 * samples 4800 of 4800 -> 22.
+ 	 */
+ 	private readonly unproductiveUntilSample = new Map<string, number>();
++	/**
++	 * Per block, the last three converged sub-sample solutions and the extrapolation order
++	 * that would have predicted the newest of them best, for the Newton start predictor.
++	 *
++	 * **The start of a Newton solve is a guess, and the previous solution is only the
++	 * cheapest guess, not the best one.** At 4x oversampling the circuit moves a quarter as
++	 * far per solve, and a quadratic extrapolation of the last three solutions lands inside
++	 * the convergence tolerance on most sub-samples, so the first Newton step is already the
++	 * answer and the check that follows it is the whole solve: one iteration where the
++	 * previous-solution start needs two (one step, one check). Measured 2026-10-09 on the six
++	 * profile packets at os4 (`docs/spikes/2026-10-09-newton-iteration-budget.md`): iterations
++	 * per host sample fall 38-47 % on the pedals with every converged solution within 0.02
++	 * tolerance units of the full-Newton solution from the same state.
++	 *
++	 * **The order is chosen by the block's own history, not by a constant.** After every
++	 * converged solve the three candidate starts the history could have produced (order 0 =
++	 * the previous solution, 1 = linear, 2 = quadratic) are scored against the solution just
++	 * reached, in tolerance units, and the best one is used for the next solve -- but only
++	 * when that solve took at most two iterations (the floor: one step and one check). A
++	 * solve that needed more was hunting across a knee, and there a closer start is not a
++	 * cheaper one (`recordNewtonSolution` has the measurement). On a hard edge the
++	 * extrapolations overshoot the clipping knee and score worse than the previous solution,
++	 * so the next solve starts exactly where it always did; on a signal it cannot predict it
++	 * costs nothing. A non-converged solve breaks the chain (no history to extrapolate from).
++	 *
++	 * Only the start moves. The convergence test, the limiter histories, the relaxation rule
++	 * and the fold reseed (which reads the caller's `start`, the previous solution) are
++	 * untouched, so what converges is still the circuit's equations at the shipped
++	 * tolerances -- a different first iterate, the same fixed point.
++	 */
++	private readonly newtonStartHistory = new Map<
++		string,
++		{
++			x1: number[] | null;
++			x2: number[] | null;
++			x3: number[] | null;
++			chain: number;
++			order: 0 | 1 | 2;
++			/** Scratch for the predicted start, reused so a solve allocates nothing for it. */
++			candidate: number[];
++		}
++	>();
+ 	private readonly blockNewtonCensus = new Map<
+ 		string,
+ 		{ samples: number; exhausted: number; peakIterations: number }
+@@ -2405,6 +2447,7 @@ export class ReferenceRuntime {
+ 		this.solvedButFlaggedSamples = 0;
+ 		this.blockNewtonCensus.clear();
+ 		this.unproductiveUntilSample.clear();
++		this.newtonStartHistory.clear();
+ 		this.totalIterations = 0;
+ 		this.nonFiniteSamples = 0;
+ 		this.peakIterations = 0;
+@@ -4818,8 +4861,15 @@ export class ReferenceRuntime {
+ 		// itself is read-only here and is never handed back to the caller aliased to either
+ 		// buffer, so a caller that still holds it (`[...guess]` in the continuation methods,
+ 		// `previous.slice()` in `processBlock`) sees it unchanged.
++		//
++		// On a standard audio pass of a nonlinear block the seed is the predicted start (see
++		// `newtonStartHistory`), falling back to `start`. `start` itself stays the previous
++		// solution for the fold reseed below.
++		const predictorPass =
++			!dc && sourceScale === 1 && gmin === GMIN_SIEMENS && !block.linear;
++		const seed = (predictorPass ? this.predictedNewtonStart(block.id, size) : null) ?? start;
+ 		for (let index = 0; index < size; index += 1) {
+-			solutionA[index] = start[index] ?? 0;
++			solutionA[index] = seed[index] ?? 0;
+ 		}
+ 		let current = solutionA;
+ 		let next = solutionB;
+@@ -5190,6 +5240,9 @@ export class ReferenceRuntime {
+ 				if (used > census.peakIterations) census.peakIterations = used;
+ 			}
+ 		}
++		if (predictorPass) {
++			this.recordNewtonSolution(block.id, current, converged, used);
++		}
+ 		return { solution: current, converged, used, worstNode, worstDelta };
+ 	}
+ 
+@@ -5475,8 +5528,13 @@ export class ReferenceRuntime {
+ 			}
+ 		};
+ 
++		// The predicted start (see `newtonStartHistory`), falling back to `start`: the same
++		// rule as `iterate`, applied through the port unknowns the reduced solve iterates on.
++		const predictorPass =
++			!dc && sourceScale === 1 && gmin === GMIN_SIEMENS && !block.linear;
++		const seed = (predictorPass ? this.predictedNewtonStart(block.id, size) : null) ?? start;
+ 		for (let p = 0; p < portCount; p += 1) {
+-			scratch.yCurrent[p] = start[portRows[p] as number] ?? 0;
++			scratch.yCurrent[p] = seed[portRows[p] as number] ?? 0;
+ 		}
+ 		reconstructFull(scratch.yCurrent, scratch.fullCurrent);
+ 
+@@ -5632,6 +5690,9 @@ export class ReferenceRuntime {
+ 				if (used > census.peakIterations) census.peakIterations = used;
+ 			}
+ 		}
++		if (predictorPass) {
++			this.recordNewtonSolution(block.id, current, converged, used);
++		}
+ 		return { solution: current, converged, used, worstNode, worstDelta };
+ 	}
+ 
+@@ -5987,6 +6048,115 @@ export class ReferenceRuntime {
+ 		this.triodeHistory.clear();
+ 	}
+ 
++	/**
++	 * The Newton start `newtonStartHistory` selects for this block, or `null` to start from
++	 * the caller's previous solution (order 0, or a chain too short for the chosen order).
++	 * The returned array is the block's reused scratch: read it before the next solve.
++	 */
++	private predictedNewtonStart(blockId: string, size: number): number[] | null {
++		const history = this.newtonStartHistory.get(blockId);
++		if (history === undefined || history.order === 0) {
++			return null;
++		}
++		if (history.candidate.length !== size) {
++			history.candidate = new Array<number>(size).fill(0);
++		}
++		return extrapolateNewtonStart(history, history.order, size, history.candidate)
++			? history.candidate
++			: null;
++	}
++
++	/**
++	 * Record a finished standard-pass solve: on convergence, score the three candidate
++	 * starts the history could have produced against the solution just reached (one fused
++	 * pass, no allocation) and keep the best order for the next solve, then rotate the
++	 * solution into the history ring; on failure, break the chain.
++	 */
++	private recordNewtonSolution(
++		blockId: string,
++		solution: readonly number[],
++		converged: boolean,
++		used: number,
++	): void {
++		let history = this.newtonStartHistory.get(blockId);
++		if (history === undefined) {
++			history = { x1: null, x2: null, x3: null, chain: 0, order: 0, candidate: [] };
++			this.newtonStartHistory.set(blockId, history);
++		}
++		if (!converged) {
++			history.chain = 0;
++			history.order = 0;
++			return;
++		}
++		const size = solution.length;
++		const { x1, x2, x3 } = history;
++		const has1 = history.chain >= 1 && x1 !== null && x1.length === size;
++		const has2 = has1 && history.chain >= 2 && x2 !== null && x2.length === size;
++		const has3 = has2 && history.chain >= 3 && x3 !== null && x3.length === size;
++		let error0 = has1 ? 0 : Number.POSITIVE_INFINITY;
++		let error1 = has2 ? 0 : Number.POSITIVE_INFINITY;
++		let error2 = has3 ? 0 : Number.POSITIVE_INFINITY;
++		if (has1) {
++			for (let index = 0; index < size; index += 1) {
++				const s = solution[index] as number;
++				const magnitude = Math.abs(s);
++				const v1 = (x1 as number[])[index] as number;
++				const ratio0 =
++					Math.abs(v1 - s) /
++					(NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(v1), magnitude) +
++						NEWTON_VOLTAGE_TOLERANCE);
++				if (ratio0 > error0) error0 = ratio0;
++				if (!has2) continue;
++				const v2 = (x2 as number[])[index] as number;
++				const guess1 = 2 * v1 - v2;
++				const ratio1 =
++					Math.abs(guess1 - s) /
++					(NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(guess1), magnitude) +
++						NEWTON_VOLTAGE_TOLERANCE);
++				if (ratio1 > error1) error1 = ratio1;
++				if (!has3) continue;
++				const guess2 = 3 * v1 - 3 * v2 + ((x3 as number[])[index] as number);
++				const ratio2 =
++					Math.abs(guess2 - s) /
++					(NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(guess2), magnitude) +
++						NEWTON_VOLTAGE_TOLERANCE);
++				if (ratio2 > error2) error2 = ratio2;
++			}
++		}
++		// Strictly better only: a tie keeps the lower order, so a flat signal (where every
++		// order predicts the same point) stays on the previous-solution start.
++		let best: 0 | 1 | 2 = 0;
++		let bestError = error0;
++		if (error1 < bestError) {
++			best = 1;
++			bestError = error1;
++		}
++		if (error2 < bestError) {
++			best = 2;
++		}
++		// Smooth-regime gate: extrapolate only after a solve that took at most two
++		// iterations (one step and one check -- the floor). A solve that needed more was
++		// hunting across a knee, and there a start that is closer in tolerance units is not
++		// a cheaper start: measured without this gate, `analog-man-prince-of-tone` cost
++		// +50 % iterations at x1 and `boss-hm-2` +39 % (peak 33 -> 63) with every
++		// extrapolation scoring better than the previous solution; with it, -4 % and 0 %,
++		// and every os4 gain is kept (2026-10-09 report, §3/§12).
++		if (used > 2) {
++			best = 0;
++		}
++		history.order = best;
++		// Rotate the ring without allocating: the oldest buffer receives the new solution.
++		const oldest = history.x3;
++		history.x3 = history.x2;
++		history.x2 = history.x1;
++		history.x1 =
++			oldest !== null && oldest.length === size ? oldest : new Array<number>(size).fill(0);
++		for (let index = 0; index < size; index += 1) {
++			history.x1[index] = solution[index] as number;
++		}
++		history.chain += 1;
++	}
++
+ 	private snapshotLimiterHistories() {
+ 		return {
+ 			diode: new Map(this.diodeHistory),
+@@ -8647,6 +8817,44 @@ function relativeResidual(
+ 	return Number.isFinite(worst) ? worst : Number.POSITIVE_INFINITY;
+ }
+ 
++/**
++ * Order-`order` extrapolation of a block's converged-solution history (see
++ * `newtonStartHistory`) written into `out`: the previous solution, the linear
++ * `2*x1 - x2`, or the quadratic `3*x1 - 3*x2 + x3`. Returns `false`, writing nothing, when
++ * the chain is shorter than the order needs.
++ */
++function extrapolateNewtonStart(
++	history: {
++		readonly x1: number[] | null;
++		readonly x2: number[] | null;
++		readonly x3: number[] | null;
++		readonly chain: number;
++	},
++	order: 0 | 1 | 2,
++	size: number,
++	out: number[],
++): boolean {
++	const { x1, x2, x3, chain } = history;
++	if (order === 0) {
++		if (chain < 1 || x1 === null) return false;
++		for (let index = 0; index < size; index += 1) out[index] = x1[index] as number;
++		return true;
++	}
++	if (order === 1) {
++		if (chain < 2 || x1 === null || x2 === null) return false;
++		for (let index = 0; index < size; index += 1) {
++			out[index] = 2 * (x1[index] as number) - (x2[index] as number);
++		}
++		return true;
++	}
++	if (chain < 3 || x1 === null || x2 === null || x3 === null) return false;
++	for (let index = 0; index < size; index += 1) {
++		out[index] =
++			3 * (x1[index] as number) - 3 * (x2[index] as number) + (x3[index] as number);
++	}
++	return true;
++}
++
+ function withinTolerance(
+ 	next: readonly number[],
+ 	previous: readonly number[],
+diff --git a/packages/runtime/tests/newton-start-predictor.test.ts b/packages/runtime/tests/newton-start-predictor.test.ts
+new file mode 100644
+index 0000000..bf980a2
+--- /dev/null
++++ b/packages/runtime/tests/newton-start-predictor.test.ts
+@@ -0,0 +1,185 @@
++// The Newton start predictor (`newtonStartHistory` in reference-runtime.ts): a self-selecting
++// extrapolation of the last three converged solutions seeds each standard-pass solve.
++//
++// What is pinned here is the contract, measured on synthetic circuits:
++//   1. on a smooth signal at 4x the quadratic order wins and one iteration per sub-sample
++//      converges (the previous-solution start needs two: a step and a check);
++//   2. on a hard edge the extrapolations score worse than the previous solution, so the
++//      order falls back to 0 and the solve after the edge costs exactly what it always did;
++//   3. fixed-point equivalence: with the predictor engaged, every converged solution sits
++//      within the convergence tolerance of the solution the previous-solution start reaches
++//      from the same state (both are roots of the same equations at the same tolerances).
++import { describe, expect, it } from "bun:test";
++import type { Program } from "@vessel-dsp/compiler";
++import { compile, emptyRegistry } from "@vessel-dsp/compiler";
++import { diodeClipper } from "@vessel-dsp/compiler/fixtures/circuits";
++import { ReferenceRuntime } from "../src/reference-runtime";
++
++const RATE = 48_000;
++const programFor = (source: string): Program => {
++	const result = compile(source, { registry: emptyRegistry });
++	if (result.status !== "ok") {
++		throw new Error(`fixture no longer compiles: ${JSON.stringify(result)}`);
++	}
++	return result.program;
++};
++/** The clipper with its lower diode replaced by a 100 nF shunt: an RC that still carries a diode. */
++const rcWithDiode = diodeClipper.replace(
++	/ {2}- id: D2[\s\S]*?Description: "Clipping diode\."\n(?=wires)/,
++	`  - id: C1
++    kind: capacitor
++    name: C_SHUNT
++    sourceTypeName: Circuit.Capacitor
++    origin:
++      x: 120
++      y: 0
++    rotation: 0
++    flipped: false
++    terminals:
++      - name: a
++        node: 2
++        position:
++          x: 120
++          y: -20
++      - name: b
++        node: 0
++        position:
++          x: 120
++          y: 20
++    properties:
++      Capacitance: "100n"
++      Description: "Shunt."
++`,
++);
++if (rcWithDiode === diodeClipper) {
++	throw new Error("fixture derivation matched nothing");
++}
++
++type Internals = {
++	newtonStartHistory: Map<string, { order: number; chain: number }>;
++	nodeVoltages: Map<string, number[]>;
++};
++
++/** Iterations spent on `count` one-sample `process` calls after `warm` samples of `input`. */
++function iterationsAfterWarmup(
++	runtime: ReferenceRuntime,
++	input: (index: number) => number,
++	warm: number,
++	count: number,
++	clearHistoryEachSample = false,
++): { iterations: number; perSample: number[]; nonConverged: number } {
++	const internals = runtime as unknown as Internals;
++	const chunk = new Float64Array(1);
++	for (let index = 0; index < warm; index += 1) {
++		if (clearHistoryEachSample) internals.newtonStartHistory.clear();
++		chunk[0] = input(index);
++		runtime.process(chunk);
++	}
++	const t0 = runtime.telemetry();
++	let last = t0.totalIterations;
++	const perSample: number[] = [];
++	for (let index = 0; index < count; index += 1) {
++		if (clearHistoryEachSample) internals.newtonStartHistory.clear();
++		chunk[0] = input(warm + index);
++		runtime.process(chunk);
++		const spent = runtime.telemetry().totalIterations;
++		perSample.push(spent - last);
++		last = spent;
++	}
++	const t1 = runtime.telemetry();
++	return {
++		iterations: t1.totalIterations - t0.totalIterations,
++		perSample,
++		nonConverged: t1.nonConvergedSamples - t0.nonConvergedSamples,
++	};
++}
++
++describe("Newton start predictor", () => {
++	it("converges in one iteration per sub-sample on a smooth signal at 4x", () => {
++		const program = programFor(rcWithDiode);
++		const sine = (index: number) => 0.01 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
++		const predicted = new ReferenceRuntime(program);
++		predicted.prepare(RATE, { maxNewtonIterations: 64, oversample: 4 });
++		const a = iterationsAfterWarmup(predicted, sine, 480, 960);
++		// Four sub-samples per host sample, one iteration each.
++		expect(a.iterations / 960).toBeLessThanOrEqual(4.05);
++		expect(a.nonConverged).toBe(0);
++		const internals = predicted as unknown as Internals;
++		const history = [...internals.newtonStartHistory.values()][0];
++		expect(history?.order).toBe(2);
++		// The previous-solution start needs a step and a check: two per sub-sample. Clearing
++		// the history before every host sample leaves the chain to rebuild inside the four
++		// sub-samples (the last two of each host sample still predict), so the control reads
++		// about seven per host sample rather than eight -- still well above the predicted four.
++		const shipped = new ReferenceRuntime(program);
++		shipped.prepare(RATE, { maxNewtonIterations: 64, oversample: 4 });
++		const b = iterationsAfterWarmup(shipped, sine, 480, 960, true);
++		expect(b.iterations).toBeGreaterThan(a.iterations * 1.5);
++	});
++
++	it("falls back to the previous-solution start after a hard edge and costs nothing extra", () => {
++		const program = programFor(diodeClipper);
++		// +-1 V square at 1 kHz: an edge every 24 host samples.
++		const square = (index: number) => (Math.floor(index / 24) % 2 === 0 ? 1 : -1);
++		const predicted = new ReferenceRuntime(program);
++		predicted.prepare(RATE, { maxNewtonIterations: 64 });
++		const a = iterationsAfterWarmup(predicted, square, 480, 960);
++		const shipped = new ReferenceRuntime(program);
++		shipped.prepare(RATE, { maxNewtonIterations: 64 });
++		const b = iterationsAfterWarmup(shipped, square, 480, 960, true);
++		expect(a.nonConverged).toBe(0);
++		expect(b.nonConverged).toBe(0);
++		// Sample by sample, never more than the previous-solution start.
++		for (let index = 0; index < 960; index += 1) {
++			expect(a.perSample[index]).toBeLessThanOrEqual(b.perSample[index] as number);
++		}
++		expect(a.iterations).toBe(b.iterations);
++		// A linear extrapolation of the edge would have overshot the knee on the sample after
++		// it: that sample costs one iteration here, as it does with the previous-solution start.
++		const afterEdges = a.perSample.filter((_, index) => (480 + index) % 24 === 1);
++		expect(afterEdges.every((used) => used === 1)).toBe(true);
++	});
++
++	it("reaches the same fixed point as the previous-solution start, within tolerance", () => {
++		const program = programFor(diodeClipper);
++		const blockId = (program.blocks.find((block) => block.kind === "mna") as { id: string }).id;
++		// 1 kHz at 0.5 V clips both diodes: a stiff solve on every sample.
++		const sine = (index: number) => 0.5 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
++		const predicted = new ReferenceRuntime(program);
++		predicted.prepare(RATE, { maxNewtonIterations: 64 });
++		const shipped = new ReferenceRuntime(program);
++		shipped.prepare(RATE, { maxNewtonIterations: 64 });
++		const pi = predicted as unknown as Internals;
++		const si = shipped as unknown as Internals;
++		const chunk = new Float64Array(1);
++		let worst = 0;
++		let engaged = 0;
++		let maxOutputDiff = 0;
++		for (let index = 0; index < 1440; index += 1) {
++			chunk[0] = sine(index);
++			const a = predicted.process(chunk)[0] as number;
++			si.newtonStartHistory.clear();
++			const b = shipped.process(chunk)[0] as number;
++			if (index < 480) continue;
++			if ((pi.newtonStartHistory.get(blockId)?.order ?? 0) > 0) engaged += 1;
++			maxOutputDiff = Math.max(maxOutputDiff, Math.abs(a - b));
++			const va = pi.nodeVoltages.get(blockId) as number[];
++			const vb = si.nodeVoltages.get(blockId) as number[];
++			for (let node = 0; node < va.length; node += 1) {
++				const x = va[node] as number;
++				const y = vb[node] as number;
++				const allowance = 1e-3 * Math.max(Math.abs(x), Math.abs(y)) + 1e-6;
++				worst = Math.max(worst, Math.abs(x - y) / allowance);
++			}
++		}
++		// The predictor actually engaged on a meaningful share of the measured samples ...
++		expect(engaged).toBeGreaterThan(100);
++		// ... every converged solution agrees with the previous-solution start's within the
++		// convergence tolerance (SPICE reltol 1e-3 / vntol 1e-6), measured per unknown ...
++		expect(worst).toBeLessThanOrEqual(1);
++		// ... and neither side held a sample.
++		expect(predicted.telemetry().nonConvergedSamples).toBe(0);
++		expect(shipped.telemetry().nonConvergedSamples).toBe(0);
++		expect(maxOutputDiff).toBeLessThan(1e-3);
++	});
++});

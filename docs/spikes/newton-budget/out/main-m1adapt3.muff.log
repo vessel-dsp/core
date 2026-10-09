@@ -1,0 +1,13 @@
+measure cap=64 warmup=2400 samples=9600 host samples, 1 kHz 0.1 V, fixedPoint=true
+
+muff os=1: shipped-vs-dense (known positive) relRms=0.0e+0 maxAbs=0.0e+0 denseRms=2.51e-2 sNC=0 dNC=0 shippedHash=da9a14da93f7
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  m1adapt3       3.563     3.563     3.563    0.000      0.0      0     0    10      0     0      0      0  2.3e-10  1.7e-11  11.77 1.718e-6      0      0    3.563     0 e62500269f34
+
+muff os=2: shipped-vs-dense (known positive) relRms=0.0e+0 maxAbs=0.0e+0 denseRms=2.51e-2 sNC=0 dNC=0 shippedHash=eaa3a34daf58
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  m1adapt3       4.875     4.875     4.875    0.000      4.2      0     0     8      0     0      0      0   5.9e-8   6.4e-9  17.74 6.692e-4      0   1200    5.188     0 5b0c614549f5
+
+muff os=4: shipped-vs-dense (known positive) relRms=0.0e+0 maxAbs=0.0e+0 denseRms=2.51e-2 sNC=0 dNC=0 shippedHash=d2adeddef70c
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  m1adapt3       5.500     5.500     5.500    0.000     68.8      0     0     5      0     0      0      0   3.9e-7   5.4e-8  23.44    0.004      0      0    9.063     0 7c518413b8e9

@@ -1,0 +1,7 @@
+sparse-vs-dense os=1 cap=64 warmup=2400 samples=9600 (host samples; 1 kHz 0.1 V)
+muff      relRms=0.0e+0 absRms=0.0e+0 denseRms=2.51e-2 sNC=0/9600 dNC=0 wNC=0/0 sPeak=10 dPeak=10 sMean/host=3.56 dMean/host=3.56 (per sub 3.56/3.56) sxRT=4.71 dxRT=4.16 fb=0/0 repiv=[] drop=[] aband=[]
+sd1       relRms=7.1e-8 absRms=5.6e-9 denseRms=7.83e-2 sNC=0/9600 dNC=0 wNC=0/0 sPeak=13 dPeak=13 sMean/host=3.04 dMean/host=3.04 (per sub 3.04/3.04) sxRT=5.17 dxRT=26.19 fb=0/36544 repiv=[] drop=[] aband=[]
+ts9       relRms=4.6e-9 absRms=3.3e-10 denseRms=7.24e-2 sNC=0/9600 dNC=0 wNC=0/0 sPeak=7 dPeak=7 sMean/host=2.63 dMean/host=2.63 (per sub 2.63/2.63) sxRT=2.54 dxRT=13.54 fb=0/31511 repiv=[] drop=[] aband=[]
+ts808     relRms=7.1e-10 absRms=5.4e-11 denseRms=7.55e-2 sNC=0/9600 dNC=0 wNC=0/0 sPeak=7 dPeak=7 sMean/host=2.92 dMean/host=2.92 (per sub 2.92/2.92) sxRT=2.13 dxRT=12.86 fb=0/35008 repiv=[] drop=[] aband=[]
+gro100    relRms=0.0e+0 absRms=0.0e+0 denseRms=8.30e-2 sNC=0/9600 dNC=0 wNC=0/0 sPeak=35 dPeak=35 sMean/host=2.20 dMean/host=2.20 (per sub 2.20/2.20) sxRT=9.71 dxRT=8.95 fb=0/0 repiv=[] drop=[] aband=[]
+blue-box  relRms=1.5e+0 absRms=2.2e-2 denseRms=1.50e-2 sNC=9600/9600 dNC=185 wNC=490/75 sPeak=64 dPeak=64 sMean/host=64.00 dMean/host=6.09 (per sub 64.00/6.09) sxRT=33.89 dxRT=10.04 fb=15/655245 repiv=[] drop=[] aband=[]

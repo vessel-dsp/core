@@ -1827,6 +1827,48 @@ export class ReferenceRuntime {
 	 * samples 4800 of 4800 -> 22.
 	 */
 	private readonly unproductiveUntilSample = new Map<string, number>();
+	/**
+	 * Per block, the last three converged sub-sample solutions and the extrapolation order
+	 * that would have predicted the newest of them best, for the Newton start predictor.
+	 *
+	 * **The start of a Newton solve is a guess, and the previous solution is only the
+	 * cheapest guess, not the best one.** At 4x oversampling the circuit moves a quarter as
+	 * far per solve, and a quadratic extrapolation of the last three solutions lands inside
+	 * the convergence tolerance on most sub-samples, so the first Newton step is already the
+	 * answer and the check that follows it is the whole solve: one iteration where the
+	 * previous-solution start needs two (one step, one check). Measured 2026-10-09 on the six
+	 * profile packets at os4 (`docs/spikes/2026-10-09-newton-iteration-budget.md`): iterations
+	 * per host sample fall 38-47 % on the pedals with every converged solution within 0.02
+	 * tolerance units of the full-Newton solution from the same state.
+	 *
+	 * **The order is chosen by the block's own history, not by a constant.** After every
+	 * converged solve the three candidate starts the history could have produced (order 0 =
+	 * the previous solution, 1 = linear, 2 = quadratic) are scored against the solution just
+	 * reached, in tolerance units, and the best one is used for the next solve -- but only
+	 * when that solve took at most two iterations (the floor: one step and one check). A
+	 * solve that needed more was hunting across a knee, and there a closer start is not a
+	 * cheaper one (`recordNewtonSolution` has the measurement). On a hard edge the
+	 * extrapolations overshoot the clipping knee and score worse than the previous solution,
+	 * so the next solve starts exactly where it always did; on a signal it cannot predict it
+	 * costs nothing. A non-converged solve breaks the chain (no history to extrapolate from).
+	 *
+	 * Only the start moves. The convergence test, the limiter histories, the relaxation rule
+	 * and the fold reseed (which reads the caller's `start`, the previous solution) are
+	 * untouched, so what converges is still the circuit's equations at the shipped
+	 * tolerances -- a different first iterate, the same fixed point.
+	 */
+	private readonly newtonStartHistory = new Map<
+		string,
+		{
+			x1: number[] | null;
+			x2: number[] | null;
+			x3: number[] | null;
+			chain: number;
+			order: 0 | 1 | 2;
+			/** Scratch for the predicted start, reused so a solve allocates nothing for it. */
+			candidate: number[];
+		}
+	>();
 	private readonly blockNewtonCensus = new Map<
 		string,
 		{ samples: number; exhausted: number; peakIterations: number }
@@ -2403,6 +2445,7 @@ export class ReferenceRuntime {
 		this.solvedButFlaggedSamples = 0;
 		this.blockNewtonCensus.clear();
 		this.unproductiveUntilSample.clear();
+		this.newtonStartHistory.clear();
 		this.totalIterations = 0;
 		this.nonFiniteSamples = 0;
 		this.peakIterations = 0;
@@ -4816,8 +4859,15 @@ export class ReferenceRuntime {
 		// itself is read-only here and is never handed back to the caller aliased to either
 		// buffer, so a caller that still holds it (`[...guess]` in the continuation methods,
 		// `previous.slice()` in `processBlock`) sees it unchanged.
+		//
+		// On a standard audio pass of a nonlinear block the seed is the predicted start (see
+		// `newtonStartHistory`), falling back to `start`. `start` itself stays the previous
+		// solution for the fold reseed below.
+		const predictorPass =
+			!dc && sourceScale === 1 && gmin === GMIN_SIEMENS && !block.linear;
+		const seed = (predictorPass ? this.predictedNewtonStart(block.id, size) : null) ?? start;
 		for (let index = 0; index < size; index += 1) {
-			solutionA[index] = start[index] ?? 0;
+			solutionA[index] = seed[index] ?? 0;
 		}
 		let current = solutionA;
 		let next = solutionB;
@@ -5188,6 +5238,9 @@ export class ReferenceRuntime {
 				if (used > census.peakIterations) census.peakIterations = used;
 			}
 		}
+		if (predictorPass) {
+			this.recordNewtonSolution(block.id, current, converged, used);
+		}
 		return { solution: current, converged, used, worstNode, worstDelta };
 	}
 
@@ -5473,8 +5526,13 @@ export class ReferenceRuntime {
 			}
 		};
 
+		// The predicted start (see `newtonStartHistory`), falling back to `start`: the same
+		// rule as `iterate`, applied through the port unknowns the reduced solve iterates on.
+		const predictorPass =
+			!dc && sourceScale === 1 && gmin === GMIN_SIEMENS && !block.linear;
+		const seed = (predictorPass ? this.predictedNewtonStart(block.id, size) : null) ?? start;
 		for (let p = 0; p < portCount; p += 1) {
-			scratch.yCurrent[p] = start[portRows[p] as number] ?? 0;
+			scratch.yCurrent[p] = seed[portRows[p] as number] ?? 0;
 		}
 		reconstructFull(scratch.yCurrent, scratch.fullCurrent);
 
@@ -5629,6 +5687,9 @@ export class ReferenceRuntime {
 				if (!converged) census.exhausted += 1;
 				if (used > census.peakIterations) census.peakIterations = used;
 			}
+		}
+		if (predictorPass) {
+			this.recordNewtonSolution(block.id, current, converged, used);
 		}
 		return { solution: current, converged, used, worstNode, worstDelta };
 	}
@@ -5983,6 +6044,115 @@ export class ReferenceRuntime {
 		this.fetHistory.clear();
 		this.opampHistory.clear();
 		this.triodeHistory.clear();
+	}
+
+	/**
+	 * The Newton start `newtonStartHistory` selects for this block, or `null` to start from
+	 * the caller's previous solution (order 0, or a chain too short for the chosen order).
+	 * The returned array is the block's reused scratch: read it before the next solve.
+	 */
+	private predictedNewtonStart(blockId: string, size: number): number[] | null {
+		const history = this.newtonStartHistory.get(blockId);
+		if (history === undefined || history.order === 0) {
+			return null;
+		}
+		if (history.candidate.length !== size) {
+			history.candidate = new Array<number>(size).fill(0);
+		}
+		return extrapolateNewtonStart(history, history.order, size, history.candidate)
+			? history.candidate
+			: null;
+	}
+
+	/**
+	 * Record a finished standard-pass solve: on convergence, score the three candidate
+	 * starts the history could have produced against the solution just reached (one fused
+	 * pass, no allocation) and keep the best order for the next solve, then rotate the
+	 * solution into the history ring; on failure, break the chain.
+	 */
+	private recordNewtonSolution(
+		blockId: string,
+		solution: readonly number[],
+		converged: boolean,
+		used: number,
+	): void {
+		let history = this.newtonStartHistory.get(blockId);
+		if (history === undefined) {
+			history = { x1: null, x2: null, x3: null, chain: 0, order: 0, candidate: [] };
+			this.newtonStartHistory.set(blockId, history);
+		}
+		if (!converged) {
+			history.chain = 0;
+			history.order = 0;
+			return;
+		}
+		const size = solution.length;
+		const { x1, x2, x3 } = history;
+		const has1 = history.chain >= 1 && x1 !== null && x1.length === size;
+		const has2 = has1 && history.chain >= 2 && x2 !== null && x2.length === size;
+		const has3 = has2 && history.chain >= 3 && x3 !== null && x3.length === size;
+		let error0 = has1 ? 0 : Number.POSITIVE_INFINITY;
+		let error1 = has2 ? 0 : Number.POSITIVE_INFINITY;
+		let error2 = has3 ? 0 : Number.POSITIVE_INFINITY;
+		if (has1) {
+			for (let index = 0; index < size; index += 1) {
+				const s = solution[index] as number;
+				const magnitude = Math.abs(s);
+				const v1 = (x1 as number[])[index] as number;
+				const ratio0 =
+					Math.abs(v1 - s) /
+					(NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(v1), magnitude) +
+						NEWTON_VOLTAGE_TOLERANCE);
+				if (ratio0 > error0) error0 = ratio0;
+				if (!has2) continue;
+				const v2 = (x2 as number[])[index] as number;
+				const guess1 = 2 * v1 - v2;
+				const ratio1 =
+					Math.abs(guess1 - s) /
+					(NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(guess1), magnitude) +
+						NEWTON_VOLTAGE_TOLERANCE);
+				if (ratio1 > error1) error1 = ratio1;
+				if (!has3) continue;
+				const guess2 = 3 * v1 - 3 * v2 + ((x3 as number[])[index] as number);
+				const ratio2 =
+					Math.abs(guess2 - s) /
+					(NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(guess2), magnitude) +
+						NEWTON_VOLTAGE_TOLERANCE);
+				if (ratio2 > error2) error2 = ratio2;
+			}
+		}
+		// Strictly better only: a tie keeps the lower order, so a flat signal (where every
+		// order predicts the same point) stays on the previous-solution start.
+		let best: 0 | 1 | 2 = 0;
+		let bestError = error0;
+		if (error1 < bestError) {
+			best = 1;
+			bestError = error1;
+		}
+		if (error2 < bestError) {
+			best = 2;
+		}
+		// Smooth-regime gate: extrapolate only after a solve that took at most two
+		// iterations (one step and one check -- the floor). A solve that needed more was
+		// hunting across a knee, and there a start that is closer in tolerance units is not
+		// a cheaper start: measured without this gate, `analog-man-prince-of-tone` cost
+		// +50 % iterations at x1 and `boss-hm-2` +39 % (peak 33 -> 63) with every
+		// extrapolation scoring better than the previous solution; with it, -4 % and 0 %,
+		// and every os4 gain is kept (2026-10-09 report, §3/§12).
+		if (used > 2) {
+			best = 0;
+		}
+		history.order = best;
+		// Rotate the ring without allocating: the oldest buffer receives the new solution.
+		const oldest = history.x3;
+		history.x3 = history.x2;
+		history.x2 = history.x1;
+		history.x1 =
+			oldest !== null && oldest.length === size ? oldest : new Array<number>(size).fill(0);
+		for (let index = 0; index < size; index += 1) {
+			history.x1[index] = solution[index] as number;
+		}
+		history.chain += 1;
 	}
 
 	private snapshotLimiterHistories() {
@@ -8643,6 +8813,44 @@ function relativeResidual(
 		if (rel > worst) worst = rel;
 	}
 	return Number.isFinite(worst) ? worst : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Order-`order` extrapolation of a block's converged-solution history (see
+ * `newtonStartHistory`) written into `out`: the previous solution, the linear
+ * `2*x1 - x2`, or the quadratic `3*x1 - 3*x2 + x3`. Returns `false`, writing nothing, when
+ * the chain is shorter than the order needs.
+ */
+function extrapolateNewtonStart(
+	history: {
+		readonly x1: number[] | null;
+		readonly x2: number[] | null;
+		readonly x3: number[] | null;
+		readonly chain: number;
+	},
+	order: 0 | 1 | 2,
+	size: number,
+	out: number[],
+): boolean {
+	const { x1, x2, x3, chain } = history;
+	if (order === 0) {
+		if (chain < 1 || x1 === null) return false;
+		for (let index = 0; index < size; index += 1) out[index] = x1[index] as number;
+		return true;
+	}
+	if (order === 1) {
+		if (chain < 2 || x1 === null || x2 === null) return false;
+		for (let index = 0; index < size; index += 1) {
+			out[index] = 2 * (x1[index] as number) - (x2[index] as number);
+		}
+		return true;
+	}
+	if (chain < 3 || x1 === null || x2 === null || x3 === null) return false;
+	for (let index = 0; index < size; index += 1) {
+		out[index] =
+			3 * (x1[index] as number) - 3 * (x2[index] as number) + (x3[index] as number);
+	}
+	return true;
 }
 
 function withinTolerance(

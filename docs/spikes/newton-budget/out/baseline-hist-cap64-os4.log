@@ -1,0 +1,18 @@
+gro100 cap=64 os=4 warm=960 steady=960 controls=study
+  steady mean/host=8.22 mean/sub=2.06 peak=11 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 8:906, 9:10, 10:1, 11:8, 12:24, 13:5, 15:2, 18:2, 19:2
+blue-box cap=64 os=4 warm=960 steady=960 controls=study
+  steady mean/host=15.38 mean/sub=3.84 peak=64 cap-hit host samples=10 (1.0%) carrying 5.3% of iterations; nonConverged warm=0 steady=4
+  histogram: 11:20, 12:436, 14:20, 16:430, 20:10, 24:3, 25:8, 26:2, 27:6, 28:4, 31:2, 43:1, 55:1, 56:1, 57:2, 58:1, 59:2, 60:1, 64:2, 67:1, 70:1, 73:1, 74:1, 84:1, 85:1, 95:1, 110:1
+ts808 cap=64 os=4 warm=960 steady=960 controls=study
+  steady mean/host=8.79 mean/sub=2.20 peak=3 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 8:700, 9:60, 10:40, 11:20, 12:140
+muff cap=64 os=4 warm=960 steady=960 controls=study
+  steady mean/host=9.11 mean/sub=2.28 peak=5 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 8:700, 9:20, 12:177, 13:43, 14:20
+sd1 cap=64 os=4 warm=960 steady=960 controls=study
+  steady mean/host=8.94 mean/sub=2.23 peak=5 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 8:740, 9:20, 11:60, 12:80, 13:20, 15:40
+ts9 cap=64 os=4 warm=960 steady=960 controls=study
+  steady mean/host=8.38 mean/sub=2.09 peak=3 cap-hit host samples=0 (0.0%) carrying 0.0% of iterations; nonConverged warm=0 steady=0
+  histogram: 8:840, 9:40, 12:80

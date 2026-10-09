@@ -1,0 +1,12 @@
+HELP case: 1 kHz 10 mV sine, RC + non-conducting diode, 480 warmup + 960 host samples, cap 64
+  os=1 shipped  it/sub=2.000 one-step=0.0% fac/sub=2.000 NC=0 limitedFirst=0 relax=0
+  os=1 m1lin    it/sub=2.000 one-step=0.0% fac/sub=2.000 NC=0 limitedFirst=0 relax=0
+  os=1 m1quad   it/sub=2.000 one-step=0.0% fac/sub=2.000 NC=0 limitedFirst=0 relax=0
+  os=4 shipped  it/sub=2.000 one-step=0.0% fac/sub=2.000 NC=0 limitedFirst=0 relax=0
+  os=4 m1lin    it/sub=1.000 one-step=100.0% fac/sub=1.000 NC=0 limitedFirst=0 relax=0
+  os=4 m1quad   it/sub=1.000 one-step=100.0% fac/sub=1.000 NC=0 limitedFirst=0 relax=0
+
+HURT case: 1 kHz +-1 V square through the anti-parallel diode clipper at x1, 480 warmup + 960 host samples (40 edges), cap 64
+  shipped  it/host=1.333 fac/host=1.333 NC=0 limitedFirst=0 relax=0 | iterations at edge=9.00 edge+1=1.00 edge+2=1.00 plateau=1.00 | first-iteration limited at edge=0 edge+1=0 edge+2=0 plateau=0
+  m1lin    it/host=1.542 fac/host=1.542 NC=0 limitedFirst=40 relax=0 | iterations at edge=9.00 edge+1=6.00 edge+2=1.00 plateau=1.00 | first-iteration limited at edge=0 edge+1=40 edge+2=0 plateau=0
+  m1quad   it/host=1.917 fac/host=1.917 NC=0 limitedFirst=80 relax=0 | iterations at edge=9.00 edge+1=7.00 edge+2=9.00 plateau=1.00 | first-iteration limited at edge=0 edge+1=40 edge+2=40 plateau=0
