@@ -1,8 +1,11 @@
 #include "v2/Engine.h"
+#include "v2/Resample.h"
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <memory>
 #include <cstring>
+#include <limits>
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten/emscripten.h>
@@ -43,14 +46,128 @@ V2_EXPORT int32_t v2_engine_load_json(void* handle, const char* jsonStr) {
     return ok ? 1 : 0;
 }
 
-V2_EXPORT void v2_engine_prepare(void* handle, double sampleRate, int32_t maxNewtonIterations, double inputSourceOhms) {
+// Changed (not added alongside): the oversample factor is an argument of
+// `prepare`, never a second export -- there is one way to prepare an engine.
+// Callers passing the old 4-argument shape must add the factor explicitly;
+// the factor defaults to 1 only in the TypeScript wrapper, not here.
+V2_EXPORT void v2_engine_prepare(void* handle, double sampleRate, int32_t maxNewtonIterations, double inputSourceOhms, int32_t oversample) {
     if (!handle) return;
     auto* ctx = static_cast<V2WasmContext*>(handle);
     EngineOptions opts;
     opts.sampleRate = sampleRate > 0.0 ? sampleRate : 48000.0;
     opts.maxNewtonIterations = maxNewtonIterations > 0 ? maxNewtonIterations : 64;
     opts.inputSourceOhms = inputSourceOhms >= 0.0 ? inputSourceOhms : 0.0;
+    opts.oversample = oversample;
     ctx->engine.prepare(opts);
+}
+
+// The rate the caller passed to `prepare` (the host rate), or -1.0 when the
+// engine was never prepared -- the C++ mirror of `hostSampleRate()`'s null.
+V2_EXPORT double v2_engine_get_host_sample_rate(void* handle) {
+    if (!handle) return -1.0;
+    auto* ctx = static_cast<V2WasmContext*>(handle);
+    return ctx->engine.hostSampleRate();
+}
+
+// The resampler's group delay in host samples (0 on the held path), or -1.0
+// when the engine was never prepared -- the C++ mirror of
+// `oversampleLatency()`'s null.
+V2_EXPORT double v2_engine_get_oversample_latency(void* handle) {
+    if (!handle) return -1.0;
+    auto* ctx = static_cast<V2WasmContext*>(handle);
+    return ctx->engine.oversampleLatency();
+}
+
+// Test-only access to the shared half-band prototype, so a test can assert
+// the C++ coefficients equal the TypeScript reference's bit for bit. Valid
+// indices are 0 .. length-1; anything else reads quiet NaN. Not part of the
+// shipping surface: no caller outside a test should link against these.
+V2_EXPORT int32_t v2_resample_prototype_length() {
+    return kResampleHalfBandTaps;
+}
+
+V2_EXPORT double v2_resample_prototype_tap(int32_t index) {
+    const std::vector<double>& prototype = resamplePrototype();
+    if (index < 0 || index >= static_cast<int32_t>(prototype.size())) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    return prototype[static_cast<size_t>(index)];
+}
+
+// Test-only round-trip through the C++ half-band cascades with no circuit:
+// up-cascade, identity in the middle, down-cascade. Lets a test compare the
+// C++ stages against the TypeScript stages sample for sample (impulse and
+// swept sine) without any solver in the loop. Not part of the shipping
+// surface: no caller outside a test should link against these.
+struct V2TestResampleCascade {
+    std::vector<HalfBandStage2x> up;
+    std::vector<HalfBandStage2x> down;
+    std::vector<double> bufA;
+    std::vector<double> bufB;
+};
+
+V2_EXPORT void* v2_testonly_resample_create(int32_t stages) {
+    if (stages < 1 || stages > 8) return nullptr;
+    auto* cascade = new (std::nothrow) V2TestResampleCascade();
+    if (cascade == nullptr) return nullptr;
+    const std::vector<double>& prototype = resamplePrototype();
+    for (int32_t s = 0; s < stages; ++s) {
+        cascade->up.emplace_back(prototype);
+        cascade->down.emplace_back(prototype);
+    }
+    const auto width = static_cast<size_t>(1) << static_cast<size_t>(stages);
+    cascade->bufA.assign(width, 0.0);
+    cascade->bufB.assign(width, 0.0);
+    return cascade;
+}
+
+V2_EXPORT void v2_testonly_resample_reset(void* handle) {
+    if (handle == nullptr) return;
+    auto* cascade = static_cast<V2TestResampleCascade*>(handle);
+    for (auto& stage : cascade->up) stage.reset();
+    for (auto& stage : cascade->down) stage.reset();
+    std::fill(cascade->bufA.begin(), cascade->bufA.end(), 0.0);
+    std::fill(cascade->bufB.begin(), cascade->bufB.end(), 0.0);
+}
+
+V2_EXPORT double v2_testonly_resample_process(void* handle, double sample) {
+    if (handle == nullptr) return 0.0;
+    auto* cascade = static_cast<V2TestResampleCascade*>(handle);
+    const auto stages = static_cast<int32_t>(cascade->up.size());
+    std::vector<double>* cur = &cascade->bufA;
+    std::vector<double>* next = &cascade->bufB;
+    cascade->up[0].interpolate(sample, cur->data(), 0);
+    int32_t width = 2;
+    for (int32_t stage = 1; stage < stages; ++stage) {
+        for (int32_t i = 0; i < width; ++i) {
+            cascade->up[static_cast<size_t>(stage)].interpolate(
+                (*cur)[static_cast<size_t>(i)], next->data(),
+                static_cast<size_t>(2 * i));
+        }
+        std::swap(cur, next);
+        width *= 2;
+    }
+    // Identity in the middle: the solver is not in this loop.
+    for (int32_t sub = 0; sub < width; ++sub) {
+        (*next)[static_cast<size_t>(sub)] = (*cur)[static_cast<size_t>(sub)];
+    }
+    std::vector<double>* hi = next;
+    for (int32_t stage = stages - 1; stage >= 0; --stage) {
+        const int32_t half = width / 2;
+        for (int32_t i = 0; i < half; ++i) {
+            (*hi)[static_cast<size_t>(i)] =
+                cascade->down[static_cast<size_t>(stage)].decimate(
+                    (*hi)[static_cast<size_t>(2 * i)],
+                    (*hi)[static_cast<size_t>(2 * i + 1)]);
+        }
+        width = half;
+    }
+    return (*hi)[0];
+}
+
+V2_EXPORT void v2_testonly_resample_destroy(void* handle) {
+    if (handle == nullptr) return;
+    delete static_cast<V2TestResampleCascade*>(handle);
 }
 
 V2_EXPORT void v2_engine_reset(void* handle) {

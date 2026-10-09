@@ -2,6 +2,7 @@
 
 #include "v2/GeneratedKernels.h"
 #include "v2/Program.h"
+#include "v2/Resample.h"
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -16,6 +17,17 @@ struct EngineOptions {
     double sampleRate = 48000.0;
     int32_t maxNewtonIterations = 64;
     double inputSourceOhms = 0.0;
+    /**
+     * Solver sub-samples per host sample; 1 is the plain path and costs
+     * nothing. `sampleRate` above is the rate the caller passes in (the host
+     * rate); the engine solves at host * oversample. Powers of two >= 2 run
+     * the band-limited half-band cascades (`HalfBandStage2x`, the exact port
+     * of the TypeScript reference's resampler); any other factor keeps the
+     * legacy hold-and-last path. A property of the host, never of the
+     * circuit: nothing in the engine reads the program to choose or alter
+     * the factor. Values below 1 clamp to 1, mirroring `ReferenceRuntime`.
+     */
+    int32_t oversample = 1;
 };
 
 struct TriodeHistory {
@@ -214,6 +226,22 @@ public:
     const Program& program() const { return program_; }
     uint64_t elapsedSamples() const { return elapsedSamples_; }
     bool isPrepared() const { return prepared_; }
+    /**
+     * The rate the caller passed to `prepare`, as opposed to the solver's
+     * sub-sample rate (`options_.sampleRate`, already multiplied by the
+     * oversample factor). Mirrors `ReferenceRuntime.hostSampleRate()`;
+     * -1.0 before `prepare()`, mirroring its null.
+     */
+    double hostSampleRate() const { return prepared_ ? hostSampleRate_ : -1.0; }
+    /**
+     * The resampler's total group delay in **host** samples, or -1.0 before
+     * `prepare()`, mirroring `ReferenceRuntime.oversampleLatency()`'s null.
+     * Zero when the resampler is bypassed (factor 1, or a factor that is not
+     * a power of two and keeps the legacy path): the held path adds no
+     * latency by construction. At 2x/4x/8x this is 27.5/41.25/48.125 host
+     * samples for the 57-tap half-band cascade.
+     */
+    double oversampleLatency() const { return prepared_ ? resampleLatencyHost_ : -1.0; }
     const std::vector<double>& operatingPoint(size_t blockIdx) const { return blockOperatingPoints_[blockIdx]; }
     const std::vector<double>& blockState(size_t blockIdx) const { return blockStates_[blockIdx]; }
     int32_t lastIterationCount() const { return lastIterationCount_; }
@@ -263,6 +291,28 @@ private:
     Program program_;
     EngineOptions options_;
     bool prepared_ = false;
+    /**
+     * Solver sub-samples per host sample (`EngineOptions.oversample`,
+     * clamped to >= 1 at `prepare()`). `options_.sampleRate` is the
+     * **solver's** rate (host * oversample); `hostSampleRate_` is the rate
+     * the caller passed in.
+     */
+    int32_t oversample_ = 1;
+    double hostSampleRate_ = 48000.0;
+    /**
+     * Band-limited resampling around the solver, one 2x half-band stage per
+     * entry, cascaded for 4x and 8x. Empty unless the oversample factor is a
+     * power of two greater than 1; any other factor keeps the legacy
+     * hold-and-last path. Built fresh (zero state) in `prepare()`, so the
+     * filter state never leaks across renders and block splits stay
+     * bit-identical. Scratch streams sized to the factor in `prepare()`.
+     */
+    std::vector<HalfBandStage2x> resampleUp_;
+    std::vector<HalfBandStage2x> resampleDown_;
+    std::vector<double> resampleBufA_;
+    std::vector<double> resampleBufB_;
+    /** Total resampler group delay in host samples (0 on the legacy path). */
+    double resampleLatencyHost_ = 0.0;
     uint64_t controlGeneration_ = 1;
     uint64_t elapsedSamples_ = 0;
     /** Per momentary control: sample of the last press, and the last interval in seconds (<0 none). */
@@ -452,6 +502,26 @@ private:
     std::vector<double> solveByGminStepping(size_t blockIdx, double dt, std::vector<double>& state, int32_t size);
     std::vector<double> solveBySourceStepping(size_t blockIdx, double dt, std::vector<double>& state, int32_t size);
     double processMnaBlock(size_t blockIdx, double inputSample);
+    /**
+     * One sub-sample solve at the solver rate: every block stepped once at
+     * `t = elapsedSamples / sampleRate`, returning the output jack's value.
+     * Shared by the held and the resampled paths, so factor 1 executes the
+     * same operations in the same order as before the resampler existed.
+     * Mirrors `ReferenceRuntime`'s `solveSubSample`.
+     */
+    double solveSubSample(double subInput);
+    /**
+     * One host sample through the legacy path: the input held flat across
+     * the sub-samples, the last sub-sample kept. Mirrors `ReferenceRuntime`'s
+     * `processHeldSample`.
+     */
+    double processHeldSample(double sample);
+    /**
+     * One host sample through the band-limited path: half-band interpolate
+     * up by 2 per stage, solve each sub-sample, FIR-decimate back to one
+     * host sample. Mirrors `ReferenceRuntime`'s `processResampledSample`.
+     */
+    double processResampledSample(double sample);
     void processComposedBlock(size_t blockIdx);
     /**
      * The composed program selected at the operating point, mirroring the

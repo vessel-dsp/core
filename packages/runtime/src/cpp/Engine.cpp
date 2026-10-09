@@ -1288,6 +1288,41 @@ bool Engine::loadProgram(Program program, std::string* error) {
 void Engine::prepare(const EngineOptions& options) {
     options_ = options;
     prepared_ = true;
+    // The oversample factor is a property of the host, validated here before
+    // anything reads it, so a clamped factor never reaches the solver.
+    // `sampleRate` is the host rate the caller passed in; the solver runs at
+    // the sub-sample rate (host * oversample), because every `dt`, delay
+    // length and pole coefficient below is derived from `options_.sampleRate`
+    // and each is correct at the sub-sample rate. Mirrors
+    // `ReferenceRuntime.prepare`.
+    oversample_ = options.oversample < 1 ? 1 : options.oversample;
+    hostSampleRate_ = options.sampleRate;
+    options_.sampleRate = options.sampleRate * static_cast<double>(oversample_);
+    // The band-limited resampler is designed here, from the stage alone: the
+    // shared windowed-sinc half-band prototype, fresh zero-state instances
+    // per direction, so `prepare()` clears the filter state and a re-prepared
+    // run starts clean. Powers of two only; any other factor keeps the legacy
+    // hold-and-last path in `processSample`.
+    resampleUp_.clear();
+    resampleDown_.clear();
+    resampleBufA_.clear();
+    resampleBufB_.clear();
+    resampleLatencyHost_ = 0.0;
+    if (oversample_ >= 2 && (oversample_ & (oversample_ - 1)) == 0) {
+        int32_t stages = 0;
+        for (int32_t t = oversample_; t > 1; t >>= 1) ++stages;
+        const std::vector<double>& prototype = resamplePrototype();
+        resampleUp_.reserve(static_cast<size_t>(stages));
+        resampleDown_.reserve(static_cast<size_t>(stages));
+        for (int32_t s = 0; s < stages; ++s) {
+            resampleUp_.emplace_back(prototype);
+            resampleDown_.emplace_back(prototype);
+        }
+        resampleBufA_.assign(static_cast<size_t>(oversample_), 0.0);
+        resampleBufB_.assign(static_cast<size_t>(oversample_), 0.0);
+        resampleLatencyHost_ =
+            cascadeLatencyHostSamples(stages, kResampleHalfBandTaps);
+    }
     elapsedSamples_ = 0;
     // A tap timed against the previous clock would read a meaningless interval.
     tapState_.clear();
@@ -2006,6 +2041,11 @@ void Engine::settlePivotOrders() {
 void Engine::reset() {
     scheduleSolves_ = 0;
     scheduleFallbacks_ = 0;
+    // The resampler's histories are streaming state, like the capacitor
+    // states below: cleared, never rebuilt, so a reset run starts clean and
+    // renders identically to a freshly prepared one.
+    for (auto& stage : resampleUp_) stage.reset();
+    for (auto& stage : resampleDown_) stage.reset();
     for (auto& s : blockStates_) {
         std::fill(s.begin(), s.end(), 0.0);
     }
@@ -4983,9 +5023,14 @@ void Engine::processComposedBlock(size_t blockIdx) {
     }
 }
 
-double Engine::processSample(double inputSample) {
-    if (!prepared_) return 0.0;
-
+double Engine::solveSubSample(double subInput) {
+    // Sample `n` is the circuit at `t = n / sampleRate`, counted from
+    // `prepare`. Set here so every block in this sample sees one time, and
+    // advanced below so buffer boundaries are invisible. `elapsedSamples_`
+    // counts sub-samples and `options_.sampleRate` is the solver rate, so
+    // every seconds-derived quantity (tap intervals, shift detectors, delay
+    // lengths sized at `prepare`) stays correct under oversampling, exactly
+    // as the reference console's `solveSubSample` does.
     timeSeconds_ = static_cast<double>(elapsedSamples_) / options_.sampleRate;
     double result = 0.0;
 
@@ -4995,7 +5040,7 @@ double Engine::processSample(double inputSample) {
         if (block.kind == BlockKind::Composed) {
             processComposedBlock(bIdx);
         } else {
-            double out = processMnaBlock(bIdx, inputSample);
+            double out = processMnaBlock(bIdx, subInput);
             if (block.outputNode.has_value()) {
                 result = out;
             }
@@ -5004,6 +5049,67 @@ double Engine::processSample(double inputSample) {
 
     elapsedSamples_++;
     return result;
+}
+
+double Engine::processHeldSample(double sample) {
+    // Every block is solved, but the result comes from the block that owns
+    // the output jack -- not from whichever ran last. The input is **held**
+    // across the sub-samples rather than interpolated, and the last
+    // sub-sample is the host sample: bit-identical to the behaviour before
+    // the band-limited resampler existed, which is what makes factor 1 (and
+    // non-power-of-two factors) cost nothing and change nothing. Per-solve
+    // telemetry (`lastIterationCount_`, `lastConverged_`) therefore reads the
+    // last sub-sample, while `maxIterationsObserved_` accumulates every one.
+    double hostResult = 0.0;
+    for (int32_t sub = 0; sub < oversample_; ++sub) {
+        hostResult = solveSubSample(sample);
+    }
+    return hostResult;
+}
+
+double Engine::processResampledSample(double sample) {
+    const auto stages = static_cast<int32_t>(resampleUp_.size());
+    // Up cascade: alternate the two scratch buffers, doubling each stage.
+    std::vector<double>* cur = &resampleBufA_;
+    std::vector<double>* next = &resampleBufB_;
+    resampleUp_[0].interpolate(sample, cur->data(), 0);
+    int32_t width = 2;
+    for (int32_t stage = 1; stage < stages; ++stage) {
+        for (int32_t i = 0; i < width; ++i) {
+            resampleUp_[static_cast<size_t>(stage)].interpolate(
+                (*cur)[static_cast<size_t>(i)], next->data(),
+                static_cast<size_t>(2 * i));
+        }
+        std::swap(cur, next);
+        width *= 2;
+    }
+    // Solve every sub-sample; outputs land in the idle buffer.
+    for (int32_t sub = 0; sub < width; ++sub) {
+        (*next)[static_cast<size_t>(sub)] =
+            solveSubSample((*cur)[static_cast<size_t>(sub)]);
+    }
+    // Down cascade, highest rate first, halving in place of `next`.
+    std::vector<double>* hi = next;
+    for (int32_t stage = stages - 1; stage >= 0; --stage) {
+        const int32_t half = width / 2;
+        for (int32_t i = 0; i < half; ++i) {
+            (*hi)[static_cast<size_t>(i)] =
+                resampleDown_[static_cast<size_t>(stage)].decimate(
+                    (*hi)[static_cast<size_t>(2 * i)],
+                    (*hi)[static_cast<size_t>(2 * i + 1)]);
+        }
+        width = half;
+    }
+    return (*hi)[0];
+}
+
+double Engine::processSample(double inputSample) {
+    if (!prepared_) return 0.0;
+
+    if (resampleUp_.empty()) {
+        return processHeldSample(inputSample);
+    }
+    return processResampledSample(inputSample);
 }
 
 void Engine::processBlock(const float* input, float* output, size_t numFrames) {

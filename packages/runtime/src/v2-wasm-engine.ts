@@ -85,13 +85,47 @@ export class V2WasmEngine {
 		this.program = JSON.parse(json) as Program;
 	}
 
-	public prepare(options: { sampleRate?: number; maxNewtonIterations?: number; inputSourceOhms?: number } = {}): void {
+	public prepare(
+		options: { sampleRate?: number; maxNewtonIterations?: number; inputSourceOhms?: number; oversample?: number } = {},
+	): void {
 		const sr = options.sampleRate ?? 48000.0;
 		// The product runs DEFAULT_NEWTON_MAX_ITERATIONS (chain.ts:137); a lower default
 		// here made every bun-hosted probe cap-conditioned against the shipping console.
 		const maxIters = options.maxNewtonIterations ?? DEFAULT_NEWTON_MAX_ITERATIONS;
 		const inputOhms = options.inputSourceOhms ?? 0.0;
-		this.mod._v2_engine_prepare(this.handle, sr, maxIters, inputOhms);
+		// The oversample factor is a property of the host: validated exactly
+		// like `ReferenceRuntime.prepare` (floor, floor of 1, non-finite
+		// refused with the same message), then passed to the native `prepare`
+		// whose signature takes it explicitly -- there is no second export.
+		const oversample = Math.max(1, Math.floor(options.oversample ?? 1));
+		if (!Number.isFinite(oversample)) {
+			throw new RuntimeError(
+				`oversample must be a finite integer of at least 1, got ${String(options.oversample)}`,
+			);
+		}
+		this.mod._v2_engine_prepare(this.handle, sr, maxIters, inputOhms, oversample);
+	}
+
+	/**
+	 * The rate `prepare` was called with (the host rate), as opposed to the
+	 * solver's sub-sample rate -- the same name and semantics as
+	 * `ReferenceRuntime.hostSampleRate()`, including `null` before
+	 * `prepare()`.
+	 */
+	public hostSampleRate(): number | null {
+		const value = this.mod._v2_engine_get_host_sample_rate(this.handle) as number;
+		return value < 0 ? null : value;
+	}
+
+	/**
+	 * The resampler's total group delay in **host** samples -- the same name
+	 * and semantics as `ReferenceRuntime.oversampleLatency()`, including
+	 * `null` before `prepare()` and 0 on the held path (factor 1 or a factor
+	 * that is not a power of two).
+	 */
+	public oversampleLatency(): number | null {
+		const value = this.mod._v2_engine_get_oversample_latency(this.handle) as number;
+		return value < 0 ? null : value;
 	}
 
 	public reset(): void {
