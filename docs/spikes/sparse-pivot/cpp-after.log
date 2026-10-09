@@ -1,0 +1,101 @@
+boss-sd-1: cpp-vs-tsSparse=2.8e-8 cpp-vs-tsDense=2.8e-8 tsSparse-vs-tsDense=6.5e-12
+  tsMs=396 cppMs=196 tsxRT=1.98 cppxRT=0.98
+  cppTele solves=36286 fb=0 kernel=0 repiv=1 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-sd-1.*.f64
+boss-aw-2: cpp-vs-tsSparse=1.8e-4 cpp-vs-tsDense=1.9e-4 tsSparse-vs-tsDense=1.7e-4
+  tsMs=1321 cppMs=537 tsxRT=6.60 cppxRT=2.69
+  cppTele solves=48765 fb=0 kernel=0 repiv=1 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-aw-2.*.f64
+boss-tr-2: cpp-vs-tsSparse=3.5e-8 cpp-vs-tsDense=3.5e-8 tsSparse-vs-tsDense=5.4e-10
+  tsMs=425 cppMs=85 tsxRT=2.12 cppxRT=0.43
+  cppTele solves=24000 fb=0 kernel=24000 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-tr-2.*.f64
+boss-hm-2: cpp-vs-tsSparse=1.1e-7 cpp-vs-tsDense=1.1e-7 tsSparse-vs-tsDense=5.8e-9
+  tsMs=1235 cppMs=199 tsxRT=6.18 cppxRT=1.00
+  cppTele solves=62686 fb=0 kernel=62686 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-hm-2.*.f64
+boss-ce-5: cpp-vs-tsSparse=2.5e-8 cpp-vs-tsDense=2.5e-8 tsSparse-vs-tsDense=4.6e-11
+  tsMs=1106 cppMs=164 tsxRT=5.53 cppxRT=0.82
+  cppTele solves=36011 fb=0 kernel=36011 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-ce-5.*.f64
+boss-ch-1: cpp-vs-tsSparse=1.9e+3 cpp-vs-tsDense=1.9e+3 tsSparse-vs-tsDense=5.0e-9
+  tsMs=1529 cppMs=159 tsxRT=7.65 cppxRT=0.79
+  cppTele solves=36041 fb=0 kernel=36041 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-ch-1.*.f64
+boss-tw-1: cpp-vs-tsSparse=1.1e+1 cpp-vs-tsDense=1.1e+1 tsSparse-vs-tsDense=1.8e-3
+  tsMs=470 cppMs=91 tsxRT=2.35 cppxRT=0.45
+  cppTele solves=36135 fb=0 kernel=36135 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-tw-1.*.f64
+mxr-blue-box: cpp-vs-tsSparse=1.6e-1 cpp-vs-tsDense=1.4e+0 tsSparse-vs-tsDense=1.5e+0
+  tsMs=6598 cppMs=708 tsxRT=32.99 cppxRT=3.54
+  cppTele solves=729013 fb=4 kernel=729009 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/mxr-blue-box.*.f64
+boss-mt-2: cpp-vs-tsSparse=8.7e-3 cpp-vs-tsDense=1.3e-2 tsSparse-vs-tsDense=1.5e-2
+  tsMs=1696 cppMs=196 tsxRT=8.48 cppxRT=0.98
+  cppTele solves=48499 fb=0 kernel=48499 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-mt-2.*.f64
+boss-os-2: cpp-vs-tsSparse=3.1e-6 cpp-vs-tsDense=1.7e-6 tsSparse-vs-tsDense=2.6e-6
+  tsMs=756 cppMs=148 tsxRT=3.78 cppxRT=0.74
+  cppTele solves=43159 fb=0 kernel=43159 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-os-2.*.f64
+boss-od-1: cpp-vs-tsSparse=2.6e-8 cpp-vs-tsDense=2.6e-8 tsSparse-vs-tsDense=7.0e-11
+  tsMs=248 cppMs=104 tsxRT=1.24 cppxRT=0.52
+  cppTele solves=26029 fb=0 kernel=0 repiv=1 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/boss-od-1.*.f64
+hiwatt-dr103: cpp-vs-tsSparse=6.3e-2 cpp-vs-tsDense=7.2e-2 tsSparse-vs-tsDense=6.3e-2
+  tsMs=1059 cppMs=379 tsxRT=5.29 cppxRT=1.90
+  cppTele solves=50579 fb=0 kernel=0 repiv=1 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/hiwatt-dr103.*.f64
+marshall-jcm800: cpp-vs-tsSparse=9.3e-2 cpp-vs-tsDense=9.3e-2 tsSparse-vs-tsDense=3.2e-8
+  tsMs=632 cppMs=118 tsxRT=3.16 cppxRT=0.59
+  cppTele solves=35793 fb=0 kernel=35793 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/marshall-jcm800.*.f64
+trainwreck-express: cpp-vs-tsSparse=2.9e-8 cpp-vs-tsDense=3.9e-8 tsSparse-vs-tsDense=2.6e-8
+  tsMs=481 cppMs=194 tsxRT=2.41 cppxRT=0.97
+  cppTele solves=30956 fb=0 kernel=0 repiv=1 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/trainwreck-express.*.f64
+dumble-overdrive-special: cpp-vs-tsSparse=9.1e-1 cpp-vs-tsDense=8.7e-1 tsSparse-vs-tsDense=8.2e-1
+  tsMs=732 cppMs=120 tsxRT=3.66 cppxRT=0.60
+  cppTele solves=49255 fb=0 kernel=49255 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/dumble-overdrive-special.*.f64
+marshall-1959-super-lead-plexi: cpp-vs-tsSparse=9.2e-1 cpp-vs-tsDense=9.1e-1 tsSparse-vs-tsDense=2.4e-2
+  tsMs=1655 cppMs=112 tsxRT=8.28 cppxRT=0.56
+  cppTele solves=43401 fb=0 kernel=43401 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/marshall-1959-super-lead-plexi.*.f64
+orange-gro100: cpp-vs-tsSparse=2.5e-8 cpp-vs-tsDense=2.5e-8 tsSparse-vs-tsDense=0.0e+0
+  tsMs=1634 cppMs=329 tsxRT=8.17 cppxRT=1.64
+  cppTele solves=0 fb=0 kernel=0 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/orange-gro100.*.f64
+orange-rockerverb: cpp-vs-tsSparse=2.2e-2 cpp-vs-tsDense=2.2e-2 tsSparse-vs-tsDense=3.8e-12
+  tsMs=843 cppMs=160 tsxRT=4.22 cppxRT=0.80
+  cppTele solves=32137 fb=0 kernel=32137 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/orange-rockerverb.*.f64
+sunn-beta-lead: cpp-vs-tsSparse=2.3e-8 cpp-vs-tsDense=2.3e-8 tsSparse-vs-tsDense=1.3e-10
+  tsMs=1275 cppMs=182 tsxRT=6.38 cppxRT=0.91
+  cppTele solves=43012 fb=0 kernel=43012 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/sunn-beta-lead.*.f64
+fender-twin-reverb: cpp-vs-tsSparse=2.6e-8 cpp-vs-tsDense=2.6e-8 tsSparse-vs-tsDense=8.5e-10
+  tsMs=518 cppMs=100 tsxRT=2.59 cppxRT=0.50
+  cppTele solves=28817 fb=0 kernel=28817 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/fender-twin-reverb.*.f64
+peavey-5150: cpp-vs-tsSparse=2.8e-8 cpp-vs-tsDense=2.8e-8 tsSparse-vs-tsDense=4.3e-11
+  tsMs=899 cppMs=166 tsxRT=4.49 cppxRT=0.83
+  cppTele solves=46401 fb=0 kernel=46401 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-after/peavey-5150.*.f64
+43 | 		.map((f: string) => join(dir, f));
+44 | }
+45 | 
+46 | export function loadProgram(packet: string, amps: boolean): Program {
+47 | 	const dir = amps ? join(ARTIFACT_CORPUS, "amps") : ARTIFACT_CORPUS;
+48 | 	const result = compile(readFileSync(join(dir, `${packet}.vdsp`), "utf8"), {
+                             ^
+ENOENT: no such file or directory, open '/home/joseph/projects/VesselDSP/artifacts/schematics/vessel-dsp/amps/moogerfooger-mf-102.vdsp'
+    path: "/home/joseph/projects/VesselDSP/artifacts/schematics/vessel-dsp/amps/moogerfooger-mf-102.vdsp",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at loadProgram (/home/joseph/projects/VesselDSP/core/sparse-numeric-pivot/docs/spikes/sparse-pivot/lib.ts:48:25)
+      at /home/joseph/projects/VesselDSP/core/sparse-numeric-pivot/docs/spikes/sparse-pivot/cpp-compare.ts:42:17
+
+Bun v1.3.14 (Linux x64)

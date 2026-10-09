@@ -1,0 +1,11 @@
+=== boss-sd-1: settled=[] sparseBlocks=[analog:0:n=51]
+  shipped-noskip agree=6.9e-8 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286
+  [analog:0 n=51] tau=0.3: agree=6.0e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->342 ops 567->743 ms=482
+  [analog:0 n=51] tau=0.1: agree=2.7e-9 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->325 ops 567->634 ms=472
+  [analog:0 n=51] tau=0.03: agree=5.9e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->323 ops 567->625 ms=453
+  [analog:0 n=51] tau=0.01: agree=6.0e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->320 ops 567->617 ms=514
+  [analog:0 n=51] tau=0.003: agree=6.0e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->320 ops 567->617 ms=601
+  [analog:0 n=51] tau=0.001: agree=6.5e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->317 ops 567->604 ms=480
+  [analog:0 n=51] tau=0.0003: agree=6.5e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->317 ops 567->604 ms=572
+  [analog:0 n=51] tau=0.0001: agree=6.1e-12 meanIter=3.02 nonConv=0 warmNC=0 fb=0/36286 slots 306->317 ops 567->608 ms=646
+  [analog:0 n=51] tau=0: agree=0.0e+0 meanIter=3.02 nonConv=0 warmNC=0 fb=66/66 slots 306->306 ops 567->566 ms=3462

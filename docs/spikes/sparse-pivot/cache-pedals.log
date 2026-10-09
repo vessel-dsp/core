@@ -1,0 +1,5 @@
+boss-aw-2: cached 8697ms nonConv=4 peak=64
+boss-hm-2: cached 6067ms nonConv=0 peak=33
+boss-tr-2: cached 2042ms nonConv=0 peak=2
+boss-tw-1: cached 1558ms nonConv=724 peak=64
+mxr-blue-box: cached 1465ms nonConv=272 peak=64

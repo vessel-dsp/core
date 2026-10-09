@@ -1,0 +1,6 @@
+hiwatt-dr103: dense chunks=1 warmNC=0 measNC=30 mean=4.55
+  shipped chunks=1 warmNC=0 measNC=25 mean=4.54 agree=6.3e-2
+  [analog:0] tau=0.1: chunks=1 warmNC=0 measNC=25 mean=4.56 agree=7.4e-2 slots 479->497
+  [analog:0] tau=0.01: chunks=1 warmNC=0 measNC=25 mean=4.56 agree=6.8e-2 slots 479->480
+  [analog:0] tau=0.001: chunks=1 warmNC=0 measNC=25 mean=4.56 agree=6.8e-2 slots 479->480
+  [analog:0] tau=0.0001: chunks=1 warmNC=0 measNC=25 mean=4.56 agree=6.8e-2 slots 479->480

@@ -1,0 +1,11 @@
+=== mxr-phase-90-early-block: settled=[] sparseBlocks=[analog:0:n=38]
+  shipped-noskip agree=4.6e-3 meanIter=8.22 nonConv=2 warmNC=0 fb=0/87752
+  [analog:0 n=38] tau=0.3: agree=1.2e-9 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->382 ops 842->1238 ms=624
+  [analog:0 n=38] tau=0.1: agree=7.4e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->363 ops 842->1116 ms=694
+  [analog:0 n=38] tau=0.03: agree=1.8e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->363 ops 842->1116 ms=655
+  [analog:0 n=38] tau=0.01: agree=2.8e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->361 ops 842->1100 ms=750
+  [analog:0 n=38] tau=0.003: agree=3.8e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->361 ops 842->1100 ms=657
+  [analog:0 n=38] tau=0.001: agree=3.8e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->361 ops 842->1100 ms=645
+  [analog:0 n=38] tau=0.0003: agree=8.0e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->350 ops 842->1056 ms=717
+  [analog:0 n=38] tau=0.0001: agree=8.0e-10 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45716 slots 302->333 ops 842->965 ms=769
+  [analog:0 n=38] tau=0: refused(null)

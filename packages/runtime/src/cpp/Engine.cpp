@@ -90,11 +90,12 @@ V2GeneratedKernelFn findGeneratedKernel(const SparseSchedule& schedule) {
 /**
  * Value-aware re-pivot: threshold Markowitz over the schedule's own filled
  * pattern against the assembled operating-point matrix. Mirrors
- * `src/runtime/numeric-pivot.ts` (`computeNumericRepivot`) op for op and pivot
- * for pivot -- ascending row/column scans with a strict key comparison make the
- * choice deterministic, so both consoles adopt the same order. Returns
- * `std::nullopt` when no candidate meets `tau` of its column's remaining
- * maximum, which leaves the caller to drop the block to dense exactly as before.
+ * `packages/compiler/src/sparse-schedule.ts` (`computeNumericRepivot`) op for
+ * op and pivot for pivot -- ascending row/column scans with a strict key
+ * comparison make the choice deterministic, so both consoles adopt the same
+ * order. Returns `std::nullopt` when no candidate meets `tau` of its column's
+ * remaining maximum, which leaves the caller to drop the block to dense exactly
+ * as before.
  */
 std::optional<SparseSchedule> computeNumericRepivot(
     const SparseSchedule& schedule,
@@ -321,8 +322,33 @@ constexpr int32_t SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT = 64;
 // keep the two identical. See its comment for why the tolerance sits here.
 constexpr double SCHEDULE_VALIDATION_TOL = 1e-3;
 // Threshold for the numeric re-pivot's Markowitz filter, same value as
-// `NUMERIC_REPIVOT_TAU` in `src/runtime/numeric-pivot.ts`.
+// `NUMERIC_REPIVOT_TAU` in `packages/compiler/src/sparse-schedule.ts`.
 constexpr double NUMERIC_REPIVOT_TAU = 1e-3;
+// Audio-agreement bar, improvement ratio and fill-growth ceiling for adopting
+// a value-aware order over a validating shipped one. Same values and same
+// predicate (`shouldRefinePivotOrder`) as `ReferenceRuntime` -- keep the two
+// identical. See its comment for the measured basis.
+constexpr double SCHEDULE_REFINEMENT_BAR = 1e-9;
+constexpr double SCHEDULE_REFINEMENT_RATIO = 10.0;
+constexpr double SCHEDULE_REFINEMENT_MAX_COST_GROWTH = 1.1;
+
+inline bool shouldRefinePivotOrder(
+    double shippedDisagreement,
+    double candidateDisagreement,
+    double shippedOps,
+    double shippedSlots,
+    double candidateOps,
+    double candidateSlots
+) {
+    if (!std::isfinite(shippedDisagreement) || !std::isfinite(candidateDisagreement)) {
+        return false;
+    }
+    return shippedDisagreement > SCHEDULE_REFINEMENT_BAR &&
+        candidateDisagreement <= SCHEDULE_REFINEMENT_BAR &&
+        candidateDisagreement < shippedDisagreement / SCHEDULE_REFINEMENT_RATIO &&
+        candidateOps <= SCHEDULE_REFINEMENT_MAX_COST_GROWTH * shippedOps &&
+        candidateSlots <= SCHEDULE_REFINEMENT_MAX_COST_GROWTH * shippedSlots;
+}
 constexpr uint64_t HISTORY_KEY_BASE = 8192ULL;
 constexpr double NEWTON_RELATIVE_TOLERANCE = 1e-3;
 constexpr double NEWTON_VOLTAGE_TOLERANCE = 1e-6;
@@ -1633,6 +1659,7 @@ void Engine::prepare(const EngineOptions& options) {
                 scratch.sparseScratchRhs.assign(ss.size, 0.0);
                 scratch.sparseFactors.assign(ss.factorCount, 0.0);
                 scratch.consecutiveFallbacks = 0;
+                scratch.repivotAttempted = false;
                 scratch.sparseAbandoned = false;
                 scratch.sparseDropped = false;
                 scratch.scheduleAdmitted = true;
@@ -1734,6 +1761,79 @@ int32_t Engine::droppedScheduleBlocks() const {
 
 // Validates each admitted block's shipped elimination order against the
 // assembled operating-point matrix and drops collapsing orders to the dense
+/**
+ * The mid-run half of the pivot-guard contract: at the consecutive-trip
+ * limit, re-pivot once from the current matrix instead of abandoning.
+ * Mirrors `ReferenceRuntime.adoptMidRunRepivot` -- same inputs (stamped
+ * matrix and rhs snapshotted before the dense fallback, plus the fallback's
+ * answer), same rescue bar, same once-per-order semantics. Returns whether a
+ * value-aware order was adopted; a refusal leaves the caller to abandon
+ * exactly as before.
+ */
+bool Engine::adoptMidRunRepivot(
+    size_t blockIdx,
+    const std::vector<double>& matrix,
+    const std::vector<double>& rhs,
+    const double* denseAnswer,
+    int32_t size
+) {
+    const auto& block = program_.blocks[blockIdx];
+    if (block.kind != BlockKind::Mna || size <= 0 || !block.sparseSchedule.has_value()) {
+        return false;
+    }
+    const SparseSchedule& active = blockScratch_[blockIdx].repivotedSchedule.has_value()
+        ? *blockScratch_[blockIdx].repivotedSchedule
+        : *block.sparseSchedule;
+    std::optional<SparseSchedule> candidate =
+        computeNumericRepivot(active, size, matrix, NUMERIC_REPIVOT_TAU);
+    if (!candidate.has_value()) {
+        return false;
+    }
+    std::vector<double> values(static_cast<size_t>(candidate->slots), 0.0);
+    std::vector<double> scratchRhs(static_cast<size_t>(size), 0.0);
+    std::vector<double> factors(static_cast<size_t>(candidate->factorCount), 0.0);
+    std::vector<double> out(static_cast<size_t>(size), 0.0);
+    const bool replayed = runSparseSchedule(
+        *candidate, matrix.data(), rhs.data(),
+        values.data(), scratchRhs.data(), factors.data(), out.data());
+    double diffSquares = 0.0;
+    double denseSquares = 0.0;
+    for (int32_t i = 0; i < size; ++i) {
+        const double difference = out[static_cast<size_t>(i)] - denseAnswer[i];
+        diffSquares += difference * difference;
+        denseSquares += denseAnswer[i] * denseAnswer[i];
+    }
+    const double disagreement = replayed
+        ? std::sqrt(diffSquares) / std::max(std::sqrt(denseSquares), 1e-9)
+        : std::numeric_limits<double>::infinity();
+    if (!(disagreement <= SCHEDULE_VALIDATION_TOL)) {
+        return false;
+    }
+    adoptRepivotedSchedule(blockIdx, std::move(*candidate));
+    // The one attempt is spent: a second limit-hit on the adopted order
+    // abandons rather than re-pivoting again.
+    blockScratch_[blockIdx].repivotAttempted = true;
+    return true;
+}
+
+void Engine::adoptRepivotedSchedule(size_t blockIdx, SparseSchedule candidate) {    auto& scratch = blockScratch_[blockIdx];
+    int32_t size = scratch.size;
+    scratch.sparseValues.assign(static_cast<size_t>(candidate.slots), 0.0);
+    scratch.sparseScratchRhs.assign(static_cast<size_t>(size), 0.0);
+    scratch.sparseFactors.assign(static_cast<size_t>(candidate.factorCount), 0.0);
+    scratch.repivotedSchedule = std::move(candidate);
+    scratch.sparseAbandoned = false;
+    scratch.sparseDropped = false;
+    scratch.consecutiveFallbacks = 0;
+    scratch.repivotAttempted = false;
+    // The generated table is keyed to the compiler's schedule; a
+    // re-pivoted order is not in it, so this block runs the
+    // interpreter. That is still the sparse path, not dense.
+    scratch.generatedKernel = nullptr;
+    scratch.canUseSelectiveMatrixCopy = true;
+    repivotedScheduleBlocks_ += 1;
+}
+
 // solve. This is `ReferenceRuntime.settlePivotOrders` in C++; the tolerance,
 // the comparison metric and the drop semantics are identical by construction,
 // so the two consoles keep agreeing on which blocks run sparsely.
@@ -1838,17 +1938,12 @@ void Engine::settlePivotOrders() {
         double disagreement = replayed
             ? std::sqrt(diffSquares) / std::max(denseNorm, 1e-9)
             : std::numeric_limits<double>::infinity();
-        if (disagreement <= SCHEDULE_VALIDATION_TOL) {
-            continue;
-        }
-        // The shipped order failed on the real matrix. Try a value-aware order
-        // over the schedule's own filled pattern before giving the block up:
-        // threshold Markowitz against the same assembled matrix, replayed and
-        // compared to the same dense solve. Adoption needs the same tolerance
-        // the shipped order failed; a refused or still-disagreeing candidate
-        // drops to dense exactly as before.
+        // The value-aware order, computed always now rather than only when
+        // the shipped order fails: threshold Markowitz over the schedule's
+        // own filled pattern, replayed and compared to the same dense solve.
         std::optional<SparseSchedule> candidate =
             computeNumericRepivot(schedule, size, matrix, NUMERIC_REPIVOT_TAU);
+        double candidateDisagreement = std::numeric_limits<double>::infinity();
         if (candidate.has_value()) {
             std::vector<double> candidateValues(static_cast<size_t>(candidate->slots), 0.0);
             std::vector<double> candidateRhs(static_cast<size_t>(size), 0.0);
@@ -1872,26 +1967,35 @@ void Engine::settlePivotOrders() {
                 candidateDenseSquares +=
                     denseOut[static_cast<size_t>(i)] * denseOut[static_cast<size_t>(i)];
             }
-            const double candidateDisagreement = candidateReplayed
+            candidateDisagreement = candidateReplayed
                 ? std::sqrt(candidateDiffSquares) /
                     std::max(std::sqrt(candidateDenseSquares), 1e-9)
                 : std::numeric_limits<double>::infinity();
-            if (candidateDisagreement <= SCHEDULE_VALIDATION_TOL) {
-                scratch.sparseValues.assign(static_cast<size_t>(candidate->slots), 0.0);
-                scratch.sparseScratchRhs.assign(static_cast<size_t>(size), 0.0);
-                scratch.sparseFactors.assign(static_cast<size_t>(candidate->factorCount), 0.0);
-                scratch.repivotedSchedule = std::move(*candidate);
-                scratch.sparseAbandoned = false;
-                scratch.sparseDropped = false;
-                scratch.consecutiveFallbacks = 0;
-                // The generated table is keyed to the compiler's schedule; a
-                // re-pivoted order is not in it, so this block runs the
-                // interpreter. That is still the sparse path, not dense.
-                scratch.generatedKernel = nullptr;
-                scratch.canUseSelectiveMatrixCopy = true;
-                repivotedScheduleBlocks_ += 1;
+        }
+        if (disagreement <= SCHEDULE_VALIDATION_TOL) {
+            // The shipped order validates. Replace it only on a refinement:
+            // the candidate reaches the audio-agreement bar while the shipped
+            // order does not, by an order of magnitude, without meaningful
+            // fill cost. Same predicate as `ReferenceRuntime`'s
+            // `shouldRefinePivotOrder` -- ties keep shipped.
+            if (candidate.has_value() && shouldRefinePivotOrder(
+                    disagreement, candidateDisagreement,
+                    static_cast<double>(schedule.sparseOps),
+                    static_cast<double>(schedule.slots),
+                    static_cast<double>(candidate->sparseOps),
+                    static_cast<double>(candidate->slots))) {
+                adoptRepivotedSchedule(bIdx, std::move(*candidate));
                 continue;
             }
+            continue;
+        }
+        // The shipped order failed on the real matrix. Before giving the
+        // block up, try the value-aware order computed above: adoption needs
+        // the same tolerance the shipped order failed; a refused or
+        // still-disagreeing candidate drops to dense exactly as before.
+        if (candidate.has_value() && candidateDisagreement <= SCHEDULE_VALIDATION_TOL) {
+            adoptRepivotedSchedule(bIdx, std::move(*candidate));
+            continue;
         }
         scratch.sparseAbandoned = true;
         scratch.sparseDropped = true;
@@ -1924,6 +2028,7 @@ void Engine::reset() {
             scratch.sparseAbandoned = false;
             scratch.sparseDropped = false;
             scratch.consecutiveFallbacks = 0;
+            scratch.repivotAttempted = false;
             scratch.canUseSelectiveMatrixCopy = true;
             // A re-pivoted order is a decision made against one operating point;
             // like a drop, it is re-decided against the fresh one rather than
@@ -2456,6 +2561,10 @@ Engine::SolveResult Engine::iterate(
                 // indices; the gather and rhs copy it expects are the interpreter's
                 // own prologue. A false return (pivot floor) leaves `ok` false and
                 // takes the identical dense fallback the interpreter's false does.
+                // The floor passed is the absolute pivot floor: the pivot guard
+                // stays absolute (see `ReferenceRuntime.SCHEDULE_PIVOT_FLOOR`
+                // for the measured reason), and the parameter exists so the
+                // caller's fallback semantics stay identical between the two.
                 const int32_t* __restrict offsets = activeSchedule.gatherOffsets.data();
                 double* __restrict values = scratch.sparseValues.data();
                 for (int32_t slot = 0; slot < activeSchedule.slots; ++slot) {
@@ -2470,7 +2579,8 @@ Engine::SolveResult Engine::iterate(
                     values,
                     scratch.sparseScratchRhs.data(),
                     scratch.sparseFactors.data(),
-                    next
+                    next,
+                    SCHEDULE_PIVOT_FLOOR
                 );
                 if (ok) kernelSolves_++;
             } else {
@@ -2490,13 +2600,36 @@ Engine::SolveResult Engine::iterate(
                 scheduleFallbacks_++;
                 scratch.consecutiveFallbacks++;
                 scratch.canUseSelectiveMatrixCopy = false;
-                if (scratch.consecutiveFallbacks >= SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT) {
-                    scratch.sparseAbandoned = true;
-                }
-                solveDense(scratch.matrix.data(), scratch.rhs.data(), size, scratch.denseRowOrder.data(), next);
-                if (isStandardAudioPass) {
-                    std::memcpy(scratch.matrix.data(), scratch.sampleMatrix.data(), size * size * sizeof(double));
-                    std::memcpy(scratch.rhs.data(), scratch.sampleRhs.data(), size * sizeof(double));
+                if (scratch.consecutiveFallbacks >= SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT &&
+                    !scratch.repivotAttempted) {
+                    // The old shape abandoned here, silently dense for the rest
+                    // of the run after paying for both solvers on every one of
+                    // the 64 trips. Re-pivot once from the current matrix
+                    // instead; only a refused or still-disagreeing re-pivot
+                    // abandons. `solveDense` destroys the matrix and rhs, so
+                    // the re-pivot's inputs are snapshotted first -- once per
+                    // order, on this trip only. Mirrors `ReferenceRuntime`'s
+                    // iterate fallback exactly.
+                    scratch.repivotAttempted = true;
+                    std::vector<double> matrixCopy = scratch.matrix;
+                    std::vector<double> rhsCopy = scratch.rhs;
+                    solveDense(scratch.matrix.data(), scratch.rhs.data(), size, scratch.denseRowOrder.data(), next);
+                    if (isStandardAudioPass) {
+                        std::memcpy(scratch.matrix.data(), scratch.sampleMatrix.data(), size * size * sizeof(double));
+                        std::memcpy(scratch.rhs.data(), scratch.sampleRhs.data(), size * sizeof(double));
+                    }
+                    if (!adoptMidRunRepivot(blockIdx, matrixCopy, rhsCopy, next, size)) {
+                        scratch.sparseAbandoned = true;
+                    }
+                } else {
+                    if (scratch.consecutiveFallbacks >= SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT) {
+                        scratch.sparseAbandoned = true;
+                    }
+                    solveDense(scratch.matrix.data(), scratch.rhs.data(), size, scratch.denseRowOrder.data(), next);
+                    if (isStandardAudioPass) {
+                        std::memcpy(scratch.matrix.data(), scratch.sampleMatrix.data(), size * size * sizeof(double));
+                        std::memcpy(scratch.rhs.data(), scratch.sampleRhs.data(), size * sizeof(double));
+                    }
                 }
             }
         } else {

@@ -1,0 +1,4 @@
+mxr-blue-box: dense chunks=20 warmNC=1013 measNC=200 mean=5.88
+  shipped chunks=20 warmNC=46090 measNC=9600 mean=64.00 agree=1.5e+0
+  [analog:0] tau=0.01: chunks=20 warmNC=1024 measNC=200 mean=5.88 agree=1.0e-8 slots 192->192
+  [analog:0] tau=0.001: chunks=20 warmNC=1024 measNC=200 mean=5.88 agree=1.0e-8 slots 192->192

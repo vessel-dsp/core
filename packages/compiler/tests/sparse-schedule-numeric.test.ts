@@ -1,6 +1,21 @@
+// Value-aware schedule construction (`computeNumericRepivot`).
+//
+// The compiler owns order construction -- pattern-based (`computeSparseSchedule`)
+// and value-based (here). These are the builder-level controls for the numeric
+// pivoting work: a synthetic matrix with a known tiny diagonal and a known-good
+// alternative must pivot away from the tiny entry; a matrix where every
+// candidate is tiny must refuse (`null`) rather than divide silently; the
+// choice must be deterministic; and the emitted order must replay to the dense
+// solution on a well-conditioned matrix. End-to-end corpus behaviour (adoption,
+// audio agreement) is pinned by the runtime's settle tests and the
+// `docs/spikes/2026-10-08-numeric-pivoting.md` instruments, not here.
+
 import { describe, expect, it } from "bun:test";
-import type { SparseSchedule } from "@vessel-dsp/compiler";
-import { NUMERIC_REPIVOT_TAU, computeNumericRepivot } from "../src/numeric-pivot";
+import {
+	NUMERIC_REPIVOT_TAU,
+	computeNumericRepivot,
+} from "../src/sparse-schedule";
+import type { SparseSchedule } from "../src/types";
 
 function patternSchedule(size: number, pattern: readonly number[]): SparseSchedule {
 	const gatherRow: number[] = [];
@@ -164,6 +179,30 @@ describe("numeric re-pivot", () => {
 			[0, 0],
 		];
 		expect(computeNumericRepivot(schedule, size, matrix)).toBeNull();
+	});
+
+	it("returns null at tau 0 only when a column is empty, and otherwise orders plainly", () => {
+		// tau = 0 keeps every nonzero column eligible: a full matrix still
+		// orders (the old pattern-only behaviour), while an empty column --
+		// nothing to pivot on at any threshold -- refuses.
+		const size = 3;
+		const full = patternSchedule(
+			size,
+			Array.from({ length: size * size }, (_, index) => index),
+		);
+		const matrix = [
+			[1e-12, 1, 0],
+			[1, 2, 1],
+			[0, 1, 3],
+		];
+		expect(computeNumericRepivot(full, size, matrix, 0)).not.toBeNull();
+		const empty: number[][] = [
+			[0, 0],
+			[0, 0],
+		];
+		expect(
+			computeNumericRepivot(patternSchedule(2, [0, 1, 2, 3]), 2, empty, 0),
+		).toBeNull();
 	});
 
 	it("replays to the dense solution on a well-conditioned matrix", () => {

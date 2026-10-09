@@ -61,7 +61,7 @@ function fingerprint(schedule: SparseSchedule): number {
 function emitKernel(name: string, schedule: SparseSchedule): string {
 	const lines: string[] = [];
 	lines.push(
-		`static bool ${name}(double* __restrict v, double* __restrict rhs, double* __restrict f, double* __restrict x) {`,
+		`static bool ${name}(double* __restrict v, double* __restrict rhs, double* __restrict f, double* __restrict x, double pivotFloor) {`,
 	);
 	lines.push("    double acc = 0.0;");
 	const ops = schedule.ops;
@@ -90,7 +90,7 @@ function emitKernel(name: string, schedule: SparseSchedule): string {
 				lines.push(`    x[${a}] = acc / v[${b}];`);
 				break;
 			case 6:
-				lines.push(`    if (__builtin_expect(std::abs(v[${a}]) < 1e-18, 0)) return false;`);
+				lines.push(`    if (__builtin_expect(std::abs(v[${a}]) < pivotFloor, 0)) return false;`);
 				break;
 			default:
 				throw new Error(`unknown schedule opcode ${op}`);

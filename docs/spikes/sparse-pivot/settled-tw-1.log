@@ -1,0 +1,5 @@
+boss-tw-1: dense chunks=2 warmNC=724 measNC=0 mean=3.00
+  shipped chunks=2 warmNC=588 measNC=0 mean=3.00 agree=6.2e-3
+  [analog:0] tau=0.01: chunks=2 warmNC=594 measNC=0 mean=3.00 agree=8.0e-3 slots 305->315
+  [analog:0] tau=0.001: chunks=2 warmNC=594 measNC=0 mean=3.00 agree=8.0e-3 slots 305->315
+  [analog:0] tau=0.0001: chunks=2 warmNC=598 measNC=0 mean=3.00 agree=2.5e-3 slots 305->315

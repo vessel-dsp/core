@@ -1,0 +1,11 @@
+=== hiwatt-dr103: settled=[] sparseBlocks=[analog:0:n=79]
+  shipped-noskip agree=6.3e-2 meanIter=4.54 nonConv=25 warmNC=0 fb=0/50336
+  [analog:0 n=79] tau=0.3: agree=7.4e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50559 slots 479->497 ops 916->1079 ms=1072
+  [analog:0 n=79] tau=0.1: agree=7.4e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50559 slots 479->497 ops 916->1078 ms=1037
+  [analog:0 n=79] tau=0.03: agree=6.8e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50535 slots 479->480 ops 916->921 ms=978
+  [analog:0 n=79] tau=0.01: agree=6.8e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50535 slots 479->480 ops 916->921 ms=1005
+  [analog:0 n=79] tau=0.003: agree=6.8e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50535 slots 479->480 ops 916->921 ms=1108
+  [analog:0 n=79] tau=0.001: agree=6.8e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50535 slots 479->480 ops 916->921 ms=984
+  [analog:0 n=79] tau=0.0003: agree=6.8e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50535 slots 479->480 ops 916->921 ms=1014
+  [analog:0 n=79] tau=0.0001: agree=6.8e-2 meanIter=4.56 nonConv=25 warmNC=0 fb=0/50535 slots 479->480 ops 916->921 ms=1001
+  [analog:0 n=79] tau=0: agree=0.0e+0 meanIter=4.55 nonConv=30 warmNC=0 fb=65/65 slots 479->479 ops 916->916 ms=13078

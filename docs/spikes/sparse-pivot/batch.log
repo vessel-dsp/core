@@ -1,0 +1,91 @@
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-ch-1
+boss-ch-1: cached 27368ms nonConv=0 peak=11
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-dd-3a
+boss-dd-3a: cached 76ms nonConv=0 peak=2
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-dd-3b
+boss-dd-3b: cached 1931ms nonConv=34 peak=64
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-ds-2
+boss-ds-2: cached 5231ms nonConv=0 peak=3
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-lm-2
+boss-lm-2: cached 4988ms nonConv=0 peak=4
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-mt-2
+boss-mt-2: cached 11886ms nonConv=29 peak=64
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-od-3
+boss-od-3: cached 2136ms nonConv=0 peak=3
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-os-2
+boss-os-2: cached 5584ms nonConv=0 peak=30
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=boss-sd-1
+boss-sd-1: cached 1842ms nonConv=0 peak=13
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=electro-harmonix-small-stone
+electro-harmonix-small-stone: cached 596ms nonConv=0 peak=2
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=ibanez-ts9-reissue
+ibanez-ts9-reissue: cached 1533ms nonConv=0 peak=7
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=jhs-morning-glory
+jhs-morning-glory: cached 448ms nonConv=0 peak=4
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --packet=marshall-blues-breaker
+marshall-blues-breaker: cached 552ms nonConv=0 peak=4
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --amps --packet=dumble-overdrive-special
+dumble-overdrive-special: cached 3508ms nonConv=95 peak=64
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --amps --packet=marshall-1959-super-lead-plexi
+marshall-1959-super-lead-plexi: cached 47593ms nonConv=6000 peak=64
+$ bun docs/spikes/sparse-pivot/tau-cache-dense.ts --amps --packet=trainwreck-express
+trainwreck-express: cached 2106ms nonConv=0 peak=10
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-aw-2 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-aw-2.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-ch-1 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-ch-1.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-dd-3a --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-dd-3a.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-dd-3b --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-dd-3b.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-ds-2 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-ds-2.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-hm-2 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-hm-2.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-lm-2 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-lm-2.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-mt-2 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-mt-2.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-od-3 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-od-3.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-os-2 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-os-2.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-sd-1 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-sd-1.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=boss-tw-1 --min-size=30 > docs/spikes/sparse-pivot/sweep-boss-tw-1.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=electro-harmonix-small-stone --min-size=30 > docs/spikes/sparse-pivot/sweep-electro-harmonix-small-stone.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --packet=mxr-blue-box --min-size=30 > docs/spikes/sparse-pivot/sweep-mxr-blue-box.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --amps --packet=dumble-overdrive-special --min-size=30 > docs/spikes/sparse-pivot/sweep-dumble-overdrive-special.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --amps --packet=hiwatt-dr103 --min-size=30 > docs/spikes/sparse-pivot/sweep-hiwatt-dr103.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --amps --packet=marshall-1959-super-lead-plexi --min-size=30 > docs/spikes/sparse-pivot/sweep-marshall-1959-super-lead-plexi.log 2>&1
+$ bun docs/spikes/sparse-pivot/tau-sweep2.ts --amps --packet=trainwreck-express --min-size=30 > docs/spikes/sparse-pivot/sweep-trainwreck-express.log 2>&1
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-aw-2
+boss-aw-2: dense64-vs-dense1024=1.0e+0 cap64[nonConv=0 warmNC=4 mean=4.00] cap1024[nonConv=0 warmNC=0 mean=4.00]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-ch-1
+boss-ch-1: dense64-vs-dense1024=2.3e-2 cap64[nonConv=0 warmNC=0 mean=4.48] cap1024[nonConv=0 warmNC=0 mean=4.48]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-dd-3a
+boss-dd-3a: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=1.00] cap1024[nonConv=0 warmNC=0 mean=1.00]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-dd-3b
+boss-dd-3b: dense64-vs-dense1024=2.3e-7 cap64[nonConv=0 warmNC=34 mean=3.00] cap1024[nonConv=0 warmNC=0 mean=3.00]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-ds-2
+boss-ds-2: dense64-vs-dense1024=3.0e-8 cap64[nonConv=0 warmNC=0 mean=2.36] cap1024[nonConv=0 warmNC=0 mean=2.36]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-hm-2
+boss-hm-2: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=5.16] cap1024[nonConv=0 warmNC=0 mean=5.16]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-lm-2
+boss-lm-2: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=3.87] cap1024[nonConv=0 warmNC=0 mean=3.87]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-mt-2
+boss-mt-2: dense64-vs-dense1024=1.4e-2 cap64[nonConv=26 warmNC=3 mean=4.12] cap1024[nonConv=2 warmNC=3 mean=4.18]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-od-3
+boss-od-3: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=3.00] cap1024[nonConv=0 warmNC=0 mean=3.00]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-os-2
+boss-os-2: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=3.60] cap1024[nonConv=0 warmNC=0 mean=3.60]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-sd-1
+boss-sd-1: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=3.02] cap1024[nonConv=0 warmNC=0 mean=3.02]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-tw-1
+boss-tw-1: dense64-vs-dense1024=1.0e+0 cap64[nonConv=0 warmNC=724 mean=3.00] cap1024[nonConv=1917 warmNC=20 mean=303.12]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=electro-harmonix-small-stone
+electro-harmonix-small-stone: dense64-vs-dense1024=1.1e-8 cap64[nonConv=0 warmNC=0 mean=2.00] cap1024[nonConv=0 warmNC=0 mean=2.00]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=mxr-blue-box
+mxr-blue-box: dense64-vs-dense1024=1.8e-2 cap64[nonConv=197 warmNC=75 mean=6.11] cap1024[nonConv=0 warmNC=0 mean=6.60]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --packet=boss-tr-2
+boss-tr-2: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=2.00] cap1024[nonConv=0 warmNC=0 mean=2.00]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --amps --packet=dumble-overdrive-special
+dumble-overdrive-special: dense64-vs-dense1024=8.8e-1 cap64[nonConv=73 warmNC=22 mean=4.04] cap1024[nonConv=0 warmNC=0 mean=3.81]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --amps --packet=hiwatt-dr103
+hiwatt-dr103: dense64-vs-dense1024=1.2e-1 cap64[nonConv=30 warmNC=0 mean=4.55] cap1024[nonConv=0 warmNC=0 mean=4.56]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --amps --packet=marshall-1959-super-lead-plexi
+marshall-1959-super-lead-plexi: dense64-vs-dense1024=2.4e-2 cap64[nonConv=5346 warmNC=654 mean=45.12] cap1024[nonConv=953 warmNC=654 mean=197.44]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --amps --packet=trainwreck-express
+trainwreck-express: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=2.59] cap1024[nonConv=0 warmNC=0 mean=2.59]
+$ bun docs/spikes/sparse-pivot/dense-cap-probe.ts --amps --packet=marshall-jcm800
+marshall-jcm800: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 warmNC=0 mean=3.08] cap1024[nonConv=0 warmNC=0 mean=3.08]
+batch complete

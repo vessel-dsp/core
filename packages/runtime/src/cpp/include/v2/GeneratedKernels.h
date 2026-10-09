@@ -10,11 +10,14 @@ namespace vessel_dsp::v2 {
  *
  * Arguments are the schedule replay buffers after the gather: `values` (one per
  * schedule slot, gathered from the block matrix), `scratchRhs`, `factors`, and
- * the output vector. The function performs the same ops in the same order as
- * the interpreted `runSparseSchedule` and returns false only where that does
- * (a pivot below the floor), so the caller's dense fallback is unchanged.
+ * the output vector, plus the pivot floor for this solve (currently the
+ * absolute pivot floor; the parameter keeps the kernel's fallback semantics
+ * identical to the interpreter's whatever floor the caller passes). The
+ * function performs the same ops in the same order as the interpreted
+ * `runSparseSchedule` and returns false only where that does (a pivot below
+ * the floor), so the caller's dense fallback is unchanged.
  */
-typedef bool (*V2GeneratedKernelFn)(double* values, double* scratchRhs, double* factors, double* out);
+typedef bool (*V2GeneratedKernelFn)(double* values, double* scratchRhs, double* factors, double* out, double pivotFloor);
 
 struct V2GeneratedKernelEntry {
     uint32_t fingerprint;

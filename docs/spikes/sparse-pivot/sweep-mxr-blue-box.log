@@ -1,0 +1,11 @@
+=== mxr-blue-box: settled=[] sparseBlocks=[analog:0:n=34]
+  shipped-noskip agree=1.5e+0 meanIter=64.00 nonConv=9600 warmNC=490 fb=15/655245
+  [analog:0 n=34] tau=0.3: agree=1.3e+0 meanIter=51.53 nonConv=7568 warmNC=106 fb=153/400 slots 192->194 ops 315->321 ms=17940
+  [analog:0 n=34] tau=0.1: agree=7.6e-2 meanIter=6.11 nonConv=142 warmNC=24 fb=153/398 slots 192->194 ops 315->319 ms=1988
+  [analog:0 n=34] tau=0.03: agree=7.6e-2 meanIter=6.11 nonConv=142 warmNC=24 fb=153/398 slots 192->194 ops 315->319 ms=1875
+  [analog:0 n=34] tau=0.01: agree=1.8e-2 meanIter=5.90 nonConv=200 warmNC=74 fb=15/73299 slots 192->192 ops 315->313 ms=543
+  [analog:0 n=34] tau=0.003: agree=1.8e-2 meanIter=5.90 nonConv=200 warmNC=74 fb=15/73299 slots 192->192 ops 315->313 ms=594
+  [analog:0 n=34] tau=0.001: agree=1.8e-2 meanIter=5.90 nonConv=200 warmNC=74 fb=15/73299 slots 192->192 ops 315->313 ms=510
+  [analog:0 n=34] tau=0.0003: agree=1.3e+0 meanIter=64.00 nonConv=9600 warmNC=1361 fb=3/706870 slots 192->192 ops 315->313 ms=6656
+  [analog:0 n=34] tau=0.0001: agree=1.8e-2 meanIter=5.91 nonConv=200 warmNC=78 fb=11/73080 slots 192->192 ops 315->313 ms=592
+  [analog:0 n=34] tau=0: refused(null)
