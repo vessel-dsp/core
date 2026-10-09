@@ -1,0 +1,3 @@
+boss-aw-2 warmup=48000: dense rendered warmNC=4 nonConv=0
+  [analog:0] tau=0.1: agree=1.8e-4 meanIter=4.00 nonConv=0 warmNC=1
+  [analog:0] tau=0.001: agree=1.8e-4 meanIter=4.00 nonConv=0 warmNC=1

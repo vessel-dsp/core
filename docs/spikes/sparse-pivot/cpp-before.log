@@ -1,0 +1,44 @@
+boss-aw-2: cpp-vs-tsSparse=1.8e-4 cpp-vs-tsDense=1.9e-4 tsSparse-vs-tsDense=1.7e-4
+  tsMs=1846 cppMs=607 tsxRT=9.23 cppxRT=3.04
+  cppTele solves=48765 fb=0 kernel=0 repiv=1 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/boss-aw-2.*.f64
+boss-tr-2: cpp-vs-tsSparse=3.5e-8 cpp-vs-tsDense=3.5e-8 tsSparse-vs-tsDense=5.4e-10
+  tsMs=698 cppMs=77 tsxRT=3.49 cppxRT=0.38
+  cppTele solves=24000 fb=0 kernel=24000 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/boss-tr-2.*.f64
+boss-hm-2: cpp-vs-tsSparse=1.1e-7 cpp-vs-tsDense=1.1e-7 tsSparse-vs-tsDense=5.8e-9
+  tsMs=1547 cppMs=247 tsxRT=7.73 cppxRT=1.24
+  cppTele solves=62686 fb=0 kernel=62686 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/boss-hm-2.*.f64
+hiwatt-dr103: cpp-vs-tsSparse=6.1e-2 cpp-vs-tsDense=5.7e-2 tsSparse-vs-tsDense=6.3e-2
+  tsMs=1553 cppMs=190 tsxRT=7.77 cppxRT=0.95
+  cppTele solves=50326 fb=0 kernel=50326 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/hiwatt-dr103.*.f64
+marshall-jcm800: cpp-vs-tsSparse=9.3e-2 cpp-vs-tsDense=9.3e-2 tsSparse-vs-tsDense=3.2e-8
+  tsMs=694 cppMs=112 tsxRT=3.47 cppxRT=0.56
+  cppTele solves=35793 fb=0 kernel=35793 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/marshall-jcm800.*.f64
+trainwreck-express: cpp-vs-tsSparse=2.9e-8 cpp-vs-tsDense=3.9e-8 tsSparse-vs-tsDense=2.6e-8
+  tsMs=535 cppMs=87 tsxRT=2.67 cppxRT=0.44
+  cppTele solves=30956 fb=0 kernel=30956 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/trainwreck-express.*.f64
+orange-gro100: cpp-vs-tsSparse=2.5e-8 cpp-vs-tsDense=2.5e-8 tsSparse-vs-tsDense=0.0e+0
+  tsMs=1737 cppMs=346 tsxRT=8.68 cppxRT=1.73
+  cppTele solves=0 fb=0 kernel=0 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/orange-gro100.*.f64
+orange-rockerverb: cpp-vs-tsSparse=2.2e-2 cpp-vs-tsDense=2.2e-2 tsSparse-vs-tsDense=3.8e-12
+  tsMs=871 cppMs=164 tsxRT=4.36 cppxRT=0.82
+  cppTele solves=32137 fb=0 kernel=32137 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/orange-rockerverb.*.f64
+sunn-beta-lead: cpp-vs-tsSparse=2.3e-8 cpp-vs-tsDense=2.3e-8 tsSparse-vs-tsDense=1.3e-10
+  tsMs=1541 cppMs=189 tsxRT=7.70 cppxRT=0.94
+  cppTele solves=43012 fb=0 kernel=43012 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/sunn-beta-lead.*.f64
+fender-twin-reverb: cpp-vs-tsSparse=2.6e-8 cpp-vs-tsDense=2.6e-8 tsSparse-vs-tsDense=8.5e-10
+  tsMs=527 cppMs=115 tsxRT=2.63 cppxRT=0.57
+  cppTele solves=28817 fb=0 kernel=28817 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/fender-twin-reverb.*.f64
+peavey-5150: cpp-vs-tsSparse=2.8e-8 cpp-vs-tsDense=2.8e-8 tsSparse-vs-tsDense=4.3e-11
+  tsMs=999 cppMs=250 tsxRT=5.00 cppxRT=1.25
+  cppTele solves=46401 fb=0 kernel=46401 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/peavey-5150.*.f64

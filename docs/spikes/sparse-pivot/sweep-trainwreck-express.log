@@ -1,0 +1,11 @@
+=== trainwreck-express: settled=[] sparseBlocks=[analog:0:n=65]
+  shipped-noskip agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956
+  [analog:0 n=65] tau=0.3: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->417 ops 789->925 ms=608
+  [analog:0 n=65] tau=0.1: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->410 ops 789->818 ms=499
+  [analog:0 n=65] tau=0.03: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->400 ops 789->789 ms=530
+  [analog:0 n=65] tau=0.01: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->400 ops 789->789 ms=556
+  [analog:0 n=65] tau=0.003: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->400 ops 789->789 ms=558
+  [analog:0 n=65] tau=0.001: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->400 ops 789->789 ms=502
+  [analog:0 n=65] tau=0.0003: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->400 ops 789->789 ms=438
+  [analog:0 n=65] tau=0.0001: agree=2.6e-8 meanIter=2.59 nonConv=0 warmNC=0 fb=0/30956 slots 400->400 ops 789->789 ms=435
+  [analog:0 n=65] tau=0: refused(null)

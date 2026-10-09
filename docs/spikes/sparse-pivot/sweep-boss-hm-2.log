@@ -1,0 +1,11 @@
+=== boss-hm-2: settled=[] sparseBlocks=[analog:0:n=75]
+  shipped-noskip agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679
+  [analog:0 n=75] tau=0.3: agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->605 ops 1118->1559 ms=1639
+  [analog:0 n=75] tau=0.1: agree=6.1e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->591 ops 1118->1434 ms=1783
+  [analog:0 n=75] tau=0.03: agree=6.4e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->585 ops 1118->1398 ms=1597
+  [analog:0 n=75] tau=0.01: agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->565 ops 1118->1317 ms=1601
+  [analog:0 n=75] tau=0.003: agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->565 ops 1118->1317 ms=1614
+  [analog:0 n=75] tau=0.001: agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->565 ops 1118->1317 ms=1597
+  [analog:0 n=75] tau=0.0003: agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->559 ops 1118->1293 ms=1457
+  [analog:0 n=75] tau=0.0001: agree=5.8e-9 meanIter=5.16 nonConv=0 warmNC=0 fb=0/62679 slots 513->559 ops 1118->1293 ms=1520
+  [analog:0 n=75] tau=0: agree=0.0e+0 meanIter=5.16 nonConv=0 warmNC=0 fb=65/65 slots 513->513 ops 1118->1118 ms=10187

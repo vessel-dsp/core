@@ -1,0 +1,11 @@
+=== electro-harmonix-small-stone: settled=[] sparseBlocks=[analog:0:n=40]
+  shipped-noskip agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000
+  [analog:0 n=40] tau=0.3: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->233 ops 449->452 ms=217
+  [analog:0 n=40] tau=0.1: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->233 ops 449->452 ms=194
+  [analog:0 n=40] tau=0.03: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->233 ops 449->452 ms=173
+  [analog:0 n=40] tau=0.01: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->232 ops 449->449 ms=179
+  [analog:0 n=40] tau=0.003: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->232 ops 449->449 ms=174
+  [analog:0 n=40] tau=0.001: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->232 ops 449->449 ms=167
+  [analog:0 n=40] tau=0.0003: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->232 ops 449->449 ms=163
+  [analog:0 n=40] tau=0.0001: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->232 ops 449->449 ms=162
+  [analog:0 n=40] tau=0: agree=1.5e-6 meanIter=2.00 nonConv=0 warmNC=0 fb=0/24000 slots 232->232 ops 449->449 ms=206

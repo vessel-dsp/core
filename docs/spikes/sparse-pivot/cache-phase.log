@@ -1,0 +1,5 @@
+mxr-phase-90-early-block: cached 1058ms nonConv=0 peak=4
+mxr-phase-90: cached 1239ms nonConv=0 peak=3
+mxr-phase-45: cached 754ms nonConv=0 peak=4
+mxr-phase-90-script: cached 742ms nonConv=0 peak=3
+mxr-distortion-plus: cached 100ms nonConv=0 peak=15

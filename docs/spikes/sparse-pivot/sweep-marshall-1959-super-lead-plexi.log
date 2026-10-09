@@ -1,0 +1,11 @@
+=== marshall-1959-super-lead-plexi: settled=[] sparseBlocks=[analog:0:n=62]
+  shipped-noskip agree=2.4e-2 meanIter=9.62 nonConv=948 warmNC=654 fb=0/144419
+  [analog:0 n=62] tau=0.3: agree=4.7e-1 meanIter=45.32 nonConv=5455 warmNC=666 fb=8778/9857 slots 348->378 ops 610->786 ms=80160
+  [analog:0 n=62] tau=0.1: agree=1.8e-2 meanIter=45.28 nonConv=5440 warmNC=654 fb=66/71 slots 348->353 ops 610->631 ms=80860
+  [analog:0 n=62] tau=0.03: agree=2.8e-2 meanIter=45.12 nonConv=5361 warmNC=664 fb=772/6395 slots 348->352 ops 610->626 ms=78380
+  [analog:0 n=62] tau=0.01: agree=2.4e-2 meanIter=9.62 nonConv=948 warmNC=654 fb=0/144454 slots 348->348 ops 610->610 ms=1703
+  [analog:0 n=62] tau=0.003: agree=2.4e-2 meanIter=9.62 nonConv=948 warmNC=654 fb=0/144454 slots 348->348 ops 610->610 ms=1757
+  [analog:0 n=62] tau=0.001: agree=2.4e-2 meanIter=9.62 nonConv=948 warmNC=654 fb=0/144454 slots 348->348 ops 610->610 ms=1765
+  [analog:0 n=62] tau=0.0003: agree=2.4e-2 meanIter=9.62 nonConv=948 warmNC=654 fb=0/144436 slots 348->348 ops 610->610 ms=1824
+  [analog:0 n=62] tau=0.0001: agree=2.4e-2 meanIter=9.62 nonConv=948 warmNC=654 fb=0/144436 slots 348->348 ops 610->610 ms=1761
+  [analog:0 n=62] tau=0: refused(null)

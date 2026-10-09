@@ -106,6 +106,15 @@ struct BlockScratch {
      */
     std::optional<SparseSchedule> repivotedSchedule;
     int32_t consecutiveFallbacks = 0;
+    /**
+     * Whether the mid-run re-pivot has already spent its one attempt on this
+     * order. Set when the consecutive-trip limit is reached: the first
+     * limit-hit re-pivots once from the current matrix instead of abandoning,
+     * and only a second limit-hit on the same order abandons. Fresh orders
+     * (admitted or adopted at settle) start false. Mirrors
+     * `ReferenceRuntime`'s schedule entry of the same name.
+     */
+    bool repivotAttempted = false;
     bool sparseAbandoned = false;
     /**
      * Set by `settlePivotOrders()` when the shipped order disagrees with the
@@ -428,6 +437,18 @@ private:
     // keep the tolerance, the comparison metric and the drop semantics
     // identical in both.
     void settlePivotOrders();
+    // Installs a value-aware replacement order for a block, from settle or
+    // from the mid-run re-pivot, with one shared bookkeeping shape. Mirrors
+    // `ReferenceRuntime.adoptRepivotedSchedule`.
+    void adoptRepivotedSchedule(size_t blockIdx, SparseSchedule candidate);
+    // Re-pivots once from the current matrix at the consecutive-trip limit.
+    // Mirrors `ReferenceRuntime.adoptMidRunRepivot`.
+    bool adoptMidRunRepivot(
+        size_t blockIdx,
+        const std::vector<double>& matrix,
+        const std::vector<double>& rhs,
+        const double* denseAnswer,
+        int32_t size);
     std::vector<double> solveByGminStepping(size_t blockIdx, double dt, std::vector<double>& state, int32_t size);
     std::vector<double> solveBySourceStepping(size_t blockIdx, double dt, std::vector<double>& state, int32_t size);
     double processMnaBlock(size_t blockIdx, double inputSample);

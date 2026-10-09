@@ -1,0 +1,9 @@
+boss-od-1                          compile=ok           n= 41 relRms= 1.8e-10 sNC=    0/9600 dNC=    0 wNC=0/0 sMean=  2.2 dMean=  2.2 sxRT=  1.28 fb=0/26029 drop=[] repiv=[] aband=[] 
+boss-rv-5                          compile=ok           n= 16 relRms=  0.0e+0 sNC=    0/9600 dNC=    0 wNC=0/0 sMean=  1.0 dMean=  1.0 sxRT=  0.07 fb=0/0 drop=[] repiv=[] aband=[] 
+
+wrote 2 rows to docs/spikes/sparse-pivot/rerun-floor-pedals.jsonl
+fender-5e3-deluxe-tweed            compile=ok           n= 48 relRms= 1.2e-10 sNC=    0/9600 dNC=    0 wNC=0/0 sMean=  2.9 dMean=  2.9 sxRT=  1.44 fb=0/34699 drop=[] repiv=[] aband=[] 
+trainwreck-express                 compile=ok           n= 65 relRms=  2.6e-8 sNC=    0/9600 dNC=    0 wNC=0/0 sMean=  2.6 dMean=  2.6 sxRT=  2.78 fb=0/30956 drop=[] repiv=[] aband=[] 
+vox-ac15-top-boost                 compile=ok           n= 66 relRms=  1.1e-9 sNC=    0/9600 dNC=    0 wNC=0/0 sMean=  3.1 dMean=  3.1 sxRT=  3.06 fb=0/36280 drop=[] repiv=[] aband=[] 
+
+wrote 3 rows to docs/spikes/sparse-pivot/rerun-floor-amps.jsonl

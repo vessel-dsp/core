@@ -1,0 +1,8 @@
+boss-ch-1: dense64-vs-dense1024=2.3e-2 cap64[nonConv=0 stall=0 flag=0 peak=11 warmNC=0 mean=4.48] cap1024[nonConv=0 stall=0 flag=0 peak=11 warmNC=0 mean=4.48]
+boss-ds-2: dense64-vs-dense1024=3.0e-8 cap64[nonConv=0 stall=0 flag=0 peak=3 warmNC=0 mean=2.36] cap1024[nonConv=0 stall=0 flag=0 peak=3 warmNC=0 mean=2.36]
+trainwreck-express: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 stall=0 flag=0 peak=10 warmNC=0 mean=2.59] cap1024[nonConv=0 stall=0 flag=0 peak=10 warmNC=0 mean=2.59]
+mxr-phase-90: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 stall=0 flag=0 peak=3 warmNC=0 mean=3.00] cap1024[nonConv=0 stall=0 flag=0 peak=3 warmNC=0 mean=3.00]
+mxr-phase-90-early-block: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 stall=0 flag=0 peak=4 warmNC=0 mean=4.00] cap1024[nonConv=0 stall=0 flag=0 peak=4 warmNC=0 mean=4.00]
+mxr-phase-45: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 stall=0 flag=0 peak=4 warmNC=0 mean=4.00] cap1024[nonConv=0 stall=0 flag=0 peak=4 warmNC=0 mean=4.00]
+mxr-phase-90-script: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 stall=0 flag=0 peak=3 warmNC=0 mean=3.00] cap1024[nonConv=0 stall=0 flag=0 peak=3 warmNC=0 mean=3.00]
+mxr-distortion-plus: dense64-vs-dense1024=0.0e+0 cap64[nonConv=0 stall=0 flag=0 peak=15 warmNC=0 mean=2.65] cap1024[nonConv=0 stall=0 flag=0 peak=15 warmNC=0 mean=2.65]

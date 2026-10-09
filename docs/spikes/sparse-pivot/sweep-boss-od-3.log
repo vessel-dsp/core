@@ -1,0 +1,11 @@
+=== boss-od-3: settled=[] sparseBlocks=[analog:0:n=57]
+  shipped-noskip agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000
+  [analog:0 n=57] tau=0.3: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->397 ops 690->871 ms=702
+  [analog:0 n=57] tau=0.1: agree=5.3e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->372 ops 690->732 ms=646
+  [analog:0 n=57] tau=0.03: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->359 ops 690->692 ms=860
+  [analog:0 n=57] tau=0.01: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->359 ops 690->692 ms=634
+  [analog:0 n=57] tau=0.003: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->359 ops 690->692 ms=536
+  [analog:0 n=57] tau=0.001: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->358 ops 690->690 ms=545
+  [analog:0 n=57] tau=0.0003: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->358 ops 690->690 ms=681
+  [analog:0 n=57] tau=0.0001: agree=5.4e-8 meanIter=3.00 nonConv=0 warmNC=0 fb=0/36000 slots 358->358 ops 690->690 ms=589
+  [analog:0 n=57] tau=0: agree=0.0e+0 meanIter=3.00 nonConv=0 warmNC=0 fb=66/66 slots 358->358 ops 690->690 ms=4349

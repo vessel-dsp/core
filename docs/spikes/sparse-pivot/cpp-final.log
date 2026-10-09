@@ -1,0 +1,16 @@
+boss-sd-1: cpp-vs-tsSparse=7.4e-8 cpp-vs-tsDense=7.4e-8 tsSparse-vs-tsDense=6.5e-12
+  tsMs=513 cppMs=83 tsxRT=2.57 cppxRT=0.42
+  cppTele solves=36285 fb=0 kernel=36285 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-final/boss-sd-1.*.f64
+boss-od-1: cpp-vs-tsSparse=2.6e-8 cpp-vs-tsDense=2.6e-8 tsSparse-vs-tsDense=1.8e-10
+  tsMs=287 cppMs=60 tsxRT=1.43 cppxRT=0.30
+  cppTele solves=26029 fb=0 kernel=26029 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-final/boss-od-1.*.f64
+hiwatt-dr103: cpp-vs-tsSparse=6.1e-2 cpp-vs-tsDense=5.7e-2 tsSparse-vs-tsDense=6.3e-2
+  tsMs=1234 cppMs=175 tsxRT=6.17 cppxRT=0.87
+  cppTele solves=50326 fb=0 kernel=50326 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-final/hiwatt-dr103.*.f64
+trainwreck-express: cpp-vs-tsSparse=2.9e-8 cpp-vs-tsDense=3.9e-8 tsSparse-vs-tsDense=2.6e-8
+  tsMs=579 cppMs=110 tsxRT=2.90 cppxRT=0.55
+  cppTele solves=30956 fb=0 kernel=30956 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-final/trainwreck-express.*.f64

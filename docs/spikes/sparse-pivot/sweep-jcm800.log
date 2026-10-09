@@ -1,0 +1,11 @@
+=== marshall-jcm800: settled=[] sparseBlocks=[analog:0:n=80]
+  shipped-noskip agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35898
+  [analog:0 n=80] tau=0.3: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35991 slots 444->469 ops 757->932 ms=588
+  [analog:0 n=80] tau=0.1: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=559
+  [analog:0 n=80] tau=0.03: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=579
+  [analog:0 n=80] tau=0.01: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=596
+  [analog:0 n=80] tau=0.003: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=638
+  [analog:0 n=80] tau=0.001: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=600
+  [analog:0 n=80] tau=0.0003: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=573
+  [analog:0 n=80] tau=0.0001: agree=3.2e-8 meanIter=3.09 nonConv=0 warmNC=0 fb=0/35978 slots 444->450 ops 757->783 ms=611
+  [analog:0 n=80] tau=0: agree=0.0e+0 meanIter=3.08 nonConv=0 warmNC=0 fb=64/64 slots 444->444 ops 757->758 ms=9572

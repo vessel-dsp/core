@@ -1,0 +1,11 @@
+=== boss-os-2: settled=[] sparseBlocks=[analog:0:n=70]
+  shipped-noskip agree=2.6e-6 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43163
+  [analog:0 n=70] tau=0.3: agree=3.6e-6 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->542 ops 995->1317 ms=1079
+  [analog:0 n=70] tau=0.1: agree=5.3e-7 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->521 ops 995->1172 ms=968
+  [analog:0 n=70] tau=0.03: agree=2.8e-9 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->508 ops 995->1128 ms=961
+  [analog:0 n=70] tau=0.01: agree=2.8e-9 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->508 ops 995->1128 ms=974
+  [analog:0 n=70] tau=0.003: agree=2.8e-9 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->508 ops 995->1128 ms=923
+  [analog:0 n=70] tau=0.001: agree=2.8e-9 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->508 ops 995->1128 ms=993
+  [analog:0 n=70] tau=0.0003: agree=2.8e-9 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->508 ops 995->1128 ms=1086
+  [analog:0 n=70] tau=0.0001: agree=2.8e-9 meanIter=3.60 nonConv=0 warmNC=0 fb=0/43162 slots 475->508 ops 995->1128 ms=1001
+  [analog:0 n=70] tau=0: refused(null)

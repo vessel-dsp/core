@@ -1,0 +1,13 @@
+46 | export function loadProgram(packet: string, amps: boolean): Program {
+47 | 	const dir = amps ? join(ARTIFACT_CORPUS, "amps") : ARTIFACT_CORPUS;
+48 | 	const result = compile(readFileSync(join(dir, `${packet}.vdsp`), "utf8"), {
+49 | 		registry: pedalPartCatalog,
+50 | 	});
+51 | 	if (result.status !== "ok") throw new Error(`compile ${result.status}`);
+                                            ^
+error: compile unsupported
+      at loadProgram (/home/joseph/projects/VesselDSP/core/sparse-numeric-pivot/docs/spikes/sparse-pivot/lib.ts:51:40)
+      at /home/joseph/projects/VesselDSP/core/sparse-numeric-pivot/docs/spikes/sparse-pivot/op-census.ts:24:18
+
+Bun v1.3.14 (Linux x64)
+done, appended docs/spikes/sparse-pivot/op-census-amps.jsonl

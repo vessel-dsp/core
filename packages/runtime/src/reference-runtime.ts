@@ -33,8 +33,8 @@ import type {
 	SparseSchedule,
 	Stamp,
 } from "@vessel-dsp/compiler";
+import { computeNumericRepivot } from "@vessel-dsp/compiler";
 import { admissionVerdict, type RealtimeBudget } from "./admission";
-import { computeNumericRepivot } from "./numeric-pivot";
 import type { SupplyAddress, SupplyInfo } from "./supply";
 import { taperFraction } from "./taper";
 
@@ -1942,6 +1942,14 @@ export class ReferenceRuntime {
 			 * See `SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT`.
 			 */
 			consecutiveFallbacks: number;
+			/**
+			 * Whether the mid-run re-pivot below has already spent its one attempt on
+			 * this order. Set when the consecutive-trip limit is reached: the first
+			 * limit-hit re-pivots once from the current matrix instead of
+			 * abandoning, and only a second limit-hit on the same order abandons.
+			 * Fresh orders (admitted or adopted at settle) start false.
+			 */
+			repivotAttempted: boolean;
 		}
 	>();
 
@@ -3262,6 +3270,7 @@ export class ReferenceRuntime {
 			rhs: new Float64Array(size),
 			factors: new Float64Array(schedule.factorCount),
 			consecutiveFallbacks: 0,
+			repivotAttempted: false,
 		});
 	}
 
@@ -3382,6 +3391,16 @@ export class ReferenceRuntime {
  * smallest dropped disagreement is `boss-aw-2` at `9.8e+3`. Dense is not
  * assumed right -- `tw-1` diverges on 61 samples densely while converging
  * sparsely -- the gate only fires where the replay demonstrably collapses.
+ *
+ * A validating shipped order is still replaced when the value-aware candidate
+ * reaches the audio-agreement bar (1e-9) an order of magnitude more cleanly
+ * without meaningful fill cost -- the refinement in `SCHEDULE_REFINEMENT_BAR`.
+ * Bar-clean ties keep shipped even when the audios differ: the
+ * operating-point replay cannot adjudicate audio-time divergence (`boss-os-2`
+ * replays 3.4e-10 shipped vs 2.5e-13 candidate while the audios differ 1000x),
+ * so the rule only moves past the bar it can measure, never on a tie.
+ * Measured adopters: `boss-sd-1` (1.8e-9 to 4.2e-13, audio 6.9e-8 to
+ * 6.5e-12).
  */
 	private settlePivotOrders(): void {
 		if (this.pivotOrdersSettled) {
@@ -3502,15 +3521,13 @@ export class ReferenceRuntime {
 					? disagreement
 					: null;
 			}
-			if (disagreement <= SCHEDULE_VALIDATION_TOL) {
-				continue;
-			}
-			// The shipped order failed on the real matrix. Before giving the
-			// schedule up, try a value-aware order: threshold Markowitz over the
-			// schedule's own filled pattern, replayed and compared to the same
-			// dense solve. Adoption needs the same tolerance the shipped order
-			// failed; a refused or still-disagreeing candidate drops as before.
+			// The value-aware order, computed always now rather than only when
+			// the shipped order fails: threshold Markowitz over the schedule's
+			// own filled pattern, replayed and compared to the same dense
+			// solve. A refused candidate (null) or a replay that trips its own
+			// guard (Infinity) behaves exactly like a disagreeing one below.
 			const candidate = computeNumericRepivot(schedule, size, matrix);
+			let candidateDisagreement = Infinity;
 			if (candidate !== null) {
 				const candidateValues = new Float64Array(candidate.slots);
 				const candidateRhs = new Float64Array(size);
@@ -3533,31 +3550,62 @@ export class ReferenceRuntime {
 					candidateDiffSquares += difference * difference;
 					candidateDenseSquares += (denseOut[index] as number) ** 2;
 				}
-				const candidateDisagreement = candidateReplayed
+				candidateDisagreement = candidateReplayed
 					? Math.sqrt(candidateDiffSquares) /
 						Math.max(Math.sqrt(candidateDenseSquares), 1e-9)
 					: Infinity;
-				if (candidateDisagreement <= SCHEDULE_VALIDATION_TOL) {
-					this.sparseSchedules.set(blockId, {
-						schedule: candidate,
-						values: new Float64Array(candidate.slots),
-						rhs: new Float64Array(size),
-						factors: new Float64Array(candidate.factorCount),
-						consecutiveFallbacks: 0,
-					});
-					this.repivotedSchedules.add(blockId);
-					this.droppedSchedules.delete(blockId);
-					if (planRow !== undefined) {
-						planRow.path = "sparse";
-						planRow.reason = `numeric re-pivot ${candidateDisagreement.toExponential(1)} vs dense`;
-						planRow.pivotDisagreement = candidateDisagreement;
-						planRow.repivoted = true;
-						planRow.patternEntries = candidate.slots;
-						planRow.sparseOps = candidate.sparseOps;
-						planRow.unprovenPivots = candidate.unprovenPivots;
-					}
+			}
+			if (disagreement <= SCHEDULE_VALIDATION_TOL) {
+				// The shipped order validates. Replace it only on a refinement:
+				// the candidate reaches the audio-agreement bar while the
+				// shipped order does not, by an order of magnitude, without
+				// meaningful fill cost (see `shouldRefinePivotOrder`). Ties
+				// keep shipped, so adoption never churns a schedule for noise
+				// -- measured, `boss-hm-2`, `boss-ch-1` and `boss-od-3` tie
+				// and keep shipped while `boss-sd-1` crosses (1.8e-9 to
+				// 4.2e-13, audio 6.9e-8 to 6.5e-12).
+				if (
+					candidate !== null &&
+					shouldRefinePivotOrder({
+						shippedDisagreement: disagreement,
+						candidateDisagreement,
+						shippedOps: schedule.sparseOps,
+						shippedSlots: schedule.slots,
+						candidateOps: candidate.sparseOps,
+						candidateSlots: candidate.slots,
+					})
+				) {
+					this.adoptRepivotedSchedule(
+						blockId,
+						candidate,
+						size,
+						planRow,
+						`numeric re-pivot ${candidateDisagreement.toExponential(1)} vs dense ` +
+							`(shipped ${Number.isFinite(disagreement) ? disagreement.toExponential(1) : "replay refused"}); ` +
+							`+${(((candidate.sparseOps / Math.max(schedule.sparseOps, 1)) - 1) * 100).toFixed(1)}% ops`,
+						candidateDisagreement,
+					);
 					continue;
 				}
+				continue;
+			}
+			// The shipped order failed on the real matrix. Before giving the
+			// schedule up, try the value-aware order computed above: adoption
+			// needs the same tolerance the shipped order failed; a refused or
+			// still-disagreeing candidate drops as before.
+			if (
+				candidate !== null &&
+				candidateDisagreement <= SCHEDULE_VALIDATION_TOL
+			) {
+				this.adoptRepivotedSchedule(
+					blockId,
+					candidate,
+					size,
+					planRow,
+					`numeric re-pivot ${candidateDisagreement.toExponential(1)} vs dense`,
+					candidateDisagreement,
+				);
+				continue;
 			}
 			this.sparseSchedules.delete(blockId);
 			this.droppedSchedules.add(blockId);
@@ -3573,6 +3621,148 @@ export class ReferenceRuntime {
 					`dropped to dense at the operating point`;
 			}
 		}
+	}
+
+	/**
+	 * Adopt a value-aware replacement order for a block, from settle or from
+	 * the mid-run re-pivot, with one shared bookkeeping shape.
+	 *
+	 * The replacement's slots are a superset of the shipped filled pattern
+	 * whose extra cells no stamp writes (see `computeNumericRepivot`), so the
+	 * pattern-sized matrix refresh keeps reading correct zeros and neither
+	 * `clearPairs` nor the selective-copy machinery needs a rebuild -- the
+	 * same reason a dropped block, which does change the refresh, sets
+	 * `clearPairs` to null where this does not.
+	 */
+	private adoptRepivotedSchedule(
+		blockId: string,
+		candidate: SparseSchedule,
+		size: number,
+		planRow:
+			| {
+					path: "sparse" | "dense";
+					reason: string;
+					pivotDisagreement: number | null;
+					repivoted: boolean;
+					patternEntries: number;
+					sparseOps: number;
+					unprovenPivots: number;
+			  }
+			| undefined,
+		reason: string,
+		pivotDisagreement: number,
+	): void {
+		this.sparseSchedules.set(blockId, {
+			schedule: candidate,
+			values: new Float64Array(candidate.slots),
+			rhs: new Float64Array(size),
+			factors: new Float64Array(candidate.factorCount),
+			consecutiveFallbacks: 0,
+			repivotAttempted: false,
+		});
+		this.repivotedSchedules.add(blockId);
+		this.droppedSchedules.delete(blockId);
+		if (planRow !== undefined) {
+			planRow.path = "sparse";
+			planRow.reason = reason;
+			planRow.pivotDisagreement = pivotDisagreement;
+			planRow.repivoted = true;
+			planRow.patternEntries = candidate.slots;
+			planRow.sparseOps = candidate.sparseOps;
+			planRow.unprovenPivots = candidate.unprovenPivots;
+		}
+	}
+
+	/**
+	 * The mid-run half of the pivot-guard contract: at the consecutive-trip
+	 * limit, re-pivot once from the current matrix instead of abandoning.
+	 *
+	 * Takes the stamped matrix and rhs snapshotted before the dense fallback
+	 * destroyed them, plus the fallback's answer, and returns whether a
+	 * value-aware order was adopted. Adoption needs the rescue standard --
+	 * replay within `SCHEDULE_VALIDATION_TOL` of the dense answer on this
+	 * matrix -- the same bar a collapse rescue clears at settle, because this
+	 * is a rescue: the shipped order demonstrably does not suit this
+	 * operating region. A refusal (null candidate, tripped replay, or a
+	 * disagreeing replay) returns false and the caller abandons exactly as
+	 * before, with the reason naming the refusal. Either outcome lands in
+	 * the plan row, so a mid-run adoption is as visible as a settle one.
+	 *
+	 * Structured for direct unit testing (pure inputs, boolean verdict): the
+	 * corpus never trips the guard, so no corpus run exercises this path.
+	 */
+	private adoptMidRunRepivot(
+		blockId: string,
+		entry: { readonly schedule: SparseSchedule },
+		matrix: number[][],
+		rhs: readonly number[],
+		denseAnswer: readonly number[],
+	): boolean {
+		const planRow = this.solverPlanRows.find(
+			(candidate) => candidate.blockId === blockId,
+		);
+		const block = this.blocksById.get(blockId);
+		const size =
+			block !== undefined && block.kind === "mna"
+				? block.nodeCount + block.auxCount
+				: 0;
+		const refuse = (reason: string): boolean => {
+			if (planRow !== undefined) {
+				planRow.reason += ` mid-run re-pivot ${reason}; abandoned`;
+			}
+			return false;
+		};
+		if (block === undefined || block.kind !== "mna" || size <= 0) {
+			return refuse("refused (unknown block)");
+		}
+		const candidate = computeNumericRepivot(entry.schedule, size, matrix);
+		if (candidate === null) {
+			return refuse("refused (no candidate meets the threshold)");
+		}
+		const values = new Float64Array(candidate.slots);
+		const scratchRhs = new Float64Array(size);
+		const factors = new Float64Array(candidate.factorCount);
+		const out = new Array<number>(size).fill(0);
+		const replayed = runSparseSchedule(
+			candidate,
+			matrix,
+			rhs,
+			values,
+			scratchRhs,
+			factors,
+			out,
+		);
+		let diffSquares = 0;
+		let denseSquares = 0;
+		for (let index = 0; index < size; index += 1) {
+			const difference =
+				(out[index] as number) - (denseAnswer[index] as number);
+			diffSquares += difference * difference;
+			denseSquares += (denseAnswer[index] as number) ** 2;
+		}
+		const disagreement = replayed
+			? Math.sqrt(diffSquares) / Math.max(Math.sqrt(denseSquares), 1e-9)
+			: Infinity;
+		if (!(disagreement <= SCHEDULE_VALIDATION_TOL)) {
+			return refuse(
+				`refused (replay ${Number.isFinite(disagreement) ? disagreement.toExponential(1) : "tripped"} vs dense)`,
+			);
+		}
+		this.adoptRepivotedSchedule(
+			blockId,
+			candidate,
+			size,
+			planRow,
+			`mid-run numeric re-pivot ${disagreement.toExponential(1)} vs dense after ${SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT} guard trips`,
+			disagreement,
+		);
+		// The one attempt is spent: a second limit-hit on the adopted order
+		// abandons rather than re-pivoting again.
+		const adopted = this.sparseSchedules.get(blockId);
+		if (adopted !== undefined) {
+			adopted.repivotAttempted = true;
+		}
+		return true;
 	}
 
 	/**
@@ -4657,11 +4847,37 @@ export class ReferenceRuntime {
 					if (
 						sparse.consecutiveFallbacks >= SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT
 					) {
-						this.sparseSchedules.delete(block.id);
-						this.abandonedSchedules.add(block.id);
+						// The old shape abandoned here, silently dense for the rest
+						// of the run after paying for both solvers on every one of
+						// the 64 trips. Re-pivot once from the current matrix
+						// instead: a control position the operating-point matrix
+						// never showed can still suit a value-aware order, and
+						// only a refused or still-disagreeing re-pivot abandons.
+						// `solve` destroys `matrix` and `rhs`, so the re-pivot's
+						// inputs are snapshotted first -- once per order, on this
+						// trip only.
+						if (!sparse.repivotAttempted) {
+							sparse.repivotAttempted = true;
+							const matrixCopy = matrix.map((row) => [...row]);
+							const rhsCopy = [...rhs];
+							scratch.denseDirty = true;
+							solve(matrix, rhs, next);
+							if (
+								!this.adoptMidRunRepivot(block.id, sparse, matrixCopy, rhsCopy, next)
+							) {
+								this.sparseSchedules.delete(block.id);
+								this.abandonedSchedules.add(block.id);
+							}
+						} else {
+							this.sparseSchedules.delete(block.id);
+							this.abandonedSchedules.add(block.id);
+							scratch.denseDirty = true;
+							solve(matrix, rhs, next);
+						}
+					} else {
+						scratch.denseDirty = true;
+						solve(matrix, rhs, next);
 					}
-					scratch.denseDirty = true;
-					solve(matrix, rhs, next);
 				}
 			}
 			if (relaxing) {
@@ -7864,11 +8080,30 @@ function solve(matrix: number[][], rhs: number[], out: number[]): void {
 const SCHEDULE_OP_WIDTH = 4;
 
 /**
- * A pivot this small is what the dense `solve` refuses to divide by (its own `continue`), and
- * it is what a *static* order can walk into that a value-aware one cannot: an entry that is
- * structurally present but numerically zero at this control position or this Newton iterate.
+ * Pivot guard floor: a pivot below this absolute value sends the solve back
+ * to the dense path.
+ *
+ * This is deliberately ABSOLUTE, not relative, and that is a measured
+ * position rather than a default. A relative guard (`|pivot| < tau *
+ * max|gathered|`) was implemented and reverted 2026-10-08: at tau 1e-12 it
+ * dropped healthy `boss-ce-5` to dense outright; at 1e-14 it gratuitously
+ * re-pivoted `boss-ch-1`; at 1e-16 it abandoned `boss-dd-3b` and
+ * `mxr-blue-box`, dropped `boss-tw-1` (losing its 0.8x budget fix) and
+ * `mxr-dyna-comp`'s rescue, regressed `boss-nf-1` audio 1000x (7.0e-11 to
+ * 7.7e-05), and put 528k fallback solves onto `moogerfooger-mf-102` for no
+ * audio change. The census behind it: healthy `ce-5`/`ch-1`/carbon-copy
+ * bottom out at 1.0-2.5e-15 while fatal `aw-2` sits at 7.7e-15 -- magnitude
+ * alone cannot separate a healthy late-order gmin pivot from a fatal one,
+ * only a replay against dense can, which is the settle gate's job, not this
+ * one's. So this floor catches exactly what it can judge -- collapse -- and
+ * the re-pivot-once below handles the shape that collapse takes mid-run.
+ * See `docs/spikes/2026-10-08-numeric-pivoting.md`.
+ *
+ * Exported for the unit tests alongside the replay: the trip formula is
+ * load-bearing and the corpus never trips it, so only a synthetic matrix
+ * pins it.
  */
-const SCHEDULE_PIVOT_FLOOR = 1e-18;
+export const SCHEDULE_PIVOT_FLOOR = 1e-18;
 
 /**
  * How far the sparse replay's answer for the assembled operating-point matrix
@@ -7885,6 +8120,38 @@ const SCHEDULE_PIVOT_FLOOR = 1e-18;
  * must validate clean.
  */
 const SCHEDULE_VALIDATION_TOL = 1e-3;
+
+/**
+ * Audio-agreement bar for adopting a value-aware order over a shipped order
+ * that already validates.
+ *
+ * The shipped order replays the operating-point matrix within
+ * `SCHEDULE_VALIDATION_TOL`; the refinement below replaces it only when the
+ * numeric candidate reaches the corpus acceptance bar (sparse vs dense at
+ * most 1e-9 relative) an order of magnitude more cleanly, without meaningful
+ * fill cost. Measured 2026-10-08: `boss-sd-1` crosses (operating-point replay
+ * 1.8e-9 to 4.2e-13, audio 6.9e-8 to 6.5e-12); `boss-hm-2`, `boss-ch-1`,
+ * `boss-od-3` tie and keep shipped; `marshall-jcm800` and `boss-tw-1` cannot
+ * cross at any tau and keep shipped. See
+ * `docs/spikes/2026-10-08-numeric-pivoting.md`.
+ */
+const SCHEDULE_REFINEMENT_BAR = 1e-9;
+/**
+ * How much cleaner the candidate's operating-point replay must be than the
+ * shipped order's before the refinement above fires. Ties (the common case --
+ * both orders replay a healthy matrix to the same rounding) keep shipped, so
+ * adoption never churns a schedule for noise. 10x sits in the measured
+ * canyon: ties are within ~1x, real wins are 1000x or more.
+ */
+const SCHEDULE_REFINEMENT_RATIO = 10;
+/**
+ * Fill-growth ceiling for a refinement adoption, in slots and in ops. A
+ * better replay that costs a third more elimination (`boss-mt-2`: +34% ops
+ * for no audio gain; `mxr-phase-90`: +30% ops for an audio *regression*)
+ * fails the cost criterion it was meant to serve, so the rule refuses it and
+ * keeps shipped. Measured adopters sit far below: `boss-sd-1` +6.5% ops.
+ */
+const SCHEDULE_REFINEMENT_MAX_COST_GROWTH = 1.1;
 
 // A **residual check on the schedule's answer was implemented, measured and removed.** The
 // reasoning that motivated it was that a static order might produce a bad answer where a
@@ -7919,15 +8186,64 @@ const SCHEDULE_MINIMUM_SAVING = 4;
 const SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT = 64;
 
 /**
+ * Whether a validating shipped order should be replaced by the numeric
+ * candidate: the refinement half of `settlePivotOrders`, extracted pure so
+ * both consoles and the unit tests share the exact predicate.
+ *
+ * Adopt only when the shipped order is above the audio-agreement bar while
+ * the candidate reaches it, by an order of magnitude, without meaningful
+ * fill cost. The shipped-side floor matters as much as the candidate-side
+ * bar: without it, bar-clean ties with a 1000x replay gap (`trainwreck`,
+ * `fender-5e3`, `vox-ac15`) churn schedules -- and lose their generated
+ * kernels on the C++ console -- for zero audio gain, and `hiwatt-dr103`
+ * adopts on one console but not the other from libm-level matrix noise.
+ * Every input is an operating-point-replay disagreement or a slot/op count
+ * -- no audio renders, no per-packet gates.
+ */
+export function shouldRefinePivotOrder(input: {
+	readonly shippedDisagreement: number;
+	readonly candidateDisagreement: number;
+	readonly shippedOps: number;
+	readonly shippedSlots: number;
+	readonly candidateOps: number;
+	readonly candidateSlots: number;
+}): boolean {
+	// Total on purpose: settle only calls this when the shipped order
+	// validates (finite, within tolerance), but a refused replay reads as
+	// Infinity and must never refine -- that case belongs to the rescue
+	// branch, with its looser bar, or to the drop.
+	if (
+		!Number.isFinite(input.shippedDisagreement) ||
+		!Number.isFinite(input.candidateDisagreement)
+	) {
+		return false;
+	}
+	return (
+		input.shippedDisagreement > SCHEDULE_REFINEMENT_BAR &&
+		input.candidateDisagreement <= SCHEDULE_REFINEMENT_BAR &&
+		input.candidateDisagreement <
+			input.shippedDisagreement / SCHEDULE_REFINEMENT_RATIO &&
+		input.candidateOps <=
+			SCHEDULE_REFINEMENT_MAX_COST_GROWTH * input.shippedOps &&
+		input.candidateSlots <=
+			SCHEDULE_REFINEMENT_MAX_COST_GROWTH * input.shippedSlots
+	);
+}
+
+/**
  * Replay a schedule against one stamped matrix.
  *
- * Returns `false` without finishing when a pivot has collapsed below `SCHEDULE_PIVOT_FLOOR`,
- * which is the caller's signal to run the dense solve for this iteration instead. Nothing the
- * caller still needs is destroyed on the way: `matrix` is only read (the gather copies out of
- * it), `rhs` is copied into the schedule's own buffer, and `out` is a scratch buffer the dense
- * fallback overwrites in full.
+ * Returns `false` without finishing when a pivot has collapsed below
+ * `SCHEDULE_PIVOT_FLOOR`, which is the caller's signal to run the dense solve
+ * for this iteration instead. Nothing the caller still needs is destroyed on
+ * the way: `matrix` is only read (the gather copies out of it), `rhs` is
+ * copied into the schedule's own buffer, and `out` is a scratch buffer the
+ * dense fallback overwrites in full.
+ *
+ * Exported for the unit tests: the trip formula is load-bearing and the
+ * corpus never trips it, so only a synthetic matrix pins the boundary.
  */
-function runSparseSchedule(
+export function runSparseSchedule(
 	schedule: SparseSchedule,
 	matrix: number[][],
 	rhs: readonly number[],

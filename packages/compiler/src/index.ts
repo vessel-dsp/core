@@ -32,4 +32,9 @@ export {
 	type SupplyResolution,
 } from "./supply-stamps";
 export { attachDeviceLaws } from "./device-laws";
+// Order construction for the runtime's sparse path: the value-blind static
+// schedule is built at compile time, and the value-aware re-pivot is built by
+// the runtime from the operating-point matrix at `prepare()`. Both are
+// schedule-builder work, so both live here; the C++ console ports the latter.
+export { NUMERIC_REPIVOT_TAU, computeNumericRepivot } from "./sparse-schedule";
 export * from "./types";

@@ -1,0 +1,11 @@
+=== dumble-overdrive-special: settled=[] sparseBlocks=[analog:0:n=71]
+  shipped-noskip agree=8.2e-1 meanIter=4.15 nonConv=81 warmNC=10 fb=0/49474
+  [analog:0 n=71] tau=0.3: agree=8.2e-1 meanIter=4.17 nonConv=67 warmNC=21 fb=66/282 slots 338->366 ops 502->644 ms=5656
+  [analog:0 n=71] tau=0.1: agree=8.9e-1 meanIter=3.92 nonConv=56 warmNC=21 fb=2/47643 slots 338->364 ops 502->636 ms=690
+  [analog:0 n=71] tau=0.03: agree=8.3e-1 meanIter=4.07 nonConv=65 warmNC=22 fb=3/49119 slots 338->348 ops 502->525 ms=716
+  [analog:0 n=71] tau=0.01: agree=8.3e-1 meanIter=4.02 nonConv=64 warmNC=22 fb=6/48649 slots 338->345 ops 502->518 ms=677
+  [analog:0 n=71] tau=0.003: agree=8.0e-1 meanIter=4.10 nonConv=74 warmNC=22 fb=3/49368 slots 338->343 ops 502->512 ms=722
+  [analog:0 n=71] tau=0.001: agree=8.2e-1 meanIter=4.12 nonConv=75 warmNC=11 fb=0/49137 slots 338->338 ops 502->502 ms=697
+  [analog:0 n=71] tau=0.0003: agree=8.9e-1 meanIter=4.21 nonConv=94 warmNC=22 fb=0/50467 slots 338->338 ops 502->502 ms=697
+  [analog:0 n=71] tau=0.0001: agree=8.9e-1 meanIter=4.21 nonConv=94 warmNC=22 fb=0/50467 slots 338->338 ops 502->502 ms=793
+  [analog:0 n=71] tau=0: refused(null)

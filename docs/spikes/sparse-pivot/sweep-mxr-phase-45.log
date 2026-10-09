@@ -1,0 +1,11 @@
+=== mxr-phase-45: settled=[] sparseBlocks=[analog:0:n=33]
+  shipped-noskip agree=3.2e-8 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844
+  [analog:0 n=33] tau=0.3: agree=7.0e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->263 ops 585->676 ms=509
+  [analog:0 n=33] tau=0.1: agree=7.0e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->263 ops 585->676 ms=511
+  [analog:0 n=33] tau=0.03: agree=7.0e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->263 ops 585->676 ms=515
+  [analog:0 n=33] tau=0.01: agree=7.0e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->263 ops 585->676 ms=610
+  [analog:0 n=33] tau=0.003: agree=7.0e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->263 ops 585->676 ms=705
+  [analog:0 n=33] tau=0.001: agree=7.0e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->263 ops 585->676 ms=549
+  [analog:0 n=33] tau=0.0003: agree=6.8e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->258 ops 585->656 ms=546
+  [analog:0 n=33] tau=0.0001: agree=6.8e-11 meanIter=4.00 nonConv=0 warmNC=0 fb=0/45844 slots 242->257 ops 585->651 ms=502
+  [analog:0 n=33] tau=0: refused(null)

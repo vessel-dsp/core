@@ -1,0 +1,44 @@
+boss-mt-2: cpp-vs-tsSparse=8.7e-3 cpp-vs-tsDense=1.3e-2 tsSparse-vs-tsDense=1.5e-2
+  tsMs=1828 cppMs=551 tsxRT=9.14 cppxRT=2.75
+  cppTele solves=48499 fb=0 kernel=0 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/boss-mt-2.*.f64
+boss-os-2: cpp-vs-tsSparse=3.1e-6 cpp-vs-tsDense=1.7e-6 tsSparse-vs-tsDense=2.6e-6
+  tsMs=965 cppMs=142 tsxRT=4.82 cppxRT=0.71
+  cppTele solves=43159 fb=0 kernel=43159 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/boss-os-2.*.f64
+mxr-phase-90: cpp-vs-tsSparse=1.8e-7 cpp-vs-tsDense=5.7e-8 tsSparse-vs-tsDense=1.3e-7
+  tsMs=548 cppMs=76 tsxRT=2.74 cppxRT=0.38
+  cppTele solves=34180 fb=0 kernel=34180 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/mxr-phase-90.*.f64
+mxr-phase-90-early-block: cpp-vs-tsSparse=3.0e-3 cpp-vs-tsDense=3.6e-3 tsSparse-vs-tsDense=4.6e-3
+  tsMs=1395 cppMs=177 tsxRT=6.97 cppxRT=0.88
+  cppTele solves=87259 fb=0 kernel=87259 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/mxr-phase-90-early-block.*.f64
+mxr-phase-45: cpp-vs-tsSparse=5.7e-8 cpp-vs-tsDense=4.6e-8 tsSparse-vs-tsDense=3.2e-8
+  tsMs=522 cppMs=68 tsxRT=2.61 cppxRT=0.34
+  cppTele solves=45844 fb=0 kernel=45844 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/mxr-phase-45.*.f64
+mxr-phase-90-script: cpp-vs-tsSparse=9.4e-8 cpp-vs-tsDense=9.4e-8 tsSparse-vs-tsDense=4.2e-9
+  tsMs=522 cppMs=67 tsxRT=2.61 cppxRT=0.34
+  cppTele solves=35418 fb=0 kernel=35418 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/mxr-phase-90-script.*.f64
+boss-tw-1: cpp-vs-tsSparse=1.1e+1 cpp-vs-tsDense=1.1e+1 tsSparse-vs-tsDense=1.8e-3
+  tsMs=651 cppMs=94 tsxRT=3.26 cppxRT=0.47
+  cppTele solves=36135 fb=0 kernel=36135 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/boss-tw-1.*.f64
+mxr-blue-box: cpp-vs-tsSparse=1.6e-1 cpp-vs-tsDense=1.4e+0 tsSparse-vs-tsDense=1.5e+0
+  tsMs=7351 cppMs=857 tsxRT=36.75 cppxRT=4.29
+  cppTele solves=729013 fb=4 kernel=729009 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/mxr-blue-box.*.f64
+trainwreck-express: cpp-vs-tsSparse=2.9e-8 cpp-vs-tsDense=3.9e-8 tsSparse-vs-tsDense=2.6e-8
+  tsMs=533 cppMs=93 tsxRT=2.66 cppxRT=0.47
+  cppTele solves=30956 fb=0 kernel=30956 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/trainwreck-express.*.f64
+dumble-overdrive-special: cpp-vs-tsSparse=9.1e-1 cpp-vs-tsDense=8.7e-1 tsSparse-vs-tsDense=8.2e-1
+  tsMs=896 cppMs=126 tsxRT=4.48 cppxRT=0.63
+  cppTele solves=49255 fb=0 kernel=49255 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/dumble-overdrive-special.*.f64
+marshall-1959-super-lead-plexi: cpp-vs-tsSparse=9.2e-1 cpp-vs-tsDense=9.1e-1 tsSparse-vs-tsDense=2.4e-2
+  tsMs=1847 cppMs=127 tsxRT=9.23 cppxRT=0.64
+  cppTele solves=43401 fb=0 kernel=43401 repiv=0 aband=0 dropped=0
+  wrote docs/spikes/sparse-pivot/cpp-before/marshall-1959-super-lead-plexi.*.f64
