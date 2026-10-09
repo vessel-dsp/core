@@ -39,7 +39,7 @@ import {
 	HalfBandStage2x,
 	cascadeLatencyHostSamples,
 	designHalfBand2x,
-	RESAMPLE_HALF_BAND_TAPS,
+	RESAMPLE_STAGE_SPECS,
 } from "./resample";
 import type { SupplyAddress, SupplyInfo } from "./supply";
 import { taperFraction } from "./taper";
@@ -2356,27 +2356,24 @@ export class ReferenceRuntime {
 		// *seconds* and converted here, so they stay correct without knowing about oversampling.
 		this.sampleRate = sampleRate * oversample;
 		// The band-limited resampler is designed here, from the stage alone: one
-		// windowed-sinc half-band prototype shared by every 2x stage, fresh
-		// zero-state instances per direction, so `prepare()` clears the filter
-		// state and a re-prepared run starts clean. Powers of two only; any
-		// other factor keeps the legacy hold-and-last path in `process()`.
+		// windowed-sinc half-band prototype per 2x stage (`RESAMPLE_STAGE_SPECS`),
+		// fresh zero-state instances per direction, so `prepare()` clears the
+		// filter state and a re-prepared run starts clean. Powers of two only;
+		// any other factor keeps the legacy hold-and-last path in `process()`.
 		const resampleStages = Math.log2(oversample);
 		if (Number.isInteger(resampleStages) && resampleStages >= 1) {
-			const prototype = designHalfBand2x(RESAMPLE_HALF_BAND_TAPS);
-			this.resampleUp = Array.from(
-				{ length: resampleStages },
-				() => new HalfBandStage2x(prototype),
+			const prototypes = RESAMPLE_STAGE_SPECS.slice(0, resampleStages).map(
+				([taps, beta]) => designHalfBand2x(taps, beta),
 			);
-			this.resampleDown = Array.from(
-				{ length: resampleStages },
-				() => new HalfBandStage2x(prototype),
+			this.resampleUp = prototypes.map(
+				(prototype) => new HalfBandStage2x(prototype),
+			);
+			this.resampleDown = prototypes.map(
+				(prototype) => new HalfBandStage2x(prototype),
 			);
 			this.resampleBufA = new Float64Array(oversample);
 			this.resampleBufB = new Float64Array(oversample);
-			this.resampleLatencyHost = cascadeLatencyHostSamples(
-				resampleStages,
-				RESAMPLE_HALF_BAND_TAPS,
-			);
+			this.resampleLatencyHost = cascadeLatencyHostSamples(resampleStages);
 		} else {
 			this.resampleUp = [];
 			this.resampleDown = [];
@@ -4048,8 +4045,8 @@ export class ReferenceRuntime {
 	 * The resampler's total group delay in **host** samples, or `null` before
 	 * `prepare()`. Zero when the resampler is bypassed (factor 1, or a factor
 	 * that is not a power of two and keeps the legacy path): the held path
-	 * adds no latency by construction. At 2x/4x/8x this is 27.5/41.25/48.125
-	 * host samples for the 57-tap half-band cascade -- a real, reported
+	 * adds no latency by construction. At 2x/4x/8x this is 19.5/26.25/28.625
+	 * host samples for the stage-specific half-band cascade -- a real, reported
 	 * latency the caller must absorb or declare, not a hidden one.
 	 */
 	oversampleLatency(): number | null {

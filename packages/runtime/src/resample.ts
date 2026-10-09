@@ -8,12 +8,20 @@
 // way in and FIR decimation on the way out, one 2x stage each, cascaded for
 // 4x and 8x.
 //
-// Design: windowed-sinc (Kaiser) half-band prototype with cutoff at a quarter
-// of the stage's high rate, odd length L = 1 mod 4 so the center tap sits on an
+// Design: windowed-sinc (Kaiser) half-band prototypes with cutoff at a quarter
+// of each stage's high rate, odd length L = 1 mod 4 so the center tap sits on an
 // even index. The window preserves the ideal response's exact even-tap zeros,
 // so the even sub-samples carry the delayed input bit-exactly and only the
 // odd taps do arithmetic. The coefficients are a function of the stage only,
-// never of the circuit: `designHalfBand2x` takes just the tap count.
+// never of the circuit: `designHalfBand2x` takes just the tap count and beta,
+// and `RESAMPLE_STAGE_SPECS` fixes one pair per 2x stage. Only the first stage
+// (48 -> 96 kHz) needs the sharp 19.2-28.8 kHz transition; later stages work
+// where the absolute transition is wider (their stopband needs are sized from
+// what folds where: 192 -> 96 kHz folds [48k, 96k] into [0, 48k], and content
+// landing in the host baseband comes from [72k, 96k]; 384 -> 192 kHz folds
+// [96k, 192k] similarly), so far fewer taps suffice there. See
+// docs/spikes/2026-10-09-resampler-latency.md for the measurement that sizes
+// each stage (latency 19.5 / 26.25 / 28.625 host samples at 2x/4x/8x).
 //
 // Streaming and state: each stage owns fixed-size histories; `prepare()` builds
 // fresh stages and `reset()` zeroes the histories, so any block split of
@@ -21,10 +29,19 @@
 // construction (odd taps normalized to sum exactly 1/2); group delay is
 // exactly (L-1)/2 high-rate samples per direction per stage.
 
-/** Tap count of the half-band prototype. 1 mod 4 (center on an even index). */
-export const RESAMPLE_HALF_BAND_TAPS = 57;
+/**
+ * Per-2x-stage half-band prototype specs as [taps, Kaiser beta], oldest
+ * (host-rate) stage first. Taps are 1 mod 4 (center on an even index).
+ * Stage 1 keeps the sharp audio-band transition (41 taps, -61 dB stopband);
+ * stages 2-3 are sized from their folding analysis (see the module comment).
+ */
+export const RESAMPLE_STAGE_SPECS: readonly (readonly [taps: number, beta: number])[] = [
+  [41, 6.0],
+  [29, 7.0],
+  [21, 6.0],
+];
 
-/** Kaiser beta for the prototype stopband. Exported so tests can deliberately
+/** Kaiser beta for the default prototype stopband. Exported so tests can deliberately
  * design a worse prototype for the failing control. */
 export const RESAMPLE_KAISER_BETA = 8.3;
 
@@ -46,7 +63,7 @@ function besselI0(x: number): number {
  * tap exactly 0.5, even taps exactly 0, odd taps normalized to sum to 0.5.
  */
 export function designHalfBand2x(
-	taps: number = RESAMPLE_HALF_BAND_TAPS,
+	taps: number = 57,
 	beta: number = RESAMPLE_KAISER_BETA,
 ): Float64Array {
 	if (!Number.isInteger(taps) || taps < 9 || taps % 4 !== 1) {
@@ -163,7 +180,7 @@ export class HalfBandStage2x {
 
 /**
  * Total resampler group delay in host samples for a cascade of `stages`
- * 2x stages (up and down around the solver).
+ * 2x stages (up and down around the solver), using `RESAMPLE_STAGE_SPECS`.
  *
  * Each up-stage delays by exactly C high-rate samples (the even outputs are
  * the input delayed by C/2 input samples = C output samples, and the odd-tap
@@ -171,14 +188,21 @@ export class HalfBandStage2x {
  * C-1 of its own high-rate samples: `decimate(first, second)` consumes the
  * pair with `second` newest, i.e. it decimates the stream advanced by one
  * sample, which pulls the center one sample earlier. So stage s (high rate
- * 2^s per host sample) contributes (2C-1)/2^s host samples, and the total is
- * (2C-1)*(1-2^-stages). Verified against an impulse centroid (os2: 27.5) and
- * a multi-frequency phase slope, not just derived.
+ * 2^s per host sample, center C_s) contributes (2C_s-1)/2^s host samples:
+ * 19.5 / 26.25 / 28.625 at 2x/4x/8x. Verified against an impulse centroid
+ * (os2: 19.5, os4: 26.2, os8: 28.6) and a multi-frequency phase slope, not
+ * just derived.
  */
-export function cascadeLatencyHostSamples(
-	stages: number,
-	taps: number,
-): number {
-	const center = (taps - 1) / 2;
-	return (2 * center - 1) * (1 - 2 ** -stages);
+export function cascadeLatencyHostSamples(stages: number): number {
+	if (!Number.isInteger(stages) || stages < 1 || stages > RESAMPLE_STAGE_SPECS.length) {
+		throw new Error(
+			`resampler cascade needs 1-${RESAMPLE_STAGE_SPECS.length} stages (got ${String(stages)})`,
+		);
+	}
+	let total = 0;
+	for (let s = 0; s < stages; s += 1) {
+		const center = ((RESAMPLE_STAGE_SPECS[s]?.[0] as number) - 1) / 2;
+		total += (2 * center - 1) / 2 ** (s + 1);
+	}
+	return total;
 }

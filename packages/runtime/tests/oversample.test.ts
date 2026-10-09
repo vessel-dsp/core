@@ -78,7 +78,7 @@ describe("solver oversampling", () => {
 		// A divider is exact and rate-independent, so oversampling it must be a no-op to within
 		// the resampler's own passband ripple once its group delay has passed. Sample-by-sample
 		// equality cannot hold: the band-limited path delays the output by `oversampleLatency()`
-		// host samples (41.25 at 4x, fractional, so no integer shift can align it either).
+		// host samples (26.25 at 4x, fractional, so no integer shift can align it either).
 		// What is pinned here is the gain: the fundamental of the settled output at 4x agrees
 		// with the 1x fundamental to well within the 0.01 dB passband-ripple budget.
 		const program = programFor(resistorDivider);
@@ -135,9 +135,9 @@ describe("solver oversampling", () => {
 		expect(idle.oversampleLatency()).toBeNull();
 		for (const [oversample, latency] of [
 			[1, 0],
-			[2, 27.5],
-			[4, 41.25],
-			[8, 48.125],
+			[2, 19.5],
+			[4, 26.25],
+			[8, 28.625],
 		] as const) {
 			const runtime = new ReferenceRuntime(program);
 			runtime.prepare(RATE, { oversample });

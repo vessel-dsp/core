@@ -1,9 +1,9 @@
 // The half-band resampler on its own, before it ever touches a circuit.
 //
-// What belongs here is the resampler's design contract: the prototype's shape
-// (length, center tap, exact even zeros, DC gain exactly 1), its measured
-// frequency response against the design targets (passband ripple <= 0.01 dB
-// to 0.4*fs_host, stopband >= 80 dB beyond 0.6*fs_host), the round-trip
+// What belongs here is the resampler's design contract: the stage-spec table
+// the runtime builds from (one [taps, beta] pair per 2x stage), each stage
+// prototype's shape (length, center tap, exact even zeros, DC gain exactly 1)
+// and its measured response against its stage's bands, the round-trip
 // behaviour at each cascade depth, the latency formula, and proof the checks
 // can fail (a deliberately worse prototype misses the stopband target).
 import { describe, expect, it } from "bun:test";
@@ -11,7 +11,7 @@ import {
 	cascadeLatencyHostSamples,
 	designHalfBand2x,
 	HalfBandStage2x,
-	RESAMPLE_HALF_BAND_TAPS,
+	RESAMPLE_STAGE_SPECS,
 } from "../src/resample";
 
 const HOST = 48_000;
@@ -51,15 +51,11 @@ const fitFundamental = (y: Float64Array, fs: number, f: number): number => {
 
 /** Upsample x`stages`, decimate x`stages`: the runtime's path without the solver. */
 const roundTrip = (input: Float64Array, stages: number): Float64Array => {
-	const prototype = designHalfBand2x();
-	const ups = Array.from(
-		{ length: stages },
-		() => new HalfBandStage2x(prototype),
+	const prototypes = RESAMPLE_STAGE_SPECS.slice(0, stages).map(([taps, beta]) =>
+		designHalfBand2x(taps, beta),
 	);
-	const downs = Array.from(
-		{ length: stages },
-		() => new HalfBandStage2x(prototype),
-	);
+	const ups = prototypes.map((prototype) => new HalfBandStage2x(prototype));
+	const downs = prototypes.map((prototype) => new HalfBandStage2x(prototype));
 	const bufA = new Float64Array(8);
 	const bufB = new Float64Array(8);
 	const output = new Float64Array(input.length);
@@ -94,8 +90,11 @@ const roundTrip = (input: Float64Array, stages: number): Float64Array => {
 
 describe("half-band prototype design", () => {
 	it("is 57 taps with the center at exactly 0.5 and exact even zeros", () => {
+		// The default prototype keeps the original 57-tap design point: the
+		// C++ console carries an exact port of it, pinned bit-for-bit by
+		// v2-wasm-oversample.test.ts, so the default must not move.
 		const prototype = designHalfBand2x();
-		expect(prototype.length).toBe(RESAMPLE_HALF_BAND_TAPS);
+		expect(prototype.length).toBe(57);
 		expect(prototype.length % 4).toBe(1);
 		const center = (prototype.length - 1) / 2;
 		expect(prototype[center]).toBe(0.5);
@@ -146,8 +145,81 @@ describe("half-band prototype design", () => {
 	it("misses the stopband target when deliberately designed worse", () => {
 		// The check-can-fail control: halve the stopband depth (Kaiser beta for
 		// ~45 dB) and the 30 kHz assertion above fails by ~35 dB.
-		const worse = designHalfBand2x(RESAMPLE_HALF_BAND_TAPS, 3.5);
+		const worse = designHalfBand2x(57, 3.5);
 		expect(dtftDb(worse, STAGE_RATE, 30000)).toBeGreaterThan(-60);
+	});
+});
+
+describe("runtime stage specs", () => {
+	it("fixes one [taps, beta] pair per 2x stage", () => {
+		expect(RESAMPLE_STAGE_SPECS).toEqual([
+			[41, 6.0],
+			[29, 7.0],
+			[21, 6.0],
+		]);
+	});
+
+	it("gives every stage prototype exact even zeros and DC gain 1", () => {
+		for (const [taps, beta] of RESAMPLE_STAGE_SPECS) {
+			const prototype = designHalfBand2x(taps, beta);
+			expect(prototype.length % 4).toBe(1);
+			const center = (prototype.length - 1) / 2;
+			expect(prototype[center]).toBe(0.5);
+			let sum = 0;
+			let oddSum = 0;
+			for (let i = 0; i < prototype.length; i += 1) {
+				sum += prototype[i] as number;
+				if (i % 2 === 1) oddSum += prototype[i] as number;
+				if (i % 2 === 0 && i !== center) expect(prototype[i]).toBe(0);
+			}
+			expect(sum).toBeCloseTo(1, 12);
+			expect(oddSum).toBeCloseTo(0.5, 12);
+		}
+	});
+
+	it("holds each stage's passband and stopband at its own rate", () => {
+		// Stage 1 (41 taps, beta 6.0 at 96 kHz): the sharp audio-band
+		// transition, ripple <= 0.01 dB to 19.2 kHz, >= 60 dB beyond 28.8 kHz.
+		const s1 = designHalfBand2x(41, 6.0);
+		for (const f of [100, 5000, 10000, 15000, 19200]) {
+			expect(Math.abs(dtftDb(s1, 96_000, f))).toBeLessThan(0.01);
+		}
+		for (const f of [28800, 30000, 35000, 40000]) {
+			expect(dtftDb(s1, 96_000, f)).toBeLessThan(-60);
+		}
+		// Stage 2 (29 taps, beta 7.0 at 192 kHz): ripple to 30 kHz, stopband
+		// past 60 kHz (what folds into the host baseband comes from >= 72 kHz).
+		const s2 = designHalfBand2x(29, 7.0);
+		for (const f of [1000, 15000, 30000]) {
+			expect(Math.abs(dtftDb(s2, 192_000, f))).toBeLessThan(0.01);
+		}
+		for (const f of [60000, 72000, 90000]) {
+			expect(dtftDb(s2, 192_000, f)).toBeLessThan(-35);
+		}
+		// Stage 3 (21 taps, beta 6.0 at 384 kHz): ripple to 60 kHz, stopband
+		// past 120 kHz.
+		const s3 = designHalfBand2x(21, 6.0);
+		for (const f of [1000, 30000, 60000]) {
+			expect(Math.abs(dtftDb(s3, 384_000, f))).toBeLessThan(0.015);
+		}
+		for (const f of [120000, 150000, 180000]) {
+			expect(dtftDb(s3, 384_000, f)).toBeLessThan(-25);
+		}
+	});
+
+	it("kills a stopband fold by 60 dB on the first stage's decimation", () => {
+		// A 30 kHz tone at the 96 kHz rate folds to 18 kHz on decimation; the
+		// stage-1 filter must remove it first (measured -61 dB).
+		const down = new HalfBandStage2x(designHalfBand2x(41, 6.0));
+		const output = new Float64Array(9600);
+		for (let i = 0; i < output.length; i += 1) {
+			output[i] = down.decimate(
+				Math.sin((2 * Math.PI * 30000 * (2 * i)) / STAGE_RATE),
+				Math.sin((2 * Math.PI * 30000 * (2 * i + 1)) / STAGE_RATE),
+			);
+		}
+		const folded = fitFundamental(output.subarray(200), HOST, 18000);
+		expect(20 * Math.log10(folded)).toBeLessThan(-60);
 	});
 });
 
@@ -236,9 +308,10 @@ describe("resampler round trip", () => {
 	});
 
 	it("reports the cascade latency the impulse centroid confirms", () => {
-		// (2C-1)*(1-2^-stages) host samples for C = (57-1)/2 = 28: 27.5, 41.25, 48.125.
-		expect(cascadeLatencyHostSamples(1, RESAMPLE_HALF_BAND_TAPS)).toBe(27.5);
-		expect(cascadeLatencyHostSamples(2, RESAMPLE_HALF_BAND_TAPS)).toBe(41.25);
-		expect(cascadeLatencyHostSamples(3, RESAMPLE_HALF_BAND_TAPS)).toBe(48.125);
+		// Sum over stages of (2C_s-1)/2^s host samples for the stage specs
+		// [41, 6.0] / [29, 7.0] / [21, 6.0]: 19.5, 26.25, 28.625.
+		expect(cascadeLatencyHostSamples(1)).toBe(19.5);
+		expect(cascadeLatencyHostSamples(2)).toBe(26.25);
+		expect(cascadeLatencyHostSamples(3)).toBe(28.625);
 	});
 });

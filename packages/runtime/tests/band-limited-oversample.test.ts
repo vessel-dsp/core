@@ -209,9 +209,9 @@ const renderGainDb = (
 
 describe("band-limited oversampling against analytic filters", () => {
 	it("renders the RC low-pass at 4x like a true 192 kHz solve, not a held one", () => {
-		// Measured band-limited errors vs exact: -0.010 dB at 4 kHz, -0.047 dB
-		// at 8 kHz, -0.110 dB at 12 kHz (the residue is the 192 kHz trapezoid
-		// warp, identical in a native 192 kHz render to 0.001 dB). The legacy
+		// Measured band-limited errors vs exact: -0.011 dB at 4 kHz, -0.046 dB
+		// at 8 kHz, -0.105 dB at 12 kHz (the residue is the 192 kHz trapezoid
+		// warp, identical in a native 192 kHz render to 0.006 dB). The legacy
 		// hold path reads -0.020/-0.066 dB at 4/8 kHz and +0.030 dB off native
 		// at 12 kHz, so the 12 kHz band below excludes it.
 		for (const [freq, lo, hi] of [
@@ -231,7 +231,7 @@ describe("band-limited oversampling against analytic filters", () => {
 	it("renders the RL high-pass at 4x within 0.1 dB of exact to 4 kHz", () => {
 		// The legacy hold path is -8.4 dB off everywhere on this circuit (it
 		// converges on the staircase-driven answer); the band-limited path is
-		// +0.001/+0.012 dB at 1/4 kHz.
+		// +0.003/+0.012 dB at 1/4 kHz.
 		for (const [freq, lo, hi] of [
 			[1000, -0.02, 0.03],
 			[4000, -0.01, 0.05],
@@ -250,6 +250,6 @@ describe("band-limited oversampling against analytic filters", () => {
 		const runtime = new ReferenceRuntime(compiled.program);
 		expect(runtime.oversampleLatency()).toBeNull();
 		runtime.prepare(FS, { oversample: 4 });
-		expect(runtime.oversampleLatency()).toBe(41.25);
+		expect(runtime.oversampleLatency()).toBe(26.25);
 	});
 });
