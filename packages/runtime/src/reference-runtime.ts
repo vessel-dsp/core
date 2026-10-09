@@ -39,7 +39,7 @@ import {
 	HalfBandStage2x,
 	cascadeLatencyHostSamples,
 	designHalfBand2x,
-	RESAMPLE_STAGE_SPECS,
+	resampleStageSpec,
 } from "./resample";
 import type { SupplyAddress, SupplyInfo } from "./supply";
 import { taperFraction } from "./taper";
@@ -2362,9 +2362,10 @@ export class ReferenceRuntime {
 		// any other factor keeps the legacy hold-and-last path in `process()`.
 		const resampleStages = Math.log2(oversample);
 		if (Number.isInteger(resampleStages) && resampleStages >= 1) {
-			const prototypes = RESAMPLE_STAGE_SPECS.slice(0, resampleStages).map(
-				([taps, beta]) => designHalfBand2x(taps, beta),
-			);
+			const prototypes = Array.from({ length: resampleStages }, (_, stage) => {
+				const [taps, beta] = resampleStageSpec(stage);
+				return designHalfBand2x(taps, beta);
+			});
 			this.resampleUp = prototypes.map(
 				(prototype) => new HalfBandStage2x(prototype),
 			);

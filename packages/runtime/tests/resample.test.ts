@@ -9,6 +9,7 @@
 import { describe, expect, it } from "bun:test";
 import {
 	cascadeLatencyHostSamples,
+	resampleStageSpec,
 	designHalfBand2x,
 	HalfBandStage2x,
 	RESAMPLE_STAGE_SPECS,
@@ -313,5 +314,11 @@ describe("resampler round trip", () => {
 		expect(cascadeLatencyHostSamples(1)).toBe(19.5);
 		expect(cascadeLatencyHostSamples(2)).toBe(26.25);
 		expect(cascadeLatencyHostSamples(3)).toBe(28.625);
+		// Stages past the table reuse the last spec, so oversample 16 and 32 keep
+		// working: each extra stage adds (2C-1)/2^s with C = 10 (21 taps).
+		expect(resampleStageSpec(3)).toEqual([21, 6.0]);
+		expect(resampleStageSpec(7)).toEqual([21, 6.0]);
+		expect(cascadeLatencyHostSamples(4)).toBe(28.625 + 19 / 16);
+		expect(cascadeLatencyHostSamples(5)).toBe(28.625 + 19 / 16 + 19 / 32);
 	});
 });

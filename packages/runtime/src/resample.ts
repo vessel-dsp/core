@@ -41,6 +41,16 @@ export const RESAMPLE_STAGE_SPECS: readonly (readonly [taps: number, beta: numbe
   [21, 6.0],
 ];
 
+/**
+ * The spec for 2x stage `index` (0 = host-rate stage). Stages past the table
+ * (oversample 16 and above, 768 kHz and up) reuse the last entry: the fold
+ * analysis only gets easier as the rate rises, so the leanest stage stays
+ * sufficient and any power-of-two factor keeps working.
+ */
+export function resampleStageSpec(index: number): readonly [taps: number, beta: number] {
+	return RESAMPLE_STAGE_SPECS[Math.min(index, RESAMPLE_STAGE_SPECS.length - 1)] as readonly [number, number];
+}
+
 /** Kaiser beta for the default prototype stopband. Exported so tests can deliberately
  * design a worse prototype for the failing control. */
 export const RESAMPLE_KAISER_BETA = 8.3;
@@ -194,14 +204,12 @@ export class HalfBandStage2x {
  * just derived.
  */
 export function cascadeLatencyHostSamples(stages: number): number {
-	if (!Number.isInteger(stages) || stages < 1 || stages > RESAMPLE_STAGE_SPECS.length) {
-		throw new Error(
-			`resampler cascade needs 1-${RESAMPLE_STAGE_SPECS.length} stages (got ${String(stages)})`,
-		);
+	if (!Number.isInteger(stages) || stages < 1) {
+		throw new Error(`resampler cascade needs a positive integer stage count (got ${String(stages)})`);
 	}
 	let total = 0;
 	for (let s = 0; s < stages; s += 1) {
-		const center = ((RESAMPLE_STAGE_SPECS[s]?.[0] as number) - 1) / 2;
+		const center = (resampleStageSpec(s)[0] - 1) / 2;
 		total += (2 * center - 1) / 2 ** (s + 1);
 	}
 	return total;

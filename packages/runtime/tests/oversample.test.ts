@@ -119,6 +119,53 @@ describe("solver oversampling", () => {
 		}
 	});
 
+	it("keeps every power-of-two factor working past the stage table, with the divider's gain intact", () => {
+		// The stage table has three entries (host-rate, 2x, 4x stages); 16x and 32x need four and
+		// five cascaded stages and reuse the last (leanest) spec rather than refusing. The 16x
+		// and 32x settled fundamental of a divider (exact at any rate) must still match 1x to
+		// within the resampler's ripple budget, and the reported latency must grow by the extra
+		// stages' (2C-1)/2^s with C = 10.
+		const program = programFor(resistorDivider);
+		const input = new Float64Array(9600);
+		for (let index = 0; index < input.length; index += 1) {
+			input[index] = 0.3 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+		}
+		const amplitude = (output: Float64Array): number => {
+			let cc = 0;
+			let cs = 0;
+			let ss = 0;
+			let tc = 0;
+			let ts = 0;
+			for (let index = 0; index < output.length; index += 1) {
+				const phase = (2 * Math.PI * 1000 * index) / RATE;
+				const cos = Math.cos(phase);
+				const sin = Math.sin(phase);
+				cc += cos * cos;
+				cs += cos * sin;
+				ss += sin * sin;
+				tc += (output[index] ?? 0) * cos;
+				ts += (output[index] ?? 0) * sin;
+			}
+			const det = cc * ss - cs * cs;
+			return Math.hypot((tc * ss - ts * cs) / det, (cc * ts - cs * tc) / det);
+		};
+		const plain = new ReferenceRuntime(program);
+		plain.prepare(RATE);
+		const reference = amplitude(plain.process(input).subarray(4800));
+		expect(reference).toBeGreaterThan(0);
+		for (const [oversample, latency] of [
+			[16, 28.625 + 19 / 16],
+			[32, 28.625 + 19 / 16 + 19 / 32],
+		] as const) {
+			const runtime = new ReferenceRuntime(program);
+			runtime.prepare(RATE, { oversample });
+			expect(runtime.oversampleLatency()).toBe(latency);
+			const settled = runtime.process(input).subarray(4800);
+			expect(settled.every(Number.isFinite)).toBe(true);
+			expect(Math.abs(20 * Math.log10(amplitude(settled) / reference))).toBeLessThan(0.01);
+		}
+	});
+
 	it("refuses a factor below 1 by clamping rather than solving nonsense", () => {
 		// Zero or negative sub-samples per sample has no reading; 1 is the floor.
 		const program = programFor(resistorDivider);
