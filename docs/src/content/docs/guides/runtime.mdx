@@ -7,7 +7,7 @@ description: Run compiled Program ROMs with @vessel-dsp/runtime.
 
 ## Install
 
-`@vessel-dsp/runtime` 0.3.1 is on npm, with `@vessel-dsp/compiler` 0.3.0 alongside it. Use runtime 0.2.1 or later: 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
+`@vessel-dsp/runtime` 0.4.0 is on npm, with `@vessel-dsp/compiler` 0.4.0 alongside it. Use runtime 0.2.1 or later: 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
 
 
 ```bash
@@ -45,7 +45,7 @@ Every `prepare()` option, with what it does:
 - `maxNewtonIterations`: CPU versus accuracy knob. Samples that exhaust it are held and counted in telemetry, never silently interpolated.
 - `realtimeBudget`: opt in admission gate. Omitted means no gating.
 - `inputSourceOhms` (default 0): series impedance driving the input jack. A console setting, not a program one.
-- `oversample` (default 1): integer sub samples per host sample. Zero order hold output; no band limiting decimator is implemented.
+- `oversample` (default 1): integer sub samples per host sample. A power of two of 2 or more solves at `sampleRate * oversample` behind a band-limited, linear-phase half-band FIR cascade (one 2x stage per factor of two, fixed per-stage prototypes 41/29/21 taps, coefficients from the stage only). It delays the output by 19.5 / 26.25 / 28.625 host samples at 2x / 4x / 8x, read back by `oversampleLatency()` (`null` before `prepare()`); `hostSampleRate()` reports the host rate. Any other factor keeps the held path (input held flat across the sub samples, last sub sample out, latency 0). Factor 1 is unchanged.
 
 ```ts
 import { compile, emptyRegistry } from "@vessel-dsp/compiler";
@@ -73,7 +73,7 @@ peak: 1.3502
 samples: 128
 ```
 
-At `oversample: 2` the same drive renders at peak 1.3501: more solver work per host sample for the same circuit, with no band limiting decimator either way.
+At `oversample: 2` the same 128 samples render at peak 1.3502 (1.3498 at `oversample: 4`), delayed by 19.5 (26.25) host samples through the band-limited cascade: more solver work per host sample for the same circuit, and `oversampleLatency()` reports the delay.
 
 ## SetControl and positions
 
@@ -175,7 +175,7 @@ The eight closed refusal reasons for the document-to-stamp join, and the full sa
 
 The compiled solver console (`v2_dsp.cjs` glue plus `v2_dsp.wasm`) ships inside this package under `dist/wasm/`. It is a release artifact, not source: `bun run --cwd packages/runtime build:wasm` (needs `em++`) writes it to the gitignored `src/wasm/`, `build` copies it to `dist/wasm/`, and `prepack` does both, so the tarball always carries a freshly built console. The published tarball is about 1.0 MB packed (3.1 MB unpacked), of which the wasm is 2.1 MB and the glue about 15 KB.
 
-`V2WasmEngine.create()` loads the glue from the package's own `dist/wasm/` — no path to configure. `prepare()` takes an options object (`sampleRate` defaults to 48000); audio moves through `processBlock` on `Float32Array`s, and `destroy()` releases the engine handle:
+`V2WasmEngine.create()` loads the glue from the package's own `dist/wasm/` — no path to configure. `prepare()` takes an options object (`sampleRate` defaults to 48000; `maxNewtonIterations`, `inputSourceOhms` and `oversample` as on the reference console, with `hostSampleRate()` / `oversampleLatency()` reading back the same values); audio moves through `processBlock` on `Float32Array`s, and `destroy()` releases the engine handle. The native `v2_engine_prepare` export gained the `oversample` argument in runtime 0.4.0 (a signature change, not a second export); hosts going through the wrapper need no change:
 
 ```ts
 import { compile, emptyRegistry } from "@vessel-dsp/compiler";
@@ -429,6 +429,6 @@ bad supply ohms: supply sourceOhms -1 is not a finite non-negative resistance
 
 ## Limits
 
-- Oversampling is zero order hold with no band limiting decimator.
+- Oversampling at a power of two is band limited and linear phase, at the cost of 19.5 / 26.25 / 28.625 host samples of latency at 2x / 4x / 8x (`oversampleLatency()`); non-power-of-two factors keep the held path with no band limiting. The decimator's transition band (about 19 to 29 kHz at a 48 kHz host) only partially suppresses content that folds from there.
 - Admission needs host measured costs; without a budget there is no gate, and without a price for a DSP model the chain is refused by model name.
 - Op-amp stages draw almost no supply current in the model, so sag on op-amp heavy pedals is under reported. A hard clipper can push current back into the rail, which a real cell cannot absorb.

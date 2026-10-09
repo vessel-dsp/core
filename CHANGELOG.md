@@ -1,5 +1,79 @@
 # Changelog
 
+## compiler 0.4.0 / runtime 0.4.0 / chain 0.1.6 / player 0.2.4
+
+Oversampling is band limited. `prepare(rate, { oversample })` at a power of two now solves at `rate * N`
+behind a linear-phase half-band FIR cascade (one 2x stage per factor of two; stage-specific prototypes of
+41/29/21 taps at Kaiser beta 6.0/7.0/6.0; coefficients a function of the stage only) instead of holding
+each input sample flat across the sub samples and keeping the last one. Why: trapezoidal integration warps
+frequency, and a 48 kHz host droops against native 192 kHz by 2.2 dB at 8 kHz and 12.3 dB at 16 kHz on the
+Big Muff (SD-1 1.2/5.0 dB, TS-9 1.3/5.7 dB; probe harness, 10 mV stepped sines at centre controls, LS
+fundamental fit). What os4 buys at 48 kHz: within 0.001 dB of native 192 kHz on all three pedals at every
+test frequency with the 57-tap prototype the work started from, within 0.006 dB with the stage-specific
+cascade that ships; aliasing at 2311 Hz, 100 mV, maximum drive reads -48.9 dBc on the SD-1 against -46.7
+native (TS-9 -48.5 vs -46.5; the old hold path left -34.6), on the clean side because the decimator also
+removes genuine 24-29 kHz content. Latency is reported, not hidden: 19.5 / 26.25 / 28.625 host samples at
+2x/4x/8x (0.55 ms at os4 and 48 kHz) through the new `oversampleLatency()` on both consoles, with
+`hostSampleRate()` beside it. Lower was measured and rejected: a minimum-phase FIR of the same magnitude
+reaches about 4 host samples but costs 1.7-2.1x the delay-removed waveform error on every pedal and stimulus
+(worse than a deliberately strong allpass on the Muff), and an IIR polyphase half-band fails magnitude by
+1.5 dB at 8 kHz; the shipped cascade's waveform error against native 192 kHz is within 1.01x of the 57-tap
+design on every stimulus. Non-power-of-two factors keep the held path at latency 0. The in-repo RC
+transparency bar moved 0.001 -> 0.01 dB: the residual (worst 0.0047 dB) is the 41-tap first stage's own
+passband ripple, reproduced digit for digit on the reference console, not a port error.
+
+Sparse schedule orders are now numeric-aware. The runtime builds a value-aware candidate order from the
+operating-point Jacobian at `prepare()` (`computeNumericRepivot`, tau 1e-3, now built in the compiler and
+exported with `NUMERIC_REPIVOT_TAU`: the compiler minor bump), adopts it over the shipped pattern-based
+order only when its replay against dense is within 1e-9, an order of magnitude better than shipped and
+within 10% fill; rescues a shipped order that collapses; and re-pivots once mid-run from a snapshot after 64
+consecutive pivot-guard trips. Corpus effect (122 pedals + 23 amps, sparse-vs-dense relative RMS at 1 kHz
+0.1 V, Newton cap 64): `boss-sd-1` 6.9e-8 -> 6.5e-12 (+3.6% slots), every other packet bit-identical, zero
+new fallbacks or abandoned blocks, wall time within noise (sd-1 +0.5%). A relative pivot guard was tried at
+three taus and reverted: it dropped `boss-ce-5` to dense and sent `mf-102` to 528k fallbacks with no audio
+change; the guard stays absolute at 1e-18. What it cannot do: packets at the 1e-8..1e-9 static floor
+(`boss-hm-2`, `marshall-jcm800` class) are order-invariant across nine taus, and the fill cap holds back
+known wins on `mxr-phase-90-early-block`, `mxr-phase-45` and `boss-os-2` because the same cap blocks
+`mxr-phase-90`'s 30x regression.
+
+Newton solves start from a predictor. A standard audio-pass solve of a nonlinear block seeds from a
+self-selecting order-0/1/2 extrapolation of the block's last three converged solutions, the order chosen by
+scoring the three candidates against each converged solution in tolerance units, and used only after a
+solve that took at most two iterations (`used > 2` forces order 0; non-convergence breaks the chain;
+`prepare()` and `reset()` clear it). No constant, no knob. At os4 it cuts Newton iterations per host sample
+39-47% on muff/sd1/ts9/ts808 and 44% on gro100 (TypeScript in-process; the WASM A/B runs the pedals at
+0.59-0.74 of the baseline time, and the Muff at os4 is newly under the 20.8 us in-process budget at 0.97);
+at x1, 0-11% on those six and -2.9% / -10.1% across the pedal / amp corpus with no packet more than +2.2%.
+Every converged pedal solution sits within 0.012 tolerance units of full Newton from the same state. The
+price, stated plainly: output agreement with dense moves from 1e-12..7e-8 to 2e-10..4.5e-6 on the pedals
+(the 1e-9 bar is structurally unmeetable by any method that changes the start, since a different first
+iterate is accepted at a different point inside the 1e-3 / 1e-6 tolerance band), and one to four
+non-converged samples appear on three cap-storm packets (`boss-mt-2` 9 -> 13, `mxr-phase-90-early-block`
+0 -> 1, `hiwatt-dr103` 24 -> 25: chaotic trajectories whose counts move on any 1-ulp change). The C++
+console runs the same predictor and makes the same order decision on every one of 57 600 host samples
+across six packets at x1 and os4; it exports `getPredictorTelemetry()` (`seedsUsed`, `oneIterationSolves`,
+`totalIterations`) and `getPredictorOrder(blockIdx)`.
+
+WASM: the native `v2_engine_prepare` export now takes `(handle, sampleRate, maxNewtonIterations,
+inputSourceOhms, oversample)`. The existing export changed; there is no second one, and the wrapper passes
+the argument. `GeneratedKernels.cpp` is regenerated from the 145 corpus programs (139 kernels, was 137).
+Console parity (workbench method: 440 + 1320 Hz two-tone, r >= 0.9999, max abs < 1e-4) holds at
+x1/os2/os4/os8 on the six profile packets except the pre-existing blue-box os2 marginal (1.04e-4); sd1 and
+ts9 keep their libm offsets (7.7e-6 / 2.7e-5).
+
+What did not change: the default factor is 1, so no existing caller's output changes through the resampler
+(factor-1 renders were bit-identical to the previous console with the predictor disabled). The predictor
+is not disabled: every factor-1 render of a nonlinear circuit moves at the 1e-7..1e-6 level (max abs
+against the previous console on the two-tone window: muff 9.6e-8, ts808 2.4e-6, blue-box 7.0e-7); linear-only
+circuits are byte-identical. `chain` 0.1.6 and `player` 0.2.4 re-pin only. Rejected on evidence, so nobody
+re-proposes them: zero-order hold oversampling (-8.4 dB wrong on a shunt-inductor high-pass at every
+frequency, error growing with the factor); minimum-phase and IIR polyphase resamplers (above); a relative
+pivot guard (above); chord/Shamanskii and Broyden factorisation reuse (linear convergence lets the delta
+test accept iterates 10 tolerance units from the root, more iterations on every packet, and sd1 at x1
+latched into a wrong self-consistent state that every per-sample check passed); event sub-stepping for the
+gro100 cap storm (99.7% of its storm samples are genuine non-convergence of the EL34 push-pull stage and
+global feedback loop, where full dense Newton fails too).
+
 ## compiler 0.3.0 / runtime 0.3.1 / chain 0.1.5 / player 0.2.3
 
 Fix: the exact part id `2SK30A` now carries its own silicon gate-junction data (`gateSaturationCurrent` 1e-14,

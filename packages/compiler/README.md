@@ -4,7 +4,7 @@ Headless circuit compiler turning `.vdsp` / `CircuitDocument` schematic data int
 
 ## Install
 
-`@vessel-dsp/compiler` 0.3.0 is on npm:
+`@vessel-dsp/compiler` 0.4.0 is on npm:
 
 ```bash
 bun add @vessel-dsp/compiler
@@ -111,6 +111,9 @@ Values on `.`:
 | `zenerCatalogPartIds` | Part ids the catalog treats as zeners. |
 | `resolveSupplyStamps` | Join document power domains to compiled `dc-source` stamps. |
 | `attachDeviceLaws` | Stage 2: attach laws to every netlist device. |
+| `gateOnlyFetPartIds` | Part ids (folded) whose catalog `fet` entry refines the gate junction only, so the channel stays at the class default. |
+| `computeNumericRepivot` | Value-aware re-pivot of a block's sparse schedule from its operating-point matrix (the runtime calls it at `prepare()`; the C++ console ports it). Returns `null` when no candidate meets the threshold. |
+| `NUMERIC_REPIVOT_TAU` | The one pivot threshold (1e-3) `computeNumericRepivot` defaults to. |
 
 Types on `.` (import with `import type`): `CompileOptions`, `CompileResult`, `CompileSuccess`, `CompileFailure`, `CompileRefusal`, every `Program`/`Block`/`Stamp`/`Control`/cost type (`Program`, `Block`, `Stamp`, `OperatorKind`, `Control`, `ControlId`, `TaperKind`, `Ports`, `CostPredictors`, `NodeId`, `GROUND`, and the rest in `types.ts`), and the supply-join types (`SupplyAddress`, `ResolvedSupply`, `RefusedSupply`, `SupplyResolution`, `SupplyRefusalReason`).
 

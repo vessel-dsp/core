@@ -11,13 +11,13 @@ last. It does not open an `AudioContext`, touch the DOM, or own a device; the
 host drives it block by block.
 
 It composes the other simulation packages: `RuntimeNode` wraps a compiled
-`.vdsp` pedal `Program` from `@vessel-dsp/compiler` 0.3.0 running on
-`@vessel-dsp/runtime` 0.3.1, and `NamNode` plays `.nam` captures through a vendored
+`.vdsp` pedal `Program` from `@vessel-dsp/compiler` 0.4.0 running on
+`@vessel-dsp/runtime` 0.4.0, and `NamNode` plays `.nam` captures through a vendored
 WebAssembly engine.
 
 ## Install
 
-`@vessel-dsp/chain` 0.1.5 is on npm, with its pinned `@vessel-dsp/compiler`,
+`@vessel-dsp/chain` 0.1.6 is on npm, with its pinned `@vessel-dsp/compiler`,
 `@vessel-dsp/runtime`, and `@vessel-dsp/core` dependencies coming along
 automatically.
 
@@ -641,7 +641,7 @@ Runtime guide.
 Limits, stated plainly:
 
 - It uses the TypeScript reference console. The WASM console in
-  `@vessel-dsp/runtime` 0.3.1 exposes the same `getSupplies`/`setSupply`
+  `@vessel-dsp/runtime` 0.4.0 exposes the same `getSupplies`/`setSupply`
   pair for hosts that drive it directly; `RuntimeNode` drives the reference
   console.
 - Op-amp stages draw almost no supply current in the model, so sag on
