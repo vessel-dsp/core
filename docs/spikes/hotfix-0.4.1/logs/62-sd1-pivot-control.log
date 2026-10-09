@@ -1,0 +1,7 @@
+== TS: 3 packets compared (window: samples 0..16384), max|a-b| / peak(a)
+  boss-aw-2                                    max abs 0.000e+0  rel 0.000e+0  relRMS 0.000e+0  peak 4.960e-3  a-repivoted=["analog:0"] b-repivoted=["analog:0"]
+  boss-sd-1                                    max abs 0.000e+0  rel 0.000e+0  relRMS 0.000e+0  peak 4.762e-1  a-repivoted=[] b-repivoted=[]
+  mxr-dyna-comp                                max abs 0.000e+0  rel 0.000e+0  relRMS 0.000e+0  peak 4.454e+0  a-repivoted=["analog:0"] b-repivoted=["analog:0"]
+ts: bit-identical 3 of 3; differ 0
+== WASM: 0 packets compared (window: samples 0..16384), max|a-b| / peak(a)
+programs: emitted text or JSON differs for 0 packets

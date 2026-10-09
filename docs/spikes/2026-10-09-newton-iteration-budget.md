@@ -591,6 +591,22 @@ neither validated; with the gate that row is 3.715 → 3.652 it/host, 121 → 12
 non-converged, 5.2e-6 vs dense. The 1e-9 output bar: 101 pedals and 16 amps meet it as
 shipped; 60 and 6 still meet it with the gated rule (the rest sit at 1e-9..5e-6, §7).
 
+> **Correction, 2026-10-09 (core 0.4.1 hotfix; evidence: `docs/releases/2026-10-09-release-prep-0.4.1.md` check 4, harness `docs/spikes/hotfix-0.4.1/`).**
+> The `boss-dm-2` row of the full table cited in this section's heading (`out/corpus-m1adapt3-pedals-table.md`) reported the gated rule 4.3e-10 from the
+> shipped runtime under x1, cap 64, 2400 + 9600 samples of 1 kHz at 0.1 V. The runtime that shipped does not do that: it moves `boss-dm-2` by
+> **5.6e-3** relative RMS in that protocol (the workbench's figure, reproduced here on this report's own base, 1d9b6f2, with the shipped patch applied).
+> The struck cells are in the table file itself, which is where the figure was.
+> Cause (established at the level that matters, mechanism inside the twin not pursued): `corpus-sweep.ts` runs the method with the fixed-point twin on;
+> with the twin on, dm-2's trajectory stays within 2.4e-3 tolerance units of the previous-solution one, while the same rule without the twin departs from it
+> on 11 884 of 12 000 solves (worst 1 720 units). The rule is not the cause: `m1adapt3` and the shipped patch are bit-identical solve for solve on dm-2
+> (2 500 seeded, 0 differing decisions, 0 differing iteration counts). Without a predictor the twin changes nothing (0 of 12 000 solves differ), so it is the
+> combination. Other rows: of the 145 packets in the two tables, 44 have a "method vs shipped" figure at or above 1e-7 on either side; 43 of them agree with a
+> twin-free run of the real runtime within 2x (ratio 1.00 to three digits on the ten largest) and the 101 others are below 1e-7 on both sides, so no other
+> row shares the cause at this protocol. Every aggregate in this section that includes dm-2 as a
+> "meets 1e-9" row is unchanged (its method-vs-dense was 1.009e-9, already over the bar); the corrected dm-2 figures are in the table file. The statement
+> "Every converged pedal solution sits within 0.012 tolerance units of full Newton from the same state" was measured on the pinned trajectory for dm-2 and
+> is not established for dm-2 on its own.
+
 
 ## 11. Exact commands and what this cannot prove
 

@@ -1,0 +1,28 @@
+packet    os | 6.0.4 vs 3.1.74 | A vs TS: r, max abs | B vs TS: r, max abs | seeds A/B | verdict
+muff       1 | bit-identical | 1.000000, 1.86e-9 | 1.000000, 1.86e-9 | 0/0 | within bars
+muff       2 | bit-identical | 1.000000, 1.86e-9 | 1.000000, 1.86e-9 | 3530/3530 | within bars
+muff       4 | bit-identical | 1.000000, 1.86e-9 | 1.000000, 1.86e-9 | 7783/7783 | within bars
+muff       8 | bit-identical | 1.000000, 1.86e-9 | 1.000000, 1.86e-9 | 16253/16253 | within bars
+sd1        1 | bit-identical | 1.000000, 7.67e-6 | 1.000000, 7.67e-6 | 0/0 | within bars
+sd1        2 | bit-identical | 1.000000, 7.73e-6 | 1.000000, 7.73e-6 | 3073/3073 | within bars
+sd1        4 | bit-identical | 1.000000, 7.74e-6 | 1.000000, 7.74e-6 | 7342/7342 | within bars
+sd1        8 | bit-identical | 1.000000, 7.75e-6 | 1.000000, 7.75e-6 | 16090/16090 | within bars
+ts9        1 | bit-identical | 1.000000, 2.69e-5 | 1.000000, 2.69e-5 | 0/0 | within bars
+ts9        2 | bit-identical | 1.000000, 2.70e-5 | 1.000000, 2.70e-5 | 3719/3719 | within bars
+ts9        4 | bit-identical | 1.000000, 2.71e-5 | 1.000000, 2.71e-5 | 8087/8087 | within bars
+ts9        8 | bit-identical | 1.000000, 2.71e-5 | 1.000000, 2.71e-5 | 16376/16376 | within bars
+ts808      1 | bit-identical | 1.000000, 7.61e-9 | 1.000000, 7.61e-9 | 0/0 | within bars
+ts808      2 | bit-identical | 1.000000, 7.59e-9 | 1.000000, 7.59e-9 | 3017/3017 | within bars
+ts808      4 | bit-identical | 1.000000, 7.67e-9 | 1.000000, 7.67e-9 | 8085/8085 | within bars
+ts808      8 | bit-identical | 1.000000, 8.94e-9 | 1.000000, 8.94e-9 | 16336/16336 | within bars
+gro100     1 | bit-identical | 1.000000, 7.42e-9 | 1.000000, 7.42e-9 | 0/0 | within bars
+gro100     2 | bit-identical | 1.000000, 7.42e-9 | 1.000000, 7.42e-9 | 3841/3841 | within bars
+gro100     4 | bit-identical | 1.000000, 7.43e-9 | 1.000000, 7.43e-9 | 7831/7831 | within bars
+gro100     8 | bit-identical | 1.000000, 7.45e-9 | 1.000000, 7.45e-9 | 15953/15953 | within bars
+blue-box   1 | bit-identical | 1.000000, 1.80e-4 | 1.000000, 1.80e-4 | 0/0 | OVER A BAR (same on both binaries: true)
+blue-box   2 | bit-identical | 1.000000, 1.04e-4 | 1.000000, 1.04e-4 | 11/11 | OVER A BAR (same on both binaries: true)
+blue-box   4 | bit-identical | 1.000000, 9.27e-10 | 1.000000, 9.27e-10 | 66/66 | within bars
+blue-box   8 | bit-identical | 1.000000, 9.31e-10 | 1.000000, 9.31e-10 | 267/267 | within bars
+
+the two toolchains' binaries are bit-identical on every row
+some rows are over a parity bar (see rows; compare with the previous release's table)

@@ -1,0 +1,10 @@
+
+== TS: 145 packets compared (window: samples 0..2048), max|a-b| / peak(a)
+bit-identical: 145
+ts: bit-identical 145 of 145; differ 0
+
+== WASM: 145 packets compared (window: samples 0..2048), max|a-b| / peak(a)
+bit-identical: 145
+wasm: bit-identical 145 of 145; differ 0
+
+programs: emitted text or JSON differs for 0 packets

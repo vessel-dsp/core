@@ -95,6 +95,7 @@ struct BlockScratch {
      * standard-pass solutions (`predictorX1` newest), the unbroken-chain length, the
      * extrapolation order the next solve seeds from (0 = the previous solution, 1 = linear,
      * 2 = quadratic) and the reused candidate scratch. Cleared by `prepare()` and `reset()`.
+     * Only advanced when the engine was prepared with `oversample > 1` (see `iterate`).
      */
     std::vector<double> predictorX1;
     std::vector<double> predictorX2;
@@ -288,6 +289,7 @@ public:
      * iteration (the predictor's whole saving: one step where the previous-solution start
      * needs a step and a check). The reference has the same quantities by construction
      * (`predictedNewtonStart` returning non-null; `recordNewtonSolution` with `used === 1`).
+     * Both read 0 at `oversample` 1: the predictor does not run there.
      */
     int64_t predictorSeeds() const { return predictorSeeds_; }
     int64_t oneIterationSolves() const { return oneIterationSolves_; }

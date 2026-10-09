@@ -2517,8 +2517,9 @@ Engine::SolveResult Engine::iterate(
     // On a standard audio pass of a nonlinear block the seed is the predicted start (see
     // `recordNewtonSolution`), falling back to `start`. `start` itself stays the previous
     // solution for the fold reseed below. The same predicate as the reference's
-    // `predictorPass`.
-    const bool predictorPass = !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
+    // `predictorPass`, including its `oversample > 1` gate: at factor 1 nothing seeds and
+    // nothing records.
+    const bool predictorPass = oversample_ > 1 && !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
     const double* seed = predictorPass ? predictedNewtonStart(scratch, size) : nullptr;
     if (seed != nullptr) {
         predictorSeeds_++;
@@ -3074,7 +3075,7 @@ Engine::SolveResult Engine::iterateEliminated(
 
     // The predicted start (see `recordNewtonSolution`), falling back to `start`: the same
     // rule as `iterate`, applied through the port unknowns the reduced solve iterates on.
-    const bool predictorPass = !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
+    const bool predictorPass = oversample_ > 1 && !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
     const double* seed = predictorPass ? predictedNewtonStart(scratch, size) : nullptr;
     if (seed != nullptr) {
         predictorSeeds_++;

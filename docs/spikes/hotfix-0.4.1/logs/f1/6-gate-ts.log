@@ -1,0 +1,13 @@
+== 6-gate-ts  (load before: 1.59 1.92 3.23)
+# boss-mt-2 console=ts os=1 cap=1024 seconds=8 block=128
+second 0: 159.0 us/sample (7.63x real time)
+second 1: 146.6 us/sample (7.04x real time)
+second 2: 169.3 us/sample (8.13x real time)
+second 3: 156.4 us/sample (7.51x real time)
+second 4: 149.7 us/sample (7.19x real time)
+second 5: 146.6 us/sample (7.04x real time)
+second 6: 148.5 us/sample (7.13x real time)
+second 7: 162.1 us/sample (7.78x real time)
+final telemetry: {"totalIterations":1709688,"nonConvergedSamples":210,"ordersNonZero":0}
+RESULT: no block over 2000 ms
+(load after: 1.47 1.83 3.11)

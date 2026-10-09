@@ -106,7 +106,7 @@
 | bk-butler-tube-driver | 46 | 2.719 → 2.247 | -17.3 | 0/0 (0) | 6/5 | 6.7e-10 → 9.6e-7 | 9.6e-7 | 0.025 | 0 | 0.0 |
 | boss-ce-1 | 12 | 3.000 → 3.000 | +0.0 | 0/0 (0) | 2/2 | 0.0e+0 → 0.0e+0 | 0.0e+0 | 1.4e-13 | 0 | 100.0 |
 | boss-cs-3 | 51 | 2.688 → 1.833 | -31.8 | 0/0 (0) | 4/3 | 1.5e-10 → 5.5e-7 | 5.5e-7 | 7.0e-3 | 0 | 18.8 |
-| boss-dm-2 | 89 | 2.255 → 2.198 | -2.6 | 0/0 (0) | 4/4 | 7.9e-10 → 1.0e-9 | 4.5e-10 | 4.5e-3 | 0 | 0.0 |
+| boss-dm-2 | 89 | 2.255 → 2.198 | -2.6 | 0/0 (0) | 4/4 | ~~7.9e-10 → 1.0e-9~~ **unreliable** | ~~4.5e-10~~ **unreliable** | ~~4.5e-3~~ **unreliable** | 0 | 0.0 |
 | boss-ge-7 | 58 | 2.647 → 2.572 | -2.8 | 0/0 (0) | 3/3 | 2.3e-11 → 2.4e-11 | 9.2e-12 | 4.7e-7 | 0 | 0.0 |
 | boss-nf-1-noise-gate | 50 | 3.283 → 3.201 | -2.5 | 0/0 (0) | 64/64 | 7.3e-11 → 2.1e-4 | 2.1e-4 | 0.863 | 0 | 0.0 |
 | boss-ph-1r | 62 | 4.000 → 4.000 | +0.0 | 0/0 (0) | 4/4 | 3.3e-10 → 4.5e-10 | 2.7e-10 | 4.4e-3 | 0 | 0.0 |
@@ -125,3 +125,7 @@
 | tycobrahe-octavia | 22 | 3.161 → 2.981 | -5.7 | 0/0 (0) | 33/37 | 9.1e-12 → 1.4e-5 | 1.4e-5 | 0.536 | 0 | 4.0 |
 
 packets 122: fewer iterations 65, more 13 (worst +49.6% on analog-man-prince-of-tone), aggregate it/host 515.6 → 440.6 (-14.5%); more non-converged than shipped: boss-mt-2 9→10; fewer: jim-dunlop-fuzz-face 121→0, univox-super-fuzz 9→7, electro-harmonix-q-tron 4→0, mxr-blue-box 9600→273, jim-dunlop-fuzz-face-jh2 121→0; any sub-sample deviating >1 tol unit: boss-hm-2 (202, worst 1.14), jim-dunlop-fuzz-face (46, worst 4.43), univox-super-fuzz (44, worst 4.66), mxr-blue-box (55, worst 3.25), boss-mt-2 (2, worst 999.00), boss-os-2 (59, worst 1.05), mxr-phase-90-early-block (5765, worst 62.72), jim-dunlop-fuzz-face-jh2 (46, worst 4.43); worst deviation among the rest 0.863; packets within 1e-9 of dense as shipped: 101, still within 1e-9 with the method: 49
+
+> **Correction, 2026-10-09.** The `boss-dm-2` row's agreement cells are struck: this is the ungated rule, which never shipped, run with the fixed-point twin,
+> and the twin pins dm-2 to the previous-solution trajectory when a predictor is on (see the correction under
+> `corpus-m1adapt3-pedals-table.md`). No twin-free figure was measured for this rule; the cells are unreliable, not re-measured.

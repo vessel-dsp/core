@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/runtime",
-	"version": "0.4.0",
+	"version": "0.4.1",
 	"description": "Real-time MNA simulation runtime and solver console for VesselDSP Program ROMs.",
 	"keywords": [
 		"guitar-pedal",

@@ -1,0 +1,28 @@
+
+== TS: 9 packets compared (window: samples 0..48000), max|a-b| / peak(a)
+bit-identical: 1  |  <=1e-5: 1  |  <=1e-4: 3  |  <=1e-3: 1  |  >1e-2: 3
+  big-muff-pi-ec3003-rev-f                     max abs 2.681e-7  rel 2.566e-6  relRMS 1.476e-7  peak 1.045e-1  a-repivoted=[] b-repivoted=[]
+  boss-dm-2                                    max abs 7.828e-3  rel 8.964e-2  relRMS 1.189e-1  peak 8.733e-2  a-repivoted=[] b-repivoted=[]
+  boss-hm-2                                    max abs 1.188e-4  rel 3.845e-4  relRMS 5.457e-6  peak 3.089e-1  a-repivoted=[] b-repivoted=[]
+  boss-mt-2                                    max abs 4.072e-2  rel 1.801e-1  relRMS 4.393e-3  peak 2.261e-1  a-repivoted=[] b-repivoted=[]
+  boss-od-1                                    max abs 1.360e-5  rel 2.209e-5  relRMS 9.500e-6  peak 6.157e-1  a-repivoted=[] b-repivoted=[]
+  ibanez-ts808                                 max abs 2.364e-6  rel 1.231e-5  relRMS 2.439e-6  peak 1.920e-1  a-repivoted=[] b-repivoted=[]
+  ibanez-ts9-reissue                           max abs 2.710e-6  rel 1.012e-5  relRMS 2.654e-6  peak 2.677e-1  a-repivoted=[] b-repivoted=[]
+  mxr-blue-box                                 max abs 0.000e+0  rel 0.000e+0  relRMS 0.000e+0  peak 3.299e-2  a-repivoted=[] b-repivoted=[]
+  orange-gro100                                max abs 3.532e+1  rel 9.605e-1  relRMS 3.630e-1  peak 3.678e+1  a-repivoted=[] b-repivoted=[]
+ts: bit-identical 1 of 9; differ 8
+
+== WASM: 9 packets compared (window: samples 0..48000), max|a-b| / peak(a)
+bit-identical: 1  |  <=1e-5: 1  |  <=1e-4: 3  |  <=1e-3: 1  |  >1e-2: 3
+  big-muff-pi-ec3003-rev-f                     max abs 2.678e-7  rel 2.562e-6  relRMS 1.497e-7  peak 1.045e-1  a-repivotedBlocks=0 b-repivotedBlocks=0
+  boss-dm-2                                    max abs 7.803e-3  rel 8.936e-2  relRMS 1.187e-1  peak 8.733e-2  a-repivotedBlocks=0 b-repivotedBlocks=0
+  boss-hm-2                                    max abs 1.331e-4  rel 4.309e-4  relRMS 7.073e-6  peak 3.089e-1  a-repivotedBlocks=0 b-repivotedBlocks=0
+  boss-mt-2                                    max abs 3.599e-2  rel 1.592e-1  relRMS 3.259e-3  peak 2.261e-1  a-repivotedBlocks=0 b-repivotedBlocks=0
+  boss-od-1                                    max abs 1.359e-5  rel 2.207e-5  relRMS 9.500e-6  peak 6.157e-1  a-repivotedBlocks=0 b-repivotedBlocks=0
+  ibanez-ts808                                 max abs 2.354e-6  rel 1.226e-5  relRMS 2.439e-6  peak 1.920e-1  a-repivotedBlocks=0 b-repivotedBlocks=0
+  ibanez-ts9-reissue                           max abs 2.712e-6  rel 1.013e-5  relRMS 2.654e-6  peak 2.677e-1  a-repivotedBlocks=0 b-repivotedBlocks=0
+  mxr-blue-box                                 max abs 0.000e+0  rel 0.000e+0  relRMS 0.000e+0  peak 3.299e-2  a-repivotedBlocks=0 b-repivotedBlocks=0
+  orange-gro100                                max abs 3.589e+1  rel 9.711e-1  relRMS 3.796e-1  peak 3.696e+1  a-repivotedBlocks=0 b-repivotedBlocks=0
+wasm: bit-identical 1 of 9; differ 8
+
+programs: emitted text or JSON differs for 0 packets

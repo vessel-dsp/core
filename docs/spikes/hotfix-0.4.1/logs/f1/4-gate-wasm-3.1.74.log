@@ -1,0 +1,13 @@
+== 4-gate-wasm-3.1.74  (load before: 0.97 1.99 3.36)
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+second 0: 24.7 us/sample (1.19x real time)
+second 1: 26.1 us/sample (1.25x real time)
+second 2: 26.4 us/sample (1.27x real time)
+second 3: 26.0 us/sample (1.25x real time)
+second 4: 25.7 us/sample (1.23x real time)
+second 5: 27.2 us/sample (1.30x real time)
+second 6: 27.9 us/sample (1.34x real time)
+second 7: 26.9 us/sample (1.29x real time)
+final telemetry: {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1731151}
+RESULT: no block over 50 ms
+(load after: 0.97 1.95 3.34)

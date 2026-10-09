@@ -1,0 +1,11 @@
+== 2-040-wasm  (load before: 0.93 2.13 3.47)
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+second 0: 21.9 us/sample (1.05x real time)
+second 1: 21.3 us/sample (1.02x real time)
+SLOW block starting at sample 132096 (2.7520 s): 2981.1 ms = 23290 us/sample; telemetry {"seedsUsed":242,"oneIterationSolves":0,"totalIterations":640804}
+SLOW block starting at sample 132224 (2.7547 s): 11722.8 ms = 91585 us/sample; telemetry {"seedsUsed":242,"oneIterationSolves":0,"totalIterations":771876}
+SLOW block starting at sample 132352 (2.7573 s): 11659.4 ms = 91089 us/sample; telemetry {"seedsUsed":242,"oneIterationSolves":0,"totalIterations":902948}
+stopped after 3 stalled blocks (over 1000 ms) at sample 132480
+final telemetry: {"seedsUsed":242,"oneIterationSolves":0,"totalIterations":902948}
+RESULT: STALL, 3 blocks over 1000 ms (first at the SLOW line above)
+(load after: 0.96 2.02 3.39)

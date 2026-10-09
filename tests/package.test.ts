@@ -930,8 +930,9 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
 		expect(changelog).toStartWith(
-			"# Changelog\n\n## compiler 0.4.0 / runtime 0.4.0 / chain 0.1.6 / player 0.2.4\n\n",
+			"# Changelog\n\n## runtime 0.4.1 / chain 0.1.7 / player 0.2.5\n\n",
 		);
+		expect(changelog).toContain("## compiler 0.4.0 / runtime 0.4.0 / chain 0.1.6 / player 0.2.4");
 		expect(changelog).toContain("## compiler 0.3.0 / runtime 0.3.1 / chain 0.1.5 / player 0.2.3");
 		expect(changelog).toContain("## player 0.2.2");
 		expect(changelog).toContain("## player 0.2.1");

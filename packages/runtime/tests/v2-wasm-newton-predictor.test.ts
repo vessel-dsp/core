@@ -157,31 +157,79 @@ describe.skipIf(!wasmBinaryPresent)(`V2WasmEngine Newton start predictor${WASM_S
 		expect(r.maxDelta).toBeLessThan(1e-6);
 	});
 
-	it("decides the same order on a clipping signal at x1, where the gate and the tie rule do the work", async () => {
+	it("never seeds at x1, on either console, whatever the signal (a hard square and a clipping sine)", async () => {
 		const program = programFor(diodeClipper);
 		const square = (index: number) => (Math.floor(index / 24) % 2 === 0 ? 1 : -1);
 		const r = await lockstep(program, 1, square, 960);
 		expect(r.orderMismatches).toBe(0);
 		expect(r.seedMismatches).toBe(0);
 		expect(r.countMismatches).toBe(0);
-		// A hard square never predicts once settled (every order ties on the plateau, the
-		// edge sample scores worse): the few seeds are the start-up transient, the same count
-		// on both consoles, and the ring ends at order 0.
-		expect(r.wasm.seedsUsed).toBe(r.seeds);
-		expect(r.wasm.seedsUsed).toBeLessThan(20);
+		// Since 0.4.1 the predictor runs only at oversample > 1. Until then a hard square seeded
+		// during the start-up transient (under 20 solves, the same count on both consoles) and
+		// the ring ended at order 0; now the ring never advances at all.
+		expect(r.seeds).toBe(0);
+		expect(r.wasm.seedsUsed).toBe(0);
+		expect(r.wasm.oneIterationSolves).toBe(0);
 		expect(r.orders).toEqual([0]);
 		const sine = (index: number) => 0.5 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
 		const c = await lockstep(program, 1, sine, 1440);
 		// Clipping at x1: on a few samples the solve itself sits on the convergence knife
 		// edge and the consoles' libm-level stamp differences decide it differently (a 2- vs
-		// 3-iteration solve). The predictor's gate reads that count, so its decision follows
-		// the solve on exactly those samples -- never on its own: an order difference without
-		// an iteration-count difference at the same sample would be a port defect.
-		expect(c.orderWithoutCount).toBe(0);
-		expect(c.orderMismatches).toBeLessThanOrEqual(c.countMismatches);
-		expect(c.seedMismatches).toBeLessThanOrEqual(c.countMismatches + c.orderMismatches);
+		// 3-iteration solve). With no predictor there is no decision left to follow it, so no
+		// order or seed can differ; the iteration counts are the pre-predictor consoles' own
+		// disagreement and stay bounded as they were.
+		expect(c.orderMismatches).toBe(0);
+		expect(c.seedMismatches).toBe(0);
+		expect(c.seeds).toBe(0);
+		expect(c.wasm.seedsUsed).toBe(0);
+		expect(c.wasm.oneIterationSolves).toBe(0);
+		expect(c.orders).toEqual([0]);
 		expect(c.countMismatches).toBeLessThan(1440 * 0.05);
 		expect(c.maxDelta).toBeLessThan(1e-6);
+	});
+
+	it("does not run at x1 on the smooth signal where it seeds nearly every sub-sample at 4x", async () => {
+		const program = programFor(rcWithDiode);
+		const sine = (index: number) => 0.01 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+		const x1 = await lockstep(program, 1, sine, 1440);
+		expect(x1.orderMismatches).toBe(0);
+		expect(x1.seedMismatches).toBe(0);
+		expect(x1.countMismatches).toBe(0);
+		expect(x1.seeds).toBe(0);
+		expect(x1.wasm.seedsUsed).toBe(0);
+		expect(x1.wasm.oneIterationSolves).toBe(0);
+		expect(x1.orders).toEqual([0]);
+		// Same iteration count as the reference, which the TS suite pins as bit-identical to a
+		// predictor-forced-off render (newton-start-predictor.test.ts).
+		expect(x1.wasm.totalIterations).toBe(x1.iterations);
+		const x4 = await lockstep(program, 4, sine, 1440);
+		expect(x4.wasm.seedsUsed).toBeGreaterThan(1440 * 4 * 0.9);
+		expect(x4.wasm.totalIterations).toBeLessThan(x1.wasm.totalIterations * 4);
+	});
+
+	it("decides the same order on a clipping signal at 2x and 4x, where the gate and the tie rule do the work", async () => {
+		const program = programFor(diodeClipper);
+		const square = (index: number) => (Math.floor(index / 24) % 2 === 0 ? 1 : -1);
+		const sine = (index: number) => 0.5 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+		for (const os of [2, 4]) {
+			const r = await lockstep(program, os, square, 960);
+			expect(r.orderMismatches, `square os${os}`).toBe(0);
+			expect(r.seedMismatches, `square os${os}`).toBe(0);
+			expect(r.countMismatches, `square os${os}`).toBe(0);
+			expect(r.wasm.seedsUsed, `square os${os}`).toBe(r.seeds);
+			const c = await lockstep(program, os, sine, 1440);
+			// Clipping: on a few samples the solve sits on the convergence knife edge and the
+			// consoles' libm-level stamp differences decide it differently (a 2- vs 3-iteration
+			// solve). The predictor's gate reads that count, so its decision follows the solve on
+			// exactly those samples -- never on its own: an order difference without an
+			// iteration-count difference at the same sample would be a port defect.
+			expect(c.orderWithoutCount, `sine os${os}`).toBe(0);
+			expect(c.orderMismatches, `sine os${os}`).toBeLessThanOrEqual(c.countMismatches);
+			expect(c.seedMismatches, `sine os${os}`).toBeLessThanOrEqual(c.countMismatches + c.orderMismatches);
+			expect(c.countMismatches, `sine os${os}`).toBeLessThan(1440 * 0.05);
+			expect(c.maxDelta, `sine os${os}`).toBeLessThan(1e-6);
+			expect(c.wasm.seedsUsed, `sine os${os}`).toBeGreaterThan(0);
+		}
 	});
 
 	it("leaves a linear block untouched: no seeds, no one-iteration count, output unchanged", async () => {
@@ -207,7 +255,10 @@ describe.skipIf(!wasmBinaryPresent)(`V2WasmEngine Newton start predictor${WASM_S
 			const a = new Float32Array(input.length);
 			eng.processBlock(input, a);
 			const seeded = eng.getPredictorTelemetry().seedsUsed;
-			expect(seeded).toBeGreaterThan(0);
+			// The ring advances only above factor 1 (0.4.1): at x1 there is nothing to clear and
+			// the render must still repeat bit for bit.
+			if (os > 1) expect(seeded).toBeGreaterThan(0);
+			else expect(seeded).toBe(0);
 			eng.reset();
 			expect(eng.getPredictorTelemetry().seedsUsed).toBe(0);
 			expect(eng.getPredictorOrder(0)).toBe(0);

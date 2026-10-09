@@ -106,7 +106,7 @@
 | bk-butler-tube-driver | 46 | 2.719 → 2.593 | -4.6 | 0/0 (0) | 6/5 | 6.7e-10 → 9.4e-8 | 9.4e-8 | 3.3e-3 | 0 | 0.0 |
 | boss-ce-1 | 12 | 3.000 → 3.000 | +0.0 | 0/0 (0) | 2/2 | 0.0e+0 → 0.0e+0 | 0.0e+0 | 1.4e-13 | 0 | 100.0 |
 | boss-cs-3 | 51 | 2.688 → 2.021 | -24.8 | 0/0 (0) | 4/3 | 1.5e-10 → 5.5e-7 | 5.5e-7 | 7.0e-3 | 0 | 18.8 |
-| boss-dm-2 | 89 | 2.255 → 2.254 | -0.1 | 0/0 (0) | 4/4 | 7.9e-10 → 1.0e-9 | 4.3e-10 | 4.5e-3 | 0 | 0.0 |
+| boss-dm-2 | 89 | ~~2.255 → 2.254~~ **2.255 → 2.252** | -0.1 | 0/0 (0) | 4/4 | 7.9e-10 → ~~1.0e-9~~ **5.6e-3** | ~~4.3e-10~~ **5.6e-3** | ~~4.5e-3~~ **not measurable twin-free** | 0 | 0.0 |
 | boss-ge-7 | 58 | 2.647 → 2.647 | +0.0 | 0/0 (0) | 3/3 | 2.3e-11 → 2.5e-11 | 2.8e-12 | 1.2e-7 | 0 | 0.0 |
 | boss-nf-1-noise-gate | 50 | 3.283 → 3.203 | -2.5 | 0/0 (0) | 64/64 | 7.3e-11 → 5.0e-10 | 4.7e-10 | 0.069 | 0 | 0.0 |
 | boss-ph-1r | 62 | 4.000 → 4.000 | +0.0 | 0/0 (0) | 4/4 | 3.3e-10 → 4.5e-10 | 2.7e-10 | 4.6e-3 | 0 | 0.0 |
@@ -125,3 +125,12 @@
 | tycobrahe-octavia | 22 | 3.161 → 2.851 | -9.8 | 0/0 (0) | 33/33 | 9.1e-12 → 5.2e-7 | 5.2e-7 | 5.7e-3 | 0 | 3.9 |
 
 packets 122: fewer iterations 63, more 7 (worst +2.2% on earthquaker-devices-plumes), aggregate it/host 515.6 → 500.7 (-2.9%); more non-converged than shipped: boss-mt-2 9→13, mxr-phase-90-early-block 0→1; fewer: none; any sub-sample deviating >1 tol unit: mxr-phase-90-early-block (5781, worst 34.35); worst deviation among the rest 0.816; packets within 1e-9 of dense as shipped: 101, still within 1e-9 with the method: 60
+
+> **Correction, 2026-10-09 (core 0.4.1 hotfix, `docs/releases/2026-10-09-release-prep-0.4.1.md` check 4).** The `boss-dm-2` row above was struck in
+> place: its method run carried the fixed-point twin (`corpus-sweep.ts` always sets `fixedPointCheck: true` for the method), and with the twin on,
+> dm-2's solves stay within 2.4e-3 tolerance units of the previous-solution trajectory on all 12 000 solves, so "method vs shipped" read 4.3e-10.
+> The rule itself moves dm-2: the scratch `m1adapt3` and the shipped patch make the same decisions (2 500 seeded solves each, 0 of 12 000 differing)
+> and produce bit-identical solutions, and the real patched runtime against the real unpatched one in this protocol is 5.608e-3 relative RMS
+> (it/host 2.255 -> 2.252, non-converged 0/0, peak 4/4; vs dense 5.608e-3). The fixed-point-deviation cell (4.5e-3) was measured on the pinned
+> trajectory and is not a measurement of the rule on its own. Of the 145 packets in this table and the amps table, 44 have a figure at or above 1e-7 in this column on either side;
+> 43 agree with a twin-free run of the real runtime within 2x (to three digits on the ten largest), the other 101 are below 1e-7 on both sides, and this row is the one that does not agree.

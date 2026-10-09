@@ -1,0 +1,9 @@
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+<scratch>/verify-3174/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+cache:INFO: generating system asset: symbol_lists/d1e8aa8e71323a8f590c774249da702fd037a969.json... (this will be cached in "<scratch>/emsdk-3.1.74/upstream/emscripten/cache/symbol_lists/d1e8aa8e71323a8f590c774249da702fd037a969.json" for subsequent builds)
+cache:INFO:  - ok
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).

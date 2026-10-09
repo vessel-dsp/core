@@ -1,0 +1,7 @@
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+SLOW block starting at sample 8320 (0.1733 s): 51.1 ms = 400 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 10496 (0.2187 s): 60.2 ms = 470 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 14720 (0.3067 s): 120.5 ms = 942 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+stopped after 3 slow blocks at sample 14848
+final telemetry: "n/a (runtime without predictor telemetry)"
+RESULT: 3 blocks over 50 ms (see the SLOW lines for the first)

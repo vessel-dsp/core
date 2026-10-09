@@ -1,0 +1,11 @@
+
+== TS: 1 packets compared (window: samples 0..9600), max|a-b| / peak(a)
+<=1e-2: 1
+  boss-dm-2                                    max abs 6.089e-5  rel 9.379e-3  relRMS 5.608e-3  peak 6.492e-3  a-repivoted=[] b-repivoted=[]
+ts: bit-identical 0 of 1; differ 1
+
+== WASM: 0 packets compared (window: samples 0..9600), max|a-b| / peak(a)
+
+wasm: bit-identical 0 of 0; differ 0
+
+programs: emitted text or JSON differs for 0 packets

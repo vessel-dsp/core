@@ -8,7 +8,9 @@
 //      order falls back to 0 and the solve after the edge costs exactly what it always did;
 //   3. fixed-point equivalence: with the predictor engaged, every converged solution sits
 //      within the convergence tolerance of the solution the previous-solution start reaches
-//      from the same state (both are roots of the same equations at the same tolerances).
+//      from the same state (both are roots of the same equations at the same tolerances);
+//   4. it runs only at oversample > 1 (runtime 0.4.1): at factor 1 it neither seeds nor
+//      records, and the render is bit-identical to one with the predictor forced off.
 import { describe, expect, it } from "bun:test";
 import type { Program } from "@vessel-dsp/compiler";
 import { compile, emptyRegistry } from "@vessel-dsp/compiler";
@@ -58,7 +60,57 @@ if (rcWithDiode === diodeClipper) {
 type Internals = {
 	newtonStartHistory: Map<string, { order: number; chain: number }>;
 	nodeVoltages: Map<string, number[]>;
+	predictedNewtonStart: (blockId: string, size: number) => number[] | null;
+	recordNewtonSolution: (
+		blockId: string,
+		solution: readonly number[],
+		converged: boolean,
+		used: number,
+	) => void;
 };
+
+/**
+ * The previous-solution start on every solve: the predictor's two entry points disabled on
+ * this instance. The control the "same fixed point" and "bit-identical" claims are made
+ * against (clearing the history before each host sample is not one at oversample > 1, where
+ * the ring rebuilds inside the sub-samples).
+ */
+function forcePredictorOff(runtime: ReferenceRuntime): void {
+	const internals = runtime as unknown as Internals;
+	internals.predictedNewtonStart = () => null;
+	internals.recordNewtonSolution = () => undefined;
+}
+
+/** Count the solves a runtime seeds from an extrapolated start (wrapping the private method on the instance). */
+function countSeeds(runtime: ReferenceRuntime): { readonly seeds: () => number } {
+	const internals = runtime as unknown as Internals;
+	let seeds = 0;
+	const original = internals.predictedNewtonStart;
+	internals.predictedNewtonStart = function (this: unknown, blockId, size) {
+		const result = original.call(this, blockId, size);
+		if (result !== null) seeds += 1;
+		return result;
+	};
+	return { seeds: () => seeds };
+}
+
+function render(
+	program: Program,
+	input: (index: number) => number,
+	samples: number,
+	oversample: number,
+	forcedOff: boolean,
+): { out: number[]; runtime: ReferenceRuntime; seeds: () => number } {
+	const runtime = new ReferenceRuntime(program);
+	runtime.prepare(RATE, {
+		maxNewtonIterations: 64,
+		...(oversample > 1 ? { oversample } : {}),
+	});
+	if (forcedOff) forcePredictorOff(runtime);
+	const counter = countSeeds(runtime);
+	const block = Float64Array.from({ length: samples }, (_, index) => input(index));
+	return { out: Array.from(runtime.process(block)), runtime, seeds: counter.seeds };
+}
 
 /** Iterations spent on `count` one-sample `process` calls after `warm` samples of `input`. */
 function iterationsAfterWarmup(
@@ -118,6 +170,11 @@ describe("Newton start predictor", () => {
 	});
 
 	it("falls back to the previous-solution start after a hard edge and costs nothing extra", () => {
+		// Factor 1: since 0.4.1 the predictor does not run here at all, so this pins that the
+		// edge costs what the previous-solution start costs, by construction. (At 2x and 4x a
+		// hard square into this clipper is NOT free: the predictor spends 3.8 % / 0.5 % more
+		// iterations than the previous-solution start there, and wins only at 8x; measured
+		// 2026-10-09, recorded in docs/releases/2026-10-09-release-prep-0.4.1.md, not changed.)
 		const program = programFor(diodeClipper);
 		// +-1 V square at 1 kHz: an edge every 24 host samples.
 		const square = (index: number) => (Math.floor(index / 24) % 2 === 0 ? 1 : -1);
@@ -140,15 +197,20 @@ describe("Newton start predictor", () => {
 		expect(afterEdges.every((used) => used === 1)).toBe(true);
 	});
 
-	it("reaches the same fixed point as the previous-solution start, within tolerance", () => {
+	it("reaches the same fixed point as the previous-solution start, within tolerance (4x, where it runs)", () => {
 		const program = programFor(diodeClipper);
 		const blockId = (program.blocks.find((block) => block.kind === "mna") as { id: string }).id;
-		// 1 kHz at 0.5 V clips both diodes: a stiff solve on every sample.
+		// 1 kHz at 0.5 V clips both diodes: a stiff solve on every sub-sample.
 		const sine = (index: number) => 0.5 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
 		const predicted = new ReferenceRuntime(program);
-		predicted.prepare(RATE, { maxNewtonIterations: 64 });
+		predicted.prepare(RATE, { maxNewtonIterations: 64, oversample: 4 });
 		const shipped = new ReferenceRuntime(program);
-		shipped.prepare(RATE, { maxNewtonIterations: 64 });
+		shipped.prepare(RATE, { maxNewtonIterations: 64, oversample: 4 });
+		// The control: the same runtime with the predictor disabled, so every solve starts from
+		// the previous solution. (Until 0.4.1 this test ran at factor 1 against a history cleared
+		// every sample; the predictor no longer runs there, and at 4x clearing the history per
+		// host sample would leave it predicting inside the sub-samples.)
+		forcePredictorOff(shipped);
 		const pi = predicted as unknown as Internals;
 		const si = shipped as unknown as Internals;
 		const chunk = new Float64Array(1);
@@ -158,7 +220,6 @@ describe("Newton start predictor", () => {
 		for (let index = 0; index < 1440; index += 1) {
 			chunk[0] = sine(index);
 			const a = predicted.process(chunk)[0] as number;
-			si.newtonStartHistory.clear();
 			const b = shipped.process(chunk)[0] as number;
 			if (index < 480) continue;
 			if ((pi.newtonStartHistory.get(blockId)?.order ?? 0) > 0) engaged += 1;
@@ -181,5 +242,61 @@ describe("Newton start predictor", () => {
 		expect(predicted.telemetry().nonConvergedSamples).toBe(0);
 		expect(shipped.telemetry().nonConvergedSamples).toBe(0);
 		expect(maxOutputDiff).toBeLessThan(1e-3);
+	});
+
+	it("does not run at factor 1: no seeds, an empty ring, and a render bit-identical to one with the predictor forced off", () => {
+		const signals: Array<[string, Program, (index: number) => number]> = [
+			["smooth RC with a diode", programFor(rcWithDiode), (index) => 0.01 * Math.sin((2 * Math.PI * 1000 * index) / RATE)],
+			["clipping sine", programFor(diodeClipper), (index) => 0.5 * Math.sin((2 * Math.PI * 1000 * index) / RATE)],
+			["hard square", programFor(diodeClipper), (index) => (Math.floor(index / 24) % 2 === 0 ? 1 : -1)],
+		];
+		for (const [name, program, input] of signals) {
+			const shipped = render(program, input, 1440, 1, false);
+			const off = render(program, input, 1440, 1, true);
+			expect(shipped.out, name).toEqual(off.out);
+			expect(shipped.seeds(), name).toBe(0);
+			expect((shipped.runtime as unknown as Internals).newtonStartHistory.size, name).toBe(0);
+			expect(shipped.runtime.telemetry().totalIterations, name).toBe(off.runtime.telemetry().totalIterations);
+		}
+	});
+
+	it("the factor-1 comparison can fail: at 4x the same two renders differ, and the predictor seeds", () => {
+		const program = programFor(rcWithDiode);
+		const sine = (index: number) => 0.01 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+		const shipped = render(program, sine, 1440, 4, false);
+		const off = render(program, sine, 1440, 4, true);
+		expect(shipped.seeds()).toBeGreaterThan(1000);
+		expect((shipped.runtime as unknown as Internals).newtonStartHistory.size).toBe(1);
+		expect(shipped.out).not.toEqual(off.out);
+		expect(shipped.runtime.telemetry().totalIterations).toBeLessThan(off.runtime.telemetry().totalIterations);
+	});
+
+	it("seeds at every oversample factor above 1 (powers of two and the held path alike), and at none of 1", () => {
+		const program = programFor(rcWithDiode);
+		const sine = (index: number) => 0.01 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+		expect(render(program, sine, 960, 1, false).seeds()).toBe(0);
+		for (const factor of [2, 3, 4, 8]) {
+			const r = render(program, sine, 960, factor, false);
+			expect(r.seeds(), `oversample ${factor}`).toBeGreaterThan(100);
+		}
+	});
+
+	it("clears the ring on prepare(): re-preparing at factor 1 after a 4x run leaves it empty and unseeded", () => {
+		const program = programFor(rcWithDiode);
+		const sine = (index: number) => 0.01 * Math.sin((2 * Math.PI * 1000 * index) / RATE);
+		const runtime = new ReferenceRuntime(program);
+		const counter = countSeeds(runtime);
+		runtime.prepare(RATE, { maxNewtonIterations: 64, oversample: 4 });
+		runtime.process(Float64Array.from({ length: 480 }, (_, index) => sine(index)));
+		expect(counter.seeds()).toBeGreaterThan(0);
+		expect((runtime as unknown as Internals).newtonStartHistory.size).toBe(1);
+		// The factor is fixed by prepare(); a new prepare() at factor 1 starts with no history
+		// and, from there, no predictor.
+		runtime.prepare(RATE, { maxNewtonIterations: 64 });
+		expect((runtime as unknown as Internals).newtonStartHistory.size).toBe(0);
+		const before = counter.seeds();
+		runtime.process(Float64Array.from({ length: 480 }, (_, index) => sine(index)));
+		expect(counter.seeds()).toBe(before);
+		expect((runtime as unknown as Internals).newtonStartHistory.size).toBe(0);
 	});
 });

@@ -1,0 +1,19 @@
+--- decisions (seeded / iterations per solve): shipped patch vs scratch m1adapt3
+patched: 12000 solves; scratch: 12000 solves; aligned over 12000
+seeded in both: 2500; solves where the seeding decision differs: 0 (first at solve -1); where iterations used differ: 0 (first at solve -1)
+--- solution vectors
+[sol-patched vs sol-scratch-m1adapt3]
+patched vs scratch: 12000 solves (warm-up 2400); solves with any bit difference 0 (first -1); beyond 1 tolerance unit 0 (first -1); worst 0.000e+0 units at solve -1
+seeded: patched 2500, scratch 2500
+[sol-patched vs sol-scratch-none]
+patched vs scratch-none: 12000 solves (warm-up 2400); solves with any bit difference 11954 (first 46); beyond 1 tolerance unit 11884 (first 61); worst 1.720e+3 units at solve 4892
+seeded: patched 2500, scratch-none 0
+[sol-scratch-m1adapt3-fp vs sol-scratch-m1adapt3]
+scratch vs scratch: 12000 solves (warm-up 2400); solves with any bit difference 11954 (first 46); beyond 1 tolerance unit 11884 (first 61); worst 1.720e+3 units at solve 4892
+seeded: scratch 2543, scratch 2500
+[sol-scratch-m1adapt3-fp vs sol-scratch-none]
+scratch vs scratch-none: 12000 solves (warm-up 2400); solves with any bit difference 11954 (first 46); beyond 1 tolerance unit 0 (first -1); worst 2.361e-3 units at solve 10527
+seeded: scratch 2543, scratch-none 0
+[sol-scratch-none-fp vs sol-scratch-none]
+scratch-none vs scratch-none: 12000 solves (warm-up 2400); solves with any bit difference 0 (first -1); beyond 1 tolerance unit 0 (first -1); worst 0.000e+0 units at solve -1
+seeded: scratch-none 0, scratch-none 0

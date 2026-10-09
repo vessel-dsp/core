@@ -1,0 +1,4 @@
+corpus sweep method=m1adapt3 pedals cap=64 x1 2400+9600
+boss-dm-2                                n= 89 it/host 2.255 -> 2.254 (-0.1%) NC 0/0 (dense 0) peak 4/4 vsDense 7.9e-10 -> 1.0e-9 vsShipped 4.3e-10 devTol 0.004 dev>1 0 1-step 0.0% xRT 2.92 -> 24.11
+
+packets=1 fewer iterations=1 more iterations=0 more non-converged=0 deviation>1 tol unit on some sub-sample=0 wall faster=0 slower=1 (wall is load-noisy here; see the dedicated timing section)

@@ -1856,6 +1856,19 @@ export class ReferenceRuntime {
 	 * and the fold reseed (which reads the caller's `start`, the previous solution) are
 	 * untouched, so what converges is still the circuit's equations at the shipped
 	 * tolerances -- a different first iterate, the same fixed point.
+	 *
+	 * **It runs only when `prepare()` was given `oversample > 1`; at factor 1 (the default)
+	 * it neither seeds nor records, so the ring stays empty and the solve is the one runtime
+	 * 0.3.1 ran.** It shipped in 0.4.0 at every factor and was gated here in 0.4.1 because at
+	 * factor 1 it buys little and moves the output more than that saving is worth: iterations
+	 * fall 2.9 % across the pedal corpus and 10.1 % across the amps (1 kHz 0.1 V, cap 64),
+	 * against `boss-dm-2` moving 6.2 % of its cold-start peak (0.5-0.8 % of the settled peak)
+	 * and `boss-mt-2` stalling the WASM console permanently from 2.752 s of two-tone drive
+	 * (it does not stall with the predictor off). Above 1 it stays on for every factor, the
+	 * held path included (iterations on the profile packets: 2x -6..-15 %, 3x 0..-1 %, 4x
+	 * -39..-47 %, 5x/6x -8..-24 %, 8x -44..-50 %; output movement at most 6e-6 relative RMS).
+	 * The factor is fixed by `prepare()` (which also clears the ring), so there is no mid-run
+	 * switch to reason about.
 	 */
 	private readonly newtonStartHistory = new Map<
 		string,
@@ -4860,11 +4873,16 @@ export class ReferenceRuntime {
 		// buffer, so a caller that still holds it (`[...guess]` in the continuation methods,
 		// `previous.slice()` in `processBlock`) sees it unchanged.
 		//
-		// On a standard audio pass of a nonlinear block the seed is the predicted start (see
-		// `newtonStartHistory`), falling back to `start`. `start` itself stays the previous
-		// solution for the fold reseed below.
+		// On a standard audio pass of a nonlinear block, and only when the runtime was prepared
+		// with `oversample > 1`, the seed is the predicted start (see `newtonStartHistory`),
+		// falling back to `start`. At factor 1 nothing seeds and nothing records. `start`
+		// itself stays the previous solution for the fold reseed below.
 		const predictorPass =
-			!dc && sourceScale === 1 && gmin === GMIN_SIEMENS && !block.linear;
+			this.oversample > 1 &&
+			!dc &&
+			sourceScale === 1 &&
+			gmin === GMIN_SIEMENS &&
+			!block.linear;
 		const seed = (predictorPass ? this.predictedNewtonStart(block.id, size) : null) ?? start;
 		for (let index = 0; index < size; index += 1) {
 			solutionA[index] = seed[index] ?? 0;
@@ -5527,9 +5545,14 @@ export class ReferenceRuntime {
 		};
 
 		// The predicted start (see `newtonStartHistory`), falling back to `start`: the same
-		// rule as `iterate`, applied through the port unknowns the reduced solve iterates on.
+		// rule and the same `oversample > 1` gate as `iterate`, applied through the port
+		// unknowns the reduced solve iterates on.
 		const predictorPass =
-			!dc && sourceScale === 1 && gmin === GMIN_SIEMENS && !block.linear;
+			this.oversample > 1 &&
+			!dc &&
+			sourceScale === 1 &&
+			gmin === GMIN_SIEMENS &&
+			!block.linear;
 		const seed = (predictorPass ? this.predictedNewtonStart(block.id, size) : null) ?? start;
 		for (let p = 0; p < portCount; p += 1) {
 			scratch.yCurrent[p] = seed[portRows[p] as number] ?? 0;

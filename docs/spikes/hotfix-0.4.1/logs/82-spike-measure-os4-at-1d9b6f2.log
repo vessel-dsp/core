@@ -1,0 +1,21 @@
+measure cap=64 warmup=2400 samples=9600 host samples, 1 kHz 0.1 V, fixedPoint=false
+
+muff os=4: shipped-vs-dense (known positive) relRms=0.0e+0 maxAbs=0.0e+0 denseRms=2.51e-2 sNC=0 dNC=0 shippedHash=d2adeddef70c
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  shipped        9.063     9.063     9.063    0.000      0.0      0     0     5      0     0      0      0   0.0e+0   0.0e+0   6.63        -      -      -        -     - d2adeddef70c =shipped
+  m1adapt3       5.500     5.500     5.500    0.000     68.8      0     0     5      0     0      0      0   3.9e-7   5.4e-8   4.55        -      -      -        -     - 7c518413b8e9
+
+sd1 os=4: shipped-vs-dense (known positive) relRms=1.7e-8 maxAbs=5.7e-9 denseRms=7.84e-2 sNC=0 dNC=0 shippedHash=1d2ee08f4ccd
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  shipped        8.938     8.938     8.938    0.000      0.0      0     0     5      0     0      0      0   1.7e-8   5.7e-9   6.84        -      -      -        -     - 1d2ee08f4ccd =shipped
+  m1adapt3       5.273     5.273     5.273    0.000     77.6      0     0     5      0     0      0      0   7.9e-8   1.5e-8   3.83        -      -      -        -     - 718d7431cd7e
+
+ts9 os=4: shipped-vs-dense (known positive) relRms=1.0e-8 maxAbs=2.4e-9 denseRms=7.25e-2 sNC=0 dNC=0 shippedHash=93d0dd4fe386
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  shipped        8.375     8.375     8.375    0.000      0.0      0     0     3      0     0      0      0   1.0e-8   2.4e-9   6.45        -      -      -        -     - 93d0dd4fe386 =shipped
+  m1adapt3       4.625     4.625     4.625    0.000     84.4      0     0     3      0     0      0      0   3.0e-7   5.9e-8   3.26        -      -      -        -     - 371981ae7035
+
+ts808 os=4: shipped-vs-dense (known positive) relRms=1.9e-9 maxAbs=8.6e-10 denseRms=7.56e-2 sNC=0 dNC=0 shippedHash=c88f1063b114
+  method       it/host  fac/host  asm/host  reuse/h  1-step%  relax    NC  peak  stall   cap    lim   brdy   relRms   maxAbs    xRT   devTol  dev>1   m>tw  tw-it/h  twNC hash
+  shipped        8.792     8.792     8.792    0.000      0.0      0     0     3      0     0      0      0   1.9e-9  8.6e-10   5.98        -      -      -        -     - c88f1063b114 =shipped
+  m1adapt3       4.646     4.646     4.646    0.000     83.9      0     0     3      0     0      0      0   3.0e-7   7.6e-8   3.32        -      -      -        -     - ab21b845dea6

@@ -1,0 +1,9 @@
+== TS: 145 packets compared (window: samples 100..2048), max|a-b| / peak(a)
+bit-identical: 39  |  <=1e-9: 14  |  <=1e-7: 25  |  <=1e-6: 23  |  <=1e-5: 24  |  <=1e-4: 13  |  <=1e-3: 5  |  >1e-2: 2
+  boss-dm-2                                    max abs 5.419e-3  rel 6.206e-2  relRMS 6.570e-2  peak 8.733e-2  a-repivoted=[] b-repivoted=[]
+  boss-mt-2                                    max abs 4.840e-3  rel 2.143e-2  relRMS 8.239e-4  peak 2.259e-1  a-repivoted=[] b-repivoted=[]
+ts: bit-identical 39 of 145; differ 106
+== WASM: 145 packets compared (window: samples 100..2048), max|a-b| / peak(a)
+bit-identical: 47  |  <=1e-9: 4  |  <=1e-7: 26  |  <=1e-6: 25  |  <=1e-5: 24  |  <=1e-4: 13  |  <=1e-3: 5  |  >1e-2: 1
+  boss-dm-2                                    max abs 5.419e-3  rel 6.206e-2  relRMS 6.570e-2  peak 8.733e-2  a-repivotedBlocks=0 b-repivotedBlocks=0
+wasm: bit-identical 47 of 145; differ 98

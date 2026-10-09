@@ -7,7 +7,7 @@ description: Run compiled Program ROMs with @vessel-dsp/runtime.
 
 ## Install
 
-`@vessel-dsp/runtime` 0.4.0 is on npm, with `@vessel-dsp/compiler` 0.4.0 alongside it. Use runtime 0.2.1 or later: 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
+`@vessel-dsp/runtime` 0.4.1 is on npm, with `@vessel-dsp/compiler` 0.4.0 alongside it. Use runtime 0.2.1 or later: 0.2.0 cannot load a program inside an AudioWorklet (`structuredClone` is not defined there).
 
 
 ```bash
@@ -45,7 +45,7 @@ Every `prepare()` option, with what it does:
 - `maxNewtonIterations`: CPU versus accuracy knob. Samples that exhaust it are held and counted in telemetry, never silently interpolated.
 - `realtimeBudget`: opt in admission gate. Omitted means no gating.
 - `inputSourceOhms` (default 0): series impedance driving the input jack. A console setting, not a program one.
-- `oversample` (default 1): integer sub samples per host sample. A power of two of 2 or more solves at `sampleRate * oversample` behind a band-limited, linear-phase half-band FIR cascade (one 2x stage per factor of two, fixed per-stage prototypes 41/29/21 taps, coefficients from the stage only). It delays the output by 19.5 / 26.25 / 28.625 host samples at 2x / 4x / 8x, read back by `oversampleLatency()` (`null` before `prepare()`); `hostSampleRate()` reports the host rate. Any other factor keeps the held path (input held flat across the sub samples, last sub sample out, latency 0). Factor 1 is unchanged.
+- `oversample` (default 1): integer sub samples per host sample. A power of two of 2 or more solves at `sampleRate * oversample` behind a band-limited, linear-phase half-band FIR cascade (one 2x stage per factor of two, fixed per-stage prototypes 41/29/21 taps, coefficients from the stage only). It delays the output by 19.5 / 26.25 / 28.625 host samples at 2x / 4x / 8x, read back by `oversampleLatency()` (`null` before `prepare()`); `hostSampleRate()` reports the host rate. Any other factor keeps the held path (input held flat across the sub samples, last sub sample out, latency 0). From factor 2 up each nonlinear Newton solve also starts from a predictor (an extrapolation of the last three converged solutions; see the package README); at factor 1 it does not run, and factor 1 is unchanged.
 
 ```ts
 import { compile, emptyRegistry } from "@vessel-dsp/compiler";

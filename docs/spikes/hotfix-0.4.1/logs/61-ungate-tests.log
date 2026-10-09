@@ -1,0 +1,9 @@
+(fail) V2WasmEngine Newton start predictor > never seeds at x1, on either console, whatever the signal (a hard square and a clipping sine) [17.11ms]
+(fail) V2WasmEngine Newton start predictor > does not run at x1 on the smooth signal where it seeds nearly every sub-sample at 4x [24.42ms]
+(fail) V2WasmEngine Newton start predictor > clears the ring on reset() and prepare(): render, reset, render agree bit for bit [7.17ms]
+(fail) Newton start predictor > does not run at factor 1: no seeds, an empty ring, and a render bit-identical to one with the predictor forced off [48.83ms]
+(fail) Newton start predictor > seeds at every oversample factor above 1 (powers of two and the held path alike), and at none of 1 [4.56ms]
+(fail) Newton start predictor > clears the ring on prepare(): re-preparing at factor 1 after a 4x run leaves it empty and unseeded [6.09ms]
+ 7 pass
+ 6 fail
+Ran 13 tests across 2 files. [535.00ms]

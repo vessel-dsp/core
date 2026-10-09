@@ -1,0 +1,8 @@
+worklet-proof: bun legs chainTS-vs-ref 6.218e-3, wasmBun-vs-ref 4.344e-9
+worklet-proof: chromium 149.0.7827.55, bundle 298302 bytes, wasm 2147705 bytes
+worklet-proof: program formatVersion 6, dacScale 1, reference peak 0.124117 rms 0.095197
+worklet-proof: structuredClone=present (function) rate=48000 loadedControls=[] isWasmConsole=true wasmSlots=[{"slot":0,"peakIterations":1}] cpuLoad=4.6875 overruns=0
+worklet-proof: worklet peak 0.128883 rms 0.095237 maxAbsVsChain 1.102e-8 (PASS vs 0.0001) maxAbsVsReference 6.218e-3 [baseline]
+worklet-proof: structuredClone=deleted (undefined) rate=48000 loadedControls=[] isWasmConsole=true wasmSlots=[{"slot":0,"peakIterations":1}] cpuLoad=7.03125 overruns=0
+worklet-proof: worklet peak 0.128883 rms 0.095237 maxAbsVsChain 1.102e-8 (PASS vs 0.0001) maxAbsVsReference 6.218e-3 [no-structuredClone]
+worklet-proof: PASS

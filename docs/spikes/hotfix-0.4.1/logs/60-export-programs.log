@@ -1,0 +1,4 @@
+  skip boss-dd-3t: unsupported
+compiler package version 0.4.0; wrote 145 programs to <scratch>/programs
+generate-v2-kernels: wrote <scratch>/GeneratedKernels.regen.cpp with 139 kernels (561 scheduled blocks, 419 below min ops 64)
+ZERO DIFF

@@ -1,0 +1,18 @@
+build:wasm (3.1.74) exit=0
+artifact present
+CI step bun test packages/compiler/tests packages/runtime/tests (3.1.74 binary) exit=0
+bun test v1.3.14 (0d9b296a)
+
+ 915 pass
+ 0 fail
+ 504870 expect() calls
+Ran 915 tests across 58 files. [39.64s]
+full bun test (3.1.74 binary) exit=0
+48000-tap IR: 33.4 ms for 1 s audio (29.95x realtime)
+
+ 2000 pass
+ 0 fail
+ 514011 expect() calls
+Ran 2000 tests across 142 files. [69.32s]
+toolchain parity exit=0
+DONE

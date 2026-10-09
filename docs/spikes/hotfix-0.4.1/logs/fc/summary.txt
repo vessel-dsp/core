@@ -1,0 +1,14 @@
+00-clone exit=0 1s
+01-apply exit=0 0s
+02-install exit=0 1s
+03-typecheck exit=0 23s
+04-build-wasm exit=0 33s
+05-build exit=0 15s
+06-test exit=0 70s
+07-pages exit=0 24s
+08-pack-all exit=0 139s
+09-pack-compiler exit=0 4s
+09-pack-runtime exit=0 40s
+09-pack-chain exit=0 40s
+09-pack-player exit=0 42s
+DONE

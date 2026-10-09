@@ -1,5 +1,51 @@
 # Changelog
 
+## runtime 0.4.1 / chain 0.1.7 / player 0.2.5
+
+Fix: the Newton start predictor now runs only when `oversample > 1`. At the default factor 1 it neither seeds
+nor records: the ring, chain and order never advance, `seedsUsed` and `oneIterationSolves` stay 0, and every
+solve starts from the previous solution exactly as in runtime 0.3.1. The change is one condition on the
+predicate each console already evaluated (`this.oversample > 1` in the reference runtime, `oversample_ > 1`
+in the C++ console), the same in both; no knob, no `.vdsp` field, and nothing else in the solver moved
+(tolerances, device laws, the predictor's order, scoring and `used > 2` gate, the resampler and the pivot code
+are as in 0.4.0). The factor is fixed by `prepare()`, which also clears the ring, so there is no mid-run
+switch. Every factor above 1 keeps the predictor, powers of two and the held path alike: on the five profile
+packets measured (reference console, 1 kHz 0.1 V, cap 64) factor 3 saves 0.0-1.3% of iterations, 5 and 6 save
+8-19% and 10-24%, 2/4/8 save 6-15%, 39-47% and 44-50%, and at none of them does the predictor move the output
+by more than 6e-6 relative RMS. The whole corpus at 2x and at 4x is bit-identical to 0.4.0 on both consoles.
+
+Why, found by the workbench's release-pin gates against the published 0.4.0 at factor 1, and not in the 0.4.0
+note: `boss-mt-2` on the WASM console stalled permanently from sample 132 096 (2.752 s) of the scoreboard
+two-tone drive, every later sample costing about 90 ms (roughly 4 300x real time) and never recovering, which
+a 2048-sample parity run cannot see; and the predictor alone moved `boss-dm-2` by 6.2% of its cold-start peak
+(0.5-0.8% of the settled peak), identically on both consoles, at the factor where it bought only 2.9% (pedals)
+and 10.1% (amps) fewer iterations. With the gate `boss-mt-2` renders the same eight seconds on both consoles
+without a stall, and removing the gate in a scratch build brings the stall back at the same sample with the
+same predictor telemetry; whether the seed starts the stall or the trajectory it selects simply lands where the
+previous start did not is not established.
+
+Factor-1 output is again bit-identical to runtime 0.3.1 except where the numeric re-pivot adopts. On the 145
+corpus packets that compile (122 pedals and 23 amps; programs text-identical under compiler 0.3.0 and 0.4.0),
+144 of 145 reference-console renders and 145 of 145 WASM renders are bit-identical to 0.3.1, on the two-tone
+cold-start window (2048 samples) and again over 16 384 samples; `boss-dm-2`, `boss-hm-2`, `ibanez-ts9-reissue`,
+`big-muff-pi-ec3003-rev-f`, `boss-mt-2`, `boss-od-1`, `ibanez-ts808`, `orange-gro100` and `mxr-blue-box` are
+bit-identical on both consoles over one second of two-tone drive and over the 1 kHz 2400 + 9600 sample
+protocol. The one exception is `boss-sd-1` on the reference console (4.5e-8 absolute over 2048 samples, 5.8e-8
+over 16 384, 1.2e-7 of peak): the 0.4.0 numeric re-pivot adopting there (disabling the adoption in a scratch
+build makes it bit-identical). The C++ console keeps the shipped order on sd-1, so its sd-1 is bit-identical too.
+
+Corrected account of 0.4.0 at factor 1: the 0.4.0 sentence "every factor-1 render of a nonlinear circuit moves
+at the 1e-7..1e-6 level" was wrong for the corpus. Largest absolute difference against 0.3.1 relative to the
+0.3.1 peak, two-tone cold-start window after the first 100 samples, 145 packets, reference console: 39
+bit-identical, 14 up to 1e-9, 25 to 1e-7, 23 to 1e-6, 24 to 1e-5, 13 to 1e-4, 5 to 1e-3, 2 above 1e-2
+(`boss-dm-2` 6.2e-2, `boss-mt-2` 2.1e-2); WASM console 47, 4, 26, 25, 24, 13, 5 and 1 (`boss-dm-2`). Over one
+second of two-tone drive 0.4.0 moved `boss-dm-2` by 0.12 relative RMS and `orange-gro100`, a cap-storm tube
+amp whose trajectory is chaotic, by 0.36 (neither run is validated against hardware). The 13 linear-only
+packets were byte-identical, so that half of the sentence held. Runtime 0.4.0 users at factor 1 saw this
+movement: a factor-1 render made with 0.4.0 differs from 0.3.1 and from 0.4.1 by that much, and 0.4.1 returns
+to the 0.3.1 output. Callers at `oversample` 2 and above get the same output from 0.4.1 as from 0.4.0.
+`chain` 0.1.7 and `player` 0.2.5 re-pin only (runtime 0.4.1; compiler stays 0.4.0).
+
 ## compiler 0.4.0 / runtime 0.4.0 / chain 0.1.6 / player 0.2.4
 
 Oversampling is band limited. `prepare(rate, { oversample })` at a power of two now solves at `rate * N`
@@ -62,10 +108,15 @@ x1/os2/os4/os8 on the six profile packets except the pre-existing blue-box os2 m
 ts9 keep their libm offsets (7.7e-6 / 2.7e-5).
 
 What did not change: the default factor is 1, so no existing caller's output changes through the resampler
-(factor-1 renders were bit-identical to the previous console with the predictor disabled). The predictor
-is not disabled: every factor-1 render of a nonlinear circuit moves at the 1e-7..1e-6 level (max abs
-against the previous console on the two-tone window: muff 9.6e-8, ts808 2.4e-6, blue-box 7.0e-7); linear-only
-circuits are byte-identical. `chain` 0.1.6 and `player` 0.2.4 re-pin only. Rejected on evidence, so nobody
+(~~factor-1 renders were bit-identical to the previous console with the predictor disabled~~ with the
+predictor disabled, factor-1 renders were bit-identical to the previous console on 144 of 145 corpus packets on
+the reference console and 145 of 145 on the C++ console; the exception, `boss-sd-1` on the reference console,
+is the numeric re-pivot above). ~~The predictor is not disabled: every factor-1 render of a nonlinear circuit
+moves at the 1e-7..1e-6 level (max abs against the previous console on the two-tone window: muff 9.6e-8,
+ts808 2.4e-6, blue-box 7.0e-7); linear-only circuits are byte-identical.~~ *Struck 2026-10-09: superseded by
+the runtime 0.4.1 entry above. In 0.4.0 the predictor was not disabled at factor 1 and its movement there was
+not 1e-7..1e-6 across the corpus (two packets moved by more than 1e-2 of peak, and `boss-mt-2` stalls the WASM
+console); 0.4.1 gates it to `oversample > 1`.* `chain` 0.1.6 and `player` 0.2.4 re-pin only. Rejected on evidence, so nobody
 re-proposes them: zero-order hold oversampling (-8.4 dB wrong on a shunt-inductor high-pass at every
 frequency, error growing with the factor); minimum-phase and IIR polyphase resamplers (above); a relative
 pivot guard (above); chord/Shamanskii and Broyden factorisation reuse (linear convergence lets the delta

@@ -353,7 +353,8 @@ export class V2WasmEngine {
 	 * `newtonStartHistory` decisions: `seedsUsed` counts standard-pass solves that started
 	 * from an extrapolated solution (order > 0), `oneIterationSolves` those that converged in
 	 * exactly one iteration -- the saving itself, attributable on the shipping console.
-	 * Counted since `prepare()`/`reset()`. `predictorOrder(blockIdx)` reads the order the
+	 * Counted since `prepare()`/`reset()`; both stay 0 at `oversample` 1, where the predictor
+	 * does not run. `predictorOrder(blockIdx)` reads the order the
 	 * block's next solve will seed from (0 = previous solution, 1 = linear, 2 = quadratic;
 	 * -1 for a bad index), so a decision can be compared against the reference per sample.
 	 */

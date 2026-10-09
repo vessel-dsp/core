@@ -1,0 +1,49 @@
+== 1-031-wasm  (load before: 0.80 2.21 3.53)
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+SLOW block starting at sample 10496 (0.2187 s): 52.4 ms = 409 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 14720 (0.3067 s): 93.0 ms = 727 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 19072 (0.3973 s): 54.2 ms = 424 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 31872 (0.6640 s): 71.8 ms = 561 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 42496 (0.8853 s): 67.5 ms = 528 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 0: 68.4 us/sample (3.28x real time)
+SLOW block starting at sample 57344 (1.1947 s): 54.2 ms = 424 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 59520 (1.2400 s): 51.9 ms = 405 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 78592 (1.6373 s): 85.0 ms = 664 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 1: 68.4 us/sample (3.28x real time)
+SLOW block starting at sample 121472 (2.5307 s): 58.6 ms = 458 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 125824 (2.6213 s): 64.6 ms = 505 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 134528 (2.8027 s): 54.6 ms = 427 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 136704 (2.8480 s): 67.6 ms = 528 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 2: 67.9 us/sample (3.26x real time)
+SLOW block starting at sample 153856 (3.2053 s): 56.2 ms = 439 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 185728 (3.8693 s): 63.5 ms = 496 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 189952 (3.9573 s): 67.8 ms = 530 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 3: 68.3 us/sample (3.28x real time)
+SLOW block starting at sample 200704 (4.1813 s): 68.3 ms = 533 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 222080 (4.6267 s): 55.5 ms = 434 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 234752 (4.8907 s): 50.5 ms = 394 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 4: 67.3 us/sample (3.23x real time)
+SLOW block starting at sample 243328 (5.0693 s): 54.1 ms = 423 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 249728 (5.2027 s): 67.2 ms = 525 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 256256 (5.3387 s): 83.3 ms = 651 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 262656 (5.4720 s): 64.0 ms = 500 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 271232 (5.6507 s): 54.8 ms = 428 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 281856 (5.8720 s): 53.8 ms = 420 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 5: 70.2 us/sample (3.37x real time)
+SLOW block starting at sample 290432 (6.0507 s): 101.8 ms = 795 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 305408 (6.3627 s): 83.6 ms = 653 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 307584 (6.4080 s): 73.5 ms = 574 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 311936 (6.4987 s): 126.0 ms = 984 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 316288 (6.5893 s): 53.0 ms = 414 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 320512 (6.6773 s): 61.2 ms = 478 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 6: 73.7 us/sample (3.54x real time)
+SLOW block starting at sample 337536 (7.0320 s): 69.4 ms = 542 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 346112 (7.2107 s): 54.1 ms = 423 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 371584 (7.7413 s): 86.5 ms = 676 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 373760 (7.7867 s): 69.7 ms = 544 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 375936 (7.8320 s): 102.3 ms = 799 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+SLOW block starting at sample 380288 (7.9227 s): 54.2 ms = 423 us/sample; telemetry "n/a (runtime without predictor telemetry)"
+second 7: 69.9 us/sample (3.36x real time)
+final telemetry: "n/a (runtime without predictor telemetry)"
+RESULT: no stall; 36 blocks over 50 ms, none over 1000 ms
+(load after: 0.93 2.13 3.47)

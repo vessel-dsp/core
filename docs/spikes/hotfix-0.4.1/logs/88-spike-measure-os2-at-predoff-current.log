@@ -1,0 +1,12 @@
+muff os=2: shipped-vs-dense (known positive) relRms=0.0e+0 maxAbs=0.0e
+  shipped        5.188     5.188     5.188    0.000      0.0      0   
+  m1adapt3       4.875     4.875     4.875    0.000      4.2      0   
+sd1 os=2: shipped-vs-dense (known positive) relRms=5.4e-12 maxAbs=1.7e
+  shipped        5.001     5.001     5.001    0.000      0.0      0   
+  m1adapt3       4.293     4.293     4.293    0.000     16.6      0   
+ts9 os=2: shipped-vs-dense (known positive) relRms=6.2e-9 maxAbs=1.8e-
+  shipped        4.500     4.500     4.500    0.000      0.0      0   
+  m1adapt3       3.833     3.833     3.833    0.000     14.6      0   
+ts808 os=2: shipped-vs-dense (known positive) relRms=1.0e-9 maxAbs=4.9
+  shipped        5.104     5.104     5.104    0.000      0.0      0   
+  m1adapt3       4.583     4.583     4.583    0.000      7.3      0   
