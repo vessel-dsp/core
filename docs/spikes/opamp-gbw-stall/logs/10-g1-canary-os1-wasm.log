@@ -1,0 +1,12 @@
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+SLOW block starting at sample 0 (0.0000 s): 69.5 ms = 543 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":385}
+second 0: 24.8 us/sample (1.19x real time)
+second 1: 21.2 us/sample (1.02x real time)
+second 2: 20.1 us/sample (0.97x real time)
+second 3: 18.3 us/sample (0.88x real time)
+second 4: 20.4 us/sample (0.98x real time)
+second 5: 19.1 us/sample (0.92x real time)
+second 6: 18.4 us/sample (0.89x real time)
+second 7: 19.6 us/sample (0.94x real time)
+final telemetry: {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1183845}
+RESULT: no stall; 1 blocks over 50 ms, none over 1000 ms

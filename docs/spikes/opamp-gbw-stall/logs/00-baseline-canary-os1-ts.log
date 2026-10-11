@@ -1,0 +1,11 @@
+# boss-mt-2 console=ts os=1 cap=1024 seconds=8 block=128
+second 0: 159.3 us/sample (7.65x real time)
+second 1: 155.3 us/sample (7.45x real time)
+second 2: 161.7 us/sample (7.76x real time)
+second 3: 164.0 us/sample (7.87x real time)
+second 4: 147.8 us/sample (7.09x real time)
+second 5: 155.1 us/sample (7.45x real time)
+second 6: 161.5 us/sample (7.75x real time)
+second 7: 159.8 us/sample (7.67x real time)
+final telemetry: {"totalIterations":1739961,"nonConvergedSamples":184,"ordersNonZero":0}
+RESULT: no block over 2000 ms

@@ -1,0 +1,6 @@
+blue-box os4: input perturbed by 1e-12 V at sample 100; TS-vs-TS max |diff| 3.04e-5, first over 1e-4 at sample -1, thresholds reached at {"1e-9":411,"0.000001":960}; nc 0/1 peaks 159/1024
+blue-box os2: input perturbed by 1e-12 V at sample 100; TS-vs-TS max |diff| 4.48e-16, first over 1e-4 at sample -1, thresholds reached at {}; nc 0/0 peaks 433/361
+blue-box os1: input perturbed by 1e-12 V at sample 100; TS-vs-TS max |diff| 2.22e-15, first over 1e-4 at sample -1, thresholds reached at {}; nc 0/0 peaks 74/77
+blue-box os4 force-gbp=null: input perturbed by 1e-12 V at sample 100; TS-vs-TS max |diff| 4.13e-6, first over 1e-4 at sample -1, thresholds reached at {"1e-9":1554,"0.000001":1563}; nc 0/1 peaks 67/1024
+blue-box os4: input perturbed by 1e-9 V at sample 100; TS-vs-TS max |diff| 3.20e-5, first over 1e-4 at sample -1, thresholds reached at {"1e-9":411,"0.000001":960}; nc 0/1 peaks 159/1024
+boss-mt-2 os4 force-gbp=null: input perturbed by 1e-12 V at sample 100; TS-vs-TS max |diff| 3.96e-12, first over 1e-4 at sample -1, thresholds reached at {}; nc 0/0 peaks 288/90

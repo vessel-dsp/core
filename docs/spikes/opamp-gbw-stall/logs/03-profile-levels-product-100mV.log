@@ -1,0 +1,14 @@
+muff      os1 amp 0.1: 1k 30.035 8k 19.346 16k 0.788 mV | TS it/host 3.564 nc 0 peak 10 | 3853 ms
+muff      os4 amp 0.1: 1k 30.077 8k 24.797 16k 3.265 mV | TS it/host 5.547 nc 0 peak 5 | 7960 ms
+sd1       os1 amp 0.1: 1k 110.162 8k 13.193 16k 4.143 mV | TS it/host 3.043 nc 0 peak 13 | 7848 ms
+sd1       os4 amp 0.1: 1k 110.325 8k 15.230 16k 7.246 mV | TS it/host 5.335 nc 0 peak 5 | 13959 ms
+ts9       os1 amp 0.1: 1k 101.875 8k 15.026 16k 5.239 mV | TS it/host 2.625 nc 0 peak 7 | 3562 ms
+ts9       os4 amp 0.1: 1k 101.978 8k 17.363 16k 8.452 mV | TS it/host 4.626 nc 0 peak 3 | 8745 ms
+ts808     os1 amp 0.1: 1k 105.887 8k 14.858 16k 5.148 mV | TS it/host 2.917 nc 0 peak 7 | 4389 ms
+ts808     os4 amp 0.1: 1k 106.001 8k 17.173 16k 8.358 mV | TS it/host 4.689 nc 0 peak 3 | 7618 ms
+gro100    os1 amp 0.1: 1k 14971.212 8k 2769.774 16k 205.833 mV | TS it/host 14.698 nc 362 peak 1024 | 69026 ms
+gro100    os4 amp 0.1: 1k 15705.628 8k 4176.198 16k 725.056 mV | TS it/host 18.229 nc 259 peak 1024 | 103012 ms
+blue-box  os1 amp 0.1: 1k 0.034 8k 0.074 16k 0.000 mV | TS it/host 23.200 nc 1 peak 1024 | 30728 ms
+blue-box  os4 amp 0.1: 1k 0.017 8k 0.001 16k 0.000 mV | TS it/host 15.955 nc 11 peak 1024 | 10908 ms
+rat       os1 amp 0.1: 1k 236.864 8k 65.257 16k 24.936 mV | TS it/host 2.441 nc 0 peak 12 | 2275 ms
+rat       os4 amp 0.1: 1k 236.793 8k 77.908 16k 39.099 mV | TS it/host 6.313 nc 0 peak 10 | 6092 ms

@@ -1,0 +1,4 @@
+blue-box: two-tone, 2148 host samples, cap 1024
+os1: TS NC 1, it/host 13.10, TS peak 1024, WASM peak 884 | rms TS 1.583e-2 WASM 1.583e-2 | r 0.999996 maxAbs 7.09e-4 | first |diff|>1e-3 at sample -1
+os2: TS NC 0, it/host 10.13, TS peak 598, WASM peak 1024 | rms TS 1.591e-2 WASM 1.539e-2 | r 0.051551 maxAbs 3.65e-2 | first |diff|>1e-3 at sample 139
+os4: TS NC 0, it/host 16.55, TS peak 599, WASM peak 595 | rms TS 1.537e-2 WASM 1.537e-2 | r 1.000000 maxAbs 1.21e-5 | first |diff|>1e-3 at sample -1

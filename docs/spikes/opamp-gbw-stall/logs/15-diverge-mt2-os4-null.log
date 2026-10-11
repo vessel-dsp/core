@@ -1,0 +1,23 @@
+sample 1403: |TS-WASM| 2.03e-11 TS -0.22467 WASM -0.22467 | TS iterations this host sample 175, WASM last-sub-sample 2 converged true | TS reseeds this sample 8 (total 8) nc 0
+sample 3533: |TS-WASM| 3.66e-11 TS 0.21216 WASM 0.21216 | TS iterations this host sample 295, WASM last-sub-sample 105 converged true | TS reseeds this sample 14 (total 22) nc 0
+sample 5750: |TS-WASM| 4.42e-11 TS 0.09288 WASM 0.09288 | TS iterations this host sample 83, WASM last-sub-sample 2 converged true | TS reseeds this sample 4 (total 26) nc 0
+sample 7897: |TS-WASM| 4.69e-11 TS 0.21021 WASM 0.21021 | TS iterations this host sample 189, WASM last-sub-sample 142 converged true | TS reseeds this sample 10 (total 36) nc 0
+sample 10113: |TS-WASM| 5.02e-11 TS 0.10876 WASM 0.10876 | TS iterations this host sample 60, WASM last-sub-sample 97 converged true | TS reseeds this sample 3 (total 39) nc 0
+sample 12261: |TS-WASM| 5.45e-11 TS 0.20758 WASM 0.20758 | TS iterations this host sample 193, WASM last-sub-sample 352 converged true | TS reseeds this sample 6 (total 45) nc 0
+sample 14477: |TS-WASM| 5.38e-11 TS 0.09984 WASM 0.09984 | TS iterations this host sample 62, WASM last-sub-sample 2 converged true | TS reseeds this sample 3 (total 48) nc 0
+sample 16625: |TS-WASM| 4.85e-11 TS 0.20475 WASM 0.20475 | TS iterations this host sample 155, WASM last-sub-sample 42 converged true | TS reseeds this sample 7 (total 55) nc 0
+sample 18840: |TS-WASM| 4.75e-11 TS 0.11527 WASM 0.11527 | TS iterations this host sample 44, WASM last-sub-sample 176 converged true | TS reseeds this sample 2 (total 57) nc 0
+sample 20989: |TS-WASM| 4.75e-11 TS 0.20176 WASM 0.20176 | TS iterations this host sample 106, WASM last-sub-sample 5 converged true | TS reseeds this sample 6 (total 63) nc 0
+sample 23204: |TS-WASM| 4.60e-11 TS 0.10655 WASM 0.10655 | TS iterations this host sample 83, WASM last-sub-sample 5 converged true | TS reseeds this sample 3 (total 66) nc 0
+sample 25353: |TS-WASM| 4.10e-11 TS 0.19865 WASM 0.19865 | TS iterations this host sample 251, WASM last-sub-sample 3 converged true | TS reseeds this sample 14 (total 80) nc 0
+sample 27568: |TS-WASM| 4.12e-11 TS 0.09758 WASM 0.09758 | TS iterations this host sample 243, WASM last-sub-sample 2 converged true | TS reseeds this sample 12 (total 92) nc 0
+sample 29717: |TS-WASM| 3.91e-11 TS 0.19542 WASM 0.19542 | TS iterations this host sample 350, WASM last-sub-sample 2 converged true | TS reseeds this sample 18 (total 110) nc 0
+sample 31931: |TS-WASM| 3.91e-11 TS 0.11313 WASM 0.11313 | TS iterations this host sample 327, WASM last-sub-sample 5 converged true | TS reseeds this sample 20 (total 130) nc 0
+sample 34080: |TS-WASM| 3.73e-11 TS 0.20101 WASM 0.20101 | TS iterations this host sample 118, WASM last-sub-sample 5 converged true | TS reseeds this sample 4 (total 134) nc 0
+sample 36295: |TS-WASM| 3.59e-11 TS 0.10434 WASM 0.10434 | TS iterations this host sample 378, WASM last-sub-sample 2 converged true | TS reseeds this sample 20 (total 154) nc 0
+sample 38444: |TS-WASM| 3.49e-11 TS 0.19787 WASM 0.19787 | TS iterations this host sample 181, WASM last-sub-sample 3 converged true | TS reseeds this sample 9 (total 163) nc 0
+sample 40658: |TS-WASM| 3.21e-11 TS 0.11956 WASM 0.11956 | TS iterations this host sample 143, WASM last-sub-sample 92 converged true | TS reseeds this sample 8 (total 171) nc 0
+sample 42808: |TS-WASM| 2.94e-11 TS 0.19462 WASM 0.19462 | TS iterations this host sample 190, WASM last-sub-sample 2 converged true | TS reseeds this sample 8 (total 179) nc 0
+sample 45022: |TS-WASM| 2.75e-11 TS 0.11097 WASM 0.11097 | TS iterations this host sample 74, WASM last-sub-sample 5 converged true | TS reseeds this sample 2 (total 181) nc 0
+sample 47171: |TS-WASM| 2.72e-11 TS 0.20026 WASM 0.20026 | TS iterations this host sample 160, WASM last-sub-sample 465 converged true | TS reseeds this sample 7 (total 188) nc 0
+boss-mt-2 os4: 48000 samples, max |diff| 5.72e-11, TS reseeds 188, TS nc 0, TS peak 368, WASM peak 465

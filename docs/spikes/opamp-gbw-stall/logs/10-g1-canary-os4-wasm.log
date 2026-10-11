@@ -1,0 +1,11 @@
+# boss-mt-2 console=wasm os=4 cap=1024 seconds=8 block=128
+second 0: 70.0 us/sample (3.36x real time)
+second 1: 61.1 us/sample (2.93x real time)
+second 2: 60.0 us/sample (2.88x real time)
+second 3: 67.1 us/sample (3.22x real time)
+second 4: 65.0 us/sample (3.12x real time)
+second 5: 66.5 us/sample (3.19x real time)
+second 6: 66.2 us/sample (3.18x real time)
+second 7: 57.6 us/sample (2.76x real time)
+final telemetry: {"seedsUsed":1246400,"oneIterationSolves":0,"totalIterations":3489633}
+RESULT: no block over 50 ms

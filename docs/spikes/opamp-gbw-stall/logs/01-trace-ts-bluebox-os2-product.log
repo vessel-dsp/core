@@ -1,0 +1,327 @@
+sample 100.0 (0.0021 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 100.1 (0.0021 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 101.0 (0.0021 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 101.1 (0.0021 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 102.0 (0.0021 s) block analog:0: used 4 ok worstDelta 8.12e-12 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 102.1 (0.0021 s) block analog:0: used 4 ok worstDelta 1.01e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 103.0 (0.0021 s) block analog:0: used 4 ok worstDelta 1.22e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 103.1 (0.0021 s) block analog:0: used 4 ok worstDelta 1.43e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 104.0 (0.0022 s) block analog:0: used 4 ok worstDelta 1.65e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 104.1 (0.0022 s) block analog:0: used 4 ok worstDelta 1.85e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 105.0 (0.0022 s) block analog:0: used 4 ok worstDelta 2.06e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 105.1 (0.0022 s) block analog:0: used 4 ok worstDelta 2.25e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 106.0 (0.0022 s) block analog:0: used 4 ok worstDelta 2.44e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 106.1 (0.0022 s) block analog:0: used 4 ok worstDelta 2.61e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 107.0 (0.0022 s) block analog:0: used 4 ok worstDelta 2.76e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 107.1 (0.0022 s) block analog:0: used 4 ok worstDelta 2.89e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 108.0 (0.0022 s) block analog:0: used 4 ok worstDelta 3.00e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 108.1 (0.0022 s) block analog:0: used 4 ok worstDelta 3.08e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 109.0 (0.0023 s) block analog:0: used 4 ok worstDelta 3.14e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 109.1 (0.0023 s) block analog:0: used 4 ok worstDelta 3.16e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 110.0 (0.0023 s) block analog:0: used 4 ok worstDelta 3.15e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 110.1 (0.0023 s) block analog:0: used 4 ok worstDelta 3.10e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 111.0 (0.0023 s) block analog:0: used 4 ok worstDelta 3.01e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 111.1 (0.0023 s) block analog:0: used 4 ok worstDelta 2.89e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 112.0 (0.0023 s) block analog:0: used 4 ok worstDelta 2.73e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 112.1 (0.0023 s) block analog:0: used 4 ok worstDelta 2.53e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 113.0 (0.0024 s) block analog:0: used 4 ok worstDelta 2.28e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 113.1 (0.0024 s) block analog:0: used 4 ok worstDelta 2.00e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 114.0 (0.0024 s) block analog:0: used 4 ok worstDelta 1.68e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 114.1 (0.0024 s) block analog:0: used 4 ok worstDelta 1.32e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 115.0 (0.0024 s) block analog:0: used 4 ok worstDelta 9.28e-12 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 115.1 (0.0024 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 116.0 (0.0024 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 116.1 (0.0024 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 117.0 (0.0024 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 117.1 (0.0024 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 118.0 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 118.1 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 119.0 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 119.1 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 120.0 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 120.1 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 121.0 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 121.1 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 122.0 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 122.1 (0.0025 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 123.0 (0.0026 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 123.1 (0.0026 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 124.0 (0.0026 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 124.1 (0.0026 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 125.0 (0.0026 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 125.1 (0.0026 s) block analog:0: used 3 ok worstDelta 1.40e-5 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 126.0 (0.0026 s) block analog:0: used 5 ok worstDelta 9.16e-9 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 126.1 (0.0026 s) block analog:0: used 4 ok worstDelta 1.38e-5 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 127.0 (0.0026 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 127.1 (0.0026 s) block analog:0: used 309 ok worstDelta 4.73e-6 node 22 | opamps 2, iterations with a limited op-amp 6, folded 0; limited counts by stamp [[21,6]]
+    it    0: s21 d=4.00w step=12.00w cap=4.000w LIM raw=36.000 out=9.000 vout=9.000
+    it    1: s21 d=2.00w step=-16.00w cap=2.000w LIM raw=36.000 out=9.000 vout=9.000
+    it    2: s21 d=-0.40w step=-14.00w cap=2.400w LIM raw=34.106 out=9.000 vout=9.000
+    it    3: s21 d=-3.28w step=-11.60w cap=2.880w LIM raw=21.146 out=8.999 vout=9.000
+    it    4: s21 d=-6.74w step=-8.72w cap=3.456w LIM raw=5.594 out=8.309 vout=8.919
+    it    5: s21 d=-10.74w step=-5.26w cap=4.000w LIM raw=-12.406 out=0.036 vout=-235.344
+    it    6: s21 d=-12.00w step=-1.26w cap=4.000w raw=-18.094 out=0.003 vout=-3.839
+    it    7: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it    8: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it    9: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   10: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   11: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   12: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   13: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   14: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   15: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   16: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   17: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   18: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   19: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   20: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   21: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   22: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   23: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   24: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   25: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   26: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   27: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   28: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   29: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   30: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   31: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   32: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   33: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   34: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   35: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   36: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   37: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   38: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   39: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   45: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   60: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   75: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it   90: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  105: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  120: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  135: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  150: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  165: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  180: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  195: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  210: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  225: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  240: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  255: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  270: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  285: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  289: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  290: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  291: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  292: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  293: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  294: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  295: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  296: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  297: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  298: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  299: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  300: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  301: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  302: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  303: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  304: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  305: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  306: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  307: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+    it  308: s21 d=-12.00w step=0.00w cap=4.000w raw=-18.094 out=0.003 vout=-0.290
+sample 128.0 (0.0027 s) block analog:0: used 4 ok worstDelta 3.09e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 128.1 (0.0027 s) block analog:0: used 4 ok worstDelta 1.83e-3 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 129.0 (0.0027 s) block analog:0: used 4 ok worstDelta 1.59e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2],[7,1]]
+sample 129.1 (0.0027 s) block analog:0: used 4 ok worstDelta 2.08e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 130.0 (0.0027 s) block analog:0: used 4 ok worstDelta 2.78e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 130.1 (0.0027 s) block analog:0: used 4 ok worstDelta 1.39e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 131.0 (0.0027 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 28 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 131.1 (0.0027 s) block analog:0: used 4 ok worstDelta 2.64e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 132.0 (0.0027 s) block analog:0: used 4 ok worstDelta 3.50e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 132.1 (0.0027 s) block analog:0: used 4 ok worstDelta 2.50e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 133.0 (0.0028 s) block analog:0: used 4 ok worstDelta 8.47e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 133.1 (0.0028 s) block analog:0: used 4 ok worstDelta 2.50e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 134.0 (0.0028 s) block analog:0: used 4 ok worstDelta 1.25e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 134.1 (0.0028 s) block analog:0: used 4 ok worstDelta 6.94e-17 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 135.0 (0.0028 s) block analog:0: used 4 ok worstDelta 1.54e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 135.1 (0.0028 s) block analog:0: used 4 ok worstDelta 3.92e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 136.0 (0.0028 s) block analog:0: used 4 ok worstDelta 1.72e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 136.1 (0.0028 s) block analog:0: used 4 ok worstDelta 7.73e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 137.0 (0.0029 s) block analog:0: used 4 ok worstDelta 1.79e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 137.1 (0.0029 s) block analog:0: used 4 ok worstDelta 9.90e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 138.0 (0.0029 s) block analog:0: used 4 ok worstDelta 1.75e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 138.1 (0.0029 s) block analog:0: used 4 ok worstDelta 1.06e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 139.0 (0.0029 s) block analog:0: used 4 ok worstDelta 1.61e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 139.1 (0.0029 s) block analog:0: used 4 ok worstDelta 1.01e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 140.0 (0.0029 s) block analog:0: used 4 ok worstDelta 1.39e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 140.1 (0.0029 s) block analog:0: used 4 ok worstDelta 8.60e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 141.0 (0.0029 s) block analog:0: used 4 ok worstDelta 1.10e-11 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 141.1 (0.0029 s) block analog:0: used 4 ok worstDelta 6.28e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 142.0 (0.0030 s) block analog:0: used 4 ok worstDelta 7.69e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 142.1 (0.0030 s) block analog:0: used 4 ok worstDelta 3.39e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 143.0 (0.0030 s) block analog:0: used 4 ok worstDelta 4.04e-12 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 143.1 (0.0030 s) block analog:0: used 4 ok worstDelta 1.76e-13 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 144.0 (0.0030 s) block analog:0: used 4 ok worstDelta 2.81e-13 node 8 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 144.1 (0.0030 s) block analog:0: used 4 ok worstDelta 6.94e-17 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 145.0 (0.0030 s) block analog:0: used 4 ok worstDelta 2.08e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 145.1 (0.0030 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 146.0 (0.0030 s) block analog:0: used 4 ok worstDelta 1.67e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 146.1 (0.0030 s) block analog:0: used 4 ok worstDelta 1.25e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 147.0 (0.0031 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 147.1 (0.0031 s) block analog:0: used 4 ok worstDelta 1.11e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 148.0 (0.0031 s) block analog:0: used 4 ok worstDelta 1.25e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 148.1 (0.0031 s) block analog:0: used 4 ok worstDelta 2.50e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 149.0 (0.0031 s) block analog:0: used 4 ok worstDelta 1.11e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 149.1 (0.0031 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 150.0 (0.0031 s) block analog:0: used 4 ok worstDelta 1.11e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 150.1 (0.0031 s) block analog:0: used 4 ok worstDelta 1.11e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 151.0 (0.0031 s) block analog:0: used 4 ok worstDelta 1.25e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 151.1 (0.0031 s) block analog:0: used 4 ok worstDelta 1.39e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 152.0 (0.0032 s) block analog:0: used 4 ok worstDelta 4.44e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 152.1 (0.0032 s) block analog:0: used 4 ok worstDelta 2.78e-17 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 153.0 (0.0032 s) block analog:0: used 4 ok worstDelta 2.36e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 153.1 (0.0032 s) block analog:0: used 4 ok worstDelta 1.25e-16 node 23 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 154.0 (0.0032 s) block analog:0: used 4 ok worstDelta 2.22e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 154.1 (0.0032 s) block analog:0: used 4 ok worstDelta 2.22e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 155.0 (0.0032 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 155.1 (0.0032 s) block analog:0: used 4 ok worstDelta 2.22e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 156.0 (0.0032 s) block analog:0: used 4 ok worstDelta 0.00e+0 node 0 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 156.1 (0.0032 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 157.0 (0.0033 s) block analog:0: used 4 ok worstDelta 3.20e-13 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 157.1 (0.0033 s) block analog:0: used 4 ok worstDelta 2.25e-12 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 158.0 (0.0033 s) block analog:0: used 4 ok worstDelta 4.36e-12 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 158.1 (0.0033 s) block analog:0: used 4 ok worstDelta 6.32e-12 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 159.0 (0.0033 s) block analog:0: used 4 ok worstDelta 8.38e-12 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 159.1 (0.0033 s) block analog:0: used 4 ok worstDelta 1.03e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 160.0 (0.0033 s) block analog:0: used 4 ok worstDelta 1.22e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 160.1 (0.0033 s) block analog:0: used 4 ok worstDelta 1.39e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 161.0 (0.0034 s) block analog:0: used 4 ok worstDelta 1.55e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 161.1 (0.0034 s) block analog:0: used 4 ok worstDelta 1.69e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 162.0 (0.0034 s) block analog:0: used 4 ok worstDelta 1.82e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 162.1 (0.0034 s) block analog:0: used 4 ok worstDelta 1.92e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 163.0 (0.0034 s) block analog:0: used 4 ok worstDelta 2.00e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 163.1 (0.0034 s) block analog:0: used 4 ok worstDelta 2.05e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 164.0 (0.0034 s) block analog:0: used 4 ok worstDelta 2.08e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 164.1 (0.0034 s) block analog:0: used 4 ok worstDelta 2.07e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 165.0 (0.0034 s) block analog:0: used 4 ok worstDelta 2.03e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 165.1 (0.0034 s) block analog:0: used 4 ok worstDelta 1.96e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 166.0 (0.0035 s) block analog:0: used 4 ok worstDelta 1.85e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 166.1 (0.0035 s) block analog:0: used 4 ok worstDelta 1.71e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 167.0 (0.0035 s) block analog:0: used 4 ok worstDelta 1.53e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 167.1 (0.0035 s) block analog:0: used 4 ok worstDelta 1.30e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 168.0 (0.0035 s) block analog:0: used 4 ok worstDelta 1.04e-11 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 168.1 (0.0035 s) block analog:0: used 4 ok worstDelta 7.41e-12 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 169.0 (0.0035 s) block analog:0: used 4 ok worstDelta 4.01e-12 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 169.1 (0.0035 s) block analog:0: used 4 ok worstDelta 2.03e-13 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 170.0 (0.0035 s) block analog:0: used 4 ok worstDelta 1.53e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 170.1 (0.0035 s) block analog:0: used 4 ok worstDelta 2.22e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 171.0 (0.0036 s) block analog:0: used 4 ok worstDelta 3.89e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 171.1 (0.0036 s) block analog:0: used 4 ok worstDelta 1.94e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 172.0 (0.0036 s) block analog:0: used 4 ok worstDelta 2.36e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 172.1 (0.0036 s) block analog:0: used 4 ok worstDelta 2.78e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 173.0 (0.0036 s) block analog:0: used 4 ok worstDelta 1.11e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 173.1 (0.0036 s) block analog:0: used 4 ok worstDelta 1.80e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 174.0 (0.0036 s) block analog:0: used 4 ok worstDelta 1.80e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 174.1 (0.0036 s) block analog:0: used 4 ok worstDelta 2.36e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 175.0 (0.0036 s) block analog:0: used 4 ok worstDelta 2.50e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 175.1 (0.0036 s) block analog:0: used 4 ok worstDelta 3.33e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 176.0 (0.0037 s) block analog:0: used 4 ok worstDelta 2.22e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 176.1 (0.0037 s) block analog:0: used 4 ok worstDelta 2.64e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 177.0 (0.0037 s) block analog:0: used 4 ok worstDelta 1.53e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 177.1 (0.0037 s) block analog:0: used 4 ok worstDelta 1.39e-16 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 178.0 (0.0037 s) block analog:0: used 4 ok worstDelta 1.53e-16 node 24 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 178.1 (0.0037 s) block analog:0: used 4 ok worstDelta 1.78e-15 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 179.0 (0.0037 s) block analog:0: used 4 ok worstDelta 3.55e-15 node 22 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 179.1 (0.0037 s) block analog:0: used 4 ok worstDelta 2.44e-10 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 180.0 (0.0037 s) block analog:0: used 4 ok worstDelta 1.56e-4 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 180.1 (0.0037 s) block analog:0: used 4 ok worstDelta 7.97e-6 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 181.0 (0.0038 s) block analog:0: used 3 ok worstDelta 2.65e-6 node 15 | opamps 2, iterations with a limited op-amp 1, folded 0; limited counts by stamp [[21,1]]
+sample 181.1 (0.0038 s) block analog:0: used 49 ok worstDelta 1.83e-4 node 18 | opamps 2, iterations with a limited op-amp 6, folded 0; limited counts by stamp [[21,6]]
+    it    0: s21 d=-4.00w step=-4.69w cap=4.000w LIM raw=-36.000 out=0.000 vout=0.000
+    it    1: s21 d=-2.00w step=16.00w cap=2.000w LIM raw=-36.000 out=0.000 vout=0.000
+    it    2: s21 d=0.40w step=14.00w cap=2.400w LIM raw=-34.106 out=0.000 vout=0.000
+    it    3: s21 d=3.28w step=11.60w cap=2.880w LIM raw=-21.146 out=0.001 vout=0.001
+    it    4: s21 d=6.74w step=8.72w cap=3.456w LIM raw=-5.594 out=0.691 vout=0.157
+    it    5: s21 d=10.74w step=5.26w cap=4.000w LIM raw=12.406 out=8.964 vout=486.953
+    it    6: s21 d=12.00w step=1.26w cap=4.000w raw=18.094 out=8.997 vout=16.641
+    it    7: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it    8: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it    9: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   10: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   11: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   12: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   13: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   14: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   15: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   16: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   17: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   18: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   19: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   20: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   21: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   22: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   23: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   24: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   25: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   26: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   27: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   28: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   29: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   30: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   31: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   32: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   33: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   34: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   35: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   36: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   37: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   38: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   39: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   40: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   41: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   42: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   43: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   44: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   45: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   46: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   47: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+    it   48: s21 d=12.00w step=0.00w cap=4.000w raw=18.094 out=8.997 vout=9.584
+sample 182.0 (0.0038 s) block analog:0: used 3 ok worstDelta 1.19e-5 node 13 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 182.1 (0.0038 s) block analog:0: used 6 ok worstDelta 1.11e-11 node 29 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 183.0 (0.0038 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2],[7,1]]
+sample 183.1 (0.0038 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 184.0 (0.0038 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[21,2]]
+sample 184.1 (0.0038 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 185.0 (0.0039 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 185.1 (0.0039 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 186.0 (0.0039 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 186.1 (0.0039 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 187.0 (0.0039 s) block analog:0: used 4 ok worstDelta 1.22e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 187.1 (0.0039 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 15 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,1],[21,2]]
+sample 188.0 (0.0039 s) block analog:0: used 4 ok worstDelta 1.75e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 188.1 (0.0039 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 189.0 (0.0039 s) block analog:0: used 4 ok worstDelta 2.16e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 189.1 (0.0039 s) block analog:0: used 4 ok worstDelta 1.19e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 190.0 (0.0040 s) block analog:0: used 4 ok worstDelta 2.45e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 190.1 (0.0040 s) block analog:0: used 4 ok worstDelta 1.64e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 191.0 (0.0040 s) block analog:0: used 4 ok worstDelta 2.61e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 191.1 (0.0040 s) block analog:0: used 4 ok worstDelta 1.93e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 192.0 (0.0040 s) block analog:0: used 4 ok worstDelta 2.65e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 192.1 (0.0040 s) block analog:0: used 4 ok worstDelta 2.06e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 193.0 (0.0040 s) block analog:0: used 4 ok worstDelta 2.58e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 193.1 (0.0040 s) block analog:0: used 4 ok worstDelta 2.05e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 194.0 (0.0040 s) block analog:0: used 4 ok worstDelta 2.41e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 194.1 (0.0040 s) block analog:0: used 4 ok worstDelta 1.93e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 195.0 (0.0041 s) block analog:0: used 4 ok worstDelta 2.16e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 195.1 (0.0041 s) block analog:0: used 4 ok worstDelta 1.72e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 196.0 (0.0041 s) block analog:0: used 4 ok worstDelta 1.84e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 196.1 (0.0041 s) block analog:0: used 4 ok worstDelta 1.45e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 197.0 (0.0041 s) block analog:0: used 4 ok worstDelta 1.49e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 197.1 (0.0041 s) block analog:0: used 4 ok worstDelta 1.13e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 198.0 (0.0041 s) block analog:0: used 4 ok worstDelta 1.11e-11 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 198.1 (0.0041 s) block analog:0: used 4 ok worstDelta 7.85e-12 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 199.0 (0.0041 s) block analog:0: used 4 ok worstDelta 7.39e-12 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+sample 199.1 (0.0041 s) block analog:0: used 3 ok worstDelta 8.10e-6 node 6 | opamps 2, iterations with a limited op-amp 2, folded 0; limited counts by stamp [[7,2],[21,2]]
+blue-box TS os2 cap 1024 to sample 200: 0.1 s wall; nonConverged 0 stalled 0 flagged 0 peak 578 total 2491

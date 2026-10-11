@@ -1,0 +1,27 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/package.test.ts:
+864 | 		const controlUi = await readPackageJson("control-ui");
+865 | 		const visualEffects = await readPackageJson("visual-effects");
+866 | 		const amp = await readPackageJson("amp");
+867 | 		const cabinet = await readPackageJson("cabinet");
+868 | 		const changelog = await readChangelog();
+869 | 		const distIndex = await readCoreDistIndexJs();
+                                ^
+ENOENT: no such file or directory, open '/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/packages/core/dist/index.js'
+    path: "/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/packages/core/dist/index.js",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at async <anonymous> (/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/tests/package.test.ts:869:27)
+(fail) release metadata > pins the current package release and changelog entry [0.73ms]
+
+tests/chain/ir-convolution.test.ts:
+48000-tap IR: 36.6 ms for 1 s audio (27.33x realtime)
+
+ 2062 pass
+ 1 fail
+ 514384 expect() calls
+Ran 2063 tests across 144 files. [83.62s]
+bun test exit 1
