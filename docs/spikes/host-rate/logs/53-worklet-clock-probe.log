@@ -1,0 +1,4 @@
+# clock-probe.ts, 2026-10-11 (run once, while the idle-gated cost series was in progress: 3 s of one extra Chromium; the cost rows around 08:30 carry that perturbation, see the note)
+# headless Chromium 149.0.7827.55, OfflineAudioContext 48000, a one-line AudioWorkletProcessor reading its own scope
+{"typeofPerformance":"undefined","typeofDate":"function","dateNowSteps":[1],"reads":2000000,"sampleRate":48000,"hasCurrentTime":"number"}
+# => inside the AudioWorkletGlobalScope `performance` is undefined, so v2-audio-worklet.ts:488-491 and 511-514 take the Date.now() branch; Date.now() advances in 1 ms steps.

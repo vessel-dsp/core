@@ -1,0 +1,62 @@
+validity: 2026-10-11T07:48:54.460Z chromium 149.0.7827.55, bundle 21dfa65a86ef, wasm cd27e58e63e8
+
+== A. host rates are real ==
+PASS A1 oscillator 48000: ctx.sampleRate 48000, buffer 48000, 700 rising crossings in 0.7 s, 1000.000 Hz
+PASS A2 worklet ts   48k x1: ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet ts   48k x2: ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 48k x1: ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 48k x2: ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A1 oscillator 96000: ctx.sampleRate 96000, buffer 96000, 700 rising crossings in 0.7 s, 1000.000 Hz
+PASS A2 worklet ts   96k x1: ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet ts   96k x2: ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 96k x1: ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 96k x2: ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A1 oscillator 192000: ctx.sampleRate 192000, buffer 192000, 700 rising crossings in 0.7 s, 1000.000 Hz
+PASS A2 worklet ts   192k x1: ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet ts   192k x2: ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 192k x1: ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 192k x2: ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A1 oscillator 384000: ctx.sampleRate 384000, buffer 384000, 700 rising crossings in 0.7 s, 1000.000 Hz
+PASS A2 worklet ts   384k x1: ctx.sampleRate 384000, loaded.hostSampleRate 384000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+PASS A2 worklet wasm 384k x1: ctx.sampleRate 384000, loaded.hostSampleRate 384000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true
+
+== B. references and worklet renders are bit-identical across two runs ==
+PASS B1 native sd1 1000 Hz @48k: 12000 samples, sha256 33b7ad20c19d7ee6 vs 33b7ad20c19d7ee6
+PASS B1 native sd1 1000 Hz @96k: 24000 samples, sha256 22d07356a28e54dc vs 22d07356a28e54dc
+PASS B1 native sd1 1000 Hz @192k: 48000 samples, sha256 583e5ec2a4379d03 vs 583e5ec2a4379d03
+PASS B1 native sd1 1000 Hz @384k: 96000 samples, sha256 215928d62da8825f vs 215928d62da8825f
+PASS B1 native muff 8000 Hz @48k: 12000 samples, sha256 50b4d4687a5a750c vs 50b4d4687a5a750c
+PASS B1 native muff 8000 Hz @96k: 24000 samples, sha256 da1e8bac0e28296f vs da1e8bac0e28296f
+PASS B1 native muff 8000 Hz @192k: 48000 samples, sha256 ba2163c9fdbf4484 vs ba2163c9fdbf4484
+PASS B1 native muff 8000 Hz @384k: 96000 samples, sha256 66dce24d103a310e vs 66dce24d103a310e
+PASS B2 worklet ts   sd1 96k os2: 48000 samples, bit-identical=true
+PASS B2 worklet wasm sd1 96k os2: 48000 samples, bit-identical=true
+
+== C. NEGATIVE control: a render that is secretly 48 kHz os2 but labelled 96 kHz os2 ==
+PASS C muff 16000 Hz ts   (label 96k os2, actual 48k os2): ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -1.8927 dB: RED (as it must); scale 1.000e+0
+PASS C muff 16000 Hz wasm (label 96k os2, actual 48k os2): ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -1.8927 dB: RED (as it must); scale 1.000e+0
+PASS C sd1 16000 Hz ts   (label 96k os2, actual 48k os2): ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.9499 dB: RED (as it must); scale 1.000e+0
+PASS C sd1 16000 Hz wasm (label 96k os2, actual 48k os2): ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.9499 dB: RED (as it must); scale 1.000e+0
+PASS C ts9 8000 Hz ts   (label 96k os2, actual 48k os2): ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.3019 dB: RED (as it must); scale 1.000e+0
+PASS C ts9 8000 Hz wasm (label 96k os2, actual 48k os2): ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.3019 dB: RED (as it must); scale 1.000e+0
+
+== D. POSITIVE known answer: RC low pass (10 k, 10 nF; corner 1591.5 Hz), every arm, both consoles ==
+  48k x1   ts   (internal 48k) dB over [bilinear closed form]/[ideal analog]: 1k: -0.0000/-0.00  4k: +0.0000/-0.17  8k: +0.0000/-0.82  16k: +0.0000/-4.34  20k: +0.0000/-9.08
+  48k x1   wasm (internal 48k) dB over [bilinear closed form]/[ideal analog]: 1k: -0.0000/-0.00  4k: -0.0000/-0.17  8k: -0.0000/-0.82  16k: +0.0000/-4.34  20k: -0.0000/-9.08
+  48k os2  ts   (internal 96k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0026/+0.00  4k: +0.0008/-0.04  8k: +0.0028/-0.19  16k: +0.0075/-0.83  20k: -0.1363/-1.51
+  48k os2  wasm (internal 96k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0026/+0.00  4k: +0.0008/-0.04  8k: +0.0028/-0.19  16k: +0.0075/-0.83  20k: -0.1363/-1.51
+  48k os4  ts   (internal 192k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0025/+0.00  4k: -0.0002/-0.01  8k: +0.0023/-0.05  16k: +0.0056/-0.19  20k: -0.1363/-0.45
+  48k os4  wasm (internal 192k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0025/+0.00  4k: -0.0002/-0.01  8k: +0.0023/-0.05  16k: +0.0056/-0.19  20k: -0.1363/-0.45
+  96k x1   ts   (internal 96k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0000/-0.00  4k: +0.0000/-0.04  8k: -0.0000/-0.19  16k: -0.0000/-0.84  20k: +0.0000/-1.37  30k: -0.0000/-3.66
+  96k x1   wasm (internal 96k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0000/-0.00  4k: -0.0000/-0.04  8k: -0.0000/-0.19  16k: -0.0000/-0.84  20k: -0.0000/-1.37  30k: -0.0000/-3.66
+  96k os2  ts   (internal 192k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0007/+0.00  4k: +0.0062/-0.00  8k: +0.0008/-0.05  16k: +0.0028/-0.20  20k: +0.0023/-0.31  30k: +0.0080/-0.73
+  96k os2  wasm (internal 192k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0007/+0.00  4k: +0.0062/-0.00  8k: +0.0008/-0.05  16k: +0.0028/-0.20  20k: +0.0023/-0.31  30k: +0.0080/-0.73
+  96k os4  ts   (internal 384k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0007/+0.00  4k: +0.0058/+0.00  8k: -0.0002/-0.01  16k: +0.0023/-0.05  20k: +0.0026/-0.07  30k: +0.0066/-0.17
+  96k os4  wasm (internal 384k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0007/+0.00  4k: +0.0058/+0.00  8k: -0.0002/-0.01  16k: +0.0023/-0.05  20k: +0.0026/-0.07  30k: +0.0066/-0.17
+  192k x1  ts   (internal 192k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0000/-0.00  4k: +0.0000/-0.01  8k: +0.0000/-0.05  16k: +0.0000/-0.20  20k: +0.0000/-0.32  30k: +0.0000/-0.74
+  192k x1  wasm (internal 192k) dB over [bilinear closed form]/[ideal analog]: 1k: -0.0000/-0.00  4k: +0.0000/-0.01  8k: -0.0000/-0.05  16k: +0.0000/-0.20  20k: +0.0000/-0.32  30k: -0.0000/-0.74
+  192k os2 ts   (internal 384k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0002/+0.00  4k: +0.0026/-0.00  8k: +0.0062/-0.01  16k: +0.0008/-0.05  20k: +0.0005/-0.08  30k: +0.0052/-0.17
+  192k os2 wasm (internal 384k) dB over [bilinear closed form]/[ideal analog]: 1k: +0.0002/+0.00  4k: +0.0026/-0.00  8k: +0.0062/-0.01  16k: +0.0008/-0.05  20k: +0.0005/-0.08  30k: +0.0052/-0.17
+FAIL D RC closed form: worst |measured - bilinear closed form at the internal rate| = 0.1363 dB over 16 arm x console rows (resampler passband term <= 0.0075 dB is inside it); the backward-Euler closed form is off by up to 10.88 dB and the ideal analog one by up to 9.08 dB, so the check can tell them apart
+
+validity: FAIL

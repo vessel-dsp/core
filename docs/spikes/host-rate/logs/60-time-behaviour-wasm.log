@@ -1,0 +1,64 @@
+time-based: 2026-10-11T08:03:20.871Z kinds=delay,lfo,env consoles=wasm arms=48k x1, 96k x1, 192k x1, 96k os2, 48k os4
+
+## delay electro-harmonix-slapback-echo: 1 mode(s): default declared 45.000 ms
+  default                wasm 48k x1   echo at 2.5833 ms (declared 45.0000 ms; one host sample = 0.0208 ms) WRONG-TIME dry 3.16e-1 (10 s)
+  default                wasm 96k x1   echo at 0.0000 ms (declared 45.0000 ms; one host sample = 0.0104 ms) DRY-ONLY dry 3.14e-1 (16 s)
+  default                wasm 192k x1  echo at 0.0000 ms (declared 45.0000 ms; one host sample = 0.0052 ms) DRY-ONLY dry 3.14e-1 (16 s)
+  default                wasm 96k os2  echo at 0.0000 ms (declared 45.0000 ms; one host sample = 0.0104 ms) DRY-ONLY dry 2.01e-1 (17 s)
+  default                wasm 48k os4  echo at 3.1250 ms (declared 45.0000 ms; one host sample = 0.0208 ms) WRONG-TIME dry 2.74e-1 (17 s)
+
+## delay pt2399-delay: 1 mode(s): default declared 430.800 ms
+  default                wasm 48k x1   echo at 430.9167 ms (declared 430.8000 ms; one host sample = 0.0208 ms) DELAYS dry 4.85e-1 (2 s)
+  default                wasm 96k x1   echo at 430.9063 ms (declared 430.8000 ms; one host sample = 0.0104 ms) DELAYS dry 3.11e-1 (5 s)
+  default                wasm 192k x1  echo at 430.9010 ms (declared 430.8000 ms; one host sample = 0.0052 ms) DELAYS dry 1.62e-1 (10 s)
+  default                wasm 96k os2  echo at 431.1042 ms (declared 430.8000 ms; one host sample = 0.0104 ms) DELAYS dry 3.25e-1 (12 s)
+  default                wasm 48k os4  echo at 431.4375 ms (declared 430.8000 ms; one host sample = 0.0208 ms) DELAYS dry 5.82e-1 (12 s)
+  lfo mxr-phase-90      wasm 48k x1   modulation 0.126 Hz (strength 2.38e-4; 8 s)
+  lfo mxr-phase-90      wasm 96k x1   modulation 0.126 Hz (strength 2.33e-4; 14 s)
+  lfo mxr-phase-90      wasm 192k x1  modulation 0.126 Hz (strength 2.32e-4; 25 s)
+  lfo mxr-phase-90      wasm 96k os2  modulation 0.126 Hz (strength 2.34e-4; 25 s)
+  lfo mxr-phase-90      wasm 48k os4  modulation 0.126 Hz (strength 2.34e-4; 24 s)
+  lfo schaller-tremolo  wasm 48k x1   modulation 3.509 Hz (strength 6.60e-3; 2 s)
+  lfo schaller-tremolo  wasm 96k x1   modulation 3.509 Hz (strength 6.67e-3; 3 s)
+  lfo schaller-tremolo  wasm 192k x1  modulation 3.509 Hz (strength 6.70e-3; 6 s)
+  lfo schaller-tremolo  wasm 96k os2  modulation 3.509 Hz (strength 6.63e-3; 6 s)
+  lfo schaller-tremolo  wasm 48k os4  modulation 3.509 Hz (strength 6.60e-3; 6 s)
+  env mxr-dyna-comp wasm 48k x1   attack (63.2 %) 5.0 ms, release 1427.0 ms (3 s)
+  env mxr-dyna-comp wasm 96k x1   attack (63.2 %) 5.0 ms, release 1426.0 ms (6 s)
+  env mxr-dyna-comp wasm 192k x1  attack (63.2 %) 5.0 ms, release 1426.0 ms (12 s)
+  env mxr-dyna-comp wasm 96k os2  attack (63.2 %) 6.0 ms, release 1426.0 ms (7 s)
+  env mxr-dyna-comp wasm 48k os4  attack (63.2 %) 6.0 ms, release 1427.0 ms (7 s)
+time-based: done 2026-10-11T08:07:56.259Z
+time-based: 2026-10-11T08:09:25.290Z kinds=lfo consoles=wasm arms=48k x1, 96k x1, 192k x1, 96k os2, 48k os4
+  lfo mxr-phase-90      {"Speed":1} wasm 48k x1   modulation 9.859 Hz (strength 2.50e-4; 7 s)
+  lfo mxr-phase-90      {"Speed":1} wasm 96k x1   modulation 9.859 Hz (strength 2.57e-4; 13 s)
+  lfo mxr-phase-90      {"Speed":1} wasm 192k x1  modulation 9.859 Hz (strength 2.63e-4; 23 s)
+  lfo mxr-phase-90      {"Speed":1} wasm 96k os2  modulation 9.859 Hz (strength 2.43e-4; 23 s)
+  lfo mxr-phase-90      {"Speed":1} wasm 48k os4  modulation 9.859 Hz (strength 2.47e-4; 22 s)
+time-based: done 2026-10-11T08:10:54.323Z
+time-based: 2026-10-11T08:09:25.294Z kinds=delay consoles=wasm arms=48k x1, 96k x1, 192k x1, 96k os2, 48k os4
+
+## delay boss-ce-2: 1 mode(s): default declared 4.650 ms
+  default                wasm 48k x1   echo at 4.5208 ms (declared 4.6500 ms; one host sample = 0.0208 ms) DELAYS dry 5.91e-1 (9 s)
+  default                wasm 96k x1   echo at 4.5208 ms (declared 4.6500 ms; one host sample = 0.0104 ms) DELAYS dry 5.13e-1 (17 s)
+  default                wasm 192k x1  echo at 4.4792 ms (declared 4.6500 ms; one host sample = 0.0052 ms) DELAYS dry 4.20e-1 (31 s)
+  default                wasm 96k os2  echo at 4.6771 ms (declared 4.6500 ms; one host sample = 0.0104 ms) DELAYS dry 6.71e-1 (34 s)
+  default                wasm 48k os4  echo at 5.0208 ms (declared 4.6500 ms; one host sample = 0.0208 ms) WRONG-TIME dry 6.21e-1 (33 s)
+
+## delay boss-dd-5: 3 mode(s): delay-1 DTime=1 declared 50.000 ms; delay-3 DTime=0 declared 200.000 ms; tempo-quarter tap 0.5s declared 500.000 ms
+  delay-1 DTime=1        wasm 48k x1   echo at 50.0625 ms (declared 50.0000 ms; one host sample = 0.0208 ms) DELAYS dry 8.54e-1 (3 s)
+  delay-1 DTime=1        wasm 96k x1   echo at 50.0417 ms (declared 50.0000 ms; one host sample = 0.0104 ms) DELAYS dry 7.55e-1 (6 s)
+  delay-1 DTime=1        wasm 192k x1  echo at 50.0365 ms (declared 50.0000 ms; one host sample = 0.0052 ms) DELAYS dry 6.24e-1 (12 s)
+  delay-1 DTime=1        wasm 96k os2  echo at 50.2396 ms (declared 50.0000 ms; one host sample = 0.0104 ms) DELAYS dry 7.18e-1 (13 s)
+  delay-1 DTime=1        wasm 48k os4  echo at 50.5833 ms (declared 50.0000 ms; one host sample = 0.0208 ms) DELAYS dry 7.47e-1 (13 s)
+  delay-3 DTime=0        wasm 48k x1   echo at 200.0625 ms (declared 200.0000 ms; one host sample = 0.0208 ms) DELAYS dry 8.54e-1 (3 s)
+  delay-3 DTime=0        wasm 96k x1   echo at 200.0417 ms (declared 200.0000 ms; one host sample = 0.0104 ms) DELAYS dry 7.55e-1 (6 s)
+  delay-3 DTime=0        wasm 192k x1  echo at 200.0365 ms (declared 200.0000 ms; one host sample = 0.0052 ms) DELAYS dry 6.24e-1 (11 s)
+  delay-3 DTime=0        wasm 96k os2  echo at 200.2396 ms (declared 200.0000 ms; one host sample = 0.0104 ms) DELAYS dry 7.18e-1 (13 s)
+  delay-3 DTime=0        wasm 48k os4  echo at 200.5833 ms (declared 200.0000 ms; one host sample = 0.0208 ms) DELAYS dry 7.47e-1 (13 s)
+  tempo-quarter tap 0.5s wasm 48k x1   echo at 500.0625 ms (declared 500.0000 ms; one host sample = 0.0208 ms) DELAYS dry 8.54e-1 (4 s)
+  tempo-quarter tap 0.5s wasm 96k x1   echo at 500.0417 ms (declared 500.0000 ms; one host sample = 0.0104 ms) DELAYS dry 7.55e-1 (7 s)
+  tempo-quarter tap 0.5s wasm 192k x1  echo at 500.0365 ms (declared 500.0000 ms; one host sample = 0.0052 ms) DELAYS dry 6.24e-1 (15 s)
+  tempo-quarter tap 0.5s wasm 96k os2  echo at 500.2396 ms (declared 500.0000 ms; one host sample = 0.0104 ms) DELAYS dry 7.18e-1 (17 s)
+  tempo-quarter tap 0.5s wasm 48k os4  echo at 500.5833 ms (declared 500.0000 ms; one host sample = 0.0208 ms) DELAYS dry 7.47e-1 (17 s)
+time-based: done 2026-10-11T08:14:01.027Z

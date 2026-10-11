@@ -1,0 +1,35 @@
+bun install v1.3.14 (0d9b296a)
+
+199 packages installed [14.30s]
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+<scratch>/core-clone/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+$ bun run --cwd packages/core build && bun run --cwd packages/stompbox build && bun run --cwd packages/control-ui build && bun run --cwd packages/visual-effects build && bun run --cwd packages/amp build && bun run --cwd packages/cabinet build && bun run --cwd packages/compiler build && bun run --cwd packages/runtime build && bun run --cwd packages/chain build && bun run --cwd packages/player build && bun run check:dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && cp src/styles.css dist/styles.css
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm && bun scripts/build-worklet.ts
+build-worklet: wrote <scratch>/core-clone/packages/runtime/dist/worklet/v2-audio-worklet.js (307261 bytes, no external imports)
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && bun scripts/build-player-worklet.ts
+build-player-worklet: wrote <scratch>/core-clone/packages/player/dist/worklet/player-worklet.js (364714 bytes, no external imports)
+build-player-worklet: staged dist/wasm/ (2147705 + 420095 wasm bytes)
+$ node scripts/check-dist-entrypoints.mjs
+dist entrypoints ok
+$ bun scripts/build-worklet.ts
+build-worklet: wrote <scratch>/core-clone/packages/runtime/dist/worklet/v2-audio-worklet.js (307261 bytes, no external imports)
+BUILD_DONE
+f0f84866bcf54b175d93f5627a8c48581e6a2bbcd052ca883b57167f823d1d86  packages/chain/nam-engine/nam-engine.wasm
+f0f84866bcf54b175d93f5627a8c48581e6a2bbcd052ca883b57167f823d1d86  packages/player/dist/wasm/nam-engine.wasm
+cd27e58e63e8e9a92a52fe24cc4bcc1e6f97166ac795eef31e567f044f17c84a  packages/player/dist/wasm/v2_dsp.wasm
+cd27e58e63e8e9a92a52fe24cc4bcc1e6f97166ac795eef31e567f044f17c84a  packages/runtime/dist/wasm/v2_dsp.wasm
+cd27e58e63e8e9a92a52fe24cc4bcc1e6f97166ac795eef31e567f044f17c84a  packages/runtime/src/wasm/v2_dsp.wasm

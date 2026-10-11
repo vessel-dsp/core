@@ -1,0 +1,197 @@
+[
+ {
+  "kind": "nam",
+  "declared": true,
+  "host": 48000,
+  "outcome": "RAN",
+  "expected": 48000,
+  "impulse": [
+   0.031547870486974716,
+   -0.01581522822380066,
+   0.007866375148296356,
+   0.003912594635039568,
+   -0.00003601051867008209
+  ]
+ },
+ {
+  "kind": "nam",
+  "declared": true,
+  "host": 96000,
+  "outcome": "REFUSED: NAM model {\"version\":\"0.5.0\",\"architecture\":\"Linear\",\"config\":{\"receptive_field\":4,\"bias\":... states 48000 Hz but the chain runs at 96000 Hz; refusing to run it at the wrong rate",
+  "expected": null,
+  "impulse": []
+ },
+ {
+  "kind": "nam",
+  "declared": true,
+  "host": 192000,
+  "outcome": "REFUSED: NAM model {\"version\":\"0.5.0\",\"architecture\":\"Linear\",\"config\":{\"receptive_field\":4,\"bias\":... states 48000 Hz but the chain runs at 192000 Hz; refusing to run it at the wrong rate",
+  "expected": null,
+  "impulse": []
+ },
+ {
+  "kind": "nam",
+  "declared": false,
+  "host": 48000,
+  "outcome": "RAN",
+  "expected": null,
+  "impulse": [
+   0.031547870486974716,
+   -0.01581522822380066,
+   0.007866375148296356,
+   0.003912594635039568,
+   -0.00003601051867008209
+  ]
+ },
+ {
+  "kind": "nam",
+  "declared": false,
+  "host": 96000,
+  "outcome": "RAN",
+  "expected": null,
+  "impulse": [
+   0.031547870486974716,
+   -0.015794582664966583,
+   0.007876656949520111,
+   0.0039280173368752,
+   -0.00001803738996386528
+  ]
+ },
+ {
+  "kind": "nam",
+  "declared": false,
+  "host": 192000,
+  "outcome": "RAN",
+  "expected": null,
+  "impulse": [
+   0.031547870486974716,
+   -0.015784256160259247,
+   0.007881810888648033,
+   0.003935748245567083,
+   -0.000009023584425449371
+  ]
+ },
+ {
+  "kind": "nam-chain",
+  "threw": "NAM model {\"version\":\"0.5.0\",\"architecture\":\"Linear\",\"config\":{\"receptive_field\":4,\"bias\":... states 48000 Hz but the chain runs at 96000 Hz; refusing to run it at the wrong rate",
+  "stillThere": true,
+  "maxDiffVsNoNamChain": 0
+ },
+ {
+  "kind": "nam-chainruntime",
+  "declared": true,
+  "host": 48000,
+  "outcome": "RAN"
+ },
+ {
+  "kind": "nam-chainruntime",
+  "declared": true,
+  "host": 96000,
+  "outcome": "Error: ,\"bias\":... states 48000 Hz but the chain runs at 96000 Hz; refusing to run it at the wrong rate"
+ },
+ {
+  "kind": "nam-chainruntime",
+  "declared": true,
+  "host": 192000,
+  "outcome": "Error: \"bias\":... states 48000 Hz but the chain runs at 192000 Hz; refusing to run it at the wrong rate"
+ },
+ {
+  "kind": "nam-chainruntime",
+  "declared": false,
+  "host": 48000,
+  "outcome": "RAN"
+ },
+ {
+  "kind": "nam-chainruntime",
+  "declared": false,
+  "host": 96000,
+  "outcome": "RAN"
+ },
+ {
+  "kind": "nam-chainruntime",
+  "declared": false,
+  "host": 192000,
+  "outcome": "RAN"
+ },
+ {
+  "kind": "ir",
+  "label": "built-in placeholder (declared 48 kHz)",
+  "host": 48000,
+  "length": 128,
+  "peakIndex": 4,
+  "peakMs": 0.08333333333333333,
+  "lengthMs": 2.6666666666666665
+ },
+ {
+  "kind": "ir",
+  "label": "built-in placeholder (declared 48 kHz)",
+  "host": 96000,
+  "length": 256,
+  "peakIndex": 7,
+  "peakMs": 0.07291666666666667,
+  "lengthMs": 2.6666666666666665
+ },
+ {
+  "kind": "ir",
+  "label": "built-in placeholder (declared 48 kHz)",
+  "host": 192000,
+  "length": 512,
+  "peakIndex": 14,
+  "peakMs": 0.07291666666666667,
+  "lengthMs": 2.6666666666666665
+ },
+ {
+  "kind": "ir",
+  "label": "spike at 1 ms, irSampleRate 48000",
+  "host": 48000,
+  "length": 256,
+  "peakIndex": 48,
+  "peakMs": 1,
+  "lengthMs": 5.333333333333333
+ },
+ {
+  "kind": "ir",
+  "label": "spike at 1 ms, irSampleRate 48000",
+  "host": 96000,
+  "length": 512,
+  "peakIndex": 96,
+  "peakMs": 1,
+  "lengthMs": 5.333333333333333
+ },
+ {
+  "kind": "ir",
+  "label": "spike at 1 ms, irSampleRate 48000",
+  "host": 192000,
+  "length": 1024,
+  "peakIndex": 192,
+  "peakMs": 1,
+  "lengthMs": 5.333333333333333
+ },
+ {
+  "kind": "ir",
+  "label": "spike at 1 ms, NO irSampleRate",
+  "host": 48000,
+  "length": 256,
+  "peakIndex": 48,
+  "peakMs": 1,
+  "lengthMs": 5.333333333333333
+ },
+ {
+  "kind": "ir",
+  "label": "spike at 1 ms, NO irSampleRate",
+  "host": 96000,
+  "length": 256,
+  "peakIndex": 48,
+  "peakMs": 0.5,
+  "lengthMs": 2.6666666666666665
+ },
+ {
+  "kind": "ir",
+  "label": "spike at 1 ms, NO irSampleRate",
+  "host": 192000,
+  "length": 256,
+  "peakIndex": 48,
+  "peakMs": 0.25,
+  "lengthMs": 1.3333333333333333
+ }
+]

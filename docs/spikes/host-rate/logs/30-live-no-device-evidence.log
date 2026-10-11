@@ -1,0 +1,26 @@
+# live-context device evidence, 2026-10-11T07:54:39Z
+# strace -f -e trace=openat,connect of: bun probe-rates.mjs  (headless Chromium 149, live AudioContext at 48k/96k/192k/default)
+$ id: uid=1000(joseph) gid=1000(joseph) groups=1000(joseph),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),110(lxd),998(nordvpn),999(docker),1001(microk8s)
+$ ls -l /dev/snd (owner root:audio, mode 660; joseph is not in group audio):
+total 0
+drwxr-xr-x 2 root root       80 Oct  9 12:42 by-path
+crw-rw---- 1 root audio 116, 18 Oct  9 12:42 controlC0
+crw-rw---- 1 root audio 116, 17 Oct  9 12:42 controlC1
+crw-rw---- 1 root audio 116, 16 Oct  9 12:42 hwC0D0
+crw-rw---- 1 root audio 116, 12 Oct  9 12:42 hwC1D0
+$ cat /proc/asound/cards:
+ 0 [NVidia         ]: HDA-Intel - HDA NVidia
+                      HDA NVidia at 0xfc080000 irq 77
+ 1 [Generic        ]: HDA-Intel - HD-Audio Generic
+                      HD-Audio Generic at 0xfc500000 irq 78
+$ which pactl pw-cli aplay: pactl not found pw-cli not found aplay not found 
+$ ls /run/user/1000 | grep -E 'pulse|pipewire': (none)
+# Chromium loads libasound (/lib/x86_64-linux-gnu/libasound.so.2) and then:
+# opens of the two real cards' control nodes (every other controlN is ENOENT):
+      5 openat(AT_FDCWD, "/dev/snd/controlC0", O_RDONLY|O_CLOEXEC) = -1 EACCES (Permission denied)
+      5 openat(AT_FDCWD, "/dev/snd/controlC1", O_RDONLY|O_CLOEXEC) = -1 EACCES (Permission denied)
+# connect() to a sound server:
+connect(18, {sa_family=AF_UNIX, sun_path="/tmp/pulse-PKdhtXMmr18n/native"}, 110) = -1 ENOENT (No such file or directory)
+connect(18, {sa_family=AF_UNIX, sun_path="/var/run/pulse/native"}, 110) = -1 ENOENT (No such file or directory)
+# successful open of any /dev/snd pcm node: 0
+# => no audio device is reachable; the live AudioContext below runs on Chromium's fallback sink

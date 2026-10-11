@@ -1,0 +1,5 @@
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":1}","console":"wasm","arm":"48k x1","host":48000,"factor":1,"hz":9.858807658765402,"strength":0.0002496071841220206}
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":1}","console":"wasm","arm":"96k x1","host":96000,"factor":1,"hz":9.858754919589446,"strength":0.00025670169964280075}
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":1}","console":"wasm","arm":"192k x1","host":192000,"factor":1,"hz":9.858733053231253,"strength":0.0002633829271238969}
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":1}","console":"wasm","arm":"96k os2","host":96000,"factor":2,"hz":9.85874900310907,"strength":0.00024273156361371382}
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":1}","console":"wasm","arm":"48k os4","host":48000,"factor":4,"hz":9.858741947491817,"strength":0.0002470320992795003}

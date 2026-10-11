@@ -1,0 +1,35 @@
+latency: 2026-10-11T08:00:05.752Z chromium 149.0.7827.55, bundle 21dfa65a86ef
+PASS  48k ts   1 slot  os2: expected 19.5 loaded 19.5 phase slope 19.5000 (spread 0.0000) impulse +19 (x1 peak at input+0) -> 0.4063 ms loaded, 0.4063 ms measured
+PASS  48k ts   1 slot  os4: expected 26.25 loaded 26.25 phase slope 26.2500 (spread 0.0000) impulse +26 (x1 peak at input+0) -> 0.5469 ms loaded, 0.5469 ms measured
+FAIL  48k ts   3 slots os2: expected 58.5 loaded 58.5 phase slope 27.3000 (spread 96.0000) impulse +58 (x1 peak at input+0) -> 1.2188 ms loaded, 0.5688 ms measured
+FAIL  48k ts   3 slots os4: expected 78.75 loaded 78.75 phase slope 47.5500 (spread 96.0000) impulse +79 (x1 peak at input+0) -> 1.6406 ms loaded, 0.9906 ms measured
+PASS  48k wasm 1 slot  os2: expected 19.5 loaded 19.5 phase slope 19.5000 (spread 0.0000) impulse +19 (x1 peak at input+0) -> 0.4063 ms loaded, 0.4063 ms measured
+PASS  48k wasm 1 slot  os4: expected 26.25 loaded 26.25 phase slope 26.2500 (spread 0.0000) impulse +26 (x1 peak at input+0) -> 0.5469 ms loaded, 0.5469 ms measured
+FAIL  48k wasm 3 slots os2: expected 58.5 loaded 58.5 phase slope 27.3000 (spread 96.0000) impulse +58 (x1 peak at input+0) -> 1.2188 ms loaded, 0.5687 ms measured
+FAIL  48k wasm 3 slots os4: expected 78.75 loaded 78.75 phase slope 47.5500 (spread 96.0000) impulse +79 (x1 peak at input+0) -> 1.6406 ms loaded, 0.9906 ms measured
+readback  48k x1 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 0 (per slot 0/0/0) = 0.0000 ms
+readback  48k x2 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 58.5 (per slot 19.5/19.5/19.5) = 1.2188 ms
+readback  48k x4 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 78.75 (per slot 26.25/26.25/26.25) = 1.6406 ms
+PASS  96k ts   1 slot  os2: expected 19.5 loaded 19.5 phase slope 19.5000 (spread 0.0000) impulse +19 (x1 peak at input+0) -> 0.2031 ms loaded, 0.2031 ms measured
+PASS  96k ts   1 slot  os4: expected 26.25 loaded 26.25 phase slope 26.2500 (spread 0.0000) impulse +26 (x1 peak at input+0) -> 0.2734 ms loaded, 0.2734 ms measured
+PASS  96k ts   3 slots os2: expected 58.5 loaded 58.5 phase slope 58.5000 (spread 0.0000) impulse +58 (x1 peak at input+0) -> 0.6094 ms loaded, 0.6094 ms measured
+FAIL  96k ts   3 slots os4: expected 78.75 loaded 78.75 phase slope 54.7500 (spread 120.0000) impulse +79 (x1 peak at input+0) -> 0.8203 ms loaded, 0.5703 ms measured
+PASS  96k wasm 1 slot  os2: expected 19.5 loaded 19.5 phase slope 19.5000 (spread 0.0000) impulse +19 (x1 peak at input+0) -> 0.2031 ms loaded, 0.2031 ms measured
+PASS  96k wasm 1 slot  os4: expected 26.25 loaded 26.25 phase slope 26.2500 (spread 0.0000) impulse +26 (x1 peak at input+0) -> 0.2734 ms loaded, 0.2734 ms measured
+PASS  96k wasm 3 slots os2: expected 58.5 loaded 58.5 phase slope 58.5000 (spread 0.0000) impulse +58 (x1 peak at input+0) -> 0.6094 ms loaded, 0.6094 ms measured
+FAIL  96k wasm 3 slots os4: expected 78.75 loaded 78.75 phase slope 54.7500 (spread 120.0000) impulse +79 (x1 peak at input+0) -> 0.8203 ms loaded, 0.5703 ms measured
+readback  96k x1 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 0 (per slot 0/0/0) = 0.0000 ms
+readback  96k x2 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 58.5 (per slot 19.5/19.5/19.5) = 0.6094 ms
+readback  96k x4 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 78.75 (per slot 26.25/26.25/26.25) = 0.8203 ms
+PASS 192k ts   1 slot  os2: expected 19.5 loaded 19.5 phase slope 19.5000 (spread 0.0000) impulse +19 (x1 peak at input+0) -> 0.1016 ms loaded, 0.1016 ms measured
+PASS 192k ts   1 slot  os4: expected 26.25 loaded 26.25 phase slope 26.2500 (spread 0.0000) impulse +26 (x1 peak at input+0) -> 0.1367 ms loaded, 0.1367 ms measured
+PASS 192k ts   3 slots os2: expected 58.5 loaded 58.5 phase slope 58.5000 (spread 0.0000) impulse +58 (x1 peak at input+0) -> 0.3047 ms loaded, 0.3047 ms measured
+PASS 192k ts   3 slots os4: expected 78.75 loaded 78.75 phase slope 78.7500 (spread 0.0000) impulse +79 (x1 peak at input+0) -> 0.4102 ms loaded, 0.4102 ms measured
+PASS 192k wasm 1 slot  os2: expected 19.5 loaded 19.5 phase slope 19.5000 (spread 0.0000) impulse +19 (x1 peak at input+0) -> 0.1016 ms loaded, 0.1016 ms measured
+PASS 192k wasm 1 slot  os4: expected 26.25 loaded 26.25 phase slope 26.2500 (spread 0.0000) impulse +26 (x1 peak at input+0) -> 0.1367 ms loaded, 0.1367 ms measured
+PASS 192k wasm 3 slots os2: expected 58.5 loaded 58.5 phase slope 58.5000 (spread 0.0000) impulse +58 (x1 peak at input+0) -> 0.3047 ms loaded, 0.3047 ms measured
+PASS 192k wasm 3 slots os4: expected 78.75 loaded 78.75 phase slope 78.7500 (spread 0.0000) impulse +79 (x1 peak at input+0) -> 0.4102 ms loaded, 0.4102 ms measured
+readback 192k x1 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 0 (per slot 0/0/0) = 0.0000 ms
+readback 192k x2 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 58.5 (per slot 19.5/19.5/19.5) = 0.3047 ms
+readback 192k x4 Muff+SD-1+TS-9 (wasm): loaded.latencyHostSamples 78.75 (per slot 26.25/26.25/26.25) = 0.4102 ms
+latency: FAIL

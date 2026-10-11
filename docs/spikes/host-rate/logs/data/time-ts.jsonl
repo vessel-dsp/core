@@ -1,0 +1,10 @@
+{"kind":"delay","doc":"electro-harmonix-slapback-echo","mode":"default","console":"ts","arm":"48k x1","host":48000,"factor":1,"declaredSeconds":0.045,"echoSeconds":0.0025833333333333333,"verdict":"WRONG-TIME","dry":0.3158823881474322,"echo":0.0001913357788316966}
+{"kind":"delay","doc":"electro-harmonix-slapback-echo","mode":"default","console":"ts","arm":"96k x1","host":96000,"factor":1,"declaredSeconds":0.045,"echoSeconds":0,"verdict":"DRY-ONLY","dry":0.3143601401996455,"echo":0}
+{"kind":"delay","doc":"pt2399-delay","mode":"default","console":"ts","arm":"48k x1","host":48000,"factor":1,"declaredSeconds":0.43079999999999996,"echoSeconds":0.43091666666666667,"verdict":"DELAYS","dry":0.4852141362960869,"echo":0.020635758548571914}
+{"kind":"delay","doc":"pt2399-delay","mode":"default","console":"ts","arm":"96k x1","host":96000,"factor":1,"declaredSeconds":0.43079999999999996,"echoSeconds":0.43090625,"verdict":"DELAYS","dry":0.31073919584005205,"echo":0.011183343347883845}
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":0.5}","console":"ts","arm":"48k x1","host":48000,"factor":1,"hz":0.1264942260543595,"strength":0.00023788786463950262}
+{"kind":"lfo","doc":"mxr-phase-90","controls":"{\"Speed\":0.5}","console":"ts","arm":"96k x1","host":96000,"factor":1,"hz":0.12596057154515394,"strength":0.00023317234123044095}
+{"kind":"lfo","doc":"schaller-tremolo","controls":"{}","console":"ts","arm":"48k x1","host":48000,"factor":1,"hz":3.5092440899950845,"strength":0.006599179308990741}
+{"kind":"lfo","doc":"schaller-tremolo","controls":"{}","console":"ts","arm":"96k x1","host":96000,"factor":1,"hz":3.509241687085513,"strength":0.006666048536988136}
+{"kind":"env","doc":"mxr-dyna-comp","console":"ts","arm":"48k x1","host":48000,"factor":1,"attackSeconds":0.005,"releaseSeconds":1.427}
+{"kind":"env","doc":"mxr-dyna-comp","console":"ts","arm":"96k x1","host":96000,"factor":1,"attackSeconds":0.005,"releaseSeconds":1.426}

@@ -1,0 +1,69 @@
+# predictions arithmetic, 2026-10-11T07:41:53.350Z
+
+## P2 x1 warp at higher host rate, and convergence (dB; T(R) = level error of an engine solving at rate R vs the continuous solution)
+model check on EXISTING data: pure-warp model fitted to the 48k point, then asked for native384 - native192 (measured in phase 1)
+  muff 4000 Hz: s=-18.98 dB/e-fold; predicted native384-native192 = 0.0204; measured (phase 1) = 0.0197
+  muff 8000 Hz: s=-24.13 dB/e-fold; predicted native384-native192 = 0.1039; measured (phase 1) = 0.1027
+  muff 16000 Hz: s=-25.70 dB/e-fold; predicted native384-native192 = 0.4494; measured (phase 1) = 0.4454
+  muff 8000 Hz:
+     pure-warp: x1@96k vs 192k -0.422, x1@96k vs 768k -0.552, native192 vs 768k -0.130, native384 vs 768k -0.026, x1@48k vs 768k -2.350
+     warp+dt (a=-24.244, beta=642.61): x1@96k vs 192k -0.421, x1@96k vs 768k -0.548, native192 vs 768k -0.128, native384 vs 768k -0.025, x1@48k vs 768k -2.348
+  muff 16000 Hz:
+     pure-warp: x1@96k vs 192k -1.915, x1@96k vs 768k -2.475, native192 vs 768k -0.560, native384 vs 768k -0.111, x1@48k vs 768k -12.897
+     warp+dt (a=-25.767, beta=1968.17): x1@96k vs 192k -1.910, x1@96k vs 768k -2.463, native192 vs 768k -0.554, native384 vs 768k -0.108, x1@48k vs 768k -12.891
+  sd1 8000 Hz:
+     pure-warp: x1@96k vs 192k -0.230, x1@96k vs 768k -0.301, native192 vs 768k -0.071, native384 vs 768k -0.014, x1@48k vs 768k -1.281
+     dt-only bound: x1@96k vs 192k -0.403, x1@96k vs 768k -0.706, native192 vs 768k -0.302, native384 vs 768k -0.101, x1@48k vs 768k -1.512
+  sd1 16000 Hz:
+     pure-warp: x1@96k vs 192k -0.768, x1@96k vs 768k -0.993, native192 vs 768k -0.225, native384 vs 768k -0.044, x1@48k vs 768k -5.172
+     warp+dt (a=-7.362, beta=-90501.55): x1@96k vs 192k -1.020, x1@96k vs 768k -1.534, native192 vs 768k -0.514, native384 vs 768k -0.150, x1@48k vs 768k -5.462
+  ts9 8000 Hz:
+     pure-warp: x1@96k vs 192k -0.238, x1@96k vs 768k -0.312, native192 vs 768k -0.073, native384 vs 768k -0.015, x1@48k vs 768k -1.328
+     dt-only bound: x1@96k vs 192k -0.418, x1@96k vs 768k -0.732, native192 vs 768k -0.314, native384 vs 768k -0.105, x1@48k vs 768k -1.568
+  ts9 16000 Hz:
+     pure-warp: x1@96k vs 192k -0.878, x1@96k vs 768k -1.135, native192 vs 768k -0.257, native384 vs 768k -0.051, x1@48k vs 768k -5.915
+     warp+dt (a=-8.927, beta=-87863.91): x1@96k vs 192k -1.123, x1@96k vs 768k -1.660, native192 vs 768k -0.538, native384 vs 768k -0.153, x1@48k vs 768k -6.195
+  naive (f/fs)^2 reading of the task: Muff 16 kHz x1: 96k -3.08 dB, 192k -0.77 dB (= -12.3368 / 4, / 16)
+
+## resampler net response (dB), calculated from the stage designs (interpolation pair per stage, no solver)
+  freq        48k os2   48k os4   48k os8   96k os2   96k os4   192k os2
+   1000 Hz    0.0026    0.0025    0.0025    0.0007    0.0007    0.0002
+   4000 Hz    0.0008   -0.0002   -0.0008    0.0062    0.0058    0.0026
+   8000 Hz    0.0028    0.0023    0.0002    0.0008   -0.0002    0.0062
+  12500 Hz    0.0020    0.0019   -0.0013    0.0057    0.0046    0.0045
+  16000 Hz    0.0075    0.0056    0.0029    0.0028    0.0023    0.0008
+  20000 Hz   -0.1366   -0.1363   -0.1372    0.0023    0.0026    0.0005
+  30000 Hz       n/a       n/a       n/a    0.0080    0.0066    0.0052
+  check against phase 1: os4 at 48k read +0.0057/+0.0041/+0.0066/+0.0099 dB (Muff, 1/4/8/16 kHz) over native 192k; the calculation's
+  16 kHz os4 figure above is the model's passband term for the same arm
+
+## P3 engine latency (arithmetic: host samples per slot are fixed by the stage designs, ms = samples / host rate)
+  arm          host-samples/slot   ms/slot    ms three-slot chain   quantum ms (128/H)
+   48k x1                0        0.0000      0.0000             2.6667
+   48k x2             19.5        0.4063      1.2188             2.6667
+   48k x4            26.25        0.5469      1.6406             2.6667
+   96k x1                0        0.0000      0.0000             1.3333
+   96k x2             19.5        0.2031      0.6094             1.3333
+   96k x4            26.25        0.2734      0.8203             1.3333
+  192k x1                0        0.0000      0.0000             0.6667
+  192k x2             19.5        0.1016      0.3047             0.6667
+  192k x4            26.25        0.1367      0.4102             0.6667
+
+## P4 cost and P7 predictor gate: iterations per INTERNAL sample (TS, 1 kHz 10 mV; predictor spike note §1) and the predictor's os4 gain
+  muff: it/internal predictor ON at os4 1.406, un-predicted at the same dt 2.305 (x1 at 48k: 2.833); predicted 192k-x1 cost / 48k-os4 cost = 1.64 if cost follows iterations (phase 1: cost ratio os4/os1 2.11 vs iteration ratio 1.99)
+  sd1: it/internal predictor ON at os4 1.146, un-predicted at the same dt 1.943 (x1 at 48k: 2.354); predicted 192k-x1 cost / 48k-os4 cost = 1.69 if cost follows iterations (phase 1: cost ratio os4/os1 2.00 vs iteration ratio 1.95)
+  ts9: it/internal predictor ON at os4 1.011, un-predicted at the same dt 1.838 (x1 at 48k: 1.708); predicted 192k-x1 cost / 48k-os4 cost = 1.82 if cost follows iterations (phase 1: cost ratio os4/os1 2.37 vs iteration ratio 2.37)
+
+## P5 predicted mean load (fraction of the 128/H deadline) for the WASM console, from the phase-1 table and the iteration rule above
+  rule: cost per audio second = internal rate x iterations per internal sample; the deadline per block is 128/H and so is the block time:
+  the MEAN fraction is therefore equal across equal-internal-rate arms EXCEPT through the predictor gate (x1 arms run it off)
+  arm      internal   muff mean (p99)   sd1 mean (p99)   ts9 mean (p99)   chain3 mean (p99)   [percent of deadline; p99 = mean x guess k(H) 1.5/1.8/2.4]
+  48k x1     48k        46 (  68)         61 (  91)        28 (  41)       134 ( 201)
+  48k os2    96k        69 ( 103)         93 ( 139)        48 (  72)       210 ( 315)
+  48k os4   192k        96 ( 144)        122 ( 183)        65 (  98)       283 ( 425)
+  96k x1     96k        79 ( 142)        103 ( 186)        59 ( 107)       241 ( 434)
+  96k os2   192k        96 ( 173)        122 ( 219)        65 ( 118)       283 ( 509)
+  96k os4   384k       192 ( 346)        243 ( 438)       131 ( 235)       566 (1019)
+  192k x1   192k       157 ( 378)        206 ( 495)       119 ( 285)       482 (1158)
+  192k os2  384k       192 ( 461)        243 ( 584)       131 ( 313)       566 (1358)
+  (phase-1 anchors are contaminated by a one-core background job at load 1.4-1.8, so an idle box should read LOWER; the 96k os4 / 192k os2 rows are scaled from the 384k-class dt with the 192k anchor x2 -- low confidence)

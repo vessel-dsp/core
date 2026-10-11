@@ -1,0 +1,177 @@
+[
+ {
+  "name": "A1 oscillator 48000",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000, buffer 48000, 700 rising crossings in 0.7 s, 1000.000 Hz"
+ },
+ {
+  "name": "A2 worklet ts   48k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet ts   48k x2",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 48k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 48k x2",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000, loaded.hostSampleRate 48000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A1 oscillator 96000",
+  "ok": true,
+  "detail": "ctx.sampleRate 96000, buffer 96000, 700 rising crossings in 0.7 s, 1000.000 Hz"
+ },
+ {
+  "name": "A2 worklet ts   96k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet ts   96k x2",
+  "ok": true,
+  "detail": "ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 96k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 96k x2",
+  "ok": true,
+  "detail": "ctx.sampleRate 96000, loaded.hostSampleRate 96000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A1 oscillator 192000",
+  "ok": true,
+  "detail": "ctx.sampleRate 192000, buffer 192000, 700 rising crossings in 0.7 s, 1000.000 Hz"
+ },
+ {
+  "name": "A2 worklet ts   192k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet ts   192k x2",
+  "ok": true,
+  "detail": "ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 192k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 192k x2",
+  "ok": true,
+  "detail": "ctx.sampleRate 192000, loaded.hostSampleRate 192000, loaded.oversample 2, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A1 oscillator 384000",
+  "ok": true,
+  "detail": "ctx.sampleRate 384000, buffer 384000, 700 rising crossings in 0.7 s, 1000.000 Hz"
+ },
+ {
+  "name": "A2 worklet ts   384k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 384000, loaded.hostSampleRate 384000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "A2 worklet wasm 384k x1",
+  "ok": true,
+  "detail": "ctx.sampleRate 384000, loaded.hostSampleRate 384000, loaded.oversample 1, 600 crossings in 0.6 s = 1000.000 Hz, crossOriginIsolated true"
+ },
+ {
+  "name": "B1 native sd1 1000 Hz @48k",
+  "ok": true,
+  "detail": "12000 samples, sha256 33b7ad20c19d7ee6 vs 33b7ad20c19d7ee6"
+ },
+ {
+  "name": "B1 native sd1 1000 Hz @96k",
+  "ok": true,
+  "detail": "24000 samples, sha256 22d07356a28e54dc vs 22d07356a28e54dc"
+ },
+ {
+  "name": "B1 native sd1 1000 Hz @192k",
+  "ok": true,
+  "detail": "48000 samples, sha256 583e5ec2a4379d03 vs 583e5ec2a4379d03"
+ },
+ {
+  "name": "B1 native sd1 1000 Hz @384k",
+  "ok": true,
+  "detail": "96000 samples, sha256 215928d62da8825f vs 215928d62da8825f"
+ },
+ {
+  "name": "B1 native muff 8000 Hz @48k",
+  "ok": true,
+  "detail": "12000 samples, sha256 50b4d4687a5a750c vs 50b4d4687a5a750c"
+ },
+ {
+  "name": "B1 native muff 8000 Hz @96k",
+  "ok": true,
+  "detail": "24000 samples, sha256 da1e8bac0e28296f vs da1e8bac0e28296f"
+ },
+ {
+  "name": "B1 native muff 8000 Hz @192k",
+  "ok": true,
+  "detail": "48000 samples, sha256 ba2163c9fdbf4484 vs ba2163c9fdbf4484"
+ },
+ {
+  "name": "B1 native muff 8000 Hz @384k",
+  "ok": true,
+  "detail": "96000 samples, sha256 66dce24d103a310e vs 66dce24d103a310e"
+ },
+ {
+  "name": "B2 worklet ts   sd1 96k os2",
+  "ok": true,
+  "detail": "48000 samples, bit-identical=true"
+ },
+ {
+  "name": "B2 worklet wasm sd1 96k os2",
+  "ok": true,
+  "detail": "48000 samples, bit-identical=true"
+ },
+ {
+  "name": "C muff 16000 Hz ts   (label 96k os2, actual 48k os2)",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -1.8927 dB: RED (as it must); scale 1.000e+0"
+ },
+ {
+  "name": "C muff 16000 Hz wasm (label 96k os2, actual 48k os2)",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -1.8927 dB: RED (as it must); scale 1.000e+0"
+ },
+ {
+  "name": "C sd1 16000 Hz ts   (label 96k os2, actual 48k os2)",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.9499 dB: RED (as it must); scale 1.000e+0"
+ },
+ {
+  "name": "C sd1 16000 Hz wasm (label 96k os2, actual 48k os2)",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.9499 dB: RED (as it must); scale 1.000e+0"
+ },
+ {
+  "name": "C ts9 8000 Hz ts   (label 96k os2, actual 48k os2)",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.3019 dB: RED (as it must); scale 1.000e+0"
+ },
+ {
+  "name": "C ts9 8000 Hz wasm (label 96k os2, actual 48k os2)",
+  "ok": true,
+  "detail": "ctx.sampleRate 48000 and loaded.hostSampleRate 48000 vs label 96000: RED (as it must); level vs native 192k -0.3019 dB: RED (as it must); scale 1.000e+0"
+ },
+ {
+  "name": "D RC closed form",
+  "ok": true,
+  "detail": "worst |measured - bilinear closed form at the internal rate x DC blocker x calculated resampler response| = 0.0003 dB over 16 arm x console rows (x1 arms, no resampler: 0.00000 dB); the backward-Euler closed form is off by up to 10.88 dB and the ideal analog one by up to 9.08 dB, so the check can tell them apart"
+ }
+]
