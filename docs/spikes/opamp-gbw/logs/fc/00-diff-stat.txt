@@ -1,0 +1,14 @@
+ packages/compiler/src/compile.ts                   |  44 ++++
+ packages/compiler/src/device-laws.ts               |  14 ++
+ packages/compiler/src/lower.ts                     |   4 +
+ packages/compiler/src/netlist.ts                   | 111 +++++++++-
+ packages/compiler/src/part-catalog.ts              | 243 ++++++++++++++++++++-
+ packages/compiler/src/registry.ts                  |  36 +++
+ packages/compiler/src/types.ts                     |  48 ++++
+ .../tests/dangling-active-terminal.test.ts         |   1 +
+ packages/compiler/tests/over-driven-node.test.ts   |   1 +
+ packages/runtime/src/cpp/Engine.cpp                |  14 +-
+ packages/runtime/src/cpp/ProgramJson.cpp           |   1 +
+ packages/runtime/src/cpp/include/v2/Program.h      |   4 +
+ packages/runtime/src/reference-runtime.ts          |  29 ++-
+ 13 files changed, 535 insertions(+), 15 deletions(-)

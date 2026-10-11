@@ -1123,7 +1123,12 @@ describe("the hybrid path: analog, then a macro, then analog", () => {
 				fixtureRegistry,
 			);
 			expect(tUnstable.nonConvergedSamples).toBe(0);
-			expect(tUnstable.peakIterations).toBeLessThanOrEqual(10);
+			// 12, not 10, since 2026-10-11: the op-amp step limiter now damps the whole Newton update
+			// by its own ratio (`opAmpStepDamping`), which costs this loop one more iteration at its
+			// worst sample (10 -> 11) and removed the cap storms on `boss-mt-2` and `mxr-blue-box`
+			// (`docs/spikes/2026-10-11-opamp-gbw-stall.md`). The bound is a real-time budget, not an
+			// exact count; one spare iteration is left so a last-ulp path change does not fail it.
+			expect(tUnstable.peakIterations).toBeLessThanOrEqual(12);
 		});
 
 		it("CD4047 clock driver converges within the real-time solve budget (S6)", () => {

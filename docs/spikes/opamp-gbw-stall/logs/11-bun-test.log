@@ -1,0 +1,43 @@
+bun test v1.3.14 (0d9b296a)
+
+tests/package.test.ts:
+864 | 		const controlUi = await readPackageJson("control-ui");
+865 | 		const visualEffects = await readPackageJson("visual-effects");
+866 | 		const amp = await readPackageJson("amp");
+867 | 		const cabinet = await readPackageJson("cabinet");
+868 | 		const changelog = await readChangelog();
+869 | 		const distIndex = await readCoreDistIndexJs();
+                                ^
+ENOENT: no such file or directory, open '/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/packages/core/dist/index.js'
+    path: "/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/packages/core/dist/index.js",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at async <anonymous> (/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/tests/package.test.ts:869:27)
+(fail) release metadata > pins the current package release and changelog entry [1.20ms]
+
+tests/chain/ir-convolution.test.ts:
+48000-tap IR: 58.6 ms for 1 s audio (17.05x realtime)
+
+packages/runtime/tests/pipeline.test.ts:
+1121 | 			const tUnstable = renderSineTelemetry(
+1122 | 				hybridFeedbackDelayPedalUnstableLoop,
+1123 | 				fixtureRegistry,
+1124 | 			);
+1125 | 			expect(tUnstable.nonConvergedSamples).toBe(0);
+1126 | 			expect(tUnstable.peakIterations).toBeLessThanOrEqual(10);
+                                           ^
+error: expect(received).toBeLessThanOrEqual(expected)
+
+Expected: <= 10
+Received: 11
+
+      at <anonymous> (/home/joseph/projects/VesselDSP/core/opamp-gbw-stall/packages/runtime/tests/pipeline.test.ts:1126:37)
+(fail) the hybrid path: analog, then a macro, then analog > S1: the BBD delay model, made behavioural > BBD delay lines and cascades meet real-time Newton convergence deadline (S6) [126.80ms]
+
+ 2061 pass
+ 2 fail
+ 514384 expect() calls
+Ran 2063 tests across 144 files. [87.08s]
+bun test exit 1

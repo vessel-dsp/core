@@ -1,0 +1,7 @@
+boss-mt-2 WASM os4 cap 1024: 32278 host samples in 109.4 s wall; last-sub-sample cap hits 300, non-converged host samples 300, engine peak 1024, mean used (last sub-sample) 12.83
+  cap run from sample 3587 (0.0747 s), length 1
+  cap run from sample 7952 (0.1657 s), length 1
+  cap run from sample 12316 (0.2566 s), length 1
+  cap run from sample 16680 (0.3475 s), length 3
+  cap run from sample 21044 (0.4384 s), length 1
+  cap run from sample 31986 (0.6664 s), length 293 (ongoing at stop)

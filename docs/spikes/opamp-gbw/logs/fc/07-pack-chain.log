@@ -1,0 +1,92 @@
+== 07-pack-chain: bun run --cwd packages/chain pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/chain@0.1.7 prepack
+> bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm && bun scripts/build-worklet.ts
+build-worklet: wrote /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/runtime/dist/worklet/v2-audio-worklet.js (298405 bytes, no external imports)
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+npm notice
+npm notice 📦  @vessel-dsp/chain@0.1.7
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE.md
+npm notice 10.8kB README.md
+npm notice 1.3kB dist/chain.d.ts
+npm notice 1.3kB dist/chain.d.ts.map
+npm notice 7.6kB dist/chain.js
+npm notice 7.7kB dist/chain.js.map
+npm notice 626B dist/index.d.ts
+npm notice 485B dist/index.d.ts.map
+npm notice 566B dist/index.js
+npm notice 440B dist/index.js.map
+npm notice 156B dist/ir-resample.d.ts
+npm notice 213B dist/ir-resample.d.ts.map
+npm notice 1.8kB dist/ir-resample.js
+npm notice 2.0kB dist/ir-resample.js.map
+npm notice 4.1kB dist/nam/engine.d.ts
+npm notice 2.1kB dist/nam/engine.d.ts.map
+npm notice 5.1kB dist/nam/engine.js
+npm notice 2.0kB dist/nam/engine.js.map
+npm notice 1.0kB dist/nodes/amp-shaper-node.d.ts
+npm notice 1.2kB dist/nodes/amp-shaper-node.d.ts.map
+npm notice 4.4kB dist/nodes/amp-shaper-node.js
+npm notice 5.0kB dist/nodes/amp-shaper-node.js.map
+npm notice 646B dist/nodes/gain-node.d.ts
+npm notice 717B dist/nodes/gain-node.d.ts.map
+npm notice 1.2kB dist/nodes/gain-node.js
+npm notice 1.5kB dist/nodes/gain-node.js.map
+npm notice 1.3kB dist/nodes/input-profile-node.d.ts
+npm notice 1.3kB dist/nodes/input-profile-node.d.ts.map
+npm notice 8.1kB dist/nodes/input-profile-node.js
+npm notice 8.1kB dist/nodes/input-profile-node.js.map
+npm notice 1.6kB dist/nodes/ir-node.d.ts
+npm notice 1.8kB dist/nodes/ir-node.d.ts.map
+npm notice 14.3kB dist/nodes/ir-node.js
+npm notice 18.6kB dist/nodes/ir-node.js.map
+npm notice 808B dist/nodes/master-node.d.ts
+npm notice 852B dist/nodes/master-node.d.ts.map
+npm notice 2.6kB dist/nodes/master-node.js
+npm notice 2.9kB dist/nodes/master-node.js.map
+npm notice 3.6kB dist/nodes/nam-node.d.ts
+npm notice 1.9kB dist/nodes/nam-node.d.ts.map
+npm notice 9.3kB dist/nodes/nam-node.js
+npm notice 7.4kB dist/nodes/nam-node.js.map
+npm notice 2.6kB dist/nodes/runtime-node.d.ts
+npm notice 1.5kB dist/nodes/runtime-node.d.ts.map
+npm notice 10.2kB dist/nodes/runtime-node.js
+npm notice 8.6kB dist/nodes/runtime-node.js.map
+npm notice 2.6kB dist/supply-profile.d.ts
+npm notice 855B dist/supply-profile.d.ts.map
+npm notice 6.2kB dist/supply-profile.js
+npm notice 3.0kB dist/supply-profile.js.map
+npm notice 2.4kB dist/types.d.ts
+npm notice 1.9kB dist/types.d.ts.map
+npm notice 846B dist/types.js
+npm notice 1.2kB dist/types.js.map
+npm notice 10.7kB nam-engine/nam-engine.js
+npm notice 420.1kB nam-engine/nam-engine.wasm
+npm notice 2.1kB nam-engine/NOTICE.md
+npm notice 1.8kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/chain
+npm notice version: 0.1.7
+npm notice filename: vessel-dsp-chain-0.1.7.tgz
+npm notice package size: 210.9 kB
+npm notice unpacked size: 626.2 kB
+npm notice shasum: 41746c7d092dd051008ac3b73c58daf0a5aa3e25
+npm notice integrity: sha512-h29iRcbNsdY3R[...]yAjN3t/rScOwA==
+npm notice total files: 58
+npm notice
+vessel-dsp-chain-0.1.7.tgz
+exit 0

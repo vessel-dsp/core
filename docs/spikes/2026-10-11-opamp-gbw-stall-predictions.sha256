@@ -1,0 +1,27 @@
+2026-10-11T19:33:09Z
+690f1845d4a6d50a30064a620304ab9bee1917056e7b016617aa51d4079896c5  docs/spikes/2026-10-11-opamp-gbw-stall-predictions.md
+pre-fix tree:  M packages/compiler/src/compile.ts
+pre-fix tree:  M packages/compiler/src/device-laws.ts
+pre-fix tree:  M packages/compiler/src/lower.ts
+pre-fix tree:  M packages/compiler/src/netlist.ts
+pre-fix tree:  M packages/compiler/src/part-catalog.ts
+pre-fix tree:  M packages/compiler/src/registry.ts
+pre-fix tree:  M packages/compiler/src/types.ts
+pre-fix tree:  M packages/compiler/tests/dangling-active-terminal.test.ts
+pre-fix tree:  M packages/compiler/tests/over-driven-node.test.ts
+pre-fix tree:  M packages/runtime/src/cpp/Engine.cpp
+pre-fix tree:  M packages/runtime/src/cpp/ProgramJson.cpp
+pre-fix tree:  M packages/runtime/src/cpp/include/v2/Program.h
+pre-fix tree:  M packages/runtime/src/reference-runtime.ts
+pre-fix tree: ?? packages/compiler/tests/gain-bandwidth.test.ts
+pre-fix tree: ?? packages/runtime/tests/non-inverting-stage.ts
+pre-fix tree: ?? packages/runtime/tests/opamp-gain-bandwidth.test.ts
+2026-10-11T19:43:06Z
+28fbc685dfe258715d8627115ce2d288231826b4abf37e74216797f5826aed31  docs/spikes/2026-10-11-opamp-gbw-stall-predictions.md
+addendum 1 (C4, C8); tree at this point: C2 and C1 applied to reference-runtime.ts, C2 to Engine.cpp, WASM not rebuilt
+2026-10-11T20:00:31Z
+2740c77848e3efc1b9237c9b20dd2fdb6634db74ac5cbb6668e2357a8b73db54  docs/spikes/2026-10-11-opamp-gbw-stall-predictions.md
+addendum 2 (same-rail-first reseed)
+2026-10-11T20:13:17Z
+e89a1c304b124b2c7a57c90df37b415fd1bf59d8704919841b4a56a33e34b735  docs/spikes/2026-10-11-opamp-gbw-stall-predictions.md
+addendum 3 (DC gating, fold step-size test)

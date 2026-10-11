@@ -2301,6 +2301,95 @@ function baseUnitQuantity(
 		: null;
 }
 
+/** Hertz per frequency unit, compared whole. `mHz` and any other spelling are refused, not guessed. */
+const frequencyUnitScale: Readonly<Record<string, number>> = {
+	"": 1,
+	Hz: 1,
+	hz: 1,
+	HZ: 1,
+	kHz: 1e3,
+	KHz: 1e3,
+	khz: 1e3,
+	MHz: 1e6,
+	GHz: 1e9,
+};
+
+/**
+ * A declared frequency, in hertz, or `null` when the component states none.
+ *
+ * **The whole value is read, and a value that is not a frequency is refused rather than skipped.**
+ * Three forms are legal and each is checked end to end:
+ *
+ * - a number, taken as hertz;
+ * - a string that is exactly a number and an optional frequency unit -- `"3 MHz"`, `"1.2 MHz"`,
+ *   `"3000000"`, `"3e6 Hz"` -- where a missing unit means hertz and the unit is compared as a closed
+ *   set (`Hz`, `kHz`, `MHz`, `GHz`), never by stripping after a delimiter;
+ * - a structured `{value, unit}`, whose `value` wins over `raw` because it already carries the
+ *   conversion (the same reason `Aol` reads `value`), with the unit from the same closed set.
+ *
+ * `parseQuantity` is not used here on purpose. It reads a number then ignores whatever follows, so
+ * `"1.2 V/us"` -- a slew rate -- would come back as 1.2: the right number for the wrong reason, which
+ * is the trap the `SR` note above describes. A frequency property that holds `"3 MHz typ"`, `"3M"` or
+ * a slew rate is a packet error, so this throws and names the component instead of dropping it.
+ *
+ * A non-positive or non-finite frequency is refused for the same reason: it states something, and
+ * what it states is not a frequency.
+ */
+export function typedFrequencyHz(
+	component: ComponentLike,
+	key: string,
+): number | null {
+	const property = (component.properties as Record<string, unknown>)[key];
+	if (property === undefined || property === null) {
+		return null;
+	}
+	const refuse = (why: string): never => {
+		throw new NetlistError(
+			`${component.id}: ${key} ${JSON.stringify(property)} ${why}; a declared frequency must be a number, a number with Hz/kHz/MHz/GHz, or a {value, unit}`,
+		);
+	};
+	let hertz: number;
+	if (typeof property === "number") {
+		hertz = property;
+	} else if (typeof property === "string") {
+		const text = property
+			.trim()
+			.replace(/^['"]+|['"]+$/gu, "")
+			.trim();
+		if (text === "") {
+			return null;
+		}
+		const match =
+			/^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([A-Za-z]*)$/u.exec(
+				text,
+			);
+		const scale =
+			match === null ? undefined : frequencyUnitScale[match[2] as string];
+		if (match === null || scale === undefined) {
+			return refuse("is not a number with a frequency unit");
+		}
+		hertz = Number(match[1]) * scale;
+	} else if (typeof property === "object" && !Array.isArray(property)) {
+		const { value, unit } = property as { value?: unknown; unit?: unknown };
+		if (typeof value !== "number") {
+			return refuse("has no numeric value");
+		}
+		const token =
+			typeof unit === "string" ? unit.replaceAll("'", "").trim() : "";
+		const scale = frequencyUnitScale[token];
+		if (scale === undefined) {
+			return refuse(`has unit "${token}", which is not a frequency`);
+		}
+		hertz = value * scale;
+	} else {
+		return refuse("is not a number, string or structured quantity");
+	}
+	if (!Number.isFinite(hertz) || hertz <= 0) {
+		return refuse("is not a positive finite frequency");
+	}
+	return hertz;
+}
+
 /**
  * Parse a quantity to SI base units. A value that cannot be parsed is an error, not a
  * default -- a silently defaulted component is a silently wrong circuit.
@@ -2544,10 +2633,18 @@ function parametersFor(
 	// with the decibel conversion done -- `{raw: "92 dB", value: 39810, unit: ""}`. So the typed
 	// `value` is taken as-is and nothing here converts from dB, which would double-apply it.
 	//
-	// `GBP` and `SR` are deliberately not read. The gain-bandwidth product has no consumer until a
-	// dominant pole exists, and that was implemented and reverted; reading it into the stamp now
-	// would be a field nothing uses. `SR` is stated as `"1.2 V/us"`, and `parseQuantity` strips
-	// after the slash, so it would yield 1.2 for the wrong reason -- right number, lost units.
+	// `GBP`, the gain-bandwidth product, is read as a typed frequency. It was left unread while no
+	// dominant pole existed for it to feed; the pole landed 2026-08-21 and both consoles now take
+	// the product from the stamp. It is stated in several forms across the corpus -- `"3 MHz"`,
+	// `"3000000"`, `1.2 MHz`, and structured `{value, unit}` -- so it goes through
+	// `typedFrequencyHz`, which reads the unit whole and refuses what it cannot read. Nothing here
+	// falls back to a number: a packet that states none leaves the field absent, and the catalog's
+	// datasheet figure for the exact part id, else `null`, is decided in `device-laws.ts`.
+	//
+	// `SR` stays unread. It is stated as `"1.2 V/us"`, and `parseQuantity` strips after the slash,
+	// so it would yield 1.2 for the wrong reason -- right number, lost units -- and no consumer
+	// exists for a slew rate yet. `typedFrequencyHz` does not inherit that trap: it compares the
+	// whole string against a number and a frequency unit and refuses anything else.
 	if (kind === "opamp") {
 		// `typedNumber`, not `optionalQuantity`, and the difference is a 433x error.
 		// `optionalQuantity` reads `raw` first, so `{raw: "92 dB", value: 39810, unit: ""}` parsed as
@@ -2555,7 +2652,11 @@ function parametersFor(
 		// the conversion, so it has to win. Caught by measuring the stamped gains after the change
 		// rather than by reading the code.
 		const gain = typedNumber(component, "Aol", [""]);
-		return gain !== null && gain > 0 ? { openLoopGain: gain } : {};
+		const bandwidth = typedFrequencyHz(component, "GBP");
+		return {
+			...(gain !== null && gain > 0 ? { openLoopGain: gain } : {}),
+			...(bandwidth === null ? {} : { gainBandwidthHz: bandwidth }),
+		};
 	}
 	// A delay-memory shell's own delay time, which is a **packet** fact rather than a part fact.
 	//

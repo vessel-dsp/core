@@ -809,11 +809,28 @@ function opAmpHalfSwing(railHigh: number, railLow: number): number {
 }
 
 /**
- * The op-amp's gain-bandwidth product, in hertz. A class default rather than a part fact:
- * the source's per-packet GBP is not read (see `netlist.ts`), so every op-amp in the corpus
- * gets the same pole. With a 1e5 gain the open-loop pole sits at `GBP / gain`, 10 Hz here.
+ * The gain-bandwidth product, in hertz, of an op-amp section whose stamp states none
+ * (`gainBandwidthHz: null`). Before the stamp carried the field every op-amp in every program
+ * ran this value, so a `null` section renders exactly as it always did; the compiler names the
+ * sections left on it (`opamp-gain-bandwidth-default`). With a 1e5 gain the open-loop pole sits at
+ * `GBP / gain`, 10 Hz here.
+ *
+ * A stamp that states a product runs on that product instead. Mirrored in `Engine.cpp`'s
+ * `OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ`.
  */
-const OPAMP_GAIN_BANDWIDTH_HZ = 1e6;
+const OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ = 1e6;
+
+/**
+ * The gain-bandwidth product an op-amp stamp runs on: its own, else the class default. `??` also
+ * catches `undefined`, which is what a program compiled before the field existed carries -- that
+ * program was compiled against this same default, so reading it as `null` is its meaning, not a
+ * fallback invented for it.
+ */
+function opAmpGainBandwidthHz(
+	stamp: Extract<Stamp, { kind: "ideal-opamp" }>,
+): number {
+	return stamp.gainBandwidthHz ?? OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ;
+}
 
 /**
  * Anti-windup bound for the op-amp pole's raw state, in units of halfSwing.
@@ -1762,6 +1779,8 @@ export class ReferenceRuntime {
 		typeof process !== "undefined" && process.env?.VESSEL_LIMITER_TRACE === "1";
 	private limitedIterationCount = 0;
 	private limitedIterationPerSample: number[] = [];
+	/** Fold reseeds taken so far (diagnostic, read past `private` by the stall study's tracer). */
+	private foldReseedCount = 0;
 	/** Series ohms of whatever drives the input jack -- see `prepare()`'s option. */
 	private inputSourceOhms = 0;
 
@@ -4912,7 +4931,9 @@ export class ReferenceRuntime {
 		let bestDelta = Number.POSITIVE_INFINITY;
 		let noImprovement = 0;
 		let foldStreak = 0;
-		let foldReseeded = false;
+		let foldReseeds = 0;
+		let lastWorstNode = -1;
+		let lastWorstSign = 0;
 		for (let iteration = 0; iteration < iterations; iteration += 1) {
 			used = iteration + 1;
 
@@ -5104,6 +5125,32 @@ export class ReferenceRuntime {
 					}
 				}
 			}
+			// **The op-amp step limiter damps the whole update, not only its own row's
+			// evaluation (2026-10-11).** A railed op-amp's row is a tangent of slope up to
+			// `alpha * A0` (910 at 7 MHz and 48 kHz); where a loop closes around it with net
+			// positive feedback inside one sample, the Jacobian is singular at the point of the
+			// sigmoid where `slope * beta = 1`, and a Newton step taken near it leaves the physical
+			// domain: measured on `mxr-blue-box` at 4 MHz the solved output node went to 910,
+			// -1424 and 10335 V during one rail switch, every junction downstream then walked back
+			// for hundreds of iterations, and on `boss-mt-2` at os4 the same step put -30 V on an
+			// output node at iteration 4 and 1e88 on the block by iteration 26. The limiter alone
+			// only re-evaluates the op-amp at a capped differential; the rest of the iterate keeps
+			// the explosion. Scaling the whole step by the most limited op-amp's own ratio
+			// `cap / |requested|` keeps the iterate where its tangent was taken (the limited
+			// differential is then the iterate's actual differential), and bounding the output
+			// node's move to one full swing per iteration keeps it on the sigmoid the row is a
+			// tangent of. Both are the step limiter's own numbers; an op-amp that is not limited
+			// scales nothing, so a sample that never limits takes exactly the path it always did.
+			// Transient only: at the operating point `alpha` is 1, the linear width is a hundred
+			// thousandth of the swing, and damping to that cap quenched the DC continuation
+			// (`boss-aw-2` came up with a latched envelope stage and a dead output). The DC walk
+			// has gmin and source stepping as its own safety net and is left exactly as it was.
+			const damping = dc ? 1 : this.opAmpStepDamping(block, blockIndex, current, next, dt, dc);
+			if (damping < 1) {
+				for (let i = 0; i < size; i++) {
+					next[i] = current[i] + damping * (next[i] - current[i]);
+				}
+			}
 			if (relaxing) {
 				for (let i = 0; i < size; i++) {
 					next[i] = current[i] + alpha * (next[i] - current[i]);
@@ -5112,6 +5159,23 @@ export class ReferenceRuntime {
 			const delta = maxAbsDifference(next, current);
 			worstNode = worstDifferenceIndex(next, current);
 			worstDelta = delta;
+			// **Non-contracting means circling, not marching (2026-10-11).** The brake was fitted
+			// for an iterate that circles or stalls, and `delta` failing to fall cannot tell that
+			// from a junction walking monotonically to its solution a thermal voltage at a time,
+			// which is SPICE's normal path out of a large step. Measured on `mxr-blue-box` at
+			// 4 MHz after each rail switch: the brake latched on the switch's transient and then
+			// held a downstream NPN base at 0.2 Vt per iteration for 230 iterations of a 305-
+			// iteration solve, five times the un-damped walk. A circling iterate reverses the
+			// sign of its worst node's step; a marching one does not. So the brake engages, and
+			// tightens, only when the worst node's step has reversed since the last iteration.
+			const worstSign = Math.sign((next[worstNode] ?? 0) - (current[worstNode] ?? 0));
+			// At the operating point the brake keeps its old rule (every non-contracting iteration
+			// counts), so the DC walk every packet was validated on is untouched.
+			const reversed =
+				dc ||
+				(worstNode === lastWorstNode && worstSign !== 0 && lastWorstSign !== 0 && worstSign !== lastWorstSign);
+			lastWorstNode = worstNode;
+			lastWorstSign = worstSign;
 			if (delta < bestDelta * 0.999) {
 				bestDelta = delta;
 				noImprovement = 0;
@@ -5124,7 +5188,7 @@ export class ReferenceRuntime {
 					}
 				}
 			} else {
-				noImprovement += 1;
+				noImprovement += reversed ? 1 : 0;
 				if (!relaxing) {
 					if (
 						noImprovement >= NEWTON_NON_CONTRACTING_LIMIT &&
@@ -5200,16 +5264,38 @@ export class ReferenceRuntime {
 			// from the reset above, so it is read through its declared type.
 			const limitedOpamp = this.limitedOpamp as ReferenceRuntime["limitedOpamp"];
 			foldStreak = limitedOpamp?.folded === true ? foldStreak + 1 : 0;
-			if (!dc && !foldReseeded && limitedOpamp !== null && foldStreak >= OPAMP_FOLD_STREAK) {
-				foldReseeded = true;
+			// **Re-armed, not one-shot (2026-10-11).** The reseed used to fire once per solve. On
+			// `boss-mt-2` section `+=37 -=36 out=38` -- whose non-inverting input is fed from its own
+			// output through 1 uF, so the per-sample problem has net positive feedback -- the first
+			// streak is a transient at iteration ~20 that the reseed spends, and the solve then hunts
+			// rail to rail before pinning at a turning point of the residual (`slope * beta = 1`)
+			// from iteration ~660 to the cap: step requests of -4 / +2.8 widths against a floor cap of
+			// 1/64, the Jacobian's sign flipping across one floor step, limited on 1023 of 1024
+			// iterations. That is the canary's os1 stall with the datasheet product, and main's own
+			// os4 stall at 0.666 s is the same pair of sections in the same two-cycle (the trace is in
+			// `docs/spikes/2026-10-11-opamp-gbw-stall.md`). A turning point is exactly what the
+			// halving cap cannot leave and exactly what a reseed exists for, so each fresh streak of
+			// `OPAMP_FOLD_STREAK` floor-limited iterations earns another. **The first reseed goes to
+			// the rail the sample started on, the second to the opposite one**, and so on: the
+			// start's rail is the physical continuation (a bistable stage holds its state), and a
+			// console that reaches that root directly and one that needs a reseed to reach it then
+			// agree. With the opposite rail first they did not: at os4 on `mxr-blue-box` the TS
+			// console reseeded at sample 76 and flipped rails while the WASM console converged in
+			// four iterations without one, and the two drifted apart from sample 89 (r 0.016 over
+			// the parity window). Each reseed needs its own streak, so the budget bounds the
+			// hopping. A sample that never folds takes exactly the path it always did.
+			if (!dc && limitedOpamp !== null && foldStreak >= OPAMP_FOLD_STREAK) {
+				foldReseeds += 1;
+				this.foldReseedCount += 1;
 				foldStreak = 0;
 				const wasHigh =
 					(start[limitedOpamp.output] ?? limitedOpamp.centre) >= limitedOpamp.centre;
-				current[limitedOpamp.output] = wasHigh
-					? limitedOpamp.railLow
-					: limitedOpamp.railHigh;
+				const toHigh = foldReseeds % 2 === 1 ? wasHigh : !wasHigh;
+				current[limitedOpamp.output] = toHigh
+					? limitedOpamp.railHigh
+					: limitedOpamp.railLow;
 				this.opampHistory.set(limitedOpamp.key, {
-					differential: wasHigh ? -limitedOpamp.band : limitedOpamp.band,
+					differential: toHigh ? limitedOpamp.band : -limitedOpamp.band,
 					step: 0,
 					cap: limitedOpamp.maxStep,
 				});
@@ -5260,6 +5346,68 @@ export class ReferenceRuntime {
 			this.recordNewtonSolution(block.id, current, converged, used);
 		}
 		return { solution: current, converged, used, worstNode, worstDelta };
+	}
+
+	/**
+	 * The factor the Newton update is scaled by so that no railed op-amp's differential moves
+	 * further than its step cap and no op-amp output node moves further than one full swing:
+	 * the smallest `cap / |requested differential step|` and `2 * halfSwing / |requested output
+	 * step|` over the block's railed op-amps, or 1. `current` is the iterate the rows were
+	 * stamped at and `next` the undamped solve. The history read here is the one the stamps
+	 * wrote this iteration, so `differential` is the point each row's tangent was taken at and
+	 * `cap` the step the next evaluation will allow; a request inside both bounds scales nothing.
+	 * Mirrored in `Engine.cpp` (`opAmpStepDamping`); the two must agree to the operation.
+	 */
+	private opAmpStepDamping(
+		block: Extract<Block, { kind: "mna" }>,
+		blockIndex: number,
+		current: readonly number[],
+		next: readonly number[],
+		dt: number,
+		dc: boolean,
+	): number {
+		let damping = 1;
+		for (const stamp of block.stamps) {
+			if (stamp.kind !== "ideal-opamp" || stamp.railHigh === null || stamp.railLow === null) {
+				continue;
+			}
+			const history = this.opampHistory.get(
+				packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output),
+			);
+			if (history === undefined) continue;
+			// The step the next evaluation will see: the band-clamped differential against the
+			// point the row was taken at. The clamp matters: a section whose real differential
+			// sits beyond the band would otherwise "request" the excess on every iteration and
+			// damp a converged solve forever (measured: `boss-od-3` at os4, every sample at the
+			// cap, when the raw differential was used here).
+			const halfSwing = opAmpHalfSwing(stamp.railHigh, stamp.railLow);
+			const alpha = dc
+				? 1
+				: opAmpPoleAlpha(
+						stamp.openLoopGain,
+						opAmpGainBandwidthHz(stamp),
+						dt,
+						this.sampleRate as number,
+					);
+			const effectiveGain = alpha * stamp.openLoopGain;
+			const linearWidth = halfSwing / effectiveGain;
+			const band = OPAMP_DIFFERENTIAL_BAND * linearWidth;
+			const nextDifferential = clamp(
+				(next[stamp.plus] ?? 0) - (next[stamp.minus] ?? 0),
+				-band,
+				band,
+			);
+			const magnitude = Math.abs(nextDifferential - history.differential);
+			if (magnitude > history.cap) {
+				damping = Math.min(damping, history.cap / magnitude);
+			}
+			const swing = 2 * halfSwing;
+			const outputStep = Math.abs((next[stamp.output] ?? 0) - (current[stamp.output] ?? 0));
+			if (outputStep > swing) {
+				damping = Math.min(damping, swing / outputStep);
+			}
+		}
+		return damping;
 	}
 
 	/**
@@ -6373,7 +6521,7 @@ export class ReferenceRuntime {
 			const key = packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output);
 			const alpha = opAmpPoleAlpha(
 				stamp.openLoopGain,
-				OPAMP_GAIN_BANDWIDTH_HZ,
+				opAmpGainBandwidthHz(stamp),
 				dt,
 				this.sampleRate as number,
 			);
@@ -7651,18 +7799,29 @@ export class ReferenceRuntime {
 					? 1
 					: opAmpPoleAlpha(
 							stamp.openLoopGain,
-							OPAMP_GAIN_BANDWIDTH_HZ,
+							opAmpGainBandwidthHz(stamp),
 							dt,
 							this.sampleRate as number,
 						);
 				const effectiveGain = alpha * stamp.openLoopGain;
 				const linearWidth = halfSwing / effectiveGain;
 				const previous = this.opampHistory.get(opampKey);
-				const previousDifferential = previous?.differential ?? 0;
 				const rawDifferential =
 					(solution[stamp.plus] ?? 0) - (solution[stamp.minus] ?? 0);
 				const band = OPAMP_DIFFERENTIAL_BAND * linearWidth;
 				const bounded = clamp(rawDifferential, -band, band);
+				// **The first iteration measures its step against the seed, not against zero
+				// (2026-10-11).** The history is cleared every sample, so the first iterate used to
+				// compare its differential with 0 and be "limited" whenever a section sits more than
+				// four widths from zero -- which every saturated section does, by the width of its
+				// band. The solve then re-walked that differential from zero at four widths per
+				// iteration on every sample: `electro-harmonix-slapback-echo` at 4 MHz needed exactly
+				// four iterations per sub-sample (its sections sit at the 12-width band), `boss-od-3`
+				// and `boss-pq-4` exactly three, where the predictor had been landing one. SPICE's
+				// rule is that the first iterate of a time point is limited against the previous time
+				// point's solution; that is what the seed is, so its own differential is the point
+				// the first step is measured from, and the first step is zero.
+				const previousDifferential = previous?.differential ?? bounded;
 				const step = bounded - previousDifferential;
 				const maxStep = OPAMP_MAX_DIFFERENTIAL_STEP * linearWidth;
 				const reversing =
@@ -7701,9 +7860,25 @@ export class ReferenceRuntime {
 					? Math.max(previousCap / 2, linearWidth / 64)
 					: Math.min(maxStep, previousCap * 1.2);
 				const limited = Math.abs(step) > cap;
+				// A fold is the cap pinned at its floor **with the iterate moving at the floor's
+				// scale**, whether or not this particular step overran the cap: once the update is
+				// damped to the cap (see `opAmpStepDamping`) a trapped iterate's steps equal the cap
+				// rather than exceed it, so a streak counted on `limited` alone never forms (measured
+				// 2026-10-11: `boss-mt-2` sample 4990, 1024 iterations with the cap at the floor on
+				// 1015 of them and the limiter flagged on 372). The step-size test is what keeps an
+				// idle section out of it: a section whose differential merely jitters by 1e-6 widths
+				// reverses sign every iteration too, its cap collapses to the floor the same way, and
+				// without the test it was reseeded onto a rail it had no business on (`boss-aw-2`,
+				// sample 1489: 527 iterations and a latched output where the product tree took 4).
+				// A quarter of the floor cap (`linearWidth / 64`) is the scale: a trapped iterate
+				// moves by the cap, or by less when another section's ratio damped the update (the
+				// mt-2 pair s87/s88 fold together), and jitter is four orders below it.
+				const folded = cap <= linearWidth / 8 && Math.abs(step) >= linearWidth / 256;
 				if (limited) {
 					this.limitedIterate = true;
 					this.limitedBy = `opamp +=${stamp.plus} -=${stamp.minus} out=${stamp.output}`;
+				}
+				if (limited || folded) {
 					this.limitedOpamp = {
 						key: opampKey,
 						output: stamp.output,
@@ -7712,7 +7887,7 @@ export class ReferenceRuntime {
 						railLow: stamp.railLow,
 						band,
 						maxStep,
-						folded: cap <= linearWidth / 8,
+						folded,
 					};
 				}
 				const differential = limited
@@ -7753,11 +7928,26 @@ export class ReferenceRuntime {
 					clamp(scaled, -OPAMP_SATURATION_BAND, OPAMP_SATURATION_BAND),
 				);
 				const slope = effectiveGain * (1 - derivativeShape * derivativeShape);
-				// Linearised: Vout - slope * Vdiff = Vout0 - slope * Vdiff0.
+				// Linearised: Vout - slope * Vdiff = Vout0 - slope * Vdiff0, with Vdiff0 the point the
+				// tangent is taken at. While the step limiter is active that point is the limited
+				// differential (SPICE's rule: evaluate at the damped step, let the unknown be free).
+				// When it is not, the point is the **actual previous differential**, even when that
+				// lies beyond the band `differential` was clamped to -- the value `output` is still
+				// the band's, which is the model, but the tangent must pass through the iterate or the
+				// fixed point is not the model: with `Vdiff0 = bounded` the row converges to
+				// `f(band) + slope * (Vdiff - band)`, an output off its rail by the leak
+				// `slope * excess`, and `slope` grows with the gain-bandwidth product. Measured
+				// 2026-10-11 on `mxr-blue-box` at 4 MHz: the op-amp's own output 0.003 V against a
+				// 0 V rail while the solved node sat at -0.290 V, and the two NPN stages it drives
+				// spent 300 iterations walking out of the junction state that sub-rail voltage put
+				// them in (`docs/spikes/2026-10-11-opamp-gbw-stall.md`). At the fixed point
+				// `Vdiff == rawDifferential`, so the row reads `Vout = output` exactly, on or beyond
+				// the band; inside the band `rawDifferential == bounded` and nothing changes.
+				const linearisedAt = limited ? differential : rawDifferential;
 				(matrix[row] as number[])[stamp.output] += 1;
 				(matrix[row] as number[])[stamp.plus] -= slope;
 				(matrix[row] as number[])[stamp.minus] += slope;
-				rhs[row] = output - slope * differential;
+				rhs[row] = output - slope * linearisedAt;
 				break;
 			}
 			case "vccs": {

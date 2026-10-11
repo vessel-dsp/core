@@ -303,7 +303,10 @@ constexpr double GMIN_STEPPING_RATIO = 10.0;
 constexpr double SOURCE_STEPPING_MIN_STEP_SIZE = 1e-6;
 constexpr int32_t SOURCE_STEPPING_MAX_FAILURES = 50;
 constexpr double DC_INDUCTOR_SHORT_OHMS = 1e-2;
-constexpr double OPAMP_GAIN_BANDWIDTH_HZ = 1e6;
+// The gain-bandwidth product of an op-amp section whose stamp states none (`gainBandwidthHz: null`).
+// Every op-amp ran this before the stamp carried the field, so a null section renders as it always did.
+// Mirrors reference-runtime.ts `OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ`.
+constexpr double OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ = 1e6;
 constexpr double OPAMP_MAX_DIFFERENTIAL_STEP = 4.0;
 constexpr double OPAMP_SATURATION_BAND = 8.0;
 constexpr double OPAMP_DIFFERENTIAL_BAND = 12.0;
@@ -682,6 +685,11 @@ inline double limitFetDrain(double next, double previous) {
 
 inline double opAmpHalfSwing(double railHigh, double railLow) {
     return std::max((railHigh - railLow) / 2.0, 1e-9);
+}
+
+// The product an op-amp stamp runs on: its own, else the class default.
+inline double opAmpGainBandwidthHz(const Stamp& stamp) {
+    return stamp.gainBandwidthHz.value_or(OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ);
 }
 
 inline double opAmpPoleAlpha(double openLoopGain, double gainBandwidthHz, double dt, double sampleRate) {
@@ -2499,6 +2507,39 @@ void Engine::solveOperatingPoint() {
     }
 }
 
+// Mirrors reference-runtime.ts `opAmpStepDamping`: the factor the Newton update is scaled by so that
+// no railed op-amp's (band-clamped) differential moves further than its step cap and no op-amp output
+// node moves further than one full swing, or 1. Reads the history the stamps wrote this iteration, in
+// stamp order, with the stamp's own arithmetic for the band; the two consoles must agree to the operation.
+double Engine::opAmpStepDamping(size_t blockIdx, const double* current, const double* next, double dt, bool dc) {
+    const auto& block = program_.blocks[blockIdx];
+    const auto& scratch = blockScratch_[blockIdx];
+    double damping = 1.0;
+    for (size_t sIdx = 0; sIdx < block.stamps.size(); ++sIdx) {
+        const auto& stamp = block.stamps[sIdx];
+        if (stamp.kind != StampKind::IdealOpAmp || !stamp.railHigh.has_value() || !stamp.railLow.has_value()) continue;
+        if (sIdx >= scratch.opampHistory.size()) continue;
+        const auto& h = scratch.opampHistory[sIdx];
+        if (!(h.cap > 0.0)) continue;
+        double halfSwing = opAmpHalfSwing(*stamp.railHigh, *stamp.railLow);
+        double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
+        double effectiveGain = alpha * stamp.openLoopGain;
+        double linearWidth = halfSwing / effectiveGain;
+        double band = OPAMP_DIFFERENTIAL_BAND * linearWidth;
+        double nextDifferential = clamp(next[stamp.plus] - next[stamp.minus], -band, band);
+        double magnitude = std::abs(nextDifferential - h.differential);
+        if (magnitude > h.cap) {
+            damping = std::min(damping, h.cap / magnitude);
+        }
+        double swing = 2.0 * halfSwing;
+        double outputStep = std::abs(next[stamp.output] - current[stamp.output]);
+        if (outputStep > swing) {
+            damping = std::min(damping, swing / outputStep);
+        }
+    }
+    return damping;
+}
+
 Engine::SolveResult Engine::iterate(
     size_t blockIdx,
     double input,
@@ -2544,7 +2585,9 @@ Engine::SolveResult Engine::iterate(
     double bestDelta = HUGE_VAL;
     int32_t noImprovement = 0;
     int32_t foldStreak = 0;
-    bool foldReseeded = false;
+    int32_t foldReseeds = 0;
+    int32_t lastWorstNode = -1;
+    int32_t lastWorstSign = 0;
     for (int32_t iter = 0; iter < iterations; ++iter) {
         res.used = iter + 1;
         limitedIterate_ = false;
@@ -2723,6 +2766,16 @@ Engine::SolveResult Engine::iterate(
         auto t_converge_start = std::chrono::high_resolution_clock::now();
 #endif
 
+        // Mirrors reference-runtime.ts: the op-amp step limiter damps the whole update (see
+        // `opAmpStepDamping`), before relaxation, so the iterate stays where its tangent was taken.
+        {
+            double damping = dc ? 1.0 : opAmpStepDamping(blockIdx, current, next, dt, dc);
+            if (damping < 1.0) {
+                for (int32_t i = 0; i < size; ++i) {
+                    next[i] = current[i] + damping * (next[i] - current[i]);
+                }
+            }
+        }
         if (relaxing) {
             for (int32_t i = 0; i < size; ++i) {
                 next[i] = current[i] + alpha * (next[i] - current[i]);
@@ -2731,6 +2784,14 @@ Engine::SolveResult Engine::iterate(
 
         double delta = 0.0;
         bool withinTol = checkConvergenceAndMaxDelta(next, current, size, delta);
+        // Mirrors reference-runtime.ts: non-contracting means circling, not marching. The brake
+        // engages and tightens only when the worst node's step has reversed since the last iteration.
+        const int32_t worstNodeNow = worstDifferenceIndex(next, current, size);
+        const double worstStep = (worstNodeNow >= 0) ? (next[worstNodeNow] - current[worstNodeNow]) : 0.0;
+        const int32_t worstSign = (worstStep > 0.0) ? 1 : (worstStep < 0.0 ? -1 : 0);
+        const bool reversed = dc || (worstNodeNow == lastWorstNode && worstSign != 0 && lastWorstSign != 0 && worstSign != lastWorstSign);
+        lastWorstNode = worstNodeNow;
+        lastWorstSign = worstSign;
 
         if (delta < bestDelta * 0.999) {
             bestDelta = delta;
@@ -2744,7 +2805,7 @@ Engine::SolveResult Engine::iterate(
                 }
             }
         } else {
-            noImprovement += 1;
+            noImprovement += reversed ? 1 : 0;
             if (!relaxing) {
                 if (noImprovement >= kNewtonNonContractingLimit &&
                     iter >= kNewtonRelaxationEarliestIteration) {
@@ -2774,13 +2835,16 @@ Engine::SolveResult Engine::iterate(
         }
         // Mirrors reference-runtime.ts `iterate`: a fold is reseeded on the other rail, once.
         foldStreak = (limitedOpampValid_ && limitedOpamp_.folded) ? foldStreak + 1 : 0;
-        if (!dc && !foldReseeded && limitedOpampValid_ && foldStreak >= OPAMP_FOLD_STREAK) {
-            foldReseeded = true;
+        // Mirrors reference-runtime.ts: re-armed, each fresh floor streak earns another reseed; odd
+        // reseeds go to the rail the sample started on (the physical continuation), even ones opposite.
+        if (!dc && limitedOpampValid_ && foldStreak >= OPAMP_FOLD_STREAK) {
+            foldReseeds += 1;
             foldStreak = 0;
             const LimitedOpamp lo = limitedOpamp_;
             const bool wasHigh = (lo.output < static_cast<int32_t>(start.size()) ? start[lo.output] : lo.centre) >= lo.centre;
-            current[lo.output] = wasHigh ? lo.railLow : lo.railHigh;
-            const OpAmpHistory seeded{ wasHigh ? -lo.band : lo.band, 0.0, lo.maxStep };
+            const bool toHigh = (foldReseeds % 2 == 1) ? wasHigh : !wasHigh;
+            current[lo.output] = toHigh ? lo.railHigh : lo.railLow;
+            const OpAmpHistory seeded{ toHigh ? lo.band : -lo.band, 0.0, lo.maxStep };
             if (lo.stampIdx >= 0 && lo.stampIdx < static_cast<int32_t>(scratch.opampHistory.size())) {
                 scratch.opampHistory[lo.stampIdx] = seeded;
             } else {
@@ -3496,7 +3560,7 @@ void Engine::applyStamp(
             double vee = *stamp.railLow;
             double centre = (vcc + vee) / 2.0;
             double halfSwing = opAmpHalfSwing(vcc, vee);
-            double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, OPAMP_GAIN_BANDWIDTH_HZ, dt, options_.sampleRate);
+            double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
             double effectiveGain = alpha * stamp.openLoopGain;
             double linearWidth = halfSwing / effectiveGain;
 
@@ -3525,14 +3589,22 @@ void Engine::applyStamp(
             double rawDiff = solution[stamp.plus] - solution[stamp.minus];
             double band = OPAMP_DIFFERENTIAL_BAND * linearWidth;
             double bounded = clamp(rawDiff, -band, band);
+            // Mirrors reference-runtime.ts: the first iteration measures its step against the
+            // seed's own differential (step 0), not against zero.
+            if (!hasPrev) prevDiff = bounded;
             double step = bounded - prevDiff;
             double maxStep = OPAMP_MAX_DIFFERENTIAL_STEP * linearWidth;
 
             bool reversing = hasPrev && prevStep != 0.0 && step != 0.0 && ((step > 0.0) != (prevStep > 0.0));
             double cap = reversing ? std::max(prevCap / 2.0, linearWidth / 64.0) : std::min(maxStep, prevCap * 1.2);
             bool limited = std::abs(step) > cap;
+            // Mirrors reference-runtime.ts: a fold is the cap pinned at its floor with the iterate moving
+            // at the floor's scale, limited or not (an idle section's jitter does not qualify).
+            bool folded = cap <= linearWidth / 8.0 && std::abs(step) >= linearWidth / 256.0;
             if (limited) {
                 limitedIterate_ = true;
+            }
+            if (limited || folded) {
                 // Mirrors reference-runtime.ts `limitedOpamp`: the fold candidate for `iterate`.
                 limitedOpamp_ = LimitedOpamp{
                     stampIdx,
@@ -3543,7 +3615,7 @@ void Engine::applyStamp(
                     vee,
                     band,
                     maxStep,
-                    cap <= linearWidth / 8.0,
+                    folded,
                 };
                 limitedOpampValid_ = true;
             }
@@ -3572,10 +3644,15 @@ void Engine::applyStamp(
             double derivShape = std::tanh(clamp(scaled, -OPAMP_SATURATION_BAND, OPAMP_SATURATION_BAND));
             double slope = effectiveGain * (1.0 - derivShape * derivShape);
 
+            // Mirrors reference-runtime.ts: the tangent passes through the limited differential while
+            // the step limiter is active, else through the actual previous differential -- even beyond
+            // the band `diff` was clamped to -- so the fixed point is `Vout = outVal` exactly rather
+            // than the band's output plus `slope * excess` (the rail leak; see the reference's comment).
+            double linearisedAt = limited ? diff : rawDiff;
             matrix[row * size + stamp.output] += 1.0;
             matrix[row * size + stamp.plus] -= slope;
             matrix[row * size + stamp.minus] += slope;
-            rhs[row] = outVal - slope * diff;
+            rhs[row] = outVal - slope * linearisedAt;
             break;
         }
 
@@ -4612,7 +4689,7 @@ double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
             state[stamp.stateIndex + 1] = prevCurrent + g * (across + prevAcross);
         } else if (stamp.kind == StampKind::IdealOpAmp && stamp.railHigh.has_value() && stamp.railLow.has_value()) {
             uint64_t key = packHistoryKey3(static_cast<int32_t>(blockIdx), stamp.plus, stamp.minus, stamp.output);
-            double alpha = opAmpPoleAlpha(stamp.openLoopGain, OPAMP_GAIN_BANDWIDTH_HZ, dt, options_.sampleRate);
+            double alpha = opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
             double differential = stateSource[stamp.plus] - stateSource[stamp.minus];
             double prevRaw = (static_cast<size_t>(sIdx) < scratch.opampRawState.size()) ? scratch.opampRawState[sIdx] : 0.0;
             double nextRaw = boundOpAmpRaw(

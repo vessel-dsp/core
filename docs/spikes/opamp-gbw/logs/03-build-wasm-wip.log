@@ -1,0 +1,13 @@
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/home/joseph/projects/VesselDSP/core/opamp-gbw/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+
+real	1m11.310s
+user	1m4.435s
+sys	0m1.642s
+361d8890b57499dc7c579cc7d3e392c358e736c63bcf5b674f85488617fd0239  packages/runtime/src/wasm/v2_dsp.wasm

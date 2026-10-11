@@ -1,0 +1,21 @@
+114 (document, factor) rows compared; FAIL rows base 11 -> new 10; rows with a change flagged: 7
+  boss-dd-3b                             os4  non-converged 3 -> 4
+  boss-mt-2                              os1  verdict FAIL -> PASS (r 1.000000->1.000000, maxAbs 4.84e-03->7.45e-09)
+  boss-od-3                              os4  iterations/host 8.0 -> 12.0
+  boss-ph-1r                             os4  iterations/host 4.8 -> 7.7
+  electro-harmonix-slapback-echo         os4  iterations/host 4.1 -> 16.0
+  mxr-blue-box                           os1  non-converged 0 -> 1; iterations/host 4.8 -> 13.4; cap hit (peaks 301/301 -> 1024/884)
+  mxr-blue-box                           os2  still FAIL but worse: maxAbs 1.04e-04 -> 3.65e-02, r 1.000000 -> 0.052379; cap hit (peaks 258/345 -> 578/1024)
+
+FAIL rows (TS vs WASM, bars r >= 0.9999 and max abs < 1e-4):
+  boss-ce-2                              os2  base FAIL (r 0.999299, maxAbs 2.74e-02) -> new FAIL (r 0.999299, maxAbs 2.74e-02)
+  boss-ce-2                              os4  base FAIL (r 0.989900, maxAbs 2.47e-01) -> new FAIL (r 0.989900, maxAbs 2.47e-01)
+  boss-ce-2b                             os2  base FAIL (r 0.279936, maxAbs 1.62e+00) -> new FAIL (r 0.279974, maxAbs 1.62e+00)
+  boss-ce-2b                             os4  base FAIL (r 0.006402, maxAbs 1.67e+00) -> new FAIL (r 0.006256, maxAbs 1.67e+00)
+  boss-mt-2                              os1  base FAIL (r 1.000000, maxAbs 4.84e-03) -> new PASS (r 1.000000, maxAbs 7.45e-09)
+  boss-oc-2                              os1  base FAIL (r 0.000000, maxAbs 1.28e-08) -> new FAIL (r 0.000000, maxAbs 1.28e-08)
+  boss-oc-2                              os4  base FAIL (r 0.000000, maxAbs 1.29e-08) -> new FAIL (r 0.000000, maxAbs 1.29e-08)
+  boss-vb-2                              os2  base FAIL (r -0.701704, maxAbs 4.49e-01) -> new FAIL (r -0.701704, maxAbs 4.49e-01)
+  boss-vb-2                              os4  base FAIL (r -0.435164, maxAbs 4.00e-01) -> new FAIL (r -0.435164, maxAbs 4.00e-01)
+  mxr-blue-box                           os1  base FAIL (r 1.000000, maxAbs 1.80e-04) -> new FAIL (r 0.999996, maxAbs 7.09e-04)
+  mxr-blue-box                           os2  base FAIL (r 1.000000, maxAbs 1.04e-04) -> new FAIL (r 0.052379, maxAbs 3.65e-02)

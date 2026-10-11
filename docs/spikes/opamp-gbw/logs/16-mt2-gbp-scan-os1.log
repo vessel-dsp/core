@@ -1,0 +1,8 @@
+boss-mt-2 WASM os1, cap 1024, 8 s two-tone, per-product: first block over 50 ms / first stalled block (over 1000 ms)
+GBP null (1 MHz default)   blocks >50 ms:    0  first at -  stall none  worst block 40 ms  total 9.1 s
+GBP 2 MHz                  blocks >50 ms:    0  first at -  stall none  worst block 26 ms  total 8.0 s
+GBP 3 MHz                  blocks >50 ms:  432  first at 2.085 s  stall none  worst block 772 ms  total 94.0 s
+GBP 5 MHz                  blocks >50 ms:    2  first at 1.520 s  stall none  worst block 239 ms  total 13.4 s
+GBP 7 MHz                  blocks >50 ms:    0  first at -  stall none  worst block 36 ms  total 9.4 s
+GBP 10 MHz                 blocks >50 ms:    0  first at -  stall none  worst block 33 ms  total 8.6 s
+GBP 15 MHz                 blocks >50 ms:    2  first at 0.459 s  stall at 0.459 s  worst block 14552 ms  total 22.2 s

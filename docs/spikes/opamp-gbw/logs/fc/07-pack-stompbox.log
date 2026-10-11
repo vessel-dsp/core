@@ -1,0 +1,90 @@
+== 07-pack-stompbox: bun run --cwd packages/stompbox pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/stompbox@0.6.17 prepack
+> bun run --cwd ../core build && bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+npm notice
+npm notice 📦  @vessel-dsp/stompbox@0.6.17
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE.md
+npm notice 18.7kB README.md
+npm notice 708.7kB assets/cad/parts/box-125b/.tayda-a7244.step.glb
+npm notice 143.3kB assets/cad/parts/box-125b/tayda-a7244.step
+npm notice 707.6kB assets/cad/parts/box-1590b/.tayda-a6619.step.glb
+npm notice 143.0kB assets/cad/parts/box-1590b/tayda-a6619.step
+npm notice 708.0kB assets/cad/parts/box-1590bb/.tayda-a5880.step.glb
+npm notice 143.0kB assets/cad/parts/box-1590bb/tayda-a5880.step
+npm notice 708.1kB assets/cad/parts/box-hammond-diecast-stompbox-series/.hammond-1590a.step.glb
+npm notice 708.8kB assets/cad/parts/box-hammond-diecast-stompbox-series/.hammond-1590n1.step.glb
+npm notice 709.1kB assets/cad/parts/box-hammond-diecast-stompbox-series/.hammond-1590xx.step.glb
+npm notice 143.6kB assets/cad/parts/box-hammond-diecast-stompbox-series/hammond-1590a.step
+npm notice 143.9kB assets/cad/parts/box-hammond-diecast-stompbox-series/hammond-1590n1.step
+npm notice 143.9kB assets/cad/parts/box-hammond-diecast-stompbox-series/hammond-1590xx.step
+npm notice 536.2kB assets/cad/parts/dc-socket-dc099/.dc099.step.glb
+npm notice 10.3kB assets/cad/parts/dc-socket-dc099/dc099.step
+npm notice 157.7kB assets/cad/parts/jack-ts-pj629han/.pj-629han-05.step.glb
+npm notice 10.4kB assets/cad/parts/jack-ts-pj629han/pj-629han-05.step
+npm notice 206.5kB assets/cad/parts/knob-chickenhead-lms-30mm/.lovemyswitches-chicken-head-30mm.step.glb
+npm notice 21.3kB assets/cad/parts/knob-chickenhead-lms-30mm/lovemyswitches-chicken-head-30mm.step
+npm notice 201.7kB assets/cad/parts/knob-cm42-bb/.tayda-a6078-cm42-bb.step.glb
+npm notice 21.2kB assets/cad/parts/knob-cm42-bb/tayda-a6078-cm42-bb.step
+npm notice 606.2kB assets/cad/parts/knob-davies-instrument-series/.davies-1100.step.glb
+npm notice 611.2kB assets/cad/parts/knob-davies-instrument-series/.davies-1105.step.glb
+npm notice 61.8kB assets/cad/parts/knob-davies-instrument-series/.davies-1110.step.glb
+npm notice 62.0kB assets/cad/parts/knob-davies-instrument-series/.davies-1120.step.glb
+npm notice 61.9kB assets/cad/parts/knob-davies-instrument-series/.davies-1510bg.step.glb
+npm notice 61.8kB assets/cad/parts/knob-davies-instrument-series/.davies-1550ag.step.glb
+npm notice 509.5kB assets/cad/parts/knob-davies-instrument-series/.davies-1900.step.glb
+npm notice 435.2kB assets/cad/parts/knob-davies-instrument-series/davies-1100.step
+npm notice 437.3kB assets/cad/parts/knob-davies-instrument-series/davies-1105.step
+npm notice 483.1kB assets/cad/parts/knob-davies-instrument-series/davies-1110.step
+npm notice 475.2kB assets/cad/parts/knob-davies-instrument-series/davies-1120.step
+npm notice 69.8kB assets/cad/parts/knob-davies-instrument-series/davies-1510bg.step
+npm notice 138.9kB assets/cad/parts/knob-davies-instrument-series/davies-1550ag.step
+npm notice 925.7kB assets/cad/parts/knob-davies-instrument-series/davies-1900.step
+npm notice 2.3MB assets/cad/parts/knob-mxr-style-fluted/.daier-mf-b01.step.glb
+npm notice 2.3MB assets/cad/parts/knob-mxr-style-fluted/.daier-mf-b02.step.glb
+npm notice 2.3MB assets/cad/parts/knob-mxr-style-fluted/.daier-mf-b03.step.glb
+npm notice 202.3kB assets/cad/parts/knob-mxr-style-fluted/.tayda-a1829-tymf-b00.step.glb
+npm notice 226.3kB assets/cad/parts/knob-mxr-style-fluted/daier-mf-b01.step
+npm notice 229.1kB assets/cad/parts/knob-mxr-style-fluted/daier-mf-b02.step
+npm notice 244.7kB assets/cad/parts/knob-mxr-style-fluted/daier-mf-b03.step
+npm notice 21.1kB assets/cad/parts/knob-mxr-style-fluted/tayda-a1829-tymf-b00.step
+npm notice 98.0kB assets/cad/parts/led-5mm-red-kento-5408urc/.kento-5408urc.step.glb
+npm notice 16.3kB assets/cad/parts/led-5mm-red-kento-5408urc/kento-5408urc.step
+npm notice 296.0kB assets/cad/parts/led-bezel-lh5/.pedal-parts-and-kits-bzl-5mm-p.step.glb
+npm notice 19.2kB assets/cad/parts/led-bezel-lh5/pedal-parts-and-kits-bzl-5mm-p.step
+npm notice 687.0kB assets/cad/parts/switch-3pdt-pic-pbs24302/.pic-pbs24302.step.glb
+npm notice 17.8kB assets/cad/parts/switch-3pdt-pic-pbs24302/pic-pbs24302.step
+npm notice 148.6kB assets/cad/parts/switch-toggle-reference-series/.toggle-switch-dpdt-pcb.step.glb
+npm notice 197.6kB assets/cad/parts/switch-toggle-reference-series/.toggle-switch-mounting-plate.step.glb
+npm notice 126.7kB assets/cad/parts/switch-toggle-reference-series/.toggle-switch-spdt-pcb.step.glb
+npm notice 122.8kB assets/cad/parts/switch-toggle-reference-series/.toggle-switch-spst-13x7.step.glb
+npm notice 114.5kB assets/cad/parts/switch-toggle-reference-series/toggle-switch-dpdt-pcb.step
+npm notice 41.6kB assets/cad/parts/switch-toggle-reference-series/toggle-switch-mounting-plate.step
+npm notice 68.9kB assets/cad/parts/switch-toggle-reference-series/toggle-switch-spdt-pcb.step
+npm notice 61.1kB assets/cad/parts/switch-toggle-reference-series/toggle-switch-spst-13x7.step
+npm notice 29.4kB dist/index.d.ts
+npm notice 25.7kB dist/index.d.ts.map
+npm notice 194.8kB dist/index.js
+npm notice 191.7kB dist/index.js.map
+npm notice 1.0kB dist/node.d.ts
+npm notice 673B dist/node.d.ts.map
+npm notice 1.2kB dist/node.js
+npm notice 931B dist/node.js.map
+npm notice 1.4kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/stompbox
+npm notice version: 0.6.17
+npm notice filename: vessel-dsp-stompbox-0.6.17.tgz
+npm notice package size: 3.7 MB
+npm notice unpacked size: 21.4 MB
+npm notice shasum: abbbb66a46a6bfe7bb822ae1000e5ec54d9690a4
+npm notice integrity: sha512-YYeWXvYnuZJI0[...]8vuqhpPd7IHLA==
+npm notice total files: 67
+npm notice
+vessel-dsp-stompbox-0.6.17.tgz
+exit 0

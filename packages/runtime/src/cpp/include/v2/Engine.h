@@ -396,6 +396,7 @@ private:
     };
     LimitedOpamp limitedOpamp_;
     bool limitedOpampValid_ = false;
+    double opAmpStepDamping(size_t blockIdx, const double* current, const double* next, double dt, bool dc);
     std::unordered_map<uint64_t, double> diodeHistory_;
     std::unordered_map<uint64_t, std::pair<double, double>> bjtHistory_;
     std::unordered_map<uint64_t, TriodeHistory> triodeHistory_;

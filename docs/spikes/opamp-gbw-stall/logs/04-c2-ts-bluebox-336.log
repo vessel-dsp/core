@@ -1,0 +1,120 @@
+sample 336 (0.0070 s) block analog:0: used 921 ok worstDelta 1.35e-6 node 22 | opamps 2, iterations with a limited op-amp 48, folded 54; limited counts by stamp [[21,48]]
+    it    0: delta 0.00e+0@-1 lim[opamp] s7 d=0.97w step=0.97w cap=4.000w raw=2.682 out=6.904 vout=2.882 || s21 d=4.00w step=12.00w cap=4.000w LIM raw=36.000 out=9.000 vout=9.000
+    it    1: delta 3.88e+0@6 lim[opamp] s7 d=0.93w step=-0.05w cap=2.000w raw=2.479 out=6.756 vout=6.759 || s21 d=2.00w step=-16.00w cap=2.000w LIM raw=36.000 out=9.000 vout=8.999
+    it    2: delta 2.73e-4@6 lim[opamp] s7 d=0.93w step=0.00w cap=1.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-0.40w step=-14.00w cap=2.400w LIM raw=34.012 out=9.000 vout=8.999
+    it    3: delta 1.02e-3@15 lim[opamp] s7 d=0.93w step=0.00w cap=1.200w raw=2.484 out=6.759 vout=6.759 || s21 d=-3.28w step=-11.60w cap=2.880w LIM raw=21.052 out=8.999 vout=8.998
+    it    4: delta 5.51e-1@15 lim[opamp] s7 d=0.93w step=0.00w cap=1.440w raw=2.484 out=6.759 vout=6.759 || s21 d=-6.74w step=-8.72w cap=3.456w LIM raw=5.500 out=8.282 vout=8.447
+    it    5: delta 9.02e+2@15 lim[opamp,bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.720w raw=2.482 out=6.758 vout=6.758 || s21 d=-5.01w step=18.74w cap=1.728w LIM raw=13.276 out=8.975 vout=910.333
+    it    6: delta 9.20e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.360w raw=2.484 out=6.759 vout=6.759 || s21 d=-5.87w step=-6.99w cap=0.864w LIM raw=9.388 out=8.863 vout=-9.339
+    it    7: delta 1.19e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.432w raw=2.484 out=6.759 vout=6.759 || s21 d=-6.91w step=-6.13w cap=1.037w LIM raw=4.723 out=8.017 vout=-128.057
+    it    8: delta 7.48e+2@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.216w raw=2.483 out=6.758 vout=6.758 || s21 d=-6.39w step=18.91w cap=0.518w LIM raw=7.056 out=8.625 vout=619.915
+    it    9: delta 2.04e+3@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.108w FOLD raw=2.486 out=6.760 vout=6.760 || s21 d=-6.65w step=-5.61w cap=0.259w LIM raw=5.889 out=8.388 vout=-1423.993
+    it   10: delta 1.37e+3@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.054w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-6.96w step=-5.35w cap=0.311w LIM raw=4.490 out=7.923 vout=-56.295
+    it   11: delta 3.16e+2@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.065w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-7.33w step=-5.04w cap=0.373w LIM raw=2.810 out=6.994 vout=260.112
+    it   12: delta 6.09e+1@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.078w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-7.15w step=7.33w cap=0.187w LIM raw=3.650 out=7.516 vout=321.033
+    it   13: delta 5.62e+1@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.093w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-6.92w step=19.15w cap=0.224w LIM raw=4.658 out=7.992 vout=377.259
+    it   14: delta 5.62e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.112w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-6.65w step=18.92w cap=0.269w LIM raw=5.867 out=8.382 vout=433.453
+    it   15: delta 2.06e+2@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.134w raw=2.483 out=6.758 vout=6.758 || s21 d=-6.33w step=18.65w cap=0.322w LIM raw=7.318 out=8.665 vout=639.923
+    it   16: delta 3.01e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.067w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-5.95w step=18.33w cap=0.387w LIM raw=9.060 out=8.842 vout=339.267
+    it   17: delta 9.99e+1@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.081w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-6.14w step=-6.05w cap=0.193w LIM raw=8.189 out=8.770 vout=239.349
+    it   18: delta 1.11e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.097w FOLD raw=2.483 out=6.759 vout=6.759 || s21 d=-6.37w step=-5.86w cap=0.232w LIM raw=7.144 out=8.639 vout=128.168
+    it   19: delta 2.61e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.116w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-6.65w step=-5.63w cap=0.279w LIM raw=5.890 out=8.388 vout=-132.950
+    it   20: delta 2.89e+2@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.058w FOLD raw=2.483 out=6.759 vout=6.759 || s21 d=-6.98w step=-5.35w cap=0.334w LIM raw=4.386 out=7.878 vout=156.189
+    it   21: delta 8.08e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.070w FOLD raw=2.483 out=6.759 vout=6.759 || s21 d=-7.38w step=-5.02w cap=0.401w LIM raw=2.580 out=6.830 vout=237.021
+    it   22: delta 3.77e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.084w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-7.87w step=-4.62w cap=0.481w LIM raw=0.413 out=4.912 vout=274.717
+    it   23: delta 2.29e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.100w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-8.44w step=-4.13w cap=0.578w LIM raw=-2.187 out=2.471 vout=297.640
+    it   24: delta 2.32e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.120w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-8.16w step=8.24w cap=0.289w LIM raw=-0.887 out=3.625 vout=320.865
+    it   25: delta 1.43e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.144w raw=2.483 out=6.758 vout=6.758 || s21 d=-7.81w step=20.16w cap=0.347w LIM raw=0.673 out=5.168 vout=335.137
+    it   26: delta 1.11e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.173w raw=2.483 out=6.758 vout=6.758 || s21 d=-7.39w step=19.81w cap=0.416w LIM raw=2.545 out=6.805 vout=346.238
+    it   27: delta 1.56e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.208w raw=2.483 out=6.758 vout=6.758 || s21 d=-6.89w step=19.39w cap=0.499w LIM raw=4.792 out=8.044 vout=361.852
+    it   28: delta 5.46e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.250w raw=2.483 out=6.758 vout=6.758 || s21 d=-6.29w step=18.89w cap=0.599w LIM raw=7.487 out=8.688 vout=416.489
+    it   29: delta 2.18e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.125w FOLD raw=2.483 out=6.759 vout=6.759 || s21 d=-6.59w step=-5.71w cap=0.300w LIM raw=6.139 out=8.448 vout=198.432
+    it   30: delta 3.51e+2@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.062w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-6.44w step=18.59w cap=0.150w LIM raw=6.813 out=8.584 vout=549.429
+    it   31: delta 7.18e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.031w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-6.52w step=-5.56w cap=0.075w LIM FOLD raw=6.476 out=8.521 vout=-168.889
+    it   32: delta 1.64e+3@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.016w FOLD raw=2.482 out=6.757 vout=6.757 || s21 d=-6.48w step=18.52w cap=0.037w LIM FOLD raw=6.645 out=8.554 vout=1468.554
+    it   33: delta 2.44e+3@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.016w FOLD raw=2.485 out=6.760 vout=6.760 || s21 d=-6.50w step=-5.52w cap=0.019w LIM FOLD raw=6.561 out=8.538 vout=-974.991
+    it   34: delta 1.13e+4@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.92w step=-0.00w cap=0.016w FOLD raw=2.469 out=6.748 vout=6.748 || s21 d=-6.48w step=18.50w cap=0.016w LIM FOLD raw=6.631 out=8.551 vout=10335.516
+    it   35: delta 4.76e+3@15 lim[opamp] s7 d=0.92w step=0.00w cap=0.016w FOLD raw=2.476 out=6.753 vout=6.753 || s21 d=-6.47w step=18.48w cap=0.019w LIM FOLD raw=6.715 out=8.567 vout=5579.254
+    it   36: delta 2.17e+3@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.019w FOLD raw=2.479 out=6.755 vout=6.755 || s21 d=-6.44w step=18.47w cap=0.022w LIM FOLD raw=6.817 out=8.585 vout=3406.964
+    it   37: delta 3.41e+3@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.022w FOLD raw=2.481 out=6.757 vout=6.757 || s21 d=-8.00w step=24.00w cap=4.000w LIM raw=-0.188 out=4.313 vout=0.000
+    it   38: delta 3.89e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.027w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-4.00w step=20.00w cap=4.000w LIM raw=17.812 out=8.997 vout=388.713
+    it   39: delta 3.82e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.032w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-6.00w step=-8.00w cap=2.000w LIM raw=8.812 out=8.824 vout=6.660
+    it   40: delta 1.98e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.039w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-8.40w step=-6.00w cap=2.400w LIM raw=-1.988 out=2.632 vout=-191.490
+    it   41: delta 6.00e+2@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.019w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-7.20w step=20.40w cap=1.200w LIM raw=3.412 out=7.380 vout=408.852
+    it   42: delta 5.62e+1@15 lim[opamp] s7 d=0.93w step=-0.00w cap=0.023w FOLD raw=2.483 out=6.758 vout=6.758 || s21 d=-5.76w step=19.20w cap=1.440w LIM raw=9.892 out=8.890 vout=465.082
+    it   43: delta 5.57e+2@15 lim[opamp] s7 d=0.93w step=0.00w cap=0.016w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-6.48w step=-6.24w cap=0.720w LIM raw=6.652 out=8.555 vout=-92.403
+    it   44: delta 9.60e+3@15 lim[opamp,bjt b=16 c=17 e=0] s7 d=0.93w step=0.00w cap=0.019w FOLD raw=2.497 out=6.769 vout=6.769 || s21 d=-7.34w step=-5.52w cap=0.864w LIM raw=2.764 out=6.962 vout=-9688.073
+    it   45: delta 5.06e+3@15 lim[opamp,bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.016w FOLD raw=2.490 out=6.763 vout=6.764 || s21 d=-8.38w step=-4.66w cap=1.037w LIM raw=-1.901 out=2.704 vout=-4627.866
+    it   46: delta 2.52e+3@15 lim[opamp,bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.019w FOLD raw=2.486 out=6.761 vout=6.761 || s21 d=-9.62w step=-3.62w cap=1.244w LIM raw=-7.500 out=0.310 vout=-2110.466
+    it   47: delta 5.00e+2@15 lim[opamp,bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.022w FOLD raw=2.486 out=6.760 vout=6.760 || s21 d=-11.12w step=-2.38w cap=1.493w LIM raw=-14.218 out=0.016 vout=-1610.815
+    it   48: delta 5.60e+2@15 lim[bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.027w FOLD raw=2.485 out=6.760 vout=6.760 || s21 d=-12.00w step=-0.88w cap=1.792w raw=-18.188 out=0.003 vout=-1051.214
+    it   49: delta 2.59e+2@15 lim[bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.032w FOLD raw=2.485 out=6.760 vout=6.760 || s21 d=-12.00w step=0.00w cap=2.150w raw=-18.188 out=0.003 vout=-792.017
+    it   50: delta 1.95e+2@15 lim[bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.039w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=2.580w raw=-18.188 out=0.003 vout=-596.729
+    it   51: delta 1.20e+2@15 lim[bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.047w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=3.096w raw=-18.188 out=0.003 vout=-476.618
+    it   52: delta 9.59e+1@15 lim[bjt b=16 c=17 e=0,bjt b=18 c=22 e=0] s7 d=0.93w step=-0.00w cap=0.056w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=3.715w raw=-18.188 out=0.003 vout=-380.684
+    it   53: delta 7.66e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.067w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-304.059
+    it   54: delta 6.12e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.081w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-242.857
+    it   55: delta 4.89e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.097w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-193.974
+    it   56: delta 4.49e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.116w FOLD raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-149.073
+    it   57: delta 3.97e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.139w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-109.390
+    it   58: delta 3.35e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.167w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-75.902
+    it   59: delta 2.67e+1@15 lim[bjt b=16 c=17 e=0] s7 d=0.93w step=-0.00w cap=0.201w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-49.181
+    it   60: delta 1.99e+1@15 lim[] s7 d=0.93w step=-0.00w cap=0.241w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=-29.269
+    it   90: delta 4.93e-2@22 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  120: delta 1.29e-2@16 lim[] s7 d=0.93w step=0.00w cap=0.250w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  150: delta 5.17e-3@16 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  180: delta 5.17e-3@16 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  210: delta 5.17e-3@16 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  240: delta 8.80e-3@16 lim[] s7 d=0.93w step=0.00w cap=3.456w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  270: delta 5.36e-2@22 lim[bjt b=18 c=22 e=0] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  300: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  330: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  360: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  390: delta 5.16e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  420: delta 5.79e-2@18 lim[] s7 d=0.93w step=0.00w cap=2.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  450: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  480: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  510: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  540: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  570: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  600: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  630: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  660: delta 5.18e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  690: delta 1.06e-2@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  720: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  750: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  780: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  810: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  840: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  870: delta 5.17e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  891: delta 5.15e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  892: delta 5.14e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  893: delta 5.13e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  894: delta 5.13e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  895: delta 5.12e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  896: delta 5.10e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  897: delta 5.09e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  898: delta 5.07e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  899: delta 5.05e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  900: delta 5.02e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  901: delta 4.99e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  902: delta 4.95e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  903: delta 4.91e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  904: delta 4.85e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  905: delta 4.79e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  906: delta 4.71e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  907: delta 4.62e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  908: delta 4.51e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  909: delta 4.38e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  910: delta 4.24e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  911: delta 4.07e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  912: delta 3.88e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  913: delta 3.67e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  914: delta 3.44e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  915: delta 3.19e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  916: delta 2.93e-3@18 lim[] s7 d=0.93w step=0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  917: delta 1.33e-2@18 lim[] s7 d=0.93w step=-0.00w cap=4.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  918: delta 4.88e-3@22 lim[] s7 d=0.93w step=0.00w cap=2.000w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  919: delta 2.60e-4@22 lim[] s7 d=0.93w step=0.00w cap=2.400w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+    it  920: delta 2.64e-4@22 lim[] s7 d=0.93w step=-0.00w cap=2.880w raw=2.484 out=6.759 vout=6.759 || s21 d=-12.00w step=0.00w cap=4.000w raw=-18.188 out=0.003 vout=0.003
+blue-box TS os1 cap 1024 to sample 337: 0.2 s wall; nonConverged 0 stalled 0 flagged 0 peak 921 total 4820

@@ -1,0 +1,122 @@
+sample 1480 (0.0308 s) block analog:0: used 6 ok worstDelta 1.60e-5 node 36 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=7 c=65 e=0] 
+    it    1: delta 4.22e-1@37 lim[bjt b=7 c=65 e=0,diode a=67 k=68] 
+    it    2: delta 3.33e-1@37 lim[] 
+    it    3: delta 2.14e-2@65 lim[] 
+    it    4: delta 8.56e-3@65 lim[] 
+    it    5: delta 1.10e-3@65 lim[] 
+sample 1481 (0.0309 s) block analog:0: used 6 ok worstDelta 2.76e-5 node 7 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=36 c=37 e=0] 
+    it    1: delta 4.65e-1@65 lim[bjt b=36 c=37 e=0,diode a=63 k=64] 
+    it    2: delta 3.72e-1@65 lim[] 
+    it    3: delta 2.25e-2@37 lim[] 
+    it    4: delta 9.68e-3@37 lim[] 
+    it    5: delta 1.44e-3@37 lim[] 
+sample 1482 (0.0309 s) block analog:0: used 6 ok worstDelta 4.89e-5 node 36 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=7 c=65 e=0] 
+    it    1: delta 5.17e-1@37 lim[bjt b=7 c=65 e=0,diode a=67 k=68] 
+    it    2: delta 4.21e-1@37 lim[] 
+    it    3: delta 2.37e-2@65 lim[] 
+    it    4: delta 1.10e-2@65 lim[] 
+    it    5: delta 1.90e-3@65 lim[] 
+sample 1483 (0.0309 s) block analog:0: used 6 ok worstDelta 8.94e-5 node 7 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=36 c=37 e=0] 
+    it    1: delta 5.83e-1@65 lim[bjt b=36 c=37 e=0,diode a=63 k=64] 
+    it    2: delta 4.84e-1@65 lim[] 
+    it    3: delta 2.50e-2@37 lim[] 
+    it    4: delta 1.26e-2@37 lim[] 
+    it    5: delta 2.56e-3@37 lim[] 
+sample 1484 (0.0309 s) block analog:0: used 6 ok worstDelta 1.70e-4 node 36 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=7 c=65 e=0] 
+    it    1: delta 6.69e-1@37 lim[bjt b=7 c=65 e=0,diode a=67 k=68] 
+    it    2: delta 5.65e-1@37 lim[] 
+    it    3: delta 2.65e-2@65 lim[] 
+    it    4: delta 1.44e-2@65 lim[] 
+    it    5: delta 3.49e-3@65 lim[] 
+sample 1485 (0.0309 s) block analog:0: used 6 ok worstDelta 3.41e-4 node 7 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=36 c=37 e=0] 
+    it    1: delta 7.87e-1@65 lim[bjt b=36 c=37 e=0,diode a=63 k=64] 
+    it    2: delta 6.78e-1@65 lim[] 
+    it    3: delta 2.80e-2@37 lim[] 
+    it    4: delta 1.67e-2@37 lim[] 
+    it    5: delta 4.87e-3@37 lim[] 
+sample 1486 (0.0310 s) block analog:0: used 6 ok worstDelta 7.36e-4 node 36 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=7 c=65 e=0] 
+    it    1: delta 9.58e-1@37 lim[bjt b=7 c=65 e=0,diode a=67 k=68] 
+    it    2: delta 8.44e-1@37 lim[] 
+    it    3: delta 2.98e-2@65 lim[] 
+    it    4: delta 1.94e-2@65 lim[] 
+    it    5: delta 6.99e-3@65 lim[] 
+sample 1487 (0.0310 s) block analog:0: used 7 ok worstDelta 4.45e-5 node 7 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=36 c=37 e=0] 
+    it    1: delta 1.23e+0@65 lim[bjt b=36 c=37 e=0,diode a=63 k=64] 
+    it    2: delta 1.11e+0@65 lim[] 
+    it    3: delta 3.17e-2@37 lim[] 
+    it    4: delta 2.29e-2@37 lim[] 
+    it    5: delta 1.04e-2@37 lim[] 
+    it    6: delta 1.78e-3@37 lim[] 
+sample 1488 (0.0310 s) block analog:0: used 7 ok worstDelta 4.47e-4 node 36 | opamps 10, iterations with a limited op-amp 0, folded 0; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=7 c=65 e=0] 
+    it    1: delta 1.77e+0@37 lim[bjt b=7 c=65 e=0,diode a=67 k=68] 
+    it    2: delta 1.63e+0@37 lim[bjt b=7 c=65 e=0] 
+    it    3: delta 5.03e-2@64 lim[] 
+    it    4: delta 2.76e-2@65 lim[] 
+    it    5: delta 1.67e-2@65 lim[] 
+    it    6: delta 5.31e-3@65 lim[] 
+sample 1489 (0.0310 s) block analog:0: used 512 ok worstDelta 6.38e-7 node 65 | opamps 10, iterations with a limited op-amp 0, folded 231; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[bjt b=36 c=37 e=0] s12 d=-0.62w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it    1: delta 3.29e+0@65 lim[bjt b=36 c=37 e=0,diode a=63 k=64,bjt b=7 c=65 e=0] s12 d=-0.60w step=0.03w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it    2: delta 2.07e+1@64 lim[bjt b=7 c=65 e=0] s12 d=-0.60w step=-0.00w cap=2.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=2.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it    3: delta 2.23e+1@65 lim[] s12 d=-0.60w step=-0.00w cap=2.400w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=1.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=2.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=2.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=2.000w raw=0.487 out=4.985 vout=4.985
+    it    4: delta 3.56e-2@68 lim[] s12 d=-0.60w step=-0.00w cap=2.880w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.500w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=2.400w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=2.400w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=2.400w raw=0.487 out=4.985 vout=4.985
+    it    5: delta 2.39e-2@68 lim[] s12 d=-0.60w step=-0.00w cap=3.456w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.600w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=1.200w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=1.200w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=1.200w raw=0.487 out=4.985 vout=4.985
+    it    6: delta 2.28e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.720w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=1.440w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=1.440w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=1.440w raw=0.487 out=4.985 vout=4.985
+    it    7: delta 2.77e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.864w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=1.728w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=1.728w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=1.728w raw=0.487 out=4.985 vout=4.985
+    it    8: delta 3.21e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=1.037w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=2.074w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=2.074w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=2.074w raw=0.487 out=4.985 vout=4.985
+    it    9: delta 4.68e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=1.244w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=2.488w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=2.488w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=2.488w raw=0.487 out=4.985 vout=4.985
+    it   10: delta 1.42e-1@37 lim[bjt b=36 c=37 e=0] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=1.493w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=2.986w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=2.986w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=2.986w raw=0.487 out=4.985 vout=4.985
+    it   11: delta 1.20e+0@37 lim[bjt b=36 c=37 e=0] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=1.792w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=3.583w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=3.583w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=3.583w raw=0.487 out=4.985 vout=4.985
+    it   12: delta 8.16e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=2.150w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it   13: delta 4.98e-2@37 lim[] s12 d=-0.60w step=0.00w cap=2.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=1.075w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=2.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=2.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=2.000w raw=0.487 out=4.985 vout=4.985
+    it   14: delta 9.27e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=1.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.537w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=1.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=1.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=1.000w raw=0.487 out=4.985 vout=4.985
+    it   73: delta 1.73e-2@37 lim[] s12 d=-0.60w step=0.00w cap=0.216w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.216w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=0.216w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=0.216w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=0.216w raw=0.487 out=4.985 vout=4.985
+    it  146: delta 2.16e-2@37 lim[] s12 d=-0.60w step=-0.00w cap=0.016w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=0.016w FOLD raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=0.016w FOLD raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=0.016w FOLD raw=0.487 out=4.985 vout=4.985
+    it  219: delta 7.88e-3@37 lim[] s12 d=-0.60w step=0.00w cap=0.517w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.517w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=0.517w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=0.517w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=0.517w raw=0.487 out=4.985 vout=4.985
+    it  292: delta 2.48e-2@37 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  365: delta 9.45e-3@37 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  438: delta 3.70e+0@68 lim[bjt b=7 c=65 e=0,diode a=63 k=64] s12 d=-0.60w step=-0.00w cap=0.019w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.019w FOLD raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=0.019w FOLD raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=0.019w FOLD raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=0.00w cap=0.019w FOLD raw=0.487 out=4.985 vout=4.985
+    it  505: delta 2.54e-2@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  506: delta 2.47e-2@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  507: delta 2.28e-2@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  508: delta 1.85e-2@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  509: delta 1.08e-2@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  510: delta 2.96e-3@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=-0.00w cap=4.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=-0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+    it  511: delta 1.82e-4@7 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144 || s14 d=0.00w step=0.00w cap=2.000w raw=0.432 out=4.930 vout=4.930 || s16 d=0.00w step=0.00w cap=4.000w raw=1.402 out=5.859 vout=5.859 || s17 d=0.00w step=-0.00w cap=4.000w raw=0.487 out=4.985 vout=4.985
+sample 1490 (0.0310 s) block analog:0: used 38 ok worstDelta 1.04e-4 node 68 | opamps 10, iterations with a limited op-amp 0, folded 26; limited counts by stamp []
+    it    0: delta 0.00e+0@-1 lim[] s12 d=-0.60w step=0.00w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144
+    it    1: delta 7.76e-1@37 lim[] s12 d=-0.57w step=0.03w cap=4.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=4.000w raw=0.648 out=5.144 vout=5.144
+    it    2: delta 5.06e-2@65 lim[] s12 d=-0.57w step=-0.00w cap=2.000w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=2.000w raw=0.648 out=5.144 vout=5.144
+    it    3: delta 3.02e-1@65 lim[bjt b=36 c=37 e=0,bjt b=7 c=65 e=0] s12 d=-0.57w step=-0.00w cap=2.400w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=1.000w raw=0.648 out=5.144 vout=5.144
+    it    4: delta 6.85e+0@65 lim[bjt b=7 c=65 e=0,bjt b=36 c=37 e=0] s12 d=-0.57w step=-0.00w cap=2.880w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.500w raw=0.648 out=5.144 vout=5.144
+    it    5: delta 4.95e+0@64 lim[bjt b=36 c=37 e=0] s12 d=-0.57w step=0.00w cap=1.440w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.250w raw=0.648 out=5.144 vout=5.144
+    it    6: delta 3.89e-1@64 lim[bjt b=36 c=37 e=0,bjt b=7 c=65 e=0] s12 d=-0.57w step=0.00w cap=1.728w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.300w raw=0.648 out=5.144 vout=5.144
+    it    7: delta 1.18e+1@65 lim[bjt b=7 c=65 e=0,diode a=63 k=64] s12 d=-0.57w step=0.00w cap=2.074w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.360w raw=0.648 out=5.144 vout=5.144
+    it    8: delta 5.82e+0@64 lim[] s12 d=-0.57w step=-0.00w cap=1.037w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.180w raw=0.648 out=5.144 vout=5.144
+    it    9: delta 5.18e-2@64 lim[] s12 d=-0.57w step=0.00w cap=0.518w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.090w FOLD raw=0.648 out=5.144 vout=5.144
+    it   10: delta 4.75e-2@64 lim[] s12 d=-0.57w step=-0.00w cap=0.259w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.045w FOLD raw=0.648 out=5.144 vout=5.144
+    it   11: delta 4.60e-2@64 lim[] s12 d=-0.57w step=-0.00w cap=0.311w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.054w FOLD raw=0.648 out=5.144 vout=5.144
+    it   12: delta 4.54e-2@64 lim[] s12 d=-0.57w step=-0.00w cap=0.373w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.065w FOLD raw=0.648 out=5.144 vout=5.144
+    it   13: delta 4.49e-2@64 lim[] s12 d=-0.57w step=-0.00w cap=0.448w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.078w FOLD raw=0.648 out=5.144 vout=5.144
+    it   14: delta 9.07e-2@65 lim[bjt b=36 c=37 e=0,bjt b=7 c=65 e=0] s12 d=-0.57w step=-0.00w cap=0.537w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.093w FOLD raw=0.648 out=5.144 vout=5.144
+    it   15: delta 1.70e+0@65 lim[bjt b=7 c=65 e=0] s12 d=-0.57w step=-0.00w cap=0.645w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.112w FOLD raw=0.648 out=5.144 vout=5.144
+    it   20: delta 4.72e-2@65 lim[] s12 d=-0.57w step=0.00w cap=0.669w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.116w FOLD raw=0.648 out=5.144 vout=5.144
+    it   25: delta 4.10e+1@65 lim[diode a=67 k=68] s12 d=-0.57w step=0.00w cap=0.289w raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.050w FOLD raw=0.648 out=5.144 vout=5.144
+    it   30: delta 4.57e-2@68 lim[] s12 d=-0.57w step=-0.00w cap=0.052w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+    it   31: delta 4.52e-2@68 lim[] s12 d=-0.57w step=-0.00w cap=0.062w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+    it   32: delta 4.45e-2@68 lim[] s12 d=-0.57w step=-0.00w cap=0.075w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+    it   33: delta 4.29e-2@68 lim[] s12 d=-0.57w step=0.00w cap=0.037w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.019w FOLD raw=0.648 out=5.144 vout=5.144
+    it   34: delta 3.89e-2@68 lim[] s12 d=-0.57w step=-0.00w cap=0.019w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+    it   35: delta 2.98e-2@68 lim[] s12 d=-0.57w step=0.00w cap=0.016w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+    it   36: delta 1.51e-2@68 lim[] s12 d=-0.57w step=0.00w cap=0.019w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=-0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+    it   37: delta 3.05e-3@68 lim[] s12 d=-0.57w step=0.00w cap=0.022w FOLD raw=-36.000 out=0.000 vout=0.000 || s13 d=0.00w step=0.00w cap=0.016w FOLD raw=0.648 out=5.144 vout=5.144
+boss-aw-2 TS os1 cap 1024 to sample 1491: 0.6 s wall; nonConverged 0 stalled 0 flagged 0 peak 512 total 4383

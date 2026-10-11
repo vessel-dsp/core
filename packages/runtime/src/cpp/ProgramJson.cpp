@@ -464,6 +464,7 @@ Stamp parseStamp(const JsonValue& obj) {
     st.exponent = obj.getDouble("exponent", 1.5);
     st.turnsRatio = obj.getDouble("turnsRatio", 1.0);
     st.openLoopGain = obj.getDouble("openLoopGain", 100000.0);
+    st.gainBandwidthHz = obj.getOptionalDouble("gainBandwidthHz");
     st.inputSiemens = obj.getDouble("inputSiemens", 0.0);
     st.vrefVolts = obj.getDouble("vrefVolts", 1.0);
     st.minGain = obj.getDouble("minGain", 0.0);

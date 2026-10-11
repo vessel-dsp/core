@@ -1,0 +1,9 @@
+== runtime
+$ tsc --noEmit -p tsconfig.json
+exit 0
+== player
+$ tsc --noEmit -p tsconfig.json
+exit 0
+== compiler
+$ tsc --noEmit -p tsconfig.json
+exit 0

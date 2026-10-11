@@ -47,6 +47,7 @@ import {
 	registryEntryFor,
 	registryLawFor,
 	registryModelFor,
+	registryOpampGainBandwidth,
 	registryOpampSwingDrop,
 	terminalWithRole,
 	withRecordedReads,
@@ -907,6 +908,11 @@ function sectionDevices(
 						// Kept on the lowered law so `findOpampLawDefaults` can tell a part that
 						// states how close it gets to the rails from one that does not.
 						...(sectionDrop === null ? {} : { outputSwingDropVolts: sectionDrop }),
+						// The part's datasheet product, when the entry states one. Absent stays
+						// absent: it lowers to a `null` stamp, which the compile names.
+						...(section.law.gainBandwidthHz === undefined
+							? {}
+							: { gainBandwidthHz: section.law.gainBandwidthHz }),
 					}
 				: section.law.kind === "compandor"
 					? { ...section.law, railHigh, railLow }
@@ -2307,6 +2313,13 @@ function resolveDevice(
 			const railHigh = declaredRails.high;
 			const railLow = declaredRails.low;
 
+			// The gain-bandwidth product: the packet's own typed `GBP` first, else the datasheet figure
+			// of the exact part id, else none. Never a class number -- `null` lowers to a stamp the
+			// consoles run on their default, and `opamp-gain-bandwidth-default` names it.
+			const gainBandwidthHz =
+				device.parameters.gainBandwidthHz ??
+				registryOpampGainBandwidth(registry, device.identity.partNumber);
+
 			return {
 				outcome: "law",
 				device: device.id,
@@ -2317,6 +2330,7 @@ function resolveDevice(
 					openLoopGain:
 						device.parameters.openLoopGain ?? DEFAULT_OPEN_LOOP_GAIN,
 					...(declaredDrop === null ? {} : { outputSwingDropVolts: declaredDrop }),
+					...(gainBandwidthHz === null ? {} : { gainBandwidthHz }),
 				},
 			};
 		}

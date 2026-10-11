@@ -1,0 +1,85 @@
+('boss-aw-2', 1, None)                             it 4.00->2.33 (x0.58) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-aw-2', 4, None)                             it 12.00->4.09 (x0.34) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('boss-bd-2-blues-driver-keeley-mod', 1, None)     it 2.79->2.79 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bd-2-blues-driver-keeley-mod', 4, None)     it 8.00->8.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bd-2-blues-driver', 1, None)                it 2.79->2.79 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bd-2-blues-driver', 4, None)                it 8.00->8.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bf-2', 1, None)                             it 3.83->3.83 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bf-2', 4, None)                             it 12.92->12.92 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bf-3', 1, None)                             ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-bf-3', 4, None)                             ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-ce-2', 1, None)                             it 2.01->2.01 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('boss-ce-2', 4, None)                             it 8.00->8.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-ce-2b', 1, None)                            it 3.95->3.95 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-ce-2b', 4, None)                            it 8.82->8.82 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('boss-ce-5', 1, None)                             it 3.09->2.08 (x0.68) | ts_1000 -0.002 dB | nc 0->0 | wasm_1000 -0.002 dB | wasm_16000 -0.002 dB | wasm_8000 -0.002 dB
+('boss-ce-5', 4, None)                             it 16.00->8.01 (x0.50) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('boss-dd-3b', 1, None)                            it 3.02->1.02 (x0.34) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-dd-3b', 4, None)                            it 12.32->4.51 (x0.37) | ts_1000 +0.000 dB | nc 4->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-dm-3', 1, None)                             it 5.01->3.04 (x0.61) | ts_1000 +0.002 dB | nc 0->0 | wasm_1000 +0.002 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-dm-3', 4, None)                             it 12.28->12.14 (x0.99) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-ge-7', 1, None)                             it 2.65->2.65 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-ge-7', 4, None)                             it 8.02->8.02 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-md-2', 1, None)                             it 2.75->2.75 (x1.00) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('boss-md-2', 4, None)                             it 4.25->4.25 (x1.00) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('boss-mt-2', 1, None)                             it 4.80->4.08 (x0.85) | ts_1000 +0.000 dB | nc 24->10 | wasm_1000 +0.000 dB | wasm_16000 +0.002 dB | wasm_8000 -0.000 dB
+('boss-mt-2', 4, None)                             it 15.69->9.91 (x0.63) | ts_1000 +0.000 dB | nc 11->2 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('boss-oc-2', 1, None)                             it 1.00->1.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-oc-2', 4, None)                             it 4.00->4.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-od-1', 1, None)                             it 2.17->2.17 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('boss-od-1', 4, None)                             it 5.08->5.07 (x1.00) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-od-3', 1, None)                             it 3.00->2.04 (x0.68) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('boss-od-3', 4, None)                             it 12.00->8.00 (x0.67) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('boss-os-2', 1, None)                             it 3.56->3.50 (x0.98) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-os-2', 4, None)                             it 6.94->6.94 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-ph-1r', 1, None)                            it 3.92->2.04 (x0.52) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('boss-ph-1r', 4, None)                            it 15.64->7.98 (x0.51) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('boss-pq-4', 1, None)                             it 3.00->2.65 (x0.88) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('boss-pq-4', 4, None)                             it 12.00->8.00 (x0.67) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-rv-5', 1, None)                             it 1.00->1.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-rv-5', 4, None)                             it 4.00->4.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-vb-2', 1, None)                             it 2.00->2.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('boss-vb-2', 4, None)                             it 8.00->8.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('dod-envelope-filter-440-vintage-green', 1, None) it 2.71->2.71 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('dod-envelope-filter-440-vintage-green', 4, None) it 7.19->7.19 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('electro-harmonix-slapback-echo', 1, None)        it 4.00->2.00 (x0.50) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('electro-harmonix-slapback-echo', 4, None)        it 16.00->4.00 (x0.25) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('fulltone-ocd-v1.4', 1, None)                     it 4.13->3.25 (x0.79) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('fulltone-ocd-v1.4', 4, None)                     it 12.92->7.54 (x0.58) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('ibanez-ts808', 1, None)                          it 2.92->2.92 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('ibanez-ts808', 4, None)                          it 4.69->4.69 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('ibanez-ts9-reissue', 1, None)                    it 2.63->2.63 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('ibanez-ts9-reissue', 4, None)                    it 4.63->4.63 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('jhs-morning-glory', 1, None)                     it 2.73->2.73 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('jhs-morning-glory', 4, None)                     it 4.81->4.81 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('keeley-compressor-plus', 1, None)                it 2.00->2.00 (x1.00) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('keeley-compressor-plus', 4, None)                it 4.50->4.50 (x1.00) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('klon-centaur', 1, None)                          it 2.00->2.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('klon-centaur', 4, None)                          it 4.46->4.46 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('marshall-blues-breaker', 1, None)                it 2.58->2.58 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('marshall-blues-breaker', 4, None)                it 5.31->5.31 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('marshall-guvnor-drivemaster', 1, None)           it 4.42->3.27 (x0.74) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 +0.000 dB | wasm_8000 -0.000 dB
+('marshall-guvnor-drivemaster', 4, None)           it 15.37->6.83 (x0.44) | ts_1000 -0.000 dB | nc 0->0 | wasm_1000 -0.000 dB | wasm_16000 -0.000 dB | wasm_8000 -0.000 dB
+('mxr-blue-box', 1, None)                          it 23.20->4.62 (x0.20) | ts_1000 +0.416 dB | nc 1->0 | wasm_1000 +0.504 dB | wasm_16000 +118.571 dB | wasm_8000 -40.613 dB
+('mxr-blue-box', 4, None)                          it 15.96->7.45 (x0.47) | ts_1000 -1.452 dB | nc 11->13 | wasm_1000 +0.000 dB | wasm_16000 +0.164 dB | wasm_8000 +7.470 dB
+('mxr-phase-45', 1, None)                          it 3.31->2.43 (x0.73) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 -0.000 dB | wasm_8000 +0.000 dB
+('mxr-phase-45', 4, None)                          it 14.32->5.20 (x0.36) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('pigtronix-philosophers-tone', 1, None)           it 2.25->2.25 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('pigtronix-philosophers-tone', 4, None)           it 8.00->8.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('pro-co-rat-2-v4b-op07cp', 1, None)               it 2.50->2.50 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('pro-co-rat-2-v4b-op07cp', 4, None)               it 6.52->6.52 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('vemuram-jan-ray', 1, None)                       it 2.40->2.40 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('vemuram-jan-ray', 4, None)                       it 4.17->4.17 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('roland-jc-120-jazz-chorus', 1, None)             it 2.00->2.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('roland-jc-120-jazz-chorus', 4, None)             it 8.00->8.00 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('sunn-beta-lead', 1, None)                        it 3.59->3.59 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+('sunn-beta-lead', 4, None)                        it 9.32->9.32 (x1.00) | ts_1000 +0.000 dB | nc 0->0 | wasm_1000 +0.000 dB | wasm_16000 +0.000 dB | wasm_8000 +0.000 dB
+
+worst |dB change| 118.571; rows over 0.05 dB: 7
+   (('mxr-blue-box', 1, None), 'ts_1000_mV', 0.4156430138158924)
+   (('mxr-blue-box', 1, None), 'wasm_1000_mV', 0.5044047790265084)
+   (('mxr-blue-box', 1, None), 'wasm_16000_mV', 118.57119178106095)
+   (('mxr-blue-box', 1, None), 'wasm_8000_mV', -40.61311986263098)
+   (('mxr-blue-box', 4, None), 'ts_1000_mV', -1.4517306283331752)
+   (('mxr-blue-box', 4, None), 'wasm_16000_mV', 0.16368959187335136)
+   (('mxr-blue-box', 4, None), 'wasm_8000_mV', 7.470303984363788)

@@ -1,0 +1,3 @@
+program from the NEW compiler: formatVersion 6, requiredOperators ["bjt","capacitor","conductance","controlled-conductance","dc-source","diode","fet","ideal-opamp","input-source"], op-amp stamps carry gainBandwidthHz = 3000000, 3000000
+ts9 os1 on the baseline runtime: TS 2f828dc87d3217c4811a5ff70266ac98fb43508b8b242c8ecfd4490d00741881  WASM c1a4c043ae0f9ae60f31c1b3eb5cbaa57bd67276e591a5045fe96dc04fd24a92  (no refusal, no warning)
+ts9 os4 on the baseline runtime: TS 5b758de8c514cc85cec28f0ceed61985e1cfe6a942cb44896be9606c4f64caf4  WASM 79a603dfa317c802e0d8e653c765da4c9255f2fa4438d46cc554164f72d1d1d4  (no refusal, no warning)
