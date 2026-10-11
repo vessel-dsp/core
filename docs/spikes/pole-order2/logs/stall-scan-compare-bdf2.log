@@ -1,0 +1,11 @@
+252 cases (main), 252 (change)
+
+WORSE on the change:
+   (('boss-mt-2', 2), 'STALL on change, converges on main', 8.057083333333333, 1024)
+   (('boss-mt-2', 4), 'STALL on change, converges on main', 14.444, 1024)
+
+BETTER on the change:
+   none
+
+iterations x1.5 or more on the change (not stalls):
+   none

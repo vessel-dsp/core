@@ -1,0 +1,13 @@
+slug                                os stimulus       | TS: NC  peak it/host finite | WASM: it/host peak
+boss-bd-2-blues-driver              1 1kHz-100mV-1s  |     0     3   2.792 true | STALL wasm skipped
+boss-bd-2-blues-driver              1 two-tone-2s    |     0    16   3.012 true | STALL wasm skipped
+boss-bd-2-blues-driver              4 1kHz-100mV-1s  |     0     3   8.000 true | STALL wasm skipped
+boss-bd-2-blues-driver              4 two-tone-2s    |     0     5   9.158 true | STALL wasm skipped
+ibanez-pql                          1 1kHz-100mV-1s  |     0     2   2.000 true | STALL wasm skipped
+ibanez-pql                          1 two-tone-2s    |     0     2   2.000 true | STALL wasm skipped
+ibanez-pql                          4 1kHz-100mV-1s  |     0     2   4.543 true | STALL wasm skipped
+ibanez-pql                          4 two-tone-2s    |     0     2   5.082 true | STALL wasm skipped
+boss-od-1                           1 1kHz-100mV-1s  |     0    17   2.167 true | STALL wasm skipped
+boss-od-1                           1 two-tone-2s    |     0    17   2.171 true | STALL wasm skipped
+boss-od-1                           4 1kHz-100mV-1s  |     0    17   5.085 true | STALL wasm skipped
+boss-od-1                           4 two-tone-2s    |     0    17   4.340 true | STALL wasm skipped

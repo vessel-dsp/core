@@ -1,0 +1,65 @@
+== TS-only break
+bun test v1.3.14 (0d9b296a)
+
+packages/runtime/tests/opamp-pole-order.test.ts:
+135 | 				const program = stage(gain);
+136 | 				for (const oversample of [1, 2, 4]) {
+137 | 					for (const hz of [100, 1000, 4000, 10_000, 16_000]) {
+138 | 						const measured = await measuredDb(program, hz, oversample, render);
+139 | 						const law = trapezoidClosedLoopMagnitudeDb(gain, GBP, hz, RATE * oversample);
+140 | 						expect(Math.abs(measured - law)).toBeLessThan(WIRE_TOLERANCE_DB);
+                                             ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 0.01
+Received: 36.719265545037246
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/brk/packages/runtime/tests/opamp-pole-order.test.ts:140:40)
+(fail) TS reference: the op-amp pole is second order > renders every stage within 0.01 dB of the trapezoidal law it is specified to run, at x1, os2 and os4 [345.20ms]
+145 | 
+146 | 		it("meets the accuracy bar: a gain-100 stage at os4 is within 0.05 dB of the continuous single pole up to 10 kHz", async () => {
+147 | 			const program = stage(100);
+148 | 			for (const hz of [1000, 4000, 8000, 10_000]) {
+149 | 				const error = (await measuredDb(program, hz, 4, render)) - closedLoopMagnitudeDb(100, GBP, hz);
+150 | 				expect(Math.abs(error)).toBeLessThan(OS4_BAR_DB);
+                                  ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 0.05
+Received: 0.17611057418648102
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/brk/packages/runtime/tests/opamp-pole-order.test.ts:150:29)
+(fail) TS reference: the op-amp pole is second order > meets the accuracy bar: a gain-100 stage at os4 is within 0.05 dB of the continuous single pole up to 10 kHz [459.17ms]
+166 | 				const fine = await errorAt(4);
+167 | 				// The cells are far above the noise: the coarse error is at least 0.08 dB.
+168 | 				expect(coarse).toBeGreaterThan(0.06);
+169 | 				slopes.push(Math.log2(coarse / fine));
+170 | 			}
+171 | 			expect(median(slopes)).toBeGreaterThanOrEqual(MIN_SLOPE);
+                                ^
+error: expect(received).toBeGreaterThanOrEqual(expected)
+
+Expected: >= 1.8
+Received: -0.08420719186368975
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/brk/packages/runtime/tests/opamp-pole-order.test.ts:171:27)
+(fail) TS reference: the op-amp pole is second order > is second order: halving the step quarters the error (log-log slope >= 1.8; backward Euler reads 1) [2389.23ms]
+178 | 			// 48 kHz, where the pole is transparent and the stage is a flat A0 / (1 + A0 / G).
+179 | 			const active = stage(2, 100);
+180 | 			for (const hz of [1000, 4000, 8000, 16_000]) {
+181 | 				const measured = await measuredDb(active, hz, 1, render);
+182 | 				const law = trapezoidClosedLoopMagnitudeDb(2, GBP, hz, RATE, 100);
+183 | 				expect(Math.abs(measured - law)).toBeLessThan(WIRE_TOLERANCE_DB);
+                                           ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 0.01
+Received: 100.8368472185899
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/brk/packages/runtime/tests/opamp-pole-order.test.ts:183:38)
+(fail) TS reference: the op-amp pole is second order > follows the law when the open-loop pole is large against the step, and is transparent once it passes Nyquist [96.24ms]
+
+ 9 pass
+ 4 fail
+ 75 expect() calls
+Ran 13 tests across 1 file. [4.97s]

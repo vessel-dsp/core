@@ -1,0 +1,8 @@
+patched /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/theta-cpp-0.5/packages/runtime/src/cpp/Engine.cpp
+442ad163b045c000f7661173312ecfab5973ab164ec41c9c46294f97461f56e8  /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/wasm-theta/0.5/v2_dsp.wasm
+patched /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/theta-cpp-0.6/packages/runtime/src/cpp/Engine.cpp
+798db33ff557f68b4cc6db37093ccd918456b0539c5cee6c382d78feccc3d66a  /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/wasm-theta/0.6/v2_dsp.wasm
+patched /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/theta-cpp-0.75/packages/runtime/src/cpp/Engine.cpp
+32bcc1654a10513582826fe149103d344e775ba202cad964743ff97ff226a17e  /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/wasm-theta/0.75/v2_dsp.wasm
+patched /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/theta-cpp-1.0/packages/runtime/src/cpp/Engine.cpp
+7baac2ce8a3561cd488322042745ff7ceae59f99a31b1afcfee42ef5b6fd1418  /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-pole-order2/7ef5acab-a15c-4f42-ba5b-808a9fc219e8/scratchpad/wasm-theta/1.0/v2_dsp.wasm

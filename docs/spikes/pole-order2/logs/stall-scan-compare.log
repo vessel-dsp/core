@@ -1,0 +1,23 @@
+252 cases (main), 252 (change)
+
+WORSE on the change:
+   (('boss-ch-1', 1), 'STALL on change, converges on main', 4.40775, 11)
+   (('boss-mt-2', 1), 'STALL on change, converges on main', 4.679833333333334, 1024)
+   (('boss-mt-2', 4), 'STALL on change, converges on main', 14.444, 1024)
+
+BETTER on the change:
+   none
+
+iterations x1.5 or more on the change (not stalls):
+   (('analog-man-prince-of-tone', 1), 'iterations x8.10', 2.8994166666666668, 23.491416666666666)
+   (('analog-man-prince-of-tone', 2), 'iterations x8.49', 4.504333333333333, 38.25991666666667)
+   (('analog-man-prince-of-tone', 4), 'iterations x1.62', 7.246666666666667, 11.704666666666666)
+   (('boss-ce-2', 1), 'iterations x1.63', 2.04025, 3.3223333333333334)
+   (('boss-ce-2', 2), 'iterations x1.50', 4.022083333333334, 6.03775)
+   (('boss-ce-5', 1), 'iterations x2.50', 3.0009166666666665, 7.499833333333333)
+   (('boss-dd-3b', 1), 'iterations x1.97', 3.118, 6.135)
+   (('boss-hm-2', 1), 'iterations x1.97', 5.223833333333333, 10.314416666666666)
+   (('boss-hm-2', 2), 'iterations x2.29', 6.27075, 14.333666666666666)
+   (('boss-hm-2', 4), 'iterations x2.12', 10.196916666666667, 21.613)
+   (('boss-tr-2', 1), 'iterations x1.71', 2, 3.42225)
+   (('boss-tr-2', 2), 'iterations x1.55', 4, 6.18775)

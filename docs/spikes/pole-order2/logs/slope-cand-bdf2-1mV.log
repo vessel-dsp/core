@@ -1,0 +1,9 @@
+log-log slope of |error| vs dt (error minus the G=1 follower's ripple; cells with |e| >= 0.03 dB at the coarser rate, f <= 10000 Hz)
+ts G=10 os1->2         n= 3 min 2.49 median 2.63 max 2.73
+ts G=10 os2->4         n= 1 min 2.67 median 2.67 max 2.67
+ts G=100 os1->2        n= 5 min 1.74 median 2.16 max 2.36
+ts G=100 os2->4        n= 4 min 2.07 median 2.20 max 2.23
+ts G=100 os4->8        n= 3 min 2.10 median 2.12 max 2.13
+ts G=2 os1->2          n= 1 min 2.63 median 2.63 max 2.63
+order-of-accuracy gate (median slope >= 1.8 for G=10 and G=100, os2->os4 and os4->os8, per console): 3 of 3 rows pass; 17 cells counted -> GREEN
+ts os4 G=100 worst |error| f<=10 kHz: 0.1827 dB at 10000 Hz -> NOT MET (bar 0.05)
