@@ -1,0 +1,21 @@
+=== BASE os1
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+second 0: 24.9 us/sample (1.19x real time)
+second 1: 25.8 us/sample (1.24x real time)
+second 2: 26.1 us/sample (1.25x real time)
+second 3: 25.6 us/sample (1.23x real time)
+second 4: 25.6 us/sample (1.23x real time)
+second 5: 27.1 us/sample (1.30x real time)
+second 6: 27.4 us/sample (1.32x real time)
+second 7: 26.2 us/sample (1.26x real time)
+final telemetry: {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1731151}
+RESULT: no block over 50 ms
+=== BASE os4
+# boss-mt-2 console=wasm os=4 cap=1024 seconds=8 block=128
+SLOW block starting at sample 16640 (0.3467 s): 57.7 ms = 451 us/sample; telemetry {"seedsUsed":8853,"oneIterationSolves":0,"totalIterations":246393}
+SLOW block starting at sample 31872 (0.6640 s): 4587.1 ms = 35836 us/sample; telemetry {"seedsUsed":17158,"oneIterationSolves":0,"totalIterations":513744}
+SLOW block starting at sample 32000 (0.6667 s): 56732.4 ms = 443222 us/sample; telemetry {"seedsUsed":17158,"oneIterationSolves":0,"totalIterations":1038032}
+SLOW block starting at sample 32128 (0.6693 s): 57332.3 ms = 447909 us/sample; telemetry {"seedsUsed":17158,"oneIterationSolves":0,"totalIterations":1562320}
+stopped after 3 stalled blocks (over 1000 ms) at sample 32256
+final telemetry: {"seedsUsed":17158,"oneIterationSolves":0,"totalIterations":1562320}
+RESULT: STALL, 3 blocks over 1000 ms (first at the SLOW line above)

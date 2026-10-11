@@ -1,0 +1,18 @@
+ M packages/compiler/src/compile.ts
+ M packages/compiler/src/device-laws.ts
+ M packages/compiler/src/lower.ts
+ M packages/compiler/src/netlist.ts
+ M packages/compiler/src/part-catalog.ts
+ M packages/compiler/src/registry.ts
+ M packages/compiler/src/types.ts
+ M packages/compiler/tests/dangling-active-terminal.test.ts
+ M packages/compiler/tests/over-driven-node.test.ts
+ M packages/runtime/src/cpp/Engine.cpp
+ M packages/runtime/src/cpp/ProgramJson.cpp
+ M packages/runtime/src/cpp/include/v2/Program.h
+ M packages/runtime/src/reference-runtime.ts
+?? docs/spikes/2026-10-10-opamp-gbw.md
+?? docs/spikes/opamp-gbw/
+?? packages/compiler/tests/gain-bandwidth.test.ts
+?? packages/runtime/tests/non-inverting-stage.ts
+?? packages/runtime/tests/opamp-gain-bandwidth.test.ts

@@ -185,6 +185,10 @@ struct Stamp {
     double exponent = 1.5;
     double turnsRatio = 1.0;
     double openLoopGain = 100000.0;
+    // Gain-bandwidth product in hertz, or absent for a section no source states one for (JSON null or
+    // a missing key): the engine then runs its class default (`OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ`).
+    // Mirrors `gainBandwidthHz` in src/compiler/types.ts.
+    std::optional<double> gainBandwidthHz;
     std::optional<double> railHigh;
     std::optional<double> railLow;
     double biasVolts = 0.0;

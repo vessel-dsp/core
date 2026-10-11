@@ -1,0 +1,61 @@
+=== (1) C++ only hard-codes 1e6 ===
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+da9fabff85dc8597d4767ae0e3b3843816e702878d3df368ddf59900905dbeb4  packages/runtime/src/wasm/v2_dsp.wasm
+bun test v1.3.14 (0d9b296a)
+
+packages/runtime/tests/opamp-gain-bandwidth.test.ts:
+119 | 			for (const [gain, rf, rg] of STAGES) {
+120 | 				for (const product of PRODUCTS) {
+121 | 					const program = programFor(nonInvertingStage({ rfOhms: rf, rgOhms: rg, gbp: `${product} Hz` }));
+122 | 					for (const hz of FREQUENCIES) {
+123 | 						const error = (await measuredDb(program, hz, render)) - expectedDb(gain, product, hz);
+124 | 						expect(Math.abs(error)).toBeLessThan(WIRE_TOLERANCE_DB);
+                                    ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 0.01
+Received: 0.021408160009155353
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/runtime/tests/opamp-gain-bandwidth.test.ts:124:31)
+(fail) WASM console: the declared gain-bandwidth product reaches the solver > renders every stage at every declared product within 0.01 dB of the engine's own pole law [1007.34ms]
+132 | 				const at = async (product: number, hz: number) =>
+133 | 					measuredDb(programFor(nonInvertingStage({ rfOhms: rf, rgOhms: rg, gbp: `${product} Hz` })), hz, render);
+134 | 				for (const hz of FREQUENCIES) {
+135 | 					const measuredMove = (await at(3e6, hz)) - (await at(1e6, hz));
+136 | 					const predictedMove = expectedDb(gain, 3e6, hz) - expectedDb(gain, 1e6, hz);
+137 | 					expect(Math.abs(measuredMove - predictedMove)).toBeLessThan(MOVE_TOLERANCE_DB);
+                                                          ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 0.02
+Received: 0.021210467993000748
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/runtime/tests/opamp-gain-bandwidth.test.ts:137:53)
+(fail) WASM console: the declared gain-bandwidth product reaches the solver > moves with the declared product by the amount the pole law predicts [217.04ms]
+
+ 6 pass
+ 2 fail
+ 47 expect() calls
+Ran 8 tests across 1 file. [11.48s]
+--- measured minus BE closed form per console (a-wire), mutated C++:
+os4: internal rate 192000 Hz. cell = measured - X (dB); X = continuous single pole | X = BE discrete closed form
+console G    GBP    |            100           1000           2000           4000           6300           8000          10000          12500          16000 | max|vs BE| (all f)
+ts      10    1 MHz |  0.000|  0.000   0.001|  0.002   0.000|  0.006  -0.023| -0.000  -0.051|  0.005  -0.086|  0.002  -0.134|  0.003  -0.208|  0.002  -0.326|  0.006 | 0.0058
+ts      10    3 MHz |  0.000|  0.000   0.002|  0.002   0.004|  0.006  -0.008| -0.000  -0.014|  0.005  -0.028|  0.002  -0.044|  0.003  -0.070|  0.002  -0.111|  0.006 | 0.0058
+ts      10   10 MHz |  0.000|  0.000   0.002|  0.002   0.005|  0.006  -0.002| -0.000  -0.001|  0.005  -0.007|  0.002  -0.011|  0.003  -0.020|  0.002  -0.030|  0.006 | 0.0058
+ts      100   1 MHz | -0.000| -0.000  -0.012|  0.002  -0.050|  0.005  -0.194| -0.004  -0.381| -0.001  -0.514| -0.004  -0.639| -0.003  -0.753| -0.003  -0.840|  0.001 | 0.0047
+ts      100   3 MHz | -0.000|  0.000  -0.002|  0.002  -0.013|  0.006  -0.074| -0.001  -0.172|  0.003  -0.271|  0.000  -0.400| -0.000  -0.575| -0.002  -0.817|  0.001 | 0.0056
+ts      100  10 MHz | -0.000|  0.000   0.001|  0.002   0.000|  0.006  -0.023| -0.000  -0.051|  0.005  -0.087|  0.002  -0.135|  0.002  -0.208|  0.001  -0.327|  0.004 | 0.0058
+wasm    10    1 MHz |  0.000|  0.000   0.001|  0.002   0.000|  0.006  -0.023| -0.000  -0.051|  0.005  -0.086|  0.002  -0.134|  0.003  -0.208|  0.002  -0.326|  0.006 | 0.0058
+wasm    10    3 MHz |  0.000|  0.000   0.001|  0.001  -0.001|  0.001  -0.029| -0.021  -0.066| -0.047  -0.111| -0.081  -0.173| -0.126  -0.267| -0.195  -0.423| -0.307 | 0.3067
+wasm    10   10 MHz |  0.000|  0.000   0.001|  0.001  -0.002| -0.001  -0.030| -0.027  -0.068| -0.062  -0.114| -0.105  -0.177| -0.163  -0.274| -0.252  -0.434| -0.399 | 0.3989
+wasm    100   1 MHz | -0.000| -0.000  -0.012|  0.002  -0.050|  0.005  -0.194| -0.004  -0.381| -0.001  -0.514| -0.004  -0.639| -0.003  -0.753| -0.003  -0.840|  0.001 | 0.0047
+wasm    100   3 MHz | -0.001| -0.000  -0.050| -0.045  -0.200| -0.181  -0.761| -0.688  -1.643| -1.468  -2.361| -2.090  -3.189| -2.789  -4.140| -3.567  -5.263| -4.445 | 4.4447
+wasm    100  10 MHz | -0.001| -0.001  -0.055| -0.053  -0.218| -0.212  -0.831| -0.808  -1.813| -1.758  -2.631| -2.543  -3.602| -3.465  -4.767| -4.558  -6.239| -5.908 | 5.9078

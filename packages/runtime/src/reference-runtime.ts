@@ -809,11 +809,28 @@ function opAmpHalfSwing(railHigh: number, railLow: number): number {
 }
 
 /**
- * The op-amp's gain-bandwidth product, in hertz. A class default rather than a part fact:
- * the source's per-packet GBP is not read (see `netlist.ts`), so every op-amp in the corpus
- * gets the same pole. With a 1e5 gain the open-loop pole sits at `GBP / gain`, 10 Hz here.
+ * The gain-bandwidth product, in hertz, of an op-amp section whose stamp states none
+ * (`gainBandwidthHz: null`). Before the stamp carried the field every op-amp in every program
+ * ran this value, so a `null` section renders exactly as it always did; the compiler names the
+ * sections left on it (`opamp-gain-bandwidth-default`). With a 1e5 gain the open-loop pole sits at
+ * `GBP / gain`, 10 Hz here.
+ *
+ * A stamp that states a product runs on that product instead. Mirrored in `Engine.cpp`'s
+ * `OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ`.
  */
-const OPAMP_GAIN_BANDWIDTH_HZ = 1e6;
+const OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ = 1e6;
+
+/**
+ * The gain-bandwidth product an op-amp stamp runs on: its own, else the class default. `??` also
+ * catches `undefined`, which is what a program compiled before the field existed carries -- that
+ * program was compiled against this same default, so reading it as `null` is its meaning, not a
+ * fallback invented for it.
+ */
+function opAmpGainBandwidthHz(
+	stamp: Extract<Stamp, { kind: "ideal-opamp" }>,
+): number {
+	return stamp.gainBandwidthHz ?? OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ;
+}
 
 /**
  * Anti-windup bound for the op-amp pole's raw state, in units of halfSwing.
@@ -6373,7 +6390,7 @@ export class ReferenceRuntime {
 			const key = packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output);
 			const alpha = opAmpPoleAlpha(
 				stamp.openLoopGain,
-				OPAMP_GAIN_BANDWIDTH_HZ,
+				opAmpGainBandwidthHz(stamp),
 				dt,
 				this.sampleRate as number,
 			);
@@ -7651,7 +7668,7 @@ export class ReferenceRuntime {
 					? 1
 					: opAmpPoleAlpha(
 							stamp.openLoopGain,
-							OPAMP_GAIN_BANDWIDTH_HZ,
+							opAmpGainBandwidthHz(stamp),
 							dt,
 							this.sampleRate as number,
 						);

@@ -1,0 +1,26 @@
+player-proof: box 18:14:51 up 1 day,  5:32,  0 users,  load average: 7.40, 6.90, 10.40
+player-proof: chromium 149.0.7827.55, worklet 356209 bytes, dsp wasm 2147705 bytes, nam wasm 420095 bytes
+player-proof: leg buffer-pedal oracle scale=1.0000 refPeak=0.2571 consoleDelta=3.02e-8
+player-proof: leg buffer-pedal pre-click state=ready ctxCreated=false wasmHits=0
+player-proof: leg buffer-pedal contextRate=48000 captured=61440
+player-proof: leg buffer-pedal tightDist p50=6.16e-5 p90=6.70e-5 worstChunk=0 shift=8192 top5=@4:-1.7e-5,@3:-1.7e-5,@2:-1.7e-5,@1:-1.7e-5,@0:-1.7e-5 first5=[6.7e-5,7.7e-8,6.2e-5,2.3e-7,6.2e-5]
+player-proof: leg buffer-pedal peak=0.2533 rms=0.1839 rate=48000 chunks=30 tightMax=6.70e-5 (<=0.002) vsTsMax=6.70e-5 (<=2.00e-3, consoleDelta=3.02e-8) cpuLoadMean=8.54 cpuP95Max=35.36 cpuSessionPeak=37.50 overruns=0 newOverruns=0 firstOverrunWindow=-1 PASS
+player-proof: leg fuzz-pedal oracle scale=1.0000 refPeak=0.1418 consoleDelta=5.22e-8
+player-proof: leg fuzz-pedal pre-click state=ready ctxCreated=false wasmHits=0
+player-proof: leg fuzz-pedal contextRate=48000 captured=61440
+player-proof: leg fuzz-pedal tightDist p50=9.70e-4 p90=1.02e-3 worstChunk=1 shift=4755 top5=@541:1.4e-3,@432:1.4e-3,@323:1.4e-3,@214:1.4e-3,@105:1.4e-3 first5=[5.2e-8,1.0e-3,5.2e-8,1.0e-3,1.8e-5]
+player-proof: leg fuzz-pedal peak=0.1418 rms=0.1069 rate=48000 chunks=30 tightMax=1.02e-3 (<=0.002) vsTsMax=1.02e-3 (<=2.00e-3, consoleDelta=5.22e-8) cpuLoadMean=2.51 cpuP95Max=13.93 cpuSessionPeak=150.00 overruns=1 newOverruns=0 firstOverrunWindow=0 PASS
+player-proof: leg buffer-plus-ir oracle scale=1.0000 refPeak=5.2220 consoleDelta=4.37e-8
+player-proof: leg buffer-plus-ir pre-click state=ready ctxCreated=false wasmHits=0
+player-proof: leg buffer-plus-ir contextRate=48000 captured=61440
+player-proof: leg buffer-plus-ir tightDist p50=7.74e-4 p90=7.75e-4 worstChunk=5 shift=48093 top5=@726:-4.1e-2,@1926:-4.1e-2,@944:-4.1e-2,@2035:-4.1e-2,@835:-4.1e-2 first5=[2.5e-5,7.7e-4,2.5e-5,7.7e-4,2.5e-5]
+player-proof: leg buffer-plus-ir peak=5.1691 rms=3.1547 rate=48000 chunks=30 tightMax=7.75e-4 (<=0.002) vsTsMax=7.75e-4 (<=2.00e-3, consoleDelta=4.37e-8) cpuLoadMean=10.65 cpuP95Max=39.64 cpuSessionPeak=150.00 overruns=2 newOverruns=0 firstOverrunWindow=0 PASS
+player-proof: leg buffer-plus-nam oracle scale=1.0000 refPeak=0.0727 consoleDelta=1.02e-7
+player-proof: leg buffer-plus-nam pre-click state=ready ctxCreated=false wasmHits=0
+player-proof: leg buffer-plus-nam contextRate=48000 captured=61440
+player-proof: leg buffer-plus-nam tightDist p50=4.27e-7 p90=5.36e-7 worstChunk=4 shift=58720 top5=@1675:-3.5e-8,@1678:-3.6e-8,@853:-3.7e-8,@806:-3.9e-8,@753:-3.9e-8 first5=[4.2e-7,4.2e-7,4.4e-7,4.2e-7,5.4e-7]
+player-proof: leg buffer-plus-nam peak=0.0712 rms=0.0505 rate=48000 chunks=30 tightMax=5.36e-7 (<=0.002) vsTsMax=5.36e-7 (<=2.00e-3, consoleDelta=1.02e-7) cpuLoadMean=8.34 cpuP95Max=37.50 cpuSessionPeak=300.00 overruns=1 newOverruns=0 firstOverrunWindow=0 PASS
+player-proof: leg phase90-pedal oracle scale=1.0000 refPeak=0.8037 consoleDelta=8.43e-2
+player-proof: leg phase90-pedal pre-click state=ready ctxCreated=false wasmHits=0
+player-proof: leg phase90-pedal HARVEST admission-refused with measured 7812 ns (refusal text: The chain cannot be shown to fit inside 5208 ns/sample at 48000 Hz: measured 7812 ns plus NAM/IR 0 ns.)
+player-proof: PASS

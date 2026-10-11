@@ -1,0 +1,29 @@
+== 07-pack-visual-effects: bun run --cwd packages/visual-effects pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/visual-effects@0.6.15 prepack
+> bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+npm notice
+npm notice 📦  @vessel-dsp/visual-effects@0.6.15
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE.md
+npm notice 429B README.md
+npm notice 3.5kB dist/index.d.ts
+npm notice 3.0kB dist/index.d.ts.map
+npm notice 12.3kB dist/index.js
+npm notice 9.5kB dist/index.js.map
+npm notice 1.2kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/visual-effects
+npm notice version: 0.6.15
+npm notice filename: vessel-dsp-visual-effects-0.6.15.tgz
+npm notice package size: 7.8 kB
+npm notice unpacked size: 31.0 kB
+npm notice shasum: 0865e7ecd817154195ec9bcffac953200e37baef
+npm notice integrity: sha512-Y3AnUyOqyE2Ft[...]DHljindw7JD9g==
+npm notice total files: 7
+npm notice
+vessel-dsp-visual-effects-0.6.15.tgz
+exit 0

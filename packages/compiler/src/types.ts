@@ -982,6 +982,18 @@ export type DeviceLaw =
 			 * ground; those parts state none.
 			 */
 			readonly outputSwingDropVolts?: number;
+			/**
+			 * Gain-bandwidth product in hertz: where a single-pole part's open-loop gain falls to
+			 * unity, so its dominant pole sits at `gainBandwidthHz / openLoopGain`. A closed-loop
+			 * stage of gain `G` rolls off at `gainBandwidthHz / G`.
+			 *
+			 * **A stated fact or nothing.** It comes from the packet's own typed `GBP`, else from the
+			 * part's datasheet typical figure (`part-catalog.ts`, by exact part id), and is absent when
+			 * neither states one -- never an estimate, and never chosen to fit a capture. Absent lowers
+			 * to a `null` stamp, which the consoles run on their class default of 1 MHz and which the
+			 * `opamp-gain-bandwidth-default` warning names.
+			 */
+			readonly gainBandwidthHz?: number;
 	  }
 	| {
 			readonly kind: "logic-divider";
@@ -1619,6 +1631,16 @@ export type Stamp =
 			 * op-amp stiffness, the saturation band and the step limiter was taken at the default.
 			 */
 			readonly openLoopGain: number;
+			/**
+			 * Gain-bandwidth product in hertz, or `null` when no source states one for this section.
+			 *
+			 * Both consoles read this field for the dominant pole at `gainBandwidthHz / openLoopGain`;
+			 * `null` runs the consoles' class default of 1 MHz, which was the only value every op-amp
+			 * had before this field existed. The number of sections left on that default is the
+			 * `opamp-gain-bandwidth-default` warning, so the default is visible rather than hidden.
+			 * Unrailed sections are virtual shorts with no pole, so the field is inert for them.
+			 */
+			readonly gainBandwidthHz: number | null;
 			readonly sourceIndex: number;
 			readonly railHigh: number | null;
 			readonly railLow: number | null;
@@ -3048,6 +3070,31 @@ export type OpampLawDefaultWarning = {
 	readonly detail: string;
 };
 
+/**
+ * Op-amp sections whose gain-bandwidth product no source states, so both consoles run them on
+ * the class default of 1 MHz. One warning per document, counting the sections and naming every
+ * device that has one.
+ *
+ * **Why it is named.** Until `gainBandwidthHz` existed every op-amp in every pedal ran a 1 MHz
+ * product, whatever its part: a gain-100 stage's closed-loop corner is `GBP / 100`, 10 kHz at
+ * 1 MHz and 30 kHz at a 4558's printed 3 MHz, so a wrong product is audible exactly where a stage's
+ * high-frequency droop sits. A section whose packet declares a typed `GBP`, or whose exact part id
+ * has a datasheet figure in the catalog, is not listed. Naming the rest keeps the default visible.
+ *
+ * **What it does not claim.** Not that 1 MHz is wrong for the part -- only that no source says so.
+ * Only railed sections are counted: an unrailed op-amp is a virtual short with no pole, so the
+ * product does nothing there. A compandor's internal op-amp is counted (the law states no product),
+ * under the compandor's device id.
+ */
+export type OpampGainBandwidthDefaultWarning = {
+	readonly code: "opamp-gain-bandwidth-default";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	/** How many railed op-amp sections run on the class default. At least `devices.length`. */
+	readonly sections: number;
+	readonly detail: string;
+};
+
 export type ElectricallyIsolatedIcWarning = {
 	readonly code: "electrically-isolated-ic";
 	readonly device: DeviceId;
@@ -3331,6 +3378,7 @@ export type CompileWarning =
 	| FetLawDefaultWarning
 	| BjtLawDefaultWarning
 	| OpampLawDefaultWarning
+	| OpampGainBandwidthDefaultWarning
 	| IcNotExecutedWarning
 	| OutputPortUnreachableWarning
 	| InterfaceOrSourceOnlyWarning

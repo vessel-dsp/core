@@ -1,0 +1,29 @@
+== 07-pack-amp: bun run --cwd packages/amp pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/amp@0.6.15 prepack
+> bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+npm notice
+npm notice 📦  @vessel-dsp/amp@0.6.15
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE.md
+npm notice 653B README.md
+npm notice 3.0kB dist/index.d.ts
+npm notice 2.8kB dist/index.d.ts.map
+npm notice 28.7kB dist/index.js
+npm notice 31.5kB dist/index.js.map
+npm notice 1.2kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/amp
+npm notice version: 0.6.15
+npm notice filename: vessel-dsp-amp-0.6.15.tgz
+npm notice package size: 14.7 kB
+npm notice unpacked size: 69.0 kB
+npm notice shasum: 0f1c430e3d7e16255c2b6673b005f2aa78671660
+npm notice integrity: sha512-IIF0TXfq9ZM4v[...]oy1bSpo/w7hUw==
+npm notice total files: 7
+npm notice
+vessel-dsp-amp-0.6.15.tgz
+exit 0

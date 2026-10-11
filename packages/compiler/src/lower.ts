@@ -695,6 +695,7 @@ export function lowerRegion(
 					railHigh: law.railHigh,
 					railLow: law.railLow,
 					openLoopGain: law.openLoopGain,
+					gainBandwidthHz: law.gainBandwidthHz ?? null,
 				});
 				auxCount += 1;
 				break;
@@ -1154,6 +1155,9 @@ export function lowerRegion(
 					railHigh: law.railHigh,
 					railLow: law.railLow,
 					openLoopGain: law.openLoopGain,
+					// The compandor law states no op-amp product, so its internal section is on the
+					// consoles' default and the compile names it.
+					gainBandwidthHz: null,
 				});
 
 				stamps.push({

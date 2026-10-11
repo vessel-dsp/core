@@ -48,6 +48,7 @@ import { findNonExecutableClockDrivers } from "./non-executable-clock-drivers";
 import { GROUND } from "./types";
 import type {
 	BjtLawDefaultWarning,
+	OpampGainBandwidthDefaultWarning,
 	OpampLawDefaultWarning,
 	CompileResult,
 	DeclaredDelayWarning,
@@ -233,6 +234,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist),
 		...findOpampLawDefaults(lawed),
+		...findOpampGainBandwidthDefaults(lawed),
 		...scaled.warnings,
 		],
 	};
@@ -427,6 +429,48 @@ function findOpampLawDefaults(lawed: LawedNetlist): readonly OpampLawDefaultWarn
 				`${defaulted.length} op-amp(s) swing the full supply because the part states no ` +
 				`output-swing drop: ${listed.join("; ")}. Harmless for a stage that never nears ` +
 				"the rails; decisive for a comparator, an LFO or a clipper.",
+		},
+	];
+}
+
+/**
+ * Railed op-amp sections whose gain-bandwidth product no source states. See
+ * `OpampGainBandwidthDefaultWarning`.
+ *
+ * A section is lowered as `<device>#<index>`, so each resolution is one section and the warning
+ * names the package once. A compandor's internal op-amp is one more section under the compandor's
+ * own id: its law carries no product, and the stamp `lower.ts` builds from it is `null`.
+ */
+function findOpampGainBandwidthDefaults(
+	lawed: LawedNetlist,
+): readonly OpampGainBandwidthDefaultWarning[] {
+	const byId = new Map(lawed.netlist.devices.map((device) => [device.id, device]));
+	const sections = new Map<string, number>();
+	for (const resolution of lawed.resolutions) {
+		if (resolution.outcome !== "law") continue;
+		const law = resolution.law;
+		if (law.kind !== "ideal-opamp" && law.kind !== "compandor") continue;
+		if (law.kind === "ideal-opamp" && law.gainBandwidthHz !== undefined) continue;
+		if (law.railHigh === null || law.railLow === null) continue;
+		const id = resolution.device.replace(/#\d+$/, "");
+		sections.set(id, (sections.get(id) ?? 0) + 1);
+	}
+	if (sections.size === 0) return [];
+	const total = [...sections.values()].reduce((sum, count) => sum + count, 0);
+	const listed = [...sections].map(([id, count]) => {
+		const part = byId.get(id)?.identity.partNumber ?? null;
+		return `${id}${part === null ? "" : ` (${part})`}${count > 1 ? ` x${count}` : ""}`;
+	});
+	return [
+		{
+			code: "opamp-gain-bandwidth-default" as const,
+			device: null,
+			devices: [...sections.keys()] as unknown as OpampGainBandwidthDefaultWarning["devices"],
+			sections: total,
+			detail:
+				`${total} op-amp section(s) run on the consoles' class-default 1 MHz gain-bandwidth ` +
+				`product because no source states one: ${listed.join("; ")}. A stage of gain G rolls off ` +
+				"at GBP / G, so a wrong product moves the high-frequency droop of a high-gain stage.",
 		},
 	];
 }

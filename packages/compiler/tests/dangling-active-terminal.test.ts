@@ -154,6 +154,7 @@ describe("findDanglingActiveTerminals", () => {
 				minus: 31,
 				output: 32,
 				openLoopGain: 1e5,
+				gainBandwidthHz: null,
 				railHigh: 9,
 				railLow: 0,
 				sourceIndex: 20,

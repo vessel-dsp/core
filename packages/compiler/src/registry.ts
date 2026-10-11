@@ -514,3 +514,39 @@ export function registryOpampSwingDrop(
 	}
 	return null;
 }
+
+/**
+ * The gain-bandwidth product, in hertz, that a part's datasheet states, from the registry entry
+ * that names it by exact part id, or `null` when the part is not in the registry or its entry states
+ * none. Read the same way as `registryOpampSwingDrop` -- from an `ideal-opamp` law entry or the first
+ * section of a `sections` entry -- and for the same reason: a declared `opamp` device never reaches
+ * the section lowering, so this is the only door through which the catalog's figure reaches it.
+ *
+ * `null` is an answer, not a failure: the caller then has no part fact, and lowers a `null` stamp
+ * that the consoles run on their class default and the compiler names in a warning. Whole folded id
+ * only (`foldPartId`); there is no prefix, substring or family rule on this path.
+ */
+export function registryOpampGainBandwidth(
+	registry: PartRegistry,
+	partNumber: string | null,
+): number | null {
+	if (partNumber === null) {
+		return null;
+	}
+	const folded = foldPartId(partNumber);
+	for (const entry of registry.entries) {
+		if (!entry.partIds.some((id) => foldPartId(id) === folded)) {
+			continue;
+		}
+		const law =
+			entry.model.kind === "law"
+				? entry.model.law
+				: entry.model.kind === "sections"
+					? entry.model.sections[0]?.law
+					: undefined;
+		if (law !== undefined && law.kind === "ideal-opamp") {
+			return law.gainBandwidthHz ?? null;
+		}
+	}
+	return null;
+}

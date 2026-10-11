@@ -1,0 +1,98 @@
+== 07-pack-runtime: bun run --cwd packages/runtime pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/runtime@0.4.1 prepack
+> bun run --cwd ../core build && bun run --cwd ../compiler build && bun run build:wasm && bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm && bun scripts/build-worklet.ts
+build-worklet: wrote /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/runtime/dist/worklet/v2-audio-worklet.js (298405 bytes, no external imports)
+npm notice
+npm notice 📦  @vessel-dsp/runtime@0.4.1
+npm notice Tarball Contents
+npm notice 18.4kB README.md
+npm notice 5.5kB dist/admission.d.ts
+npm notice 920B dist/admission.d.ts.map
+npm notice 11.8kB dist/admission.js
+npm notice 4.9kB dist/admission.js.map
+npm notice 4.5kB dist/calibrate.d.ts
+npm notice 2.9kB dist/calibrate.d.ts.map
+npm notice 16.6kB dist/calibrate.js
+npm notice 13.9kB dist/calibrate.js.map
+npm notice 4.4kB dist/chain-advisories.d.ts
+npm notice 870B dist/chain-advisories.d.ts.map
+npm notice 14.3kB dist/chain-advisories.js
+npm notice 6.2kB dist/chain-advisories.js.map
+npm notice 4.7kB dist/chain-scale.d.ts
+npm notice 1.2kB dist/chain-scale.d.ts.map
+npm notice 6.4kB dist/chain-scale.js
+npm notice 2.2kB dist/chain-scale.js.map
+npm notice 7.3kB dist/chain-slot.d.ts
+npm notice 2.1kB dist/chain-slot.d.ts.map
+npm notice 5.3kB dist/chain-slot.js
+npm notice 2.0kB dist/chain-slot.js.map
+npm notice 6.3kB dist/chain.d.ts
+npm notice 1.6kB dist/chain.d.ts.map
+npm notice 18.3kB dist/chain.js
+npm notice 9.7kB dist/chain.js.map
+npm notice 1.3kB dist/index.d.ts
+npm notice 1.1kB dist/index.d.ts.map
+npm notice 1.7kB dist/index.js
+npm notice 908B dist/index.js.map
+npm notice 73.6kB dist/reference-runtime.d.ts
+npm notice 10.0kB dist/reference-runtime.d.ts.map
+npm notice 401.4kB dist/reference-runtime.js
+npm notice 218.7kB dist/reference-runtime.js.map
+npm notice 3.4kB dist/resample.d.ts
+npm notice 1.0kB dist/resample.d.ts.map
+npm notice 8.8kB dist/resample.js
+npm notice 5.7kB dist/resample.js.map
+npm notice 21.1kB dist/settle.d.ts
+npm notice 5.0kB dist/settle.d.ts.map
+npm notice 45.6kB dist/settle.js
+npm notice 29.2kB dist/settle.js.map
+npm notice 1.1kB dist/supply-ground.d.ts
+npm notice 415B dist/supply-ground.d.ts.map
+npm notice 3.5kB dist/supply-ground.js
+npm notice 1.3kB dist/supply-ground.js.map
+npm notice 1.1kB dist/supply.d.ts
+npm notice 471B dist/supply.d.ts.map
+npm notice 410B dist/supply.js
+npm notice 119B dist/supply.js.map
+npm notice 477B dist/taper.d.ts
+npm notice 240B dist/taper.d.ts.map
+npm notice 2.0kB dist/taper.js
+npm notice 897B dist/taper.js.map
+npm notice 6.2kB dist/v2-wasm-engine.d.ts
+npm notice 2.0kB dist/v2-wasm-engine.d.ts.map
+npm notice 16.7kB dist/v2-wasm-engine.js
+npm notice 11.0kB dist/v2-wasm-engine.js.map
+npm notice 16.5kB dist/wasm/v2_dsp.cjs
+npm notice 2.1MB dist/wasm/v2_dsp.wasm
+npm notice 298.4kB dist/worklet/v2-audio-worklet.js
+npm notice 10.7kB dist/worklet/v2-worklet-protocol.d.ts
+npm notice 3.3kB dist/worklet/v2-worklet-protocol.d.ts.map
+npm notice 2.2kB dist/worklet/v2-worklet-protocol.js
+npm notice 576B dist/worklet/v2-worklet-protocol.js.map
+npm notice 1.7kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/runtime
+npm notice version: 0.4.1
+npm notice filename: vessel-dsp-runtime-0.4.1.tgz
+npm notice package size: 1.2 MB
+npm notice unpacked size: 3.5 MB
+npm notice shasum: 5f136fa8f726ec8d77b7365a2fd2337423cb7043
+npm notice integrity: sha512-K5QjktuSmj+oB[...]VmlsCByD74L1Q==
+npm notice total files: 65
+npm notice
+vessel-dsp-runtime-0.4.1.tgz
+exit 0

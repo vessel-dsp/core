@@ -1,0 +1,29 @@
+=== NEW os1
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+second 0: 24.2 us/sample (1.16x real time)
+second 1: 26.7 us/sample (1.28x real time)
+second 2: 25.6 us/sample (1.23x real time)
+second 3: 26.0 us/sample (1.25x real time)
+second 4: 26.3 us/sample (1.26x real time)
+second 5: 26.4 us/sample (1.27x real time)
+SLOW block starting at sample 309120 (6.4400 s): 3730.7 ms = 29146 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1484764}
+SLOW block starting at sample 309248 (6.4427 s): 11645.7 ms = 90982 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1615836}
+SLOW block starting at sample 309376 (6.4453 s): 11620.5 ms = 90785 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1746908}
+stopped after 3 stalled blocks (over 1000 ms) at sample 309504
+final telemetry: {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1746908}
+RESULT: STALL, 3 blocks over 1000 ms (first at the SLOW line above)
+=== NEW os4
+SLOW block starting at sample 304512 (6.3440 s): 101.5 ms = 793 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4911077}
+SLOW block starting at sample 304640 (6.3467 s): 104.4 ms = 816 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4912911}
+SLOW block starting at sample 304768 (6.3493 s): 104.6 ms = 817 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4914750}
+SLOW block starting at sample 304896 (6.3520 s): 101.8 ms = 795 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4916539}
+SLOW block starting at sample 305024 (6.3547 s): 101.6 ms = 794 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4918298}
+SLOW block starting at sample 305152 (6.3573 s): 102.8 ms = 803 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4920051}
+SLOW block starting at sample 305280 (6.3600 s): 103.9 ms = 812 us/sample; telemetry {"seedsUsed":1319,"oneIterationSolves":0,"totalIterations":4921867}
+SLOW block starting at sample 305408 (6.3627 s): 103.9 ms = 812 us/sample; telemetry {"seedsUsed":1326,"oneIterationSolves":0,"totalIterations":4923688}
+SLOW block starting at sample 305536 (6.3653 s): 104.2 ms = 814 us/sample; telemetry {"seedsUsed":1333,"oneIterationSolves":0,"totalIterations":4925510}
+SLOW block starting at sample 305664 (6.3680 s): 30811.2 ms = 240712 us/sample; telemetry {"seedsUsed":1335,"oneIterationSolves":0,"totalIterations":5272157}
+SLOW block starting at sample 305792 (6.3707 s): 5070.7 ms = 39614 us/sample; telemetry {"seedsUsed":1335,"oneIterationSolves":0,"totalIterations":5329698}
+stopped after 3 stalled blocks (over 1000 ms) at sample 305920
+final telemetry: {"seedsUsed":1335,"oneIterationSolves":0,"totalIterations":5329698}
+RESULT: STALL, 3 blocks over 1000 ms (first at the SLOW line above)

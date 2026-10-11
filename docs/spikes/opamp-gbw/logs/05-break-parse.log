@@ -1,0 +1,287 @@
+=== (3) wrong unit parse ===
+bun test v1.3.14 (0d9b296a)
+
+packages/compiler/tests/gain-bandwidth.test.ts:
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 3000000
+Received: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads integer MHz as 3000000 Hz [0.49ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 7000000
+Received: 7
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads integer MHz, another as 7000000 Hz [0.14ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 1000000
+Received: 1
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads integer MHz, one as 1000000 Hz [0.13ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 1200000
+Received: 1.2
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads fractional MHz as 1200000 Hz [0.12ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 3000000
+Received: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads no space before the unit as 3000000 Hz [0.12ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 300000
+Received: 300
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads kHz as 300000 Hz [0.13ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 300000
+Received: 300
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads capital K kHz as 300000 Hz [0.12ms]
+42 | 		["structured, quoted empty unit", { raw: "3000000", value: 3000000, unit: "''" }, 3e6],
+43 | 		["structured, prefixed unit", { raw: "3 MHz", value: 3, unit: "MHz" }, 3e6],
+44 | 	];
+45 | 	for (const [label, value, hertz] of accepted) {
+46 | 		it(`reads ${label} as ${hertz} Hz`, () => {
+47 | 			expect(typedFrequencyHz(component(value), "GBP")).toBe(hertz);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 3000000
+Received: 0.003
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:47:54)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > reads GHz as 3000000 Hz [0.12ms]
+78 | 		["an array", [3e6]],
+79 | 		["a boolean", true],
+80 | 	];
+81 | 	for (const [label, value] of refused) {
+82 | 		it(`refuses ${label}`, () => {
+83 | 			expect(() => typedFrequencyHz(component(value), "GBP")).toThrow(/GBP/);
+                                                                ^
+error: expect(received).toThrow(expected)
+
+Expected pattern: /GBP/
+
+Received function did not throw
+Received value: 1.2
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:83:60)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > refuses a slew rate, whose number a strip-after-delimiter parse would return as 1.2 [0.27ms]
+78 | 		["an array", [3e6]],
+79 | 		["a boolean", true],
+80 | 	];
+81 | 	for (const [label, value] of refused) {
+82 | 		it(`refuses ${label}`, () => {
+83 | 			expect(() => typedFrequencyHz(component(value), "GBP")).toThrow(/GBP/);
+                                                                ^
+error: expect(received).toThrow(expected)
+
+Expected pattern: /GBP/
+
+Received function did not throw
+Received value: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:83:60)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > refuses a sentence with a trailing note [0.12ms]
+78 | 		["an array", [3e6]],
+79 | 		["a boolean", true],
+80 | 	];
+81 | 	for (const [label, value] of refused) {
+82 | 		it(`refuses ${label}`, () => {
+83 | 			expect(() => typedFrequencyHz(component(value), "GBP")).toThrow(/GBP/);
+                                                                ^
+error: expect(received).toThrow(expected)
+
+Expected pattern: /GBP/
+
+Received function did not throw
+Received value: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:83:60)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > refuses SPICE shorthand with no frequency unit [0.13ms]
+78 | 		["an array", [3e6]],
+79 | 		["a boolean", true],
+80 | 	];
+81 | 	for (const [label, value] of refused) {
+82 | 		it(`refuses ${label}`, () => {
+83 | 			expect(() => typedFrequencyHz(component(value), "GBP")).toThrow(/GBP/);
+                                                                ^
+error: expect(received).toThrow(expected)
+
+Expected pattern: /GBP/
+
+Received function did not throw
+Received value: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:83:60)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > refuses milli-hertz, which is a frequency but never a gain-bandwidth product [0.13ms]
+78 | 		["an array", [3e6]],
+79 | 		["a boolean", true],
+80 | 	];
+81 | 	for (const [label, value] of refused) {
+82 | 		it(`refuses ${label}`, () => {
+83 | 			expect(() => typedFrequencyHz(component(value), "GBP")).toThrow(/GBP/);
+                                                                ^
+error: expect(received).toThrow(expected)
+
+Expected pattern: /GBP/
+
+Received function did not throw
+Received value: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:83:60)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > refuses a unit that is not a frequency [0.12ms]
+83 | 			expect(() => typedFrequencyHz(component(value), "GBP")).toThrow(/GBP/);
+84 | 		});
+85 | 	}
+86 | 
+87 | 	it("names the component and the offending value in the refusal", () => {
+88 | 		expect(() => typedFrequencyHz(component("1.2 V/us"), "GBP")).toThrow(/U1: GBP "1\.2 V\/us"/);
+                                                                    ^
+error: expect(received).toThrow(expected)
+
+Expected pattern: /U1: GBP "1\.2 V\/us"/
+
+Received function did not throw
+Received value: 1.2
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:88:64)
+(fail) typedFrequencyHz reads a declared frequency with its unit, whole > names the component and the offending value in the refusal [0.39ms]
+155 | 			["15000000", 15e6],
+156 | 			[600000, 6e5],
+157 | 		] as const) {
+158 | 			const stamps = opampStamps(build({ ...stage, gbp: text }).program);
+159 | 			expect(stamps).toHaveLength(1);
+160 | 			expect(stamps[0]?.gainBandwidthHz).toBe(hertz);
+                                            ^
+error: expect(received).toBe(expected)
+
+Expected: 3000000
+Received: 3
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:160:39)
+(fail) the gain-bandwidth product reaches the stamp > carries a packet-declared typed GBP, in every form, to the op-amp stamp [128.76ms]
+160 | 			expect(stamps[0]?.gainBandwidthHz).toBe(hertz);
+161 | 		}
+162 | 	});
+163 | 
+164 | 	it("stamps a declared GBP of exactly 1 MHz as 1e6, not as null: the default is a different statement", () => {
+165 | 		expect(opampStamps(build({ ...stage, gbp: "1 MHz" }).program)[0]?.gainBandwidthHz).toBe(1e6);
+                                                                                           ^
+error: expect(received).toBe(expected)
+
+Expected: 1000000
+Received: 1
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:165:86)
+(fail) the gain-bandwidth product reaches the stamp > stamps a declared GBP of exactly 1 MHz as 1e6, not as null: the default is a different statement [16.80ms]
+187 | 		}
+188 | 	});
+189 | 
+190 | 	it("lets the packet's own typed GBP win over the datasheet figure", () => {
+191 | 		const stamps = opampStamps(build({ ...stage, partNumber: "FIXTURE-GBW-A", gbp: "1 MHz" }).program);
+192 | 		expect(stamps[0]?.gainBandwidthHz).toBe(1e6);
+                                           ^
+error: expect(received).toBe(expected)
+
+Expected: 1000000
+Received: 1
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:192:38)
+(fail) the gain-bandwidth product reaches the stamp > lets the packet's own typed GBP win over the datasheet figure [23.28ms]
+206 | 		expect(registryOpampGainBandwidth(emptyRegistry, "FIXTURE-GBW-A")).toBeNull();
+207 | 	});
+208 | 
+209 | 	it("emits the field in the serialized program, null included", () => {
+210 | 		const declared = JSON.stringify(build({ ...stage, gbp: "3 MHz" }).program);
+211 | 		expect(declared).toContain('"gainBandwidthHz":3000000');
+                         ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "\"gainBandwidthHz\":3000000"
+Received: "{\"formatVersion\":6,\"requiredOperators\":[\"conductance\",\"ideal-opamp\",\"input-source\"],\"requiredModels\":[],\"costPredictors\":{\"executedBlockCount\":1,\"stateCount\":0,\"solvedBlocks\":[{\"blockId\":\"analog:0\",\"unknownCount\":6,\"linear\":false}],\"macroBlocks\":[]},\"blocks\":[{\"kind\":\"mna\",\"id\":\"analog:0\",\"nodeCount\":4,\"nodeIds\":[0,1,2,3],\"auxCount\":2,\"stamps\":[{\"kind\":\"conductance\",\"a\":2,\"b\":3,\"siemens\":0.00011111111111111112},{\"kind\":\"conductance\",\"a\":3,\"b\":0,\"siemens\":0.001},{\"kind\":\"ideal-opamp\",\"plus\":1,\"minus\":3,\"output\":2,\"sourceIndex\":0,\"railHigh\":9,\"railLow\":-9,\"openLoopGain\":100000,\"gainBandwidthHz\":3},{\"kind\":\"input-source\",\"node\":1,\"sourceIndex\":1},{\"kind\":\"conductance\",\"a\":1,\"b\":0,\"siemens\":1e-7}],\"stampPartition\":{\"portRows\":[1,2,3,4,5],\"linearStampIndices\":[0,1,3,4],\"nonlinearStampIndices\":[2],\"constantStampIndices\":[0,1,4],\"controlStampIndices\":[],\"dynamicStampIndices\":[]},\"sparseSchedule\":{\"ops\":[6,0,0,0,0,0,13,0,2,3,0,0,0,1,6,0,2,1,1,0,6,5,0,0,0,2,20,5,1,22,2,1,1,21,2,2,1,23,2,3,1,24,2,4,2,5,2,1,6,7,0,0,0,3,11,7,1,12,3,8,1,14,3,9,1,15,3,10,2,3,3,2,0,4,19,7,1,18,4,8,1,16,4,9,1,17,4,10,2,4,4,2,0,5,24,7,1,23,5,8,1,22,5,9,1,21,5,10,2,5,5,2,6,12,0,0,0,6,18,12,1,16,6,14,1,17,6,15,2,4,6,3,0,7,23,12,1,22,7,14,1,21,7,15,2,5,7,3,6,21,0,0,0,8,17,21,1,16,8,22,2,4,8,5,6,16,0,0,3,4,0,0,5,4,16,0,3,5,0,0,4,22,4,0,5,1,21,0,3,3,0,0,4,15,1,0,4,14,4,0,5,3,12,0,3,2,0,0,4,8,3,0,4,10,1,0,4,9,4,0,5,2,7,0,3,1,0,0,4,4,2,0,4,3,3,0,4,2,1,0,4,1,4,0,5,5,5,0,3,0,0,0,5,0,0,0],\"slots\":25,\"factorCount\":9,\"gatherRow\":[0,1,1,1,1,1,1,2,2,2,2,3,3,3,3,3,4,4,4,4,5,5,5,5,5],\"gatherColumn\":[0,4,1,3,2,5,0,2,3,4,1,2,3,0,4,1,4,1,3,2,5,1,4,3,2],\"size\":6,\"sparseOps\":37,\"denseOps\":70,\"unprovenPivots\":1},\"stateCount\":0,\"linear\":false,\"controlFree\":true,\"eliminate\":false,\"inputNode\":1,\"outputNode\":2,\"operatingPointSeeds\":[]},{\"kind\":\"mna\",\"id\":\"analog:1\",\"nodeCount\":2,\"nodeIds\":[0,9],\"auxCount\":1,\"stamps\":[{\"kind\":\"dc-source\",\"positive\":1,\"negative\":0,\"volts\":9,\"sourceIndex\":0,\"sourceOhms\":1}],\"stampPartition\":{\"portRows\":[],\"linearStampIndices\":[0],\"nonlinearStampIndices\":[],\"constantStampIndices\":[0],\"controlStampIndices\":[],\"dynamicStampIndices\":[]},\"sparseSchedule\":{\"ops\":[6,0,0,0,0,0,6,0,2,2,0,0,0,1,3,0,2,1,1,0,6,2,0,0,0,2,5,2,1,4,2,1,2,2,2,1,6,4,0,0,3,2,0,0,5,2,4,0,3,1,0,0,4,1,2,0,5,1,2,0,3,0,0,0,5,0,0,0],\"slots\":7,\"factorCount\":3,\"gatherRow\":[0,1,1,1,2,2,2],\"gatherColumn\":[0,2,1,0,2,1,0],\"size\":3,\"sparseOps\":5,\"denseOps\":8,\"unprovenPivots\":1},\"stateCount\":0,\"linear\":true,\"controlFree\":true,\"eliminate\":false,\"inputNode\":null,\"outputNode\":null,\"operatingPointSeeds\":[]},{\"kind\":\"mna\",\"id\":\"analog:2\",\"nodeCount\":2,\"nodeIds\":[0,8],\"auxCount\":1,\"stamps\":[{\"kind\":\"dc-source\",\"positive\":1,\"negative\":0,\"volts\":-9,\"sourceIndex\":0,\"sourceOhms\":1}],\"stampPartition\":{\"portRows\":[],\"linearStampIndices\":[0],\"nonlinearStampIndices\":[],\"constantStampIndices\":[0],\"controlStampIndices\":[],\"dynamicStampIndices\":[]},\"sparseSchedule\":{\"ops\":[6,0,0,0,0,0,6,0,2,2,0,0,0,1,3,0,2,1,1,0,6,2,0,0,0,2,5,2,1,4,2,1,2,2,2,1,6,4,0,0,3,2,0,0,5,2,4,0,3,1,0,0,4,1,2,0,5,1,2,0,3,0,0,0,5,0,0,0],\"slots\":7,\"factorCount\":3,\"gatherRow\":[0,1,1,1,2,2,2],\"gatherColumn\":[0,2,1,0,2,1,0],\"size\":3,\"sparseOps\":5,\"denseOps\":8,\"unprovenPivots\":1},\"stateCount\":0,\"linear\":true,\"controlFree\":true,\"eliminate\":false,\"inputNode\":null,\"outputNode\":null,\"operatingPointSeeds\":[]}],\"order\":[\"analog:0\"],\"controls\":[],\"ports\":{\"input\":1,\"output\":2},\"supplyReference\":\"dual-rail\",\"portFullScaleVolts\":{\"input\":null,\"output\":9},\"portReferenceVolts\":{\"input\":null,\"output\":null},\"stageCoverage\":\"instrument\",\"portImpedanceOhms\":{\"input\":null,\"output\":null},\"bypass\":{\"declared\":\"none\"}}"
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:211:20)
+(fail) the gain-bandwidth product reaches the stamp > emits the field in the serialized program, null included [25.98ms]
+213 | 		expect(bare).toContain('"gainBandwidthHz":null');
+214 | 	});
+215 | 
+216 | 	it("refuses a declared GBP that is not a frequency, by name, rather than ignoring it", () => {
+217 | 		const result = compile(nonInvertingStage({ ...stage, gbp: "1.2 V/us" }), { registry });
+218 | 		expect(result.status).not.toBe("ok");
+                                  ^
+error: expect(received).not.toBe(expected)
+
+Expected: not "ok"
+
+      at <anonymous> (/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/mut/packages/compiler/tests/gain-bandwidth.test.ts:218:29)
+(fail) the gain-bandwidth product reaches the stamp > refuses a declared GBP that is not a frequency, by name, rather than ignoring it [14.71ms]
+
+ 36 pass
+ 19 fail
+ 348 expect() calls
+Ran 55 tests across 1 file. [818.00ms]
+reverted: sources byte-identical

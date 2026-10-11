@@ -1,0 +1,147 @@
+== 07-pack-player: bun run --cwd packages/player pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/player@0.2.5 prepack
+> bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run --cwd ../chain build && bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ bash scripts/build-wasm.sh
+Building src/wasm/v2_dsp.cjs and v2_dsp.wasm with em++...
+/tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/runtime/src/cpp/V2Exports.cpp:97:41: warning: 'resampleStagePrototypes' has C-linkage specified, but returns user-defined type 'const std::vector<std::vector<double>> &' which is incompatible with C [-Wreturn-type-c-linkage]
+   97 | const std::vector<std::vector<double>>& resampleStagePrototypes() {
+      |                                         ^
+1 warning generated.
+clang: warning: future releases of the clang compiler will prefer GCC installations containing libstdc++ include directories; '/usr/lib/gcc/x86_64-linux-gnu/11' would be chosen over '/usr/lib/gcc/x86_64-linux-gnu/12' [-Wgcc-install-dir-libstdcxx]
+Build successful: src/wasm/v2_dsp.cjs and v2_dsp.wasm updated (atomic rename).
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && rm -rf dist/wasm && cp -r src/wasm dist/wasm && bun scripts/build-worklet.ts
+build-worklet: wrote /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/runtime/dist/worklet/v2-audio-worklet.js (298405 bytes, no external imports)
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+$ rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && bun scripts/build-player-worklet.ts
+build-player-worklet: wrote /tmp/claude-1000/-home-joseph-projects-VesselDSP-core-opamp-gbw/bf04bb7a-7e54-4631-99b8-95926fdd67b7/scratchpad/fresh-clone/packages/player/dist/worklet/player-worklet.js (356319 bytes, no external imports)
+build-player-worklet: staged dist/wasm/ (2147892 + 420095 wasm bytes)
+npm notice
+npm notice 📦  @vessel-dsp/player@0.2.5
+npm notice Tarball Contents
+npm notice 12.1kB README.md
+npm notice 7.9kB dist/controller.d.ts
+npm notice 3.9kB dist/controller.d.ts.map
+npm notice 23.7kB dist/controller.js
+npm notice 19.4kB dist/controller.js.map
+npm notice 1.6kB dist/element.d.ts
+npm notice 1.4kB dist/element.d.ts.map
+npm notice 17.0kB dist/element.js
+npm notice 13.5kB dist/element.js.map
+npm notice 1.7kB dist/engine/admission-report.d.ts
+npm notice 746B dist/engine/admission-report.d.ts.map
+npm notice 652B dist/engine/admission-report.js
+npm notice 259B dist/engine/admission-report.js.map
+npm notice 518B dist/engine/asset-urls.d.ts
+npm notice 594B dist/engine/asset-urls.d.ts.map
+npm notice 1.4kB dist/engine/asset-urls.js
+npm notice 813B dist/engine/asset-urls.js.map
+npm notice 815B dist/engine/chain-probe.d.ts
+npm notice 925B dist/engine/chain-probe.d.ts.map
+npm notice 2.0kB dist/engine/chain-probe.js
+npm notice 1.4kB dist/engine/chain-probe.js.map
+npm notice 728B dist/engine/factory.d.ts
+npm notice 449B dist/engine/factory.d.ts.map
+npm notice 1.4kB dist/engine/factory.js
+npm notice 835B dist/engine/factory.js.map
+npm notice 226B dist/engine/index.d.ts
+npm notice 234B dist/engine/index.d.ts.map
+npm notice 388B dist/engine/index.js
+npm notice 239B dist/engine/index.js.map
+npm notice 4.7kB dist/engine/player-engine.d.ts
+npm notice 3.6kB dist/engine/player-engine.d.ts.map
+npm notice 40.2kB dist/engine/player-engine.js
+npm notice 34.4kB dist/engine/player-engine.js.map
+npm notice 121B dist/engine/processor-name.d.ts
+npm notice 165B dist/engine/processor-name.d.ts.map
+npm notice 528B dist/engine/processor-name.js
+npm notice 261B dist/engine/processor-name.js.map
+npm notice 1.3kB dist/engine/register.d.ts
+npm notice 510B dist/engine/register.d.ts.map
+npm notice 2.3kB dist/engine/register.js
+npm notice 1.3kB dist/engine/register.js.map
+npm notice 55B dist/engine/worklet/player-worklet.d.ts
+npm notice 143B dist/engine/worklet/player-worklet.d.ts.map
+npm notice 29.2kB dist/engine/worklet/player-worklet.js
+npm notice 23.4kB dist/engine/worklet/player-worklet.js.map
+npm notice 295B dist/index.d.ts
+npm notice 280B dist/index.d.ts.map
+npm notice 293B dist/index.js
+npm notice 278B dist/index.js.map
+npm notice 1.9kB dist/inputs/browser.d.ts
+npm notice 1.7kB dist/inputs/browser.d.ts.map
+npm notice 4.7kB dist/inputs/browser.js
+npm notice 3.3kB dist/inputs/browser.js.map
+npm notice 620B dist/inputs/choices.d.ts
+npm notice 626B dist/inputs/choices.d.ts.map
+npm notice 1.2kB dist/inputs/choices.js
+npm notice 1.1kB dist/inputs/choices.js.map
+npm notice 1.0kB dist/inputs/index.d.ts
+npm notice 796B dist/inputs/index.d.ts.map
+npm notice 415B dist/inputs/index.js
+npm notice 386B dist/inputs/index.js.map
+npm notice 407B dist/inputs/types.d.ts
+npm notice 554B dist/inputs/types.d.ts.map
+npm notice 272B dist/inputs/types.js
+npm notice 172B dist/inputs/types.js.map
+npm notice 2.2kB dist/inputs/wav.d.ts
+npm notice 2.3kB dist/inputs/wav.d.ts.map
+npm notice 6.2kB dist/inputs/wav.js
+npm notice 5.6kB dist/inputs/wav.js.map
+npm notice 306B dist/ir/check.d.ts
+npm notice 374B dist/ir/check.d.ts.map
+npm notice 1.8kB dist/ir/check.js
+npm notice 1.9kB dist/ir/check.js.map
+npm notice 323B dist/ir/index.d.ts
+npm notice 361B dist/ir/index.d.ts.map
+npm notice 174B dist/ir/index.js
+npm notice 242B dist/ir/index.js.map
+npm notice 476B dist/ir/load.d.ts
+npm notice 563B dist/ir/load.d.ts.map
+npm notice 4.4kB dist/ir/load.js
+npm notice 4.1kB dist/ir/load.js.map
+npm notice 1.4kB dist/ir/types.d.ts
+npm notice 1.6kB dist/ir/types.d.ts.map
+npm notice 679B dist/ir/types.js
+npm notice 276B dist/ir/types.js.map
+npm notice 268B dist/nam/index.d.ts
+npm notice 286B dist/nam/index.d.ts.map
+npm notice 114B dist/nam/index.js
+npm notice 170B dist/nam/index.js.map
+npm notice 831B dist/nam/load.d.ts
+npm notice 861B dist/nam/load.d.ts.map
+npm notice 5.2kB dist/nam/load.js
+npm notice 3.6kB dist/nam/load.js.map
+npm notice 806B dist/nam/types.d.ts
+npm notice 867B dist/nam/types.d.ts.map
+npm notice 1.1kB dist/nam/types.js
+npm notice 322B dist/nam/types.js.map
+npm notice 2.2kB dist/source-list.d.ts
+npm notice 692B dist/source-list.d.ts.map
+npm notice 4.0kB dist/source-list.js
+npm notice 3.0kB dist/source-list.js.map
+npm notice 8.3kB dist/types.d.ts
+npm notice 3.7kB dist/types.d.ts.map
+npm notice 2.8kB dist/types.js
+npm notice 1.8kB dist/types.js.map
+npm notice 10.7kB dist/wasm/nam-engine-glue.js
+npm notice 420.1kB dist/wasm/nam-engine.wasm
+npm notice 2.1MB dist/wasm/v2_dsp.wasm
+npm notice 356.3kB dist/worklet/player-worklet.js
+npm notice 2.0kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/player
+npm notice version: 0.2.5
+npm notice filename: vessel-dsp-player-0.2.5.tgz
+npm notice package size: 1.1 MB
+npm notice unpacked size: 3.3 MB
+npm notice shasum: f50ded70c33c110cd06da4475459a384e71a02f4
+npm notice integrity: sha512-PuUTqAcny/YEL[...]zsm1EuWMfzecw==
+npm notice total files: 110
+npm notice
+vessel-dsp-player-0.2.5.tgz
+exit 0

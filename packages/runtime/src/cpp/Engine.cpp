@@ -303,7 +303,10 @@ constexpr double GMIN_STEPPING_RATIO = 10.0;
 constexpr double SOURCE_STEPPING_MIN_STEP_SIZE = 1e-6;
 constexpr int32_t SOURCE_STEPPING_MAX_FAILURES = 50;
 constexpr double DC_INDUCTOR_SHORT_OHMS = 1e-2;
-constexpr double OPAMP_GAIN_BANDWIDTH_HZ = 1e6;
+// The gain-bandwidth product of an op-amp section whose stamp states none (`gainBandwidthHz: null`).
+// Every op-amp ran this before the stamp carried the field, so a null section renders as it always did.
+// Mirrors reference-runtime.ts `OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ`.
+constexpr double OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ = 1e6;
 constexpr double OPAMP_MAX_DIFFERENTIAL_STEP = 4.0;
 constexpr double OPAMP_SATURATION_BAND = 8.0;
 constexpr double OPAMP_DIFFERENTIAL_BAND = 12.0;
@@ -682,6 +685,11 @@ inline double limitFetDrain(double next, double previous) {
 
 inline double opAmpHalfSwing(double railHigh, double railLow) {
     return std::max((railHigh - railLow) / 2.0, 1e-9);
+}
+
+// The product an op-amp stamp runs on: its own, else the class default.
+inline double opAmpGainBandwidthHz(const Stamp& stamp) {
+    return stamp.gainBandwidthHz.value_or(OPAMP_DEFAULT_GAIN_BANDWIDTH_HZ);
 }
 
 inline double opAmpPoleAlpha(double openLoopGain, double gainBandwidthHz, double dt, double sampleRate) {
@@ -3496,7 +3504,7 @@ void Engine::applyStamp(
             double vee = *stamp.railLow;
             double centre = (vcc + vee) / 2.0;
             double halfSwing = opAmpHalfSwing(vcc, vee);
-            double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, OPAMP_GAIN_BANDWIDTH_HZ, dt, options_.sampleRate);
+            double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
             double effectiveGain = alpha * stamp.openLoopGain;
             double linearWidth = halfSwing / effectiveGain;
 
@@ -4612,7 +4620,7 @@ double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
             state[stamp.stateIndex + 1] = prevCurrent + g * (across + prevAcross);
         } else if (stamp.kind == StampKind::IdealOpAmp && stamp.railHigh.has_value() && stamp.railLow.has_value()) {
             uint64_t key = packHistoryKey3(static_cast<int32_t>(blockIdx), stamp.plus, stamp.minus, stamp.output);
-            double alpha = opAmpPoleAlpha(stamp.openLoopGain, OPAMP_GAIN_BANDWIDTH_HZ, dt, options_.sampleRate);
+            double alpha = opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
             double differential = stateSource[stamp.plus] - stateSource[stamp.minus];
             double prevRaw = (static_cast<size_t>(sIdx) < scratch.opampRawState.size()) ? scratch.opampRawState[sIdx] : 0.0;
             double nextRaw = boundOpAmpRaw(

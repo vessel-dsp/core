@@ -1,0 +1,150 @@
+corpus documents compiled ok: 145; documents with at least one op-amp section law: 87; op-amp section laws: 369 (railed 361, unrailed 8)
+
+RAILED sections (the ones the pole acts on), by part id:
+part id               sections  docs  packet catalog null | stated GBP (Hz)                 | factor vs 1 MHz | datasheet row / reason
+M5218AL                      38     9      0      38    0 | 7.00e+6                          | 7.00            | datasheet 7.00 MHz
+4558                         38     7      0       0   38 |                                  | 1 (default)     | ABSENT: RC4558C is not an orderable printed in SLOS073H, and '4558' is a gener
+M5218L                       24     5     14       0   10 | 7.00e+6                          | 7.00            | ABSENT: The vendored Mitsubishi sheet is the M5218AL/P/FP document; the plain 
+uPC4558C                     22     7      0       0   22 |                                  | 1 (default)     | ABSENT: UPC4558/datasheets/renesas-upc258-upc4558.pdf (Renesas R03DS0145EJ0200
+TL072                        18     5      4       0   14 | 3.00e+6                          | 3.00            | ABSENT: The TL07x/TL08x GBW row splits on package and grade (TYP 3 MHz for NS/
+TL022CP                      16     6      0      16    0 | 5.00e+5                          | 0.50            | datasheet 0.50 MHz
+JRC4558D                      9     3      2       0    7 | 3.00e+6                          | 3.00            | not in catalog
+RC3403A                       8     2      4       0    4 | 1.20e+6                          | 1.20            | not in catalog
+RC4558                        8     4      2       6    0 | 3.00e+6, 4.00e+6                 | 3.00, 4.00      | datasheet 4.00 MHz
+CA1458                        8     1      0       0    8 |                                  | 1 (default)     | ABSENT: The datasheet this file cites for open-loop gain (Harris File Number 5
+TL061                         8     3      1       7    0 | 1.00e+6                          | 1.00            | datasheet 1.00 MHz
+TL062                         8     2      6       2    0 | 1.00e+6                          | 1.00            | datasheet 1.00 MHz
+BA728N                        6     1      0       0    6 |                                  | 1 (default)     | not in catalog
+M5218AFP                      6     3      0       6    0 | 7.00e+6                          | 7.00            | datasheet 7.00 MHz
+M5223L                        6     3      0       0    6 |                                  | 1 (default)     | ABSENT: M5223AL/datasheets/m5223al-page-2.png has no gain-bandwidth row; its '
+M5218L or NJM4558S            6     1      0       0    6 |                                  | 1 (default)     | not in catalog
+M5218AF                       6     1      0       0    6 |                                  | 1 (default)     | not in catalog
+RC4558P                       6     2      4       2    0 | 3.00e+6, 4.00e+6                 | 3.00, 4.00      | datasheet 4.00 MHz
+UA741CP                       6     1      0       0    6 |                                  | 1 (default)     | not in catalog
+NJM4558DD                     5     3      0       5    0 | 3.00e+6                          | 3.00            | datasheet 3.00 MHz
+BA718                         5     2      0       0    5 |                                  | 1 (default)     | ABSENT: No vendored datasheet.
+M5218A                        5     1      0       0    5 |                                  | 1 (default)     | ABSENT: The vendored Mitsubishi sheet is the M5218AL/P/FP document; the plain 
+M5281AL                       5     1      0       0    5 |                                  | 1 (default)     | ABSENT: The vendored Mitsubishi sheet is the M5218AL/P/FP document; the plain 
+NJM2100                       4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+LM324                         4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+5218A-1601                    4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+NJM4565L                      4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+TL072CP                       4     1      4       0    0 | 3.00e+6                          | 3.00            | datasheet 5.25 MHz
+TL072P                        4     2      2       0    2 | 3.00e+6                          | 3.00            | not in catalog
+TLO72                         4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+LM324AN                       4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+MC33174                       4     1      0       0    4 |                                  | 1 (default)     | not in catalog
+HA1457W                       3     2      2       0    1 | 1.00e+6                          | 1.00            | not in catalog
+741                           3     2      2       0    1 | 1.00e+6                          | 1.00            | not in catalog
+JRC4580D                      2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+unspecified-op-amp-section        2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+IR-9022                       2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+NJM2100M                      2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+AK4552VT13                    2     1      0       0    2 |                                  | 1 (default)     | ABSENT: Not an op-amp datasheet part: a converter or macro shell modelled with
+uPC4072G2                     2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+NE570N                        2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+uPC1571C                      2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+TL-022CP                      2     1      0       2    0 | 5.00e+5                          | 0.50            | datasheet 0.50 MHz
+NJM1458D                      2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+LM741                         2     2      2       0    0 | 1.00e+6                          | 1.00            | ABSENT: No vendored datasheet.
+NE570 / SA571 family          2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+TL082                         2     1      2       0    0 | 3.00e+6                          | 3.00            | ABSENT: The TL07x/TL08x GBW row splits on package and grade (TYP 3 MHz for NS/
+5233-14D0                     2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+NJM4558D                      2     1      0       2    0 | 3.00e+6                          | 3.00            | datasheet 3.00 MHz
+LM833                         2     1      2       0    0 | 1.50e+7                          | 15.00           | not in catalog
+MC33178                       2     1      0       0    2 |                                  | 1 (default)     | ABSENT: No vendored datasheet.
+SA571D                        2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+TL062C                        2     1      0       2    0 | 1.00e+6                          | 1.00            | datasheet 1.00 MHz
+NE5532P                       2     1      0       2    0 | 1.20e+7                          | 12.00           | datasheet 12.00 MHz
+PT2399                        2     1      0       0    2 |                                  | 1 (default)     | not in catalog
+CA1458G_OR_uPC1458            1     1      0       0    1 |                                  | 1 (default)     | not in catalog
+TA7136P                       1     1      0       0    1 |                                  | 1 (default)     | not in catalog
+uPC741C                       1     1      0       0    1 |                                  | 1 (default)     | not in catalog
+TL022CP2                      1     1      0       0    1 |                                  | 1 (default)     | ABSENT: Not an op-amp datasheet part: a converter or macro shell modelled with
+single op-amp                 1     1      0       0    1 |                                  | 1 (default)     | not in catalog
+M5216AL                       1     1      0       0    1 |                                  | 1 (default)     | ABSENT: The vendored Mitsubishi sheet is the M5218AL/P/FP document; the plain 
+uPC4570HA                     1     1      0       0    1 |                                  | 1 (default)     | not in catalog
+LM741D                        1     1      0       0    1 |                                  | 1 (default)     | not in catalog
+OP07CP                        1     1      1       0    0 | 6.00e+5                          | 0.60            | datasheet 0.60 MHz
+LM308                         1     1      1       0    0 | 1.00e+6                          | 1.00            | not in catalog
+
+railed sections: 361; stated by the packet 55; by the catalog 90; null (class default) 208; compandor-internal null 8
+sections that move off 1 MHz: 120 in 38 documents; stated exactly 1 MHz (no move): 25
+  by value: 0.5 MHz: 18, 0.6 MHz: 1, 1.2 MHz: 4, 3 MHz: 27, 4 MHz: 8, 7 MHz: 58, 12 MHz: 2, 15 MHz: 2
+
+Documents with a section off 1 MHz (38):
+  boss-aw-2                                2 sect  M5218AL[catalog]=7
+  boss-bd-2-blues-driver                   2 sect  M5218AL[catalog]=7
+  boss-bd-2-blues-driver-keeley-mod        2 sect  M5218AL[catalog]=7
+  boss-bf-2                                2 sect  TL022CP[catalog]=0.5
+  boss-bf-3                                2 sect  M5218AFP[catalog]=7
+  boss-ce-2                                2 sect  TL022CP[catalog]=0.5
+  boss-ce-2b                               4 sect  NJM4558DD[catalog]=3, TL022CP[catalog]=0.5
+  boss-ce-5                                6 sect  M5218AL[catalog]=7
+  boss-dd-3b                               2 sect  M5218AFP[catalog]=7
+  boss-dm-3                                2 sect  NJM4558DD[catalog]=3
+  boss-ge-7                                6 sect  TL022CP[catalog]=0.5
+  boss-md-2                                4 sect  M5218AL[catalog]=7
+  boss-mt-2                                8 sect  M5218AL[catalog]=7
+  boss-oc-2                                2 sect  TL-022CP[catalog]=0.5
+  boss-od-1                                4 sect  RC3403A[packet]=1.2
+  boss-od-3                                2 sect  M5218AL[catalog]=7
+  boss-os-2                                2 sect  M5218AL[catalog]=7
+  boss-ph-1r                               2 sect  TL022CP[catalog]=0.5
+  boss-pq-4                                10 sect  M5218AL[catalog]=7
+  boss-rv-5                                2 sect  M5218AFP[catalog]=7
+  boss-vb-2                                1 sect  NJM4558DD[catalog]=3
+  dod-envelope-filter-440-vintage-green    2 sect  TL022CP[catalog]=0.5
+  electro-harmonix-slapback-echo           2 sect  RC4558[catalog]=4
+  fulltone-ocd-v1.4                        2 sect  TL082[packet]=3
+  ibanez-ts808                             2 sect  RC4558[catalog]=4
+  ibanez-ts9-reissue                       2 sect  NJM4558D[catalog]=3
+  jhs-morning-glory                        2 sect  LM833[packet]=15
+  keeley-compressor-plus                   4 sect  RC4558P[packet]=3
+  klon-centaur                             4 sect  TL072CP[packet]=3
+  marshall-blues-breaker                   2 sect  JRC4558D[packet]=3
+  marshall-guvnor-drivemaster              2 sect  TL072P[packet]=3
+  mxr-blue-box                             2 sect  RC4558[catalog]=4
+  mxr-phase-45                             4 sect  TL072[packet]=3
+  pigtronix-philosophers-tone              4 sect  NE5532P[catalog]=12, RC4558P[catalog]=4
+  pro-co-rat-2-v4b-op07cp                  1 sect  OP07CP[packet]=0.6
+  roland-jc-120-jazz-chorus                2 sect  M5218L[packet]=7
+  sunn-beta-lead                           12 sect  M5218L[packet]=7
+  vemuram-jan-ray                          2 sect  RC4558[packet]=3
+
+Railed sections left on the default, by part (208 sections in 48 documents):
+  4558                      38 sections in 7 docs
+  uPC4558C                  22 sections in 7 docs
+  TL072                     14 sections in 4 docs
+  M5218L                    10 sections in 3 docs
+  CA1458                     8 sections in 1 docs
+  JRC4558D                   7 sections in 2 docs
+  BA728N                     6 sections in 1 docs
+  M5223L                     6 sections in 3 docs
+  M5218L or NJM4558S         6 sections in 1 docs
+  M5218AF                    6 sections in 1 docs
+  UA741CP                    6 sections in 1 docs
+  BA718                      5 sections in 2 docs
+  M5218A                     5 sections in 1 docs
+  M5281AL                    5 sections in 1 docs
+  NJM2100                    4 sections in 1 docs
+  RC3403A                    4 sections in 1 docs
+  LM324                      4 sections in 1 docs
+  5218A-1601                 4 sections in 1 docs
+  NJM4565L                   4 sections in 1 docs
+  TLO72                      4 sections in 1 docs
+  LM324AN                    4 sections in 1 docs
+  MC33174                    4 sections in 1 docs
+  JRC4580D                   2 sections in 1 docs
+  unspecified-op-amp-section   2 sections in 1 docs
+  IR-9022                    2 sections in 1 docs
+  NJM2100M                   2 sections in 1 docs
+  AK4552VT13                 2 sections in 1 docs
+  uPC4072G2                  2 sections in 1 docs
+  NJM1458D                   2 sections in 1 docs
+  5233-14D0                  2 sections in 1 docs
+  MC33178                    2 sections in 1 docs
+  TL072P                     2 sections in 1 docs
+  PT2399                     2 sections in 1 docs
+  CA1458G_OR_uPC1458         1 sections in 1 docs
+  TA7136P                    1 sections in 1 docs

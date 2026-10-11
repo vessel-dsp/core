@@ -1,0 +1,29 @@
+== 07-pack-cabinet: bun run --cwd packages/cabinet pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/cabinet@0.6.15 prepack
+> bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist
+npm notice
+npm notice 📦  @vessel-dsp/cabinet@0.6.15
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE.md
+npm notice 368B README.md
+npm notice 1.8kB dist/index.d.ts
+npm notice 1.6kB dist/index.d.ts.map
+npm notice 18.6kB dist/index.js
+npm notice 21.0kB dist/index.js.map
+npm notice 1.3kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/cabinet
+npm notice version: 0.6.15
+npm notice filename: vessel-dsp-cabinet-0.6.15.tgz
+npm notice package size: 10.2 kB
+npm notice unpacked size: 45.7 kB
+npm notice shasum: 8d37c60030fa4116b494b3adaff2cf199af5f42c
+npm notice integrity: sha512-fhiWx+vCFHGVf[...]16bxHtxWbWZfw==
+npm notice total files: 7
+npm notice
+vessel-dsp-cabinet-0.6.15.tgz
+exit 0

@@ -1,0 +1,11 @@
+== 05-test: bun test
+bun test v1.3.14 (0d9b296a)
+
+tests/chain/ir-convolution.test.ts:
+48000-tap IR: 39.9 ms for 1 s audio (25.06x realtime)
+
+ 2063 pass
+ 0 fail
+ 514439 expect() calls
+Ran 2063 tests across 144 files. [141.17s]
+exit 0

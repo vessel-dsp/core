@@ -1,0 +1,3 @@
+documents compared: 145; identical to baseline once the new member is removed: 145; differ beyond the field: 0; missing in new: 0
+documents carrying at least one op-amp stamp: 87; stamps stating a product: 145; stamps null: 224
+documents gaining opamp-gain-bandwidth-default: 49; documents whose OTHER warning codes changed: 0

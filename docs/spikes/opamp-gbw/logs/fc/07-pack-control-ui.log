@@ -1,0 +1,106 @@
+== 07-pack-control-ui: bun run --cwd packages/control-ui pack:dry-run
+$ npm pack --dry-run
+
+> @vessel-dsp/control-ui@0.6.15 prepack
+> bun run build
+
+$ tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && cp src/styles.css dist/styles.css
+npm notice
+npm notice 📦  @vessel-dsp/control-ui@0.6.15
+npm notice Tarball Contents
+npm notice 1.1kB LICENSE.md
+npm notice 2.0kB README.md
+npm notice 240B dist/appearance.d.ts
+npm notice 263B dist/appearance.d.ts.map
+npm notice 1.0kB dist/appearance.js
+npm notice 921B dist/appearance.js.map
+npm notice 943B dist/components/ConcentricKnob.d.ts
+npm notice 754B dist/components/ConcentricKnob.d.ts.map
+npm notice 1.2kB dist/components/ConcentricKnob.js
+npm notice 886B dist/components/ConcentricKnob.js.map
+npm notice 522B dist/components/ControlFrame.d.ts
+npm notice 597B dist/components/ControlFrame.d.ts.map
+npm notice 651B dist/components/ControlFrame.js
+npm notice 693B dist/components/ControlFrame.js.map
+npm notice 630B dist/components/DetentedRotarySelect.d.ts
+npm notice 698B dist/components/DetentedRotarySelect.d.ts.map
+npm notice 1.2kB dist/components/DetentedRotarySelect.js
+npm notice 1.3kB dist/components/DetentedRotarySelect.js.map
+npm notice 732B dist/components/FootswitchButton.d.ts
+npm notice 823B dist/components/FootswitchButton.d.ts.map
+npm notice 1.8kB dist/components/FootswitchButton.js
+npm notice 1.7kB dist/components/FootswitchButton.js.map
+npm notice 628B dist/components/GraphicEqSlider.d.ts
+npm notice 687B dist/components/GraphicEqSlider.d.ts.map
+npm notice 1.3kB dist/components/GraphicEqSlider.js
+npm notice 1.3kB dist/components/GraphicEqSlider.js.map
+npm notice 651B dist/components/JackIndicator.d.ts
+npm notice 568B dist/components/JackIndicator.d.ts.map
+npm notice 799B dist/components/JackIndicator.js
+npm notice 683B dist/components/JackIndicator.js.map
+npm notice 594B dist/components/KnobControl.d.ts
+npm notice 679B dist/components/KnobControl.d.ts.map
+npm notice 9.2kB dist/components/KnobControl.js
+npm notice 7.6kB dist/components/KnobControl.js.map
+npm notice 561B dist/components/LedIndicator.d.ts
+npm notice 615B dist/components/LedIndicator.d.ts.map
+npm notice 850B dist/components/LedIndicator.js
+npm notice 976B dist/components/LedIndicator.js.map
+npm notice 644B dist/components/SwitchSelectControl.d.ts
+npm notice 697B dist/components/SwitchSelectControl.d.ts.map
+npm notice 916B dist/components/SwitchSelectControl.js
+npm notice 976B dist/components/SwitchSelectControl.js.map
+npm notice 644B dist/components/ToggleSwitchControl.d.ts
+npm notice 697B dist/components/ToggleSwitchControl.d.ts.map
+npm notice 1.1kB dist/components/ToggleSwitchControl.js
+npm notice 1.0kB dist/components/ToggleSwitchControl.js.map
+npm notice 976B dist/controls.d.ts
+npm notice 871B dist/controls.d.ts.map
+npm notice 4.6kB dist/controls.js
+npm notice 5.0kB dist/controls.js.map
+npm notice 787B dist/ControlSurface.d.ts
+npm notice 816B dist/ControlSurface.d.ts.map
+npm notice 6.4kB dist/ControlSurface.js
+npm notice 6.3kB dist/ControlSurface.js.map
+npm notice 2.5kB dist/index.d.ts
+npm notice 1.7kB dist/index.d.ts.map
+npm notice 1.3kB dist/index.js
+npm notice 979B dist/index.js.map
+npm notice 705B dist/render-plan.d.ts
+npm notice 687B dist/render-plan.d.ts.map
+npm notice 4.1kB dist/render-plan.js
+npm notice 4.3kB dist/render-plan.js.map
+npm notice 472B dist/state.d.ts
+npm notice 477B dist/state.d.ts.map
+npm notice 1.4kB dist/state.js
+npm notice 1.4kB dist/state.js.map
+npm notice 8.5kB dist/styles.css
+npm notice 721B dist/theme.d.ts
+npm notice 673B dist/theme.d.ts.map
+npm notice 1.7kB dist/theme.js
+npm notice 1.5kB dist/theme.js.map
+npm notice 1.8kB dist/types.d.ts
+npm notice 2.0kB dist/types.d.ts.map
+npm notice 44B dist/types.js
+npm notice 102B dist/types.js.map
+npm notice 687B dist/useControlState.d.ts
+npm notice 726B dist/useControlState.d.ts.map
+npm notice 1.0kB dist/useControlState.js
+npm notice 1.1kB dist/useControlState.js.map
+npm notice 289B dist/utils.d.ts
+npm notice 369B dist/utils.d.ts.map
+npm notice 708B dist/utils.js
+npm notice 991B dist/utils.js.map
+npm notice 1.6kB package.json
+npm notice Tarball Details
+npm notice name: @vessel-dsp/control-ui
+npm notice version: 0.6.15
+npm notice filename: vessel-dsp-control-ui-0.6.15.tgz
+npm notice package size: 25.6 kB
+npm notice unpacked size: 125.1 kB
+npm notice shasum: 634d8c4d9d5e118aa191e265541278821bfd07dd
+npm notice integrity: sha512-6y9N3YDkouyok[...]i60BivsvEQpCg==
+npm notice total files: 84
+npm notice
+vessel-dsp-control-ui-0.6.15.tgz
+exit 0

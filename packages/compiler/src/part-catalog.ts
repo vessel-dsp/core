@@ -29,6 +29,16 @@
 // The one thing this file needs from an op-amp datasheet is **open-loop gain**. `ideal-opamp` takes
 // `openLoopGain` plus rails, and the rails are the pedal's rather than the part's, so a dual op-amp
 // is a complete model from one published number and its pinout.
+//
+// **Gain-bandwidth product is the second figure, and it has its own table** (`opampGainBandwidthDatasheet`
+// below) rather than a field on each entry, because one entry here often covers parts whose datasheets
+// print different products (the TL072/NE5532/LM358 entry is one law over three datasheets). The TYP column
+// is transcribed ("typical" here is that datasheet's own TYP column for that part, not a generic typical
+// value), never MIN or MAX, never a graph read by eye, never a registry or curated-record number.
+// A part whose datasheet prints no TYP gain-bandwidth row is listed in `opampGainBandwidthAbsent` with the
+// reason and gets no figure, so its stamp is `null` and the compile names it (`opamp-gain-bandwidth-default`).
+// Matching is by exact folded part id, as everywhere in this file: an id the datasheet does not print is not
+// covered because a sibling is.
 
 import type { PartEntry, PartRegistry } from "./registry";
 import { foldPartId } from "./registry";
@@ -6820,6 +6830,236 @@ const entries: readonly PartEntry[] = [
 	}),
 ];
 
+// --- Op-amp gain-bandwidth product: datasheet typical figure, by exact part id ----------------------
+//
+// Paths are under the artifacts library, `parts/op-amps/<dir>/datasheets/`. Every row was read from the
+// vendored copy and the printed row text is quoted. The registry (`component-opamp-chips.json`) and the
+// curated `parts/op-amps/<PART>.md` records were read as cross-checks only; where they differ from the
+// datasheet the datasheet is taken and the difference is recorded (see `docs/spikes/2026-10-10-opamp-gbw.md`).
+
+/** One datasheet-stated gain-bandwidth product and the printed row it was transcribed from. */
+export type OpampGainBandwidthRow = {
+	readonly partIds: readonly string[];
+	readonly hertz: number;
+	readonly source: string;
+};
+
+export const opampGainBandwidthDatasheet: readonly OpampGainBandwidthRow[] = [
+	{
+		partIds: ["NJM4558DD", "NJM4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558"],
+		hertz: 3e6,
+		source:
+			"NJM4558/datasheets/nisshinbo-njm4558.pdf (Nisshinbo NJM4558, date code 20250303) p2, ELECTRICAL " +
+			"CHARACTERISTICS (V+/V-=+-15V, Ta=25C): 'Gain Bandwidth Product | GB | MIN - | TYP 3 | MAX - | MHz'. " +
+			"One column for every suffix; the D rank changes the noise row only.",
+	},
+	{
+		partIds: ["RC4558", "RC4558P", "RC4558D"],
+		hertz: 4e6,
+		source:
+			"RC4558/datasheets/rc4558-ti.pdf and RC4558P/datasheets/rc4558p-ti.pdf (TI SLOS073H, rev Oct 2024; the " +
+			"two are identical through p35) 5.5 p6, VCC+-=+-15V, TA=25C, RL=2k: 'GBW | Gain-bandwidth product | " +
+			"f = 10kHz | TYP 4 | MHz'. Rev G printed 3 MHz; this copy (Rev H) changed it to 4.",
+	},
+	{
+		partIds: ["TL061", "TL061CP", "TL061CN", "TL062", "TL062C", "TL062CP", "TL062CN"],
+		hertz: 1e6,
+		source:
+			"TL062/datasheets/tl062.pdf (TI SLOS078N, rev Aug 2023) Table 6.7 p8 (the same row and value in Tables " +
+			"6.8 p9 and 6.9 p10): 'B1 | Unity-gain bandwidth | RL = 10k, TA = 25C | TYP 1 | MHz' in every grade column.",
+	},
+	{
+		partIds: ["TL071CP", "TL072CP", "TL082CP"],
+		hertz: 5.25e6,
+		source:
+			"TL072/datasheets/tl072.pdf and TL071/datasheets/tl071.pdf (byte-identical; TI SLOS080W, rev Jul 2025) " +
+			"5.8 p15, VS=+-15V, TA=25C: 'GBW | Gain-bandwidth product | All other devices | TYP 5.25 | MHz' (the row " +
+			"'All NS and PS packages; All TL07xM devices' is TYP 3). TL082CP: TL082/datasheets/tl082.pdf (SLOS081O, " +
+			"rev Sep 2025) 5.8 p14, the same two rows; its Rev N entry p29: 'Increased gain bandwidth of all " +
+			"non-NS/non-PS packages and non-TL08xM devices from 3 MHz to 5.25 MHz'. A -CP part is a PDIP: neither an " +
+			"NS/PS package nor an M device, so the 'all other devices' row applies.",
+	},
+	{
+		partIds: ["NE5532", "NE5532P", "NE5532D"],
+		hertz: 12e6,
+		source:
+			"NE5532/datasheets/ne5532.pdf (TI SLOS075K, rev Dec 2025) 5.5 p4, VCC+-=+-15V, TA=25C: 'B1 | Unity-gain " +
+			"bandwidth | TYP 12 | MHz' (p1 Features: '12MHz Typ'; Rev K p11: 'Changed ... from 10MHz to 12MHz typ'). " +
+			"The same document's prose, 6.3.1 p6 and 7.1.2.1 p8, still says 10 MHz; the characteristics table is taken.",
+	},
+	{
+		partIds: ["LM358", "LM358N", "LM358P"],
+		hertz: 0.7e6,
+		source:
+			"LM358/datasheets/lm358-ti.pdf (TI SLOS068AB, rev Oct 2024) 5.7 p10 (LM358, LM358A), VS=5V, TA=25C: " +
+			"'GBW | Gain bandwidth product | TYP 0.7 | MHz'. The B/BA versions (5.5 p6) are TYP 1.2 and are different " +
+			"part ids; the only PDIP orderables printed are LM358P and LM358AP.",
+	},
+	{
+		partIds: ["M5218AL", "M5218AP", "M5218AFP"],
+		hertz: 7e6,
+		source:
+			"5218/datasheets/mitsubishi-m5218.pdf (Mitsubishi M5218AL/P/FP, no document number or date; image scan) " +
+			"p2 (folio 2-468), Ta=25C, Vcc=+-15V: 'fT | Gain bandwidth product | TYP 7 | MHz' (p1 Features: " +
+			"'fT=7MHz(typ.)'). The sheet is the A grade; the plain M5218L, P and FP ids are not on it.",
+	},
+	{
+		partIds: ["TL022", "TL022C", "TL022CP", "TL022CD", "TL022CN"],
+		hertz: 0.5e6,
+		source:
+			"TL022/datasheets/ti-tl022.pdf (TI SLOS076, rev Sep 1990) p3, VCC+-=+-15V, TA=25C: 'B1 | Unity-gain " +
+			"bandwidth | TL022C TYP 0.5 | TL022M TYP 0.5 | MHz'.",
+	},
+	{
+		partIds: ["OP07CP", "OP07DP", "OP07DN"],
+		hertz: 0.6e6,
+		source:
+			"OP07/datasheets/op07-ti.pdf (TI SLOS099H, rev Mar 2023) 6.5 p6, TA=25C, VS=+-15V, RL=2k, FREQUENCY " +
+			"RESPONSE: 'Unity gain bandwidth | MIN 0.4 | TYP 0.6 | MHz'; footnote (1): the listed specifications apply " +
+			"to OP07C and OP07D. The row has no package split.",
+	},
+	{
+		partIds: ["NE5534", "NJM5534", "NJM5534D", "NJM5534M"],
+		hertz: 10e6,
+		source:
+			"NJM5534D/datasheets/NE5534_TI.pdf (TI SLOS070D, rev Nov 2014) 7.5 p5, VCC+-=+-15V, TA=25C: 'B1 | " +
+			"Unity-gain bandwidth | CC = 22 pF, CL = 100 pF | TYP 10 | MHz'; and njrc-njm5534d-page-2.png (New Japan " +
+			"Radio NJM5534, folio 4-236): 'Gain Bandwidth Product | GB | CC=22pF, CL=100pF | TYP 10 | MHz'. Both state " +
+			"the figure with a 22 pF compensation capacitor.",
+	},
+];
+
+/** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. They stay `null`. */
+export const opampGainBandwidthAbsent: ReadonlyArray<{
+	readonly partIds: readonly string[];
+	readonly reason: string;
+}> = [
+	{
+		partIds: ["uPC4558C", "uPC4558G2", "uPC4558"],
+		reason:
+			"UPC4558/datasheets/renesas-upc258-upc4558.pdf (Renesas R03DS0145EJ0200 Rev 2.00) prints no gain-bandwidth " +
+			"row: the p3 electrical characteristics list slew rate (1.0 V/us) and no GB/GBW/fT/B1. The p4 'AV vs. f' " +
+			"graph reaches 0 dB near 1.5 MHz by eye, which is not a printed figure. The registry's 3 MHz has no " +
+			"support in this sheet.",
+	},
+	{
+		partIds: ["RC4558C", "4558"],
+		reason:
+			"RC4558C is not an orderable printed in SLOS073H, and '4558' is a generic name no datasheet owns.",
+	},
+	{
+		partIds: ["TL071", "TL071CN", "TL072", "TL072CN", "TL072IP", "TL072D", "TL082"],
+		reason:
+			"The TL07x/TL08x GBW row splits on package and grade (TYP 3 MHz for NS/PS packages and M grades, TYP 5.25 " +
+			"for all other devices). These ids do not state, or the datasheet does not print for them, which row " +
+			"applies.",
+	},
+	{
+		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "MC33178", "MC33178P", "MC33178D", "BA718"],
+		reason: "No vendored datasheet.",
+	},
+	{
+		partIds: ["CA1458", "CA1458E", "CA1458T"],
+		reason:
+			"The datasheet this file cites for open-loop gain (Harris File Number 531.2) is not vendored in the " +
+			"artifacts library, so no GBW row can be quoted.",
+	},
+	{
+		partIds: [
+			"M5218A", "M5218L", "M5218P", "M5218FP", "M5218",
+			"M5216AL", "M5216AP", "M5216AFP", "M5216A", "M5216L", "M5216P", "M5216FP", "M5216",
+			"M5281AL", "M5281AP", "M5281AFP", "M5281A", "M5281L", "M5281P", "M5281FP", "M5281",
+		],
+		reason:
+			"The vendored Mitsubishi sheet is the M5218AL/P/FP document; the plain M5218 L/P/FP, the bare 'A' and " +
+			"'M5218' ids are not printed on it, and M5216/M5281 appear in no vendored datasheet.",
+	},
+	{
+		partIds: ["M5223L", "M5223P", "M5223FP", "M5223"],
+		reason:
+			"M5223AL/datasheets/m5223al-page-2.png has no gain-bandwidth row; its 'Voltage Gain vs Frequency Response' " +
+			"graph reaches 0 dB near 1 MHz at VCC=15 V and near 2 MHz at VCC=30 V by eye.",
+	},
+	{
+		partIds: ["OP07"],
+		reason: "The OP07 sheet's electrical characteristics apply to OP07C and OP07D only; the bare id has no column.",
+	},
+	{
+		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
+		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
+	},
+];
+
+/**
+ * The catalog's op-amp entries with each datasheet product stamped onto the sections of exactly the ids
+ * it covers. An entry whose ids have different products (or none) is split into one entry per product,
+ * keeping every other field, so no id changes behaviour except by gaining its own figure.
+ *
+ * Loud on any mismatch: a row or absent id the catalog holds no op-amp entry for, an id in both lists, or
+ * an id in two rows is a table error and throws at load rather than being silently skipped.
+ */
+function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEntry[] {
+	const rowOf = new Map<string, OpampGainBandwidthRow>();
+	for (const row of opampGainBandwidthDatasheet) {
+		for (const id of row.partIds) {
+			const folded = foldPartId(id);
+			if (rowOf.has(folded)) throw new Error(`gain-bandwidth table names ${id} twice`);
+			rowOf.set(folded, row);
+		}
+	}
+	const absent = new Set<string>();
+	for (const { partIds } of opampGainBandwidthAbsent) {
+		for (const id of partIds) {
+			const folded = foldPartId(id);
+			if (rowOf.has(folded)) throw new Error(`${id} is both given a gain-bandwidth figure and listed absent`);
+			absent.add(folded);
+		}
+	}
+	const seen = new Set<string>();
+	const out: PartEntry[] = [];
+	for (const entry of base) {
+		const sections = entry.model.kind === "sections" ? entry.model.sections : null;
+		const isOpamp =
+			sections !== null && sections.length > 0 && sections.every((section) => section.law.kind === "ideal-opamp");
+		if (!isOpamp || sections === null || entry.model.kind !== "sections") {
+			out.push(entry);
+			continue;
+		}
+		const groups = new Map<OpampGainBandwidthRow | null, string[]>();
+		for (const id of entry.partIds) {
+			const folded = foldPartId(id);
+			seen.add(folded);
+			const row = rowOf.get(folded) ?? null;
+			const group = groups.get(row);
+			if (group === undefined) groups.set(row, [id]);
+			else group.push(id);
+		}
+		const model = entry.model;
+		for (const [row, partIds] of groups) {
+			if (row === null) {
+				out.push(groups.size === 1 ? entry : { ...entry, partIds });
+				continue;
+			}
+			out.push({
+				...entry,
+				partIds,
+				model: {
+					...model,
+					sections: model.sections.map((section) =>
+						section.law.kind === "ideal-opamp"
+							? { ...section, law: { ...section.law, gainBandwidthHz: row.hertz } }
+							: section,
+					),
+				},
+			});
+		}
+	}
+	for (const folded of [...rowOf.keys(), ...absent]) {
+		if (!seen.has(folded)) throw new Error(`gain-bandwidth table names ${folded}, which no op-amp entry holds`);
+	}
+	return out;
+}
+
 /**
  * Every part id whose `fet` entry refines the gate term only, folded for comparison.
  * `report-part-store-drift.ts` keys its channel-field exclusion on this set -- a catalog
@@ -6832,4 +7072,6 @@ export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(["2sk30a"]);
 /**
  * The catalog the corpus-facing scripts inject.
  */
-export const pedalPartCatalog: PartRegistry = { entries };
+export const pedalPartCatalog: PartRegistry = {
+	entries: withDatasheetGainBandwidth(entries),
+};

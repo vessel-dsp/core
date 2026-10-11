@@ -1,0 +1,40 @@
+freqs (Hz):         100    250    500   1000   2000   3150   4000   6300   8000  12500  16000
+sd1 drive-min engine OLD / deck OLD   +0.00  +0.00  +0.00  +0.00  -0.00  -0.02  -0.03  -0.07  -0.11  -0.28  -0.45
+sd1 drive-min engine NEW / deck NEW   +0.00  +0.00  +0.00  +0.00  -0.00  -0.02  -0.03  -0.07  -0.11  -0.28  -0.45
+sd1 drive-min engine NEW / deck OLD   +0.00  +0.00  +0.00  +0.00  -0.00  -0.02  -0.03  -0.07  -0.11  -0.28  -0.45
+sd1 drive-min engine OLD / deck NEW   +0.00  +0.00  +0.00  +0.00  -0.00  -0.02  -0.03  -0.07  -0.11  -0.28  -0.45
+
+sd1 centre    engine OLD / deck OLD   -0.00  -0.00  -0.01  -0.01  -0.01  -0.03  -0.04  -0.08  -0.13  -0.31  -0.49
+sd1 centre    engine NEW / deck NEW   -0.00  -0.00  -0.01  -0.01  -0.01  -0.03  -0.04  -0.08  -0.13  -0.31  -0.49
+sd1 centre    engine NEW / deck OLD   -0.00  -0.00  -0.01  -0.01  -0.01  -0.03  -0.04  -0.08  -0.13  -0.31  -0.49
+sd1 centre    engine OLD / deck NEW   -0.00  -0.00  -0.01  -0.01  -0.01  -0.03  -0.04  -0.08  -0.13  -0.31  -0.49
+
+sd1 drive-max engine OLD / deck OLD   -0.00  -0.00  -0.01  -0.01  -0.01  -0.02  -0.03  -0.05  -0.09  -0.22  -0.37
+sd1 drive-max engine NEW / deck NEW   -0.00  -0.00  -0.01  -0.01  -0.01  -0.02  -0.03  -0.05  -0.09  -0.22  -0.37
+sd1 drive-max engine NEW / deck OLD   -0.00  -0.00  -0.01  -0.01  -0.01  -0.02  -0.03  -0.05  -0.09  -0.22  -0.37
+sd1 drive-max engine OLD / deck NEW   -0.00  -0.00  -0.01  -0.01  -0.01  -0.02  -0.03  -0.05  -0.09  -0.22  -0.37
+
+ts9 drive-min engine OLD / deck OLD   +0.00  +0.00  -0.00  -0.00  -0.00  -0.02  -0.04  -0.09  -0.14  -0.33  -0.50
+ts9 drive-min engine NEW / deck NEW   +0.00  +0.00  +0.00  +0.00  +0.00  -0.01  -0.02  -0.04  -0.07  -0.17  -0.28
+ts9 drive-min engine NEW / deck OLD   -0.00  -0.00  -0.01  -0.03  -0.03  -0.04  -0.04  -0.02  -0.01  +0.01  +0.05
+ts9 drive-min engine OLD / deck NEW   +0.00  +0.01  +0.02  +0.03  +0.03  +0.01  -0.02  -0.10  -0.20  -0.52  -0.83
+
+ts9 centre    engine OLD / deck OLD   -0.00  -0.00  -0.00  -0.00  -0.01  -0.03  -0.05  -0.11  -0.17  -0.38  -0.52
+ts9 centre    engine NEW / deck NEW   +0.00  -0.00  -0.00  -0.00  -0.00  -0.01  -0.02  -0.05  -0.09  -0.20  -0.32
+ts9 centre    engine NEW / deck OLD   -0.00  -0.01  -0.04  -0.06  -0.05  -0.02  +0.01  +0.12  +0.21  +0.54  +0.83
+ts9 centre    engine OLD / deck NEW   +0.00  +0.01  +0.03  +0.05  +0.03  -0.02  -0.08  -0.28  -0.47  -1.13  -1.67
+
+ts9 drive-max engine OLD / deck OLD   -0.00  -0.00  -0.00  -0.00  -0.01  -0.01  -0.02  -0.04  -0.08  -0.23  -0.31
+ts9 drive-max engine NEW / deck NEW   -0.00  -0.00  -0.00  -0.00  -0.00  -0.01  -0.02  -0.03  -0.06  -0.15  -0.26
+ts9 drive-max engine NEW / deck OLD   -0.01  -0.02  -0.03  -0.01  +0.03  +0.07  +0.11  +0.22  +0.32  +0.78  +1.41
+ts9 drive-max engine OLD / deck NEW   +0.01  +0.02  +0.02  +0.00  -0.04  -0.09  -0.14  -0.30  -0.46  -1.15  -1.97
+
+max |engine - deck| (dB): up to 8 kHz / at 16 kHz
+  engine OLD / deck OLD  sd1:  0.13 /  0.49
+  engine OLD / deck OLD  ts9:  0.17 /  0.52
+  engine NEW / deck NEW  sd1:  0.13 /  0.49
+  engine NEW / deck NEW  ts9:  0.09 /  0.32
+  engine NEW / deck OLD  sd1:  0.13 /  0.49
+  engine NEW / deck OLD  ts9:  0.32 /  1.41
+  engine OLD / deck NEW  sd1:  0.13 /  0.49
+  engine OLD / deck NEW  ts9:  0.47 /  1.97

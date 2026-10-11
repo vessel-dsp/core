@@ -1,0 +1,6 @@
+no-opamp               documents  58  hash-identical (ts x1, ts os4, wasm x1, wasm os4 all equal baseline)  58  differing 0
+opamp-null-or-1MHz     documents  49  hash-identical (ts x1, ts os4, wasm x1, wasm os4 all equal baseline)  49  differing 0
+opamp-off-1MHz         documents  38  hash-identical (ts x1, ts os4, wasm x1, wasm os4 all equal baseline)   5  differing 33
+op-amp documents unmoved that differ: none
+render errors (base/new): none
+documents with a section off 1 MHz: 38; of them hash-different 33, hash-identical 5 ['boss-bf-2', 'boss-bf-3', 'boss-oc-2', 'boss-rv-5', 'boss-vb-2']
