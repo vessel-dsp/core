@@ -1,0 +1,30 @@
+log-log slope of |error| vs dt (cells with |e| >= 0.03 dB at the coarser rate, f <= 10000 Hz)
+ts G=1 os1->2          n= 2 min 0.97 median 1.14 max 1.14
+ts G=10 os1->2         n= 5 min 0.81 median 0.99 max 1.22
+ts G=10 os2->4         n= 4 min 0.95 median 0.97 max 1.02
+ts G=10 os4->8         n= 3 min 0.95 median 0.95 max 1.05
+ts G=100 os1->2        n= 7 min 0.63 median 0.90 max 1.12
+ts G=100 os2->4        n= 6 min 0.83 median 0.94 max 1.05
+ts G=100 os4->8        n= 6 min 0.90 median 0.95 max 1.13
+ts G=2 os1->2          n= 3 min 0.90 median 1.01 max 1.38
+ts G=2 os2->4          n= 2 min 1.03 median 1.05 max 1.05
+wasm G=1 os1->2        n= 2 min 0.97 median 1.14 max 1.14
+wasm G=10 os1->2       n= 5 min 0.81 median 0.99 max 1.22
+wasm G=10 os2->4       n= 4 min 0.95 median 0.97 max 1.02
+wasm G=10 os4->8       n= 3 min 0.95 median 0.95 max 1.05
+wasm G=100 os1->2      n= 7 min 0.63 median 0.90 max 1.12
+wasm G=100 os2->4      n= 6 min 0.83 median 0.94 max 1.05
+wasm G=100 os4->8      n= 6 min 0.90 median 0.95 max 1.13
+wasm G=2 os1->2        n= 3 min 0.90 median 1.01 max 1.38
+wasm G=2 os2->4        n= 2 min 1.03 median 1.05 max 1.05
+  GATE RED: ts G=10 os2->4 median 0.97 < 1.8
+  GATE RED: ts G=10 os4->8 median 0.95 < 1.8
+  GATE RED: ts G=100 os2->4 median 0.94 < 1.8
+  GATE RED: ts G=100 os4->8 median 0.95 < 1.8
+  GATE RED: wasm G=10 os2->4 median 0.97 < 1.8
+  GATE RED: wasm G=10 os4->8 median 0.95 < 1.8
+  GATE RED: wasm G=100 os2->4 median 0.94 < 1.8
+  GATE RED: wasm G=100 os4->8 median 0.95 < 1.8
+order-of-accuracy gate (median slope >= 1.8 for G=10 and G=100, os2->os4 and os4->os8, per console): 0 of 8 rows pass; 76 cells counted -> RED
+ts os4 G=100 worst |error| f<=10 kHz: 0.6392 dB at 10000 Hz -> NOT MET (bar 0.05)
+wasm os4 G=100 worst |error| f<=10 kHz: 0.6392 dB at 10000 Hz -> NOT MET (bar 0.05)

@@ -1,0 +1,60 @@
+
+=== TRAPEZOID, x1: 359 (document, frequency) cells compared; 55 at the floor (not compared); 6 STALL
+   |change| >  1 dB: 50 cells
+   |change| >  3 dB: 22 cells
+   |change| > 10 dB: 12 cells
+       1 kHz: median +0.00  p10 -0.01  p90 +0.02  min -29.96  max +24.21  (n=73)
+       8 kHz: median +0.09  p10 -0.13  p90 +1.04  min -80.91  max +43.11  (n=72)
+      10 kHz: median +0.09  p10 -0.09  p90 +0.53  min -11.99  max +45.58  (n=71)
+    12.5 kHz: median +0.07  p10 -0.48  p90 +0.49  min -15.88  max +48.45  (n=71)
+      16 kHz: median +0.10  p10 -1.41  p90 +0.89  min -29.63  max +52.65  (n=72)
+   largest movers: fulltone-ocd-v1.4 8k -80.9; boss-ce-5 16k +52.6; boss-ce-5 12.5k +48.4; boss-ce-5 10k +45.6; boss-ce-5 8k +43.1; analog-man-prince-of-tone 1k -30.0; mxr-noise-gate-line-driver 16k -29.6; boss-ce-5 1k +24.2; belton-brick-reverb 16k -18.9; belton-brick-reverb 12.5k -15.9; analog-man-prince-of-tone 8k -14.8; belton-brick-reverb 10k -12.0; analog-man-prince-of-tone 16k -8.9; boss-os-2 16k +8.6
+   floor cases: belton-brick-reverb 1k, boss-bf-3 10k, boss-bf-3 12.5k, boss-bf-3 16k, boss-bf-3 1k, boss-bf-3 8k, boss-ce-1 10k, boss-ce-1 12.5k, boss-ce-1 16k, boss-ce-1 1k, boss-ce-1 8k, boss-dd-3b 10k
+   STALL: boss-ch-1 10k, boss-ch-1 12.5k, boss-ch-1 16k, boss-ch-1 1k, boss-ch-1 8k, boss-mt-2 1k
+   filter document boss-aw-2: 1k +0.02, 8k -1.19, 10k -1.94, 12.5k -3.23, 16k -6.05
+   filter document dod-envelope-filter-440-vintage-green: 1k +0.54, 8k -0.13, 10k -1.51, 12.5k -2.74, 16k -2.36
+
+=== TRAPEZOID, x4: 361 (document, frequency) cells compared; 54 at the floor (not compared); 5 STALL
+   |change| >  1 dB: 9 cells
+   |change| >  3 dB: 4 cells
+   |change| > 10 dB: 4 cells
+       1 kHz: median +0.00  p10 -0.00  p90 +0.00  min -1.05  max +0.30  (n=74)
+       8 kHz: median +0.02  p10 -0.04  p90 +0.10  min -31.11  max +1.16  (n=73)
+      10 kHz: median +0.03  p10 -0.00  p90 +0.13  min -29.03  max +0.45  (n=72)
+    12.5 kHz: median +0.04  p10 -0.00  p90 +0.20  min -25.40  max +0.69  (n=71)
+      16 kHz: median +0.05  p10 -0.16  p90 +0.32  min -26.25  max +1.00  (n=71)
+   largest movers: analog-man-prince-of-tone 8k -31.1; analog-man-prince-of-tone 10k -29.0; analog-man-prince-of-tone 16k -26.3; analog-man-prince-of-tone 12.5k -25.4; boss-hm-2 16k -1.5; boss-hm-2 8k -1.3; jhs-morning-glory 8k +1.2; boss-hm-2 10k -1.1; boss-ce-2 1k -1.0; ibanez-dl5 16k +1.0; boss-hm-2 12.5k -1.0; belton-brick-reverb 12.5k -0.9; dod-envelope-filter-440-vintage-green 8k +0.9; boss-fa-1 16k +0.8
+   floor cases: belton-brick-reverb 1k, boss-bf-3 10k, boss-bf-3 12.5k, boss-bf-3 16k, boss-bf-3 1k, boss-bf-3 8k, boss-ce-1 10k, boss-ce-1 12.5k, boss-ce-1 16k, boss-ce-1 1k, boss-ce-1 8k, boss-ce-5 12.5k
+   STALL: boss-mt-2 10k, boss-mt-2 12.5k, boss-mt-2 16k, boss-mt-2 1k, boss-mt-2 8k
+   filter document boss-aw-2: 1k +0.01, 8k -0.05, 10k -0.09, 12.5k -0.15, 16k -0.25
+   filter document dod-envelope-filter-440-vintage-green: 1k +0.14, 8k +0.92, 10k -0.08, 12.5k -0.14, 16k -0.25
+
+=== BDF2 (scratch), x1: 369 (document, frequency) cells compared; 51 at the floor (not compared); 0 STALL
+   |change| >  1 dB: 26 cells
+   |change| >  3 dB: 12 cells
+   |change| > 10 dB: 3 cells
+       1 kHz: median +0.00  p10 -0.01  p90 +0.02  min -0.24  max +2.87  (n=75)
+       8 kHz: median +0.04  p10 -0.38  p90 +0.52  min -9.27  max +6.08  (n=74)
+      10 kHz: median +0.01  p10 -0.16  p90 +0.13  min -16.79  max +0.51  (n=73)
+    12.5 kHz: median -0.03  p10 -0.52  p90 +0.00  min -17.91  max +0.51  (n=73)
+      16 kHz: median -0.15  p10 -1.22  p90 +0.02  min -13.49  max +0.51  (n=74)
+   largest movers: belton-brick-reverb 12.5k -17.9; belton-brick-reverb 10k -16.8; belton-brick-reverb 16k -13.5; belton-brick-reverb 8k -9.3; boss-hm-2 8k +6.1; boss-aw-2 16k -5.2; mxr-blue-box 8k +4.8; boss-lm-2 16k -4.6; boss-aw-2 12.5k -4.2; dod-envelope-filter-440-vintage-green 12.5k -3.5; dod-envelope-filter-440-vintage-green 16k -3.3; boss-aw-2 10k -3.3; boss-ph-1r 16k -2.9; mxr-distortion-plus 1k +2.9
+   floor cases: belton-brick-reverb 1k, boss-bf-3 10k, boss-bf-3 12.5k, boss-bf-3 16k, boss-bf-3 1k, boss-bf-3 8k, boss-ce-1 10k, boss-ce-1 12.5k, boss-ce-1 16k, boss-ce-1 1k, boss-ce-1 8k, boss-dd-3b 10k
+   STALL: none
+   filter document boss-aw-2: 1k -0.02, 8k -2.42, 10k -3.25, 12.5k -4.19, 16k -5.24
+   filter document dod-envelope-filter-440-vintage-green: 1k +0.54, 8k -2.29, 10k -2.55, 12.5k -3.52, 16k -3.34
+
+=== BDF2 (scratch), x4: 361 (document, frequency) cells compared; 54 at the floor (not compared); 5 STALL
+   |change| >  1 dB: 5 cells
+   |change| >  3 dB: 0 cells
+   |change| > 10 dB: 0 cells
+       1 kHz: median +0.00  p10 -0.00  p90 +0.00  min -0.07  max +0.16  (n=74)
+       8 kHz: median +0.02  p10 -0.03  p90 +0.08  min -1.26  max +1.17  (n=73)
+      10 kHz: median +0.03  p10 -0.01  p90 +0.11  min -1.07  max +0.43  (n=72)
+    12.5 kHz: median +0.03  p10 -0.01  p90 +0.15  min -1.65  max +0.62  (n=71)
+      16 kHz: median +0.04  p10 -0.19  p90 +0.22  min -1.74  max +0.81  (n=71)
+   largest movers: belton-brick-reverb 16k -1.7; belton-brick-reverb 12.5k -1.6; boss-hm-2 8k -1.3; jhs-morning-glory 8k +1.2; belton-brick-reverb 10k -1.1; analog-man-prince-of-tone 16k -0.8; ibanez-dl5 16k +0.8; boss-aw-2 16k -0.8; analog-man-prince-of-tone 12.5k -0.8; dod-envelope-filter-440-vintage-green 16k -0.7; analog-man-prince-of-tone 8k -0.6; ibanez-dl5 12.5k +0.6; boss-fa-1 16k +0.6; electro-harmonix-bad-stone 8k -0.6
+   floor cases: belton-brick-reverb 1k, boss-bf-3 10k, boss-bf-3 12.5k, boss-bf-3 16k, boss-bf-3 1k, boss-bf-3 8k, boss-ce-1 10k, boss-ce-1 12.5k, boss-ce-1 16k, boss-ce-1 1k, boss-ce-1 8k, boss-ce-5 12.5k
+   STALL: boss-mt-2 10k, boss-mt-2 12.5k, boss-mt-2 16k, boss-mt-2 1k, boss-mt-2 8k
+   filter document boss-aw-2: 1k +0.01, 8k -0.20, 10k -0.31, 12.5k -0.48, 16k -0.76
+   filter document dod-envelope-filter-440-vintage-green: 1k +0.16, 8k +0.47, 10k -0.24, 12.5k -0.41, 16k -0.70

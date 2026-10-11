@@ -1,0 +1,13 @@
+theta bdf2: gain-100 error vs continuous: os1 8k -1.659 dB | os1 10k -2.631 dB | os4 8k -0.092 dB | os4 10k -0.183 dB
+theta bdf2 boss-ch-1                x1 1kHz-100mV-0.25s  it/host 4.40 NC n/a peak 11 (1284 ms)
+theta bdf2 boss-ch-1                x4 1kHz-100mV-0.25s  it/host 9.10 NC n/a peak 13 (2027 ms)
+theta bdf2 boss-mt-2                x1 1kHz-100mV-0.25s  it/host 4.64 NC n/a peak 1024 (797 ms)
+theta bdf2 boss-mt-2                x4 1kHz-100mV-0.25s  STALL (422053 ms)
+theta bdf2 boss-mt-2                x1 two-tone-1s       it/host 4.21 NC n/a peak 1024 (1949 ms)
+theta bdf2 boss-bd-2-blues-driver   x1 1kHz-100mV-0.25s  it/host 2.79 NC n/a peak 3 (416 ms)
+theta bdf2 boss-bd-2-blues-driver   x4 1kHz-100mV-0.25s  it/host 8.00 NC n/a peak 3 (999 ms)
+theta bdf2 ibanez-pql               x1 1kHz-100mV-0.25s  it/host 2.00 NC n/a peak 2 (233 ms)
+theta bdf2 ibanez-pql               x4 1kHz-100mV-0.25s  it/host 4.55 NC n/a peak 2 (464 ms)
+theta bdf2 mxr-blue-box             x1 1kHz-100mV-0.25s  it/host 6.21 NC n/a peak 305 (267 ms)
+theta bdf2 mxr-blue-box             x4 1kHz-100mV-0.25s  it/host 16.76 NC n/a peak 173 (605 ms)
+theta bdf2 mxr-blue-box             x1 1kHz-10mV-1s      it/host 4.62 NC n/a peak 53 (529 ms)

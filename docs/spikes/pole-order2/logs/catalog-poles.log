@@ -1,0 +1,13 @@
+369 op-amp stamps (361 railed, the only ones the pole acts on) in 87 documents; GBP 1000000
+A0 (linear)   pole Hz    sections docs | pole/(fs/2) at x1 48k | at os4 192k | x=dt/(2 tau) at x1 | os4
+   1.00e+1  100000.00         3    2 |    4.17e+0 |    1.04e+0 | 6.54e+0 | 1.64e+0
+   1.00e+4     100.00         2    1 |    4.17e-3 |    1.04e-3 | 6.54e-3 | 1.64e-3
+   3.98e+4      25.12         1    1 |    1.05e-3 |    2.62e-4 | 1.64e-3 | 4.11e-4
+   1.00e+5      10.00       296   68 |    4.17e-4 |    1.04e-4 | 6.54e-4 | 1.64e-4
+   2.00e+5       5.00        31   10 |    2.08e-4 |    5.21e-5 | 3.27e-4 | 8.18e-5
+   3.00e+5       3.33         5    2 |    1.39e-4 |    3.47e-5 | 2.18e-4 | 5.45e-5
+   3.16e+5       3.16        14    2 |    1.32e-4 |    3.30e-5 | 2.07e-4 | 5.18e-5
+   3.16e+5       3.16         8    2 |    1.32e-4 |    3.29e-5 | 2.07e-4 | 5.17e-5
+   4.00e+5       2.50         1    1 |    1.04e-4 |    2.60e-5 | 1.64e-4 | 4.09e-5
+smallest railed A0 1.00e+1 -> pole 100000.00 Hz = 4.17e+0 of x1 Nyquist; largest 4.00e+5 -> 2.50 Hz
+A0 at which the pole reaches Nyquist (GBP 1000000): x1 41.7, os2 20.8, os4 10.4, os8 5.2

@@ -1,0 +1,79 @@
+# boss-mt-2 console=wasm os=1 cap=1024 seconds=8 block=128
+SLOW block starting at sample 0 (0.0000 s): 141.0 ms = 1101 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":454}
+SLOW block starting at sample 128 (0.0027 s): 73.1 ms = 571 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":903}
+SLOW block starting at sample 8320 (0.1733 s): 117.5 ms = 918 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":37950}
+SLOW block starting at sample 10496 (0.2187 s): 79.2 ms = 619 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":48871}
+SLOW block starting at sample 14848 (0.3093 s): 127.8 ms = 998 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":71402}
+SLOW block starting at sample 17024 (0.3547 s): 55.5 ms = 434 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":81388}
+SLOW block starting at sample 32256 (0.6720 s): 50.2 ms = 392 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":148586}
+SLOW block starting at sample 34432 (0.7173 s): 64.0 ms = 500 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":161593}
+SLOW block starting at sample 37888 (0.7893 s): 57.1 ms = 446 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":175763}
+SLOW block starting at sample 45056 (0.9387 s): 91.7 ms = 716 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":212626}
+second 0: 106.3 us/sample (5.10x real time)
+SLOW block starting at sample 53632 (1.1173 s): 56.7 ms = 443 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":251362}
+SLOW block starting at sample 55808 (1.1627 s): 104.9 ms = 820 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":263602}
+SLOW block starting at sample 60160 (1.2533 s): 62.8 ms = 491 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":284827}
+SLOW block starting at sample 85120 (1.7733 s): 56.4 ms = 441 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":387805}
+SLOW block starting at sample 94208 (1.9627 s): 102.1 ms = 798 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":432230}
+second 1: 84.1 us/sample (4.04x real time)
+SLOW block starting at sample 96384 (2.0080 s): 54.4 ms = 425 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":443222}
+SLOW block starting at sample 130432 (2.7173 s): 172.3 ms = 1346 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":590406}
+SLOW block starting at sample 141184 (2.9413 s): 64.6 ms = 504 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":638312}
+second 2: 95.1 us/sample (4.57x real time)
+SLOW block starting at sample 147584 (3.0747 s): 55.6 ms = 435 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":667401}
+SLOW block starting at sample 149760 (3.1200 s): 68.3 ms = 534 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":678220}
+SLOW block starting at sample 151552 (3.1573 s): 56.9 ms = 445 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":684666}
+SLOW block starting at sample 160384 (3.3413 s): 58.7 ms = 459 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":720558}
+SLOW block starting at sample 162432 (3.3840 s): 148.4 ms = 1160 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":733409}
+SLOW block starting at sample 171008 (3.5627 s): 53.7 ms = 420 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":768680}
+SLOW block starting at sample 177408 (3.6960 s): 62.8 ms = 491 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":798158}
+SLOW block starting at sample 181760 (3.7867 s): 83.7 ms = 654 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":817325}
+SLOW block starting at sample 182144 (3.7947 s): 52.1 ms = 407 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":818898}
+SLOW block starting at sample 183808 (3.8293 s): 127.4 ms = 995 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":829962}
+SLOW block starting at sample 185984 (3.8747 s): 143.8 ms = 1124 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":842993}
+SLOW block starting at sample 188160 (3.9200 s): 56.3 ms = 440 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":853132}
+second 3: 106.6 us/sample (5.12x real time)
+SLOW block starting at sample 194560 (4.0533 s): 94.8 ms = 741 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":879860}
+SLOW block starting at sample 198784 (4.1413 s): 130.9 ms = 1023 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":900325}
+SLOW block starting at sample 200960 (4.1867 s): 51.5 ms = 402 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":910277}
+SLOW block starting at sample 201088 (4.1893 s): 94.0 ms = 734 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":914217}
+SLOW block starting at sample 205312 (4.2773 s): 57.8 ms = 452 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":933728}
+SLOW block starting at sample 217472 (4.5307 s): 52.5 ms = 410 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":983707}
+SLOW block starting at sample 218112 (4.5440 s): 65.1 ms = 509 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":989651}
+SLOW block starting at sample 224512 (4.6773 s): 64.8 ms = 506 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1016255}
+SLOW block starting at sample 226560 (4.7200 s): 78.7 ms = 615 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1026688}
+SLOW block starting at sample 226688 (4.7227 s): 216.4 ms = 1691 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1034640}
+SLOW block starting at sample 230912 (4.8107 s): 71.6 ms = 559 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1054118}
+SLOW block starting at sample 235392 (4.9040 s): 72.8 ms = 569 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1073352}
+second 4: 113.1 us/sample (5.43x real time)
+SLOW block starting at sample 252288 (5.2560 s): 91.3 ms = 713 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1141215}
+SLOW block starting at sample 260736 (5.4320 s): 75.8 ms = 592 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1177000}
+SLOW block starting at sample 267136 (5.5653 s): 114.9 ms = 897 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1204523}
+SLOW block starting at sample 279936 (5.8320 s): 62.1 ms = 485 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1259459}
+SLOW block starting at sample 286336 (5.9653 s): 87.7 ms = 685 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1287790}
+second 5: 102.9 us/sample (4.94x real time)
+SLOW block starting at sample 290560 (6.0533 s): 124.7 ms = 974 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1309219}
+SLOW block starting at sample 294784 (6.1413 s): 60.6 ms = 473 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1326656}
+SLOW block starting at sample 301184 (6.2747 s): 173.4 ms = 1355 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1356188}
+SLOW block starting at sample 303360 (6.3200 s): 57.3 ms = 448 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1367213}
+SLOW block starting at sample 307712 (6.4107 s): 55.1 ms = 430 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1385280}
+SLOW block starting at sample 311936 (6.4987 s): 53.1 ms = 415 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1402723}
+SLOW block starting at sample 314240 (6.5467 s): 50.6 ms = 395 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1411326}
+SLOW block starting at sample 316160 (6.5867 s): 118.1 ms = 922 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1425295}
+SLOW block starting at sample 326912 (6.8107 s): 126.1 ms = 985 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1476486}
+SLOW block starting at sample 329088 (6.8560 s): 121.4 ms = 948 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1487607}
+SLOW block starting at sample 331264 (6.9013 s): 99.1 ms = 774 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1498550}
+second 6: 130.6 us/sample (6.27x real time)
+SLOW block starting at sample 341888 (7.1227 s): 60.5 ms = 473 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1546459}
+SLOW block starting at sample 349696 (7.2853 s): 65.5 ms = 512 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1576947}
+SLOW block starting at sample 352512 (7.3440 s): 54.4 ms = 425 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1589909}
+SLOW block starting at sample 354688 (7.3893 s): 88.8 ms = 694 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1602971}
+SLOW block starting at sample 356864 (7.4347 s): 75.9 ms = 593 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1613018}
+SLOW block starting at sample 363264 (7.5680 s): 100.9 ms = 789 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1642833}
+SLOW block starting at sample 365440 (7.6133 s): 56.9 ms = 445 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1653279}
+SLOW block starting at sample 367616 (7.6587 s): 93.2 ms = 728 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1666264}
+SLOW block starting at sample 369664 (7.7013 s): 100.1 ms = 782 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1678885}
+SLOW block starting at sample 371840 (7.7467 s): 54.6 ms = 426 us/sample; telemetry {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1689923}
+second 7: 101.4 us/sample (4.87x real time)
+final telemetry: {"seedsUsed":0,"oneIterationSolves":0,"totalIterations":1740136}
+RESULT: no stall; 68 blocks over 50 ms, none over 1000 ms

@@ -1,0 +1,13 @@
+slug                                os stimulus       | TS: NC  peak it/host finite | WASM: it/host peak
+boss-bd-2-blues-driver              1 1kHz-100mV-1s  |     0     3   2.792 true |   2.792     3
+boss-bd-2-blues-driver              1 two-tone-2s    |     0    16   3.012 true |   3.012    16
+boss-bd-2-blues-driver              4 1kHz-100mV-1s  |     0     3   8.229 true |   8.229     3
+boss-bd-2-blues-driver              4 two-tone-2s    |     0     5   9.329 true |   9.329     5
+ibanez-pql                          1 1kHz-100mV-1s  |     0     2   2.000 true |   2.000     2
+ibanez-pql                          1 two-tone-2s    |     0     2   2.000 true |   2.000     2
+ibanez-pql                          4 1kHz-100mV-1s  |     0     2   4.459 true |   4.459     2
+ibanez-pql                          4 two-tone-2s    |     0     2   5.203 true |   5.203     2
+boss-od-1                           1 1kHz-100mV-1s  |     0    17   2.167 true |   2.167    17
+boss-od-1                           1 two-tone-2s    |     0    17   2.165 true |   2.165    17
+boss-od-1                           4 1kHz-100mV-1s  |     0    17   5.073 true |   5.070    17
+boss-od-1                           4 two-tone-2s    |     0    17   4.339 true |   4.340    17

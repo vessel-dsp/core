@@ -1,0 +1,16 @@
+decision parity: 1000 Hz @0.1 V, 4800 host samples, cap 1024, one-sample process calls; per sample: order per block, cumulative seeds / one-iteration solves / total iterations
+packet    os | samples | seeds TS/WASM | one-it TS/WASM | iterations TS/WASM | samples whose per-sample order / counter deltas differ | first | verdict
+muff       1 | 4800 | 0/0 | 0/0 | 17160/17160 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+muff       4 | 4800 | 18195/18195 | 12906/12906 | 26869/26869 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+sd1        1 | 4800 | 0/0 | 0/0 | 14112/14112 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+sd1        4 | 4800 | 17894/17894 | 14024/14024 | 26264/26264 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+ts9        1 | 4800 | 0/0 | 0/0 | 12807/12807 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+ts9        4 | 4800 | 19185/19185 | 15956/15956 | 22446/22446 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+ts808      1 | 4800 | 0/0 | 0/0 | 14201/14201 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+ts808      4 | 4800 | 19185/19185 | 15787/15788 | 22615/22614 | samples differing: order 0, seeds 0, one-it 1, iterations 1 | sample 1862: one-iteration solves this sample TS 2 WASM 3 | DIVERGE
+gro100     1 | 4800 | 0/0 | 0/0 | 10517/10515 | samples differing: order 0, seeds 0, one-it 0, iterations 6 | sample 1108: iterations this sample TS 2 WASM 3 | DIVERGE
+gro100     4 | 4800 | 18613/18613 | 16655/16655 | 22675/22675 | samples differing: order 0, seeds 0, one-it 4, iterations 4 | sample 2: one-iteration solves this sample TS 1 WASM 0 | DIVERGE
+blue-box   1 | 4800 | 0/0 | 0/0 | 28264/28264 | samples differing: order 0, seeds 0, one-it 0, iterations 3 | sample 1598: iterations this sample TS 294 WASM 295 | DIVERGE
+blue-box   4 | 4800 | 918/918 | 1/1 | 70834/70834 | samples differing: order 0, seeds 0, one-it 0, iterations 0 | - | EXACT
+
+decision parity: DIVERGENCE (see rows)

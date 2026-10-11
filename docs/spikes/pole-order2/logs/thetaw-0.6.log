@@ -1,0 +1,13 @@
+theta 0.6: gain-100 error vs continuous: os1 8k -0.794 dB | os1 10k -1.294 dB | os4 8k -0.126 dB | os4 10k -0.175 dB
+theta 0.6 boss-ch-1                x1 1kHz-100mV-0.25s  it/host 4.40 NC n/a peak 11 (3534 ms)
+theta 0.6 boss-ch-1                x4 1kHz-100mV-0.25s  it/host 9.08 NC n/a peak 13 (4457 ms)
+theta 0.6 boss-mt-2                x1 1kHz-100mV-0.25s  it/host 4.54 NC n/a peak 1024 (1953 ms)
+theta 0.6 boss-mt-2                x4 1kHz-100mV-0.25s  STALL (166350 ms)
+theta 0.6 boss-mt-2                x1 two-tone-1s       STALL (13199 ms)
+theta 0.6 boss-bd-2-blues-driver   x1 1kHz-100mV-0.25s  it/host 2.79 NC n/a peak 3 (1646 ms)
+theta 0.6 boss-bd-2-blues-driver   x4 1kHz-100mV-0.25s  it/host 8.11 NC n/a peak 3 (2415 ms)
+theta 0.6 ibanez-pql               x1 1kHz-100mV-0.25s  it/host 2.00 NC n/a peak 2 (777 ms)
+theta 0.6 ibanez-pql               x4 1kHz-100mV-0.25s  it/host 4.55 NC n/a peak 2 (1254 ms)
+theta 0.6 mxr-blue-box             x1 1kHz-100mV-0.25s  it/host 4.85 NC n/a peak 316 (745 ms)
+theta 0.6 mxr-blue-box             x4 1kHz-100mV-0.25s  it/host 14.91 NC n/a peak 50 (1749 ms)
+theta 0.6 mxr-blue-box             x1 1kHz-10mV-1s      it/host 7.82 NC n/a peak 238 (2315 ms)

@@ -1,0 +1,12 @@
+# pole-order2 worklog (scratch; key results so far, 2026-10-10)
+- Layout: $S/base = unchanged main clone (wasm cd27e58e...), $S/cand = scheme-switch clone (TS only), worktree = TR in both consoles (wasm 6.0.4 d4abeaed...).
+- Amendments: K1 floor 0.03 + median gate (0.1); amp 1 mV + ripple correction via G=1 follower (0.2) -- both before any new-law arm gated.
+- K1: BE red (0/4 rows, slope ~0.95, os4 10k -0.634), TR green (slopes 2.14/2.03/2.00; os4 10k -0.0366 both consoles; wiring <=0.0076), FOH == TR, BDF2 green slope but os4 10k -0.183 (bar fail).
+- K2 (TS, 1 kHz 10 mV): all 3 second-order arms +10.9/+10.9/+14.4% on blue-box x1 only; sd1/ts9/ts808/muff/gro100 -1.5..+0.5%. WASM identical to TS. Real DI (pluck/brit, 10mV/100mV/1V): blue-box x1 -14.6..-35.5% (all 6 rows), os4 -2.3..-25.2%; others -2.1..+0.5. Coordinator ruled: F2 = falsified prediction, not gate-5 fail; show side by side.
+- Ring probe: TR follower z=-0.965 (x1 48k) / -0.885 (192k), settle 1%/0.1% 14/89 and 15/34 samples; BE 0/1; os4 through resampler identical (33/36).
+- Nyquist spectral top bin DROPS for followers under TR (null). Real renders top bin <= -56 dBc, band changes small (bd-2 two-tone x1 band -74.9 -> -66.5).
+- Parity TS vs WASM: all six + blue-box PASS x1/os2/os4 on change; blue-box os2 main FAIL 1.04e-4 -> 1.8e-9.
+- Decision parity (x1,os4; 4800 samples): main 7 EXACT/5 DIVERGE (sd1 os4 5, gro100 x1 6, gro100 os4 4, blue-box x1 134, blue-box os4 4); change 8 EXACT/4 DIVERGE (ts808 os4 1 sample 22615/22614, gro100 x1 6, gro100 os4 4, blue-box x1 3).
+- DC op point: 145 docs (84 railed) identical on both consoles (node voltages + raw seeds).
+- pipeline.test.ts S5(iii) echo probe: sample-index -> window sum (passes on main too). Full suite in worktree: 2012 pass 1 fail (dist-dependent release metadata, needs build).
+- Pending: corpus hash compare, ngspice (decks running), hardware three-way, movement (baseline running), canaries wasm+mt2, cost (idle), interaction exp (check 8), fresh clone + emsdk 3.1.74 (installed at $S/emsdk-3.1.74), browser proofs, break controls, boundary continuity, docs text, note.

@@ -1,0 +1,7 @@
+[change] renders: 1 kHz 10 mV, 48000 samples at 48000 Hz, cap 1024, block 512
+muff  os1 TS f64 sha256=87222dbc7c8ebe60e0bdbd3c8caa304002d8c27d7f2fe24b90c395fa3fd53e4f it/host=3.041 peak=6 NC=0 | WASM f32 sha256=3ad1d88d16cb8b33b3eb535d0b42cebbaa9b83913d8ca4d4d20ed9f5c231d1ad peak=6 | TS-vs-WASM maxAbs=1.45e-9
+muff  os4 TS f64 sha256=b3fd0070a3180dd2ed2e106c7e98e37362a529a2b87cf750f8da4aeebeed8625 it/host=5.625 peak=2 NC=0 | WASM f32 sha256=3c4385ed7726c34401df7ab42fff29b218bd0bf4db982d64d2e8cf7c5716af79 peak=2 | TS-vs-WASM maxAbs=1.53e-9
+sd1   os1 TS f64 sha256=f7554d18675df7d5539f36bfd0d56648507eb4d140054146445a7d11390a31df it/host=2.708 peak=4 NC=0 | WASM f32 sha256=9f152148f0e5ba1c72408e60eeb031d8be1ac6a7f659fb195479d89f016c5c53 peak=4 | TS-vs-WASM maxAbs=8.27e-6
+sd1   os4 TS f64 sha256=dd59360420cbc6ef66864a9530642ff7387fbba52ac4d102204e443bc92fb2c9 it/host=4.606 peak=2 NC=0 | WASM f32 sha256=c1b4734ed91781a199d6f9dba98755a19db572809f9831051eafa1ebf2a84d21 peak=2 | TS-vs-WASM maxAbs=8.58e-6
+ts9   os1 TS f64 sha256=ec62f7a4111bbfaaa7b5eb38cfc935b37400fa38ba535edfc0c566c8496dd3cb it/host=2.062 peak=3 NC=0 | WASM f32 sha256=701af6b331f04289e035ad8bb200a1fbc1789ebd8cfe53197dba9b5c14a41d93 peak=3 | TS-vs-WASM maxAbs=2.84e-5
+ts9   os4 TS f64 sha256=693521e4ba36c5da369df619d59f1298140c4664c9e5fe1f150388fd6238f1b2 it/host=4.043 peak=2 NC=0 | WASM f32 sha256=9883ba6e68167615ec629df5315a1238938b2cd012d43e1d16fbbe48f0723c6f peak=2 | TS-vs-WASM maxAbs=2.95e-5

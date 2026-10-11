@@ -1,0 +1,14 @@
+iterations per host sample, 1000 Hz 10 mV 1 s, cap 1024
+packet                                  os | TS it/host  peak  NC | WASM it/host  peak
+muff                                     1 |      3.041     6   0 |         NaN   NaN
+muff                                     4 |      5.625     2   0 |         NaN   NaN
+sd1                                      1 |      2.708     4   0 |         NaN   NaN
+sd1                                      4 |      4.606     2   0 |         NaN   NaN
+ts9                                      1 |      2.062     3   0 |         NaN   NaN
+ts9                                      4 |      4.043     2   0 |         NaN   NaN
+ts808                                    1 |      2.437     3   0 |         NaN   NaN
+ts808                                    4 |      4.044     2   0 |         NaN   NaN
+gro100                                   1 |      7.189  1024 141 |         NaN   NaN
+gro100                                   4 |      9.919  1024 101 |         NaN   NaN
+blue-box                                 1 |      4.478    42   0 |         NaN   NaN
+blue-box                                 4 |      8.953   108   0 |         NaN   NaN

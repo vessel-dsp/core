@@ -1,0 +1,7 @@
+no op-amp                documents  58  hash-identical on TS x1/os2/os4 and WASM x1/os2/os4:  58  differing: 0
+unrailed op-amps only    documents   3  hash-identical on TS x1/os2/os4 and WASM x1/os2/os4:   3  differing: 0
+railed op-amps           documents   0 (not compared here)
+documents with no railed op-amp whose render changed: none
+stalls / errors in the change among them: none
+  big-muff-pi-ec3003-rev-f: IDENTICAL
+  big-muff-pi-v3: IDENTICAL

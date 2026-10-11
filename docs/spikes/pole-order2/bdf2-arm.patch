@@ -1,0 +1,162 @@
+--- a/packages/runtime/src/reference-runtime.ts	2026-10-10 21:50:52.295869275 +0000
++++ b/packages/runtime/src/reference-runtime.ts	2026-10-10 21:50:52.303869428 +0000
+@@ -860,33 +860,24 @@
+ const MODULATION_DC_SECONDS = 10.0;
+ 
+ /**
+- * The trapezoidal weight `c1 = x / (1 + x)`, `x = dt / (2 tau)`, of the op-amp's dominant pole, or
+- * `null` where the pole is transparent. The open-loop gain rolls off at `gainBandwidthHz /
+- * openLoopGain`; at the class defaults that pole is 10 Hz. The pole `tau du/dt = A0 d - u` is
+- * integrated by the trapezoidal rule, the same rule as the capacitor companions (`G = 2C/dt`):
++ * SCRATCH ARM (not shipped): the op-amp dominant pole by BDF2, the L-stable second-order scheme,
+  *
+  * ```
+- * u[n] = c1 A0 (d[n] + d[n-1]) + (1 - 2 c1) u[n-1]
++ * u[n] (1 + 2a/3) = 4/3 u[n-1] - 1/3 u[n-2] + (2a/3) A0 d[n],   a = dt / tau
+  * ```
+  *
+- * so a single sample sees `c1 A0` -- half of what backward Euler's `alpha A0` gave -- times the
+- * differential, and the raw state `u` plus the previous differential `d` carry the rest. Closing a
+- * loop of feedback fraction `beta` around it gives exactly the bilinear transform of the
+- * continuous closed loop: second order in `w dt` against backward Euler's first, with a null at
+- * Nyquist. The price is the trapezoid's: it is A-stable and not L-stable, so a closed-loop pole
+- * far above Nyquist (a follower at 1 MHz) lands near `z = -1` and rings at the solver's Nyquist
+- * rate instead of vanishing, as every capacitor companion in this solver already does.
+- *
+- * Above Nyquist the pole is inaudible and the pole is transparent (`null`), the no-pole limit the
+- * operating point solves at. Not continuous across `poleHz = sampleRate / 2` (the trapezoid
+- * weight there is 0.61): measured in `docs/spikes/2026-10-10-pole-order2.md`.
++ * so `u[n] = gain d[n] + decay1 u[n-1] + decay2 u[n-2]`. Measured in `docs/spikes/2026-10-10-pole-order2.md`:
++ * it converges where the trapezoid does not (no Nyquist ringing in a stiff closed loop), but its closed-loop
++ * error is about 4x the trapezoid's, so it misses the os4 gain-100 bar (0.183 dB at 10 kHz) and is worse than
++ * backward Euler at x1 above about 6 kHz. `null` where the pole is transparent (poleHz >= fs / 2), as before.
+  */
+-function opAmpPoleWeight(
++type OpAmpPoleLaw = { readonly gain: number; readonly decay1: number; readonly decay2: number };
++function opAmpPoleLaw(
+ 	openLoopGain: number,
+ 	gainBandwidthHz: number,
+ 	dt: number,
+ 	sampleRate: number,
+-): number | null {
++): OpAmpPoleLaw | null {
+ 	const poleHz = gainBandwidthHz / openLoopGain;
+ 	if (
+ 		sampleRate <= 0 ||
+@@ -896,8 +887,14 @@
+ 	) {
+ 		return null;
+ 	}
+-	const x = Math.PI * poleHz * dt;
+-	return x / (1 + x);
++	const stepOverTau = 2 * Math.PI * poleHz * dt;
++	const scaled = (2 * stepOverTau) / 3;
++	const denominator = 1 + scaled;
++	return {
++		gain: (scaled * openLoopGain) / denominator,
++		decay1: 4 / 3 / denominator,
++		decay2: -1 / 3 / denominator,
++	};
+ }
+ 
+ /**
+@@ -1595,7 +1592,7 @@
+ 	 * memory beside `opampRawState`, advanced and seeded with it. Unbounded, as the solved
+ 	 * differential is; the anti-windup bound is on the raw state alone. Keyed like `opampHistory`.
+ 	 */
+-	private readonly opampDifferentialState = new Map<number, number>();
++	private readonly opampRawState2 = new Map<number, number>();
+ 	/**
+ 	 * Previous-iterate diode junction voltages, which `limitJunction` damps against.
+ 	 * Keyed the same way as `bjtHistory`.
+@@ -2493,7 +2490,7 @@
+ 		this.triodeHistory.clear();
+ 		this.opampHistory.clear();
+ 		this.opampRawState.clear();
+-		this.opampDifferentialState.clear();
++		this.opampRawState2.clear();
+ 		this.fetHistory.clear();
+ 			this.composedStateKeys.clear();
+ 			this.composedLineState.clear();
+@@ -5871,11 +5868,7 @@
+ 				);
+ 				const rawSeed = halfSwing * Math.atanh(unit);
+ 				this.opampRawState.set(key, rawSeed);
+-				// The trapezoid's differential memory, seeded to the differential its own seeded raw
+-				// implies (`raw / A0`, the DC fixed point `u = A0 d`), not to Newton's solved
+-				// differential: the same millivolt-vs-microvolt argument as above, and it makes the
+-				// first transient sample reproduce the seed exactly instead of starting a step.
+-				this.opampDifferentialState.set(key, rawSeed / stamp.openLoopGain);
++				this.opampRawState2.set(key, rawSeed);
+ 			}
+ 		}
+ 		// Seed each macro's DC estimate from the solved operating point at its audioIn tap,
+@@ -6401,7 +6394,7 @@
+ 				continue;
+ 			}
+ 			const key = packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output);
+-			const weight = opAmpPoleWeight(
++			const law = opAmpPoleLaw(
+ 				stamp.openLoopGain,
+ 				OPAMP_GAIN_BANDWIDTH_HZ,
+ 				dt,
+@@ -6426,19 +6419,18 @@
+ 			// is the solved differential, unbounded, as the deck's drive is.
+ 			const differential = (solution[stamp.plus] ?? 0) - (solution[stamp.minus] ?? 0);
+ 			const previousRaw = this.opampRawState.get(key) ?? 0;
+-			const previousDifferential = this.opampDifferentialState.get(key) ?? 0;
++			const previousRaw2 = this.opampRawState2.get(key) ?? 0;
+ 			const halfSwing = opAmpHalfSwing(stamp.railHigh, stamp.railLow);
++			this.opampRawState2.set(key, previousRaw);
+ 			this.opampRawState.set(
+ 				key,
+ 				boundOpAmpRaw(
+-					weight === null
++					law === null
+ 						? stamp.openLoopGain * differential
+-						: weight * stamp.openLoopGain * (differential + previousDifferential) +
+-								(1 - 2 * weight) * previousRaw,
++						: law.gain * differential + law.decay1 * previousRaw + law.decay2 * previousRaw2,
+ 					halfSwing,
+ 				),
+ 			);
+-			this.opampDifferentialState.set(key, differential);
+ 		}
+ 	}
+ 
+@@ -7686,16 +7678,15 @@
+ 				// differential carry the rest. `effectiveGain` maps this sample's differential to
+ 				// its raw output, and it is what sizes the linear region the saturation band and
+ 				// step limiter are stated in.
+-				const weight = dc
++				const law = dc
+ 					? null
+-					: opAmpPoleWeight(
++					: opAmpPoleLaw(
+ 							stamp.openLoopGain,
+ 							OPAMP_GAIN_BANDWIDTH_HZ,
+ 							dt,
+ 							this.sampleRate as number,
+ 						);
+-				const effectiveGain =
+-					weight === null ? stamp.openLoopGain : weight * stamp.openLoopGain;
++				const effectiveGain = law === null ? stamp.openLoopGain : law.gain;
+ 				const linearWidth = halfSwing / effectiveGain;
+ 				const previous = this.opampHistory.get(opampKey);
+ 				const previousDifferential = previous?.differential ?? 0;
+@@ -7764,12 +7755,11 @@
+ 				// `weight` times the DC gain and the previous sample's raw state and differential
+ 				// carry the rest (constant across the Newton iterations of one sample).
+ 				const rawPrevious = this.opampRawState.get(opampKey) ?? 0;
+-				const previousAccepted = this.opampDifferentialState.get(opampKey) ?? 0;
++				const rawPrevious2 = this.opampRawState2.get(opampKey) ?? 0;
+ 				const raw = boundOpAmpRaw(
+-					weight === null
++					law === null
+ 						? effectiveGain * differential
+-						: effectiveGain * (differential + previousAccepted) +
+-								(1 - 2 * weight) * rawPrevious,
++						: effectiveGain * differential + law.decay1 * rawPrevious + law.decay2 * rawPrevious2,
+ 					halfSwing,
+ 				);
+ 				const scaled = raw / halfSwing;

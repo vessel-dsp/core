@@ -1,0 +1,6 @@
+iterations per host sample, 1000 Hz 10 mV 1 s, cap 1024
+packet                                  os | TS it/host  peak  NC | WASM it/host  peak
+electro-harmonix-slapback-echo           4 |      4.001     2   0 |       4.001     2
+boss-od-3                                4 |      8.000     2   0 |       8.000     2
+boss-pq-4                                4 |      8.000     2   0 |       8.000     2
+boss-ph-1r                               4 |     15.520     4   0 |      15.520     4
