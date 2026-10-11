@@ -1,0 +1,85 @@
+iterations: 2026-10-11T08:02:01.932Z warm 0.5 s, measure 0.5 s, 1 kHz, blocks of 128
+muff  0.01  V 48k x1   wasm it/host   3.041  it/internal 3.041  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+muff  0.01  V 48k x1   ts   it/host   3.041  it/internal 3.041
+muff  0.01  V 48k os2  wasm it/host   3.709  it/internal 1.854  predictor seeds/internal 0.937  one-iteration solves/internal 0.229
+muff  0.01  V 48k os2  ts   it/host   3.709  it/internal 1.854
+muff  0.01  V 48k os4  wasm it/host   5.626  it/internal 1.406  predictor seeds/internal 1.000  one-iteration solves/internal 0.594
+muff  0.01  V 48k os4  ts   it/host   5.626  it/internal 1.406
+muff  0.01  V 96k x1   wasm it/host   2.552  it/internal 2.552  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+muff  0.01  V 96k x1   ts   it/host   2.552  it/internal 2.552
+muff  0.01  V 96k os2  wasm it/host   2.813  it/internal 1.406  predictor seeds/internal 1.000  one-iteration solves/internal 0.594
+muff  0.01  V 96k os2  ts   it/host   2.813  it/internal 1.406
+muff  0.01  V 96k os4  wasm it/host   4.792  it/internal 1.198  predictor seeds/internal 1.000  one-iteration solves/internal 0.802
+muff  0.01  V 192k x1  wasm it/host   2.354  it/internal 2.354  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+muff  0.01  V 192k x1  ts   it/host   2.354  it/internal 2.354
+muff  0.01  V 192k os2 wasm it/host   2.396  it/internal 1.198  predictor seeds/internal 1.000  one-iteration solves/internal 0.802
+muff  0.1   V 48k x1   wasm it/host   3.562  it/internal 3.562  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+muff  0.1   V 48k x1   ts   it/host   3.562  it/internal 3.562
+muff  0.1   V 48k os2  wasm it/host   4.875  it/internal 2.438  predictor seeds/internal 0.687  one-iteration solves/internal 0.042
+muff  0.1   V 48k os2  ts   it/host   4.875  it/internal 2.438
+muff  0.1   V 48k os4  wasm it/host   5.542  it/internal 1.386  predictor seeds/internal 0.958  one-iteration solves/internal 0.677
+muff  0.1   V 48k os4  ts   it/host   5.542  it/internal 1.386
+muff  0.1   V 96k x1   wasm it/host   2.594  it/internal 2.594  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+muff  0.1   V 96k x1   ts   it/host   2.594  it/internal 2.594
+muff  0.1   V 96k os2  wasm it/host   2.771  it/internal 1.385  predictor seeds/internal 0.958  one-iteration solves/internal 0.677
+muff  0.1   V 96k os2  ts   it/host   2.771  it/internal 1.385
+muff  0.1   V 96k os4  wasm it/host   4.750  it/internal 1.188  predictor seeds/internal 0.984  one-iteration solves/internal 0.828
+muff  0.1   V 192k x1  wasm it/host   2.266  it/internal 2.266  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+muff  0.1   V 192k x1  ts   it/host   2.266  it/internal 2.266
+muff  0.1   V 192k os2 wasm it/host   2.380  it/internal 1.190  predictor seeds/internal 0.984  one-iteration solves/internal 0.826
+sd1   0.01  V 48k x1   wasm it/host   2.750  it/internal 2.750  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+sd1   0.01  V 48k x1   ts   it/host   2.750  it/internal 2.750
+sd1   0.01  V 48k os2  wasm it/host   3.625  it/internal 1.813  predictor seeds/internal 1.000  one-iteration solves/internal 0.187
+sd1   0.01  V 48k os2  ts   it/host   3.625  it/internal 1.813
+sd1   0.01  V 48k os4  wasm it/host   4.583  it/internal 1.146  predictor seeds/internal 1.000  one-iteration solves/internal 0.854
+sd1   0.01  V 48k os4  ts   it/host   4.583  it/internal 1.146
+sd1   0.01  V 96k x1   wasm it/host   2.438  it/internal 2.438  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+sd1   0.01  V 96k x1   ts   it/host   2.438  it/internal 2.438
+sd1   0.01  V 96k os2  wasm it/host   2.292  it/internal 1.146  predictor seeds/internal 1.000  one-iteration solves/internal 0.854
+sd1   0.01  V 96k os2  ts   it/host   2.292  it/internal 1.146
+sd1   0.01  V 96k os4  wasm it/host   4.010  it/internal 1.003  predictor seeds/internal 1.000  one-iteration solves/internal 0.997
+sd1   0.01  V 192k x1  wasm it/host   2.161  it/internal 2.161  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+sd1   0.01  V 192k x1  ts   it/host   2.161  it/internal 2.161
+sd1   0.01  V 192k os2 wasm it/host   2.000  it/internal 1.000  predictor seeds/internal 1.000  one-iteration solves/internal 1.000
+sd1   0.1   V 48k x1   wasm it/host   3.042  it/internal 3.042  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+sd1   0.1   V 48k x1   ts   it/host   3.042  it/internal 3.042
+sd1   0.1   V 48k os2  wasm it/host   4.292  it/internal 2.146  predictor seeds/internal 0.823  one-iteration solves/internal 0.167
+sd1   0.1   V 48k os2  ts   it/host   4.292  it/internal 2.146
+sd1   0.1   V 48k os4  wasm it/host   5.333  it/internal 1.333  predictor seeds/internal 0.932  one-iteration solves/internal 0.761
+sd1   0.1   V 48k os4  ts   it/host   5.333  it/internal 1.333
+sd1   0.1   V 96k x1   wasm it/host   2.500  it/internal 2.500  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+sd1   0.1   V 96k x1   ts   it/host   2.500  it/internal 2.500
+sd1   0.1   V 96k os2  wasm it/host   2.677  it/internal 1.339  predictor seeds/internal 0.932  one-iteration solves/internal 0.755
+sd1   0.1   V 96k os2  ts   it/host   2.679  it/internal 1.340
+sd1   0.1   V 96k os4  wasm it/host   4.521  it/internal 1.130  predictor seeds/internal 0.992  one-iteration solves/internal 0.878
+sd1   0.1   V 192k x1  wasm it/host   2.234  it/internal 2.234  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+sd1   0.1   V 192k x1  ts   it/host   2.234  it/internal 2.234
+sd1   0.1   V 192k os2 wasm it/host   2.255  it/internal 1.128  predictor seeds/internal 0.992  one-iteration solves/internal 0.880
+ts9   0.01  V 48k x1   wasm it/host   2.083  it/internal 2.083  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+ts9   0.01  V 48k x1   ts   it/host   2.083  it/internal 2.083
+ts9   0.01  V 48k os2  wasm it/host   3.458  it/internal 1.729  predictor seeds/internal 1.000  one-iteration solves/internal 0.271
+ts9   0.01  V 48k os2  ts   it/host   3.458  it/internal 1.729
+ts9   0.01  V 48k os4  wasm it/host   4.042  it/internal 1.010  predictor seeds/internal 1.000  one-iteration solves/internal 0.990
+ts9   0.01  V 48k os4  ts   it/host   4.042  it/internal 1.010
+ts9   0.01  V 96k x1   wasm it/host   2.000  it/internal 2.000  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+ts9   0.01  V 96k x1   ts   it/host   2.000  it/internal 2.000
+ts9   0.01  V 96k os2  wasm it/host   2.021  it/internal 1.010  predictor seeds/internal 1.000  one-iteration solves/internal 0.990
+ts9   0.01  V 96k os2  ts   it/host   2.021  it/internal 1.010
+ts9   0.01  V 96k os4  wasm it/host   4.000  it/internal 1.000  predictor seeds/internal 1.000  one-iteration solves/internal 1.000
+ts9   0.01  V 192k x1  wasm it/host   2.000  it/internal 2.000  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+ts9   0.01  V 192k x1  ts   it/host   2.000  it/internal 2.000
+ts9   0.01  V 192k os2 wasm it/host   2.000  it/internal 1.000  predictor seeds/internal 1.000  one-iteration solves/internal 1.000
+ts9   0.1   V 48k x1   wasm it/host   2.625  it/internal 2.625  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+ts9   0.1   V 48k x1   ts   it/host   2.625  it/internal 2.625
+ts9   0.1   V 48k os2  wasm it/host   3.833  it/internal 1.917  predictor seeds/internal 0.938  one-iteration solves/internal 0.146
+ts9   0.1   V 48k os2  ts   it/host   3.833  it/internal 1.917
+ts9   0.1   V 48k os4  wasm it/host   4.645  it/internal 1.161  predictor seeds/internal 1.000  one-iteration solves/internal 0.839
+ts9   0.1   V 48k os4  ts   it/host   4.645  it/internal 1.161
+ts9   0.1   V 96k x1   wasm it/host   2.250  it/internal 2.250  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+ts9   0.1   V 96k x1   ts   it/host   2.250  it/internal 2.250
+ts9   0.1   V 96k os2  wasm it/host   2.313  it/internal 1.156  predictor seeds/internal 1.000  one-iteration solves/internal 0.844
+ts9   0.1   V 96k os2  ts   it/host   2.313  it/internal 1.156
+ts9   0.1   V 96k os4  wasm it/host   4.063  it/internal 1.016  predictor seeds/internal 1.000  one-iteration solves/internal 0.984
+ts9   0.1   V 192k x1  wasm it/host   2.094  it/internal 2.094  predictor seeds/internal 0.000  one-iteration solves/internal 0.000
+ts9   0.1   V 192k x1  ts   it/host   2.094  it/internal 2.094
+ts9   0.1   V 192k os2 wasm it/host   2.031  it/internal 1.016  predictor seeds/internal 1.000  one-iteration solves/internal 0.984

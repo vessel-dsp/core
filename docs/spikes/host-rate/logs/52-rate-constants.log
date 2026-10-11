@@ -1,0 +1,7 @@
+pitch tracker estimate (Hz) for a sine of the stated frequency, 2048-sample window, by SOLVER rate (reads 0 when it finds nothing)
+| solver rate | lag range -> Hz | hop (ms) | 82.4 Hz | 110 Hz | 220 Hz | 440 Hz | 1000 Hz | 2000 Hz |
+|---|---|---|---|---|---|---|---|---|
+| 48k | 46.9 .. 2.40 kHz | 5.333 | 82.4 | 109.6 | 219.1 | 438.5 | 999.1 | 2000.0 |
+| 96k | 93.8 .. 4.80 kHz | 2.667 | 0.0 | 110.4 | 219.1 | 438.3 | 995.1 | 1998.3 |
+| 192k | 187.5 .. 9.60 kHz | 1.333 | 0.0 | 0.0 | 220.8 | 438.2 | 995.4 | 1990.2 |
+| 384k | 375.0 .. 19.20 kHz | 0.667 | 0.0 | 0.0 | 0.0 | 441.5 | 996.6 | 1990.7 |

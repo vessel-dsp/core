@@ -1,0 +1,27 @@
+nam-ir: 2026-10-11T08:22:09.179Z
+
+## NAM
+  model states 48000 Hz  host  48000: RAN (expectedSampleRate 48000; first output samples 0.03155 -0.01582 0.00787 0.00391 -0.00004)
+  model states 48000 Hz  host  96000: REFUSED: NAM model {"version":"0.5.0","architecture":"Linear","config":{"receptive_field":4,"bias":... states 48000 Hz but the chain runs at 96000 Hz; refusing to run it at the wrong rate
+  model states 48000 Hz  host 192000: REFUSED: NAM model {"version":"0.5.0","architecture":"Linear","config":{"receptive_field":4,"bias":... states 48000 Hz but the chain runs at 192000 Hz; refusing to run it at the wrong rate
+  model states no rate   host  48000: RAN (expectedSampleRate null; first output samples 0.03155 -0.01582 0.00787 0.00391 -0.00004)
+  model states no rate   host  96000: RAN (expectedSampleRate null; first output samples 0.03155 -0.01579 0.00788 0.00393 -0.00002)
+  model states no rate   host 192000: RAN (expectedSampleRate null; first output samples 0.03155 -0.01578 0.00788 0.00394 -0.00001)
+  SignalChain at 96 kHz addNode(declared-48k NAM): threw "NAM model {"version":"0.5.0","architecture":"Linear","config":{"receptive_field":4,"bias":... states 48000 Hz ..."; node still in the chain: true; chain.process afterwards vs the same chain with no NAM node: max |difference| = 0.00e+0 (the refused node is a dry passthrough)
+  ChainRuntime slot, model states 48000 Hz host  48000: RAN
+  ChainRuntime slot, model states 48000 Hz host  96000: Error: ,"bias":... states 48000 Hz but the chain runs at 96000 Hz; refusing to run it at the wrong rate
+  ChainRuntime slot, model states 48000 Hz host 192000: Error: "bias":... states 48000 Hz but the chain runs at 192000 Hz; refusing to run it at the wrong rate
+  ChainRuntime slot, model states no rate  host  48000: RAN
+  ChainRuntime slot, model states no rate  host  96000: RAN
+  ChainRuntime slot, model states no rate  host 192000: RAN
+
+## IR
+  built-in placeholder (declared 48 kHz)   host  48000: 128 taps (2.667 ms), main tap at index 4 = 0.0833 ms
+  built-in placeholder (declared 48 kHz)   host  96000: 256 taps (2.667 ms), main tap at index 7 = 0.0729 ms
+  built-in placeholder (declared 48 kHz)   host 192000: 512 taps (2.667 ms), main tap at index 14 = 0.0729 ms
+  spike at 1 ms, irSampleRate 48000        host  48000: 256 taps (5.333 ms), main tap at index 48 = 1.0000 ms
+  spike at 1 ms, irSampleRate 48000        host  96000: 512 taps (5.333 ms), main tap at index 96 = 1.0000 ms
+  spike at 1 ms, irSampleRate 48000        host 192000: 1024 taps (5.333 ms), main tap at index 192 = 1.0000 ms
+  spike at 1 ms, NO irSampleRate           host  48000: 256 taps (5.333 ms), main tap at index 48 = 1.0000 ms
+  spike at 1 ms, NO irSampleRate           host  96000: 256 taps (2.667 ms), main tap at index 48 = 0.5000 ms
+  spike at 1 ms, NO irSampleRate           host 192000: 256 taps (1.333 ms), main tap at index 48 = 0.2500 ms

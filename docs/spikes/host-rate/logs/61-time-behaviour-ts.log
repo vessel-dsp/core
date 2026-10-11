@@ -1,0 +1,16 @@
+time-based: 2026-10-11T08:09:25.284Z kinds=delay,lfo,env consoles=ts arms=48k x1, 96k x1
+
+## delay electro-harmonix-slapback-echo: 1 mode(s): default declared 45.000 ms
+  default                ts   48k x1   echo at 2.5833 ms (declared 45.0000 ms; one host sample = 0.0208 ms) WRONG-TIME dry 3.16e-1 (45 s)
+  default                ts   96k x1   echo at 0.0000 ms (declared 45.0000 ms; one host sample = 0.0104 ms) DRY-ONLY dry 3.14e-1 (73 s)
+
+## delay pt2399-delay: 1 mode(s): default declared 430.800 ms
+  default                ts   48k x1   echo at 430.9167 ms (declared 430.8000 ms; one host sample = 0.0208 ms) DELAYS dry 4.85e-1 (14 s)
+  default                ts   96k x1   echo at 430.9063 ms (declared 430.8000 ms; one host sample = 0.0104 ms) DELAYS dry 3.11e-1 (27 s)
+  lfo mxr-phase-90      {"Speed":0.5} ts   48k x1   modulation 0.126 Hz (strength 2.38e-4; 52 s)
+  lfo mxr-phase-90      {"Speed":0.5} ts   96k x1   modulation 0.126 Hz (strength 2.33e-4; 91 s)
+  lfo schaller-tremolo  {} ts   48k x1   modulation 3.509 Hz (strength 6.60e-3; 11 s)
+  lfo schaller-tremolo  {} ts   96k x1   modulation 3.509 Hz (strength 6.67e-3; 22 s)
+  env mxr-dyna-comp ts   48k x1   attack (63.2 %) 5.0 ms, release 1427.0 ms (8 s)
+  env mxr-dyna-comp ts   96k x1   attack (63.2 %) 5.0 ms, release 1426.0 ms (14 s)
+time-based: done 2026-10-11T08:15:23.752Z

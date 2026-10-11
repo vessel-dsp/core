@@ -1,0 +1,116 @@
+## rate literals (48000 / 48_000 / 44100 / 96000 / 192000) outside comments
+packages/chain/src/chain.ts:18:	private sampleRate = 48000;
+packages/chain/src/chain.ts:234:		const chain = new SignalChain({ sampleRate: options?.sampleRate ?? 48000 });
+packages/chain/src/nodes/ir-node.ts:151:	private sampleRate = 48000;
+packages/chain/src/nodes/ir-node.ts:213:			this.sourceRate = 48000;
+packages/chain/src/nodes/ir-node.ts:498:			const t = i / 48000;
+packages/chain/src/nodes/runtime-node.ts:27:	private sampleRate = 48000;
+packages/chain/src/nodes/input-profile-node.ts:58:	private sampleRate = 48000;
+packages/chain/src/nodes/amp-shaper-node.ts:30:	private sampleRate = 48000;
+packages/chain/src/nodes/nam-node.ts:64:	private sampleRate = 48000;
+packages/player/src/engine/chain-probe.ts:56:		const instanceId = engine._nam_createInstance(48000, 1024);
+packages/player/src/engine/player-engine.ts:453:			context = createContext({ sampleRate: 48000 });
+packages/player/src/engine/worklet/player-worklet.ts:550:			const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+packages/player/src/engine/worklet/player-worklet.ts:688:		const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+packages/player/src/ir/check.ts:22:	const sampleRate = opts?.sampleRate ?? 48000;
+packages/player/src/ir/types.ts:14:export const DEFAULT_MAX_IR_TAPS = 48000;
+packages/runtime/src/v2-wasm-engine.ts:91:		const sr = options.sampleRate ?? 48000.0;
+packages/runtime/src/settle.ts:907:	const sampleRate = options.sampleRate ?? 48_000;
+packages/runtime/src/settle.ts:915:	const sampleRate = options.sampleRate ?? 48_000;
+packages/runtime/src/settle.ts:1023:	const sampleRate = options.sampleRate ?? 48_000;
+packages/runtime/src/worklet/v2-audio-worklet.ts:518:		const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+packages/runtime/src/worklet/v2-audio-worklet.ts:561:			const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+packages/runtime/src/reference-runtime.ts:269:	1557 / 44100,
+packages/runtime/src/reference-runtime.ts:270:	1617 / 44100,
+packages/runtime/src/reference-runtime.ts:271:	1491 / 44100,
+packages/runtime/src/reference-runtime.ts:272:	1422 / 44100,
+packages/runtime/src/reference-runtime.ts:274:const REVERB_ALLPASS_SECONDS = [225 / 44100, 556 / 44100] as const;
+packages/runtime/src/reference-runtime.ts:4291:				tapped: interval === null ? null : interval * sweep.ratio * (this.sampleRate ?? 48000),
+packages/runtime/src/reference-runtime.ts:4496:					sampleRate: this.sampleRate ?? 48000,
+packages/runtime/src/reference-runtime.ts:4544:					sampleRate: this.sampleRate ?? 48000,
+packages/runtime/src/reference-runtime.ts:4601:					sampleRate: this.sampleRate ?? 48000,
+packages/runtime/src/reference-runtime.ts:4637:				const alpha = 1 / (1.0 * (this.sampleRate ?? 48000));
+packages/runtime/src/reference-runtime.ts:4707:						this.sampleRate ?? 48000,
+packages/runtime/src/cpp/V2Exports.cpp:57:    opts.sampleRate = sampleRate > 0.0 ? sampleRate : 48000.0;
+packages/runtime/src/cpp/include/v2/Engine.h:17:    double sampleRate = 48000.0;
+packages/runtime/src/cpp/include/v2/Engine.h:337:    double hostSampleRate_ = 48000.0;
+packages/runtime/src/cpp/Engine.cpp:368:    1557.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:369:    1617.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:370:    1491.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:371:    1422.0 / 44100.0
+packages/runtime/src/cpp/Engine.cpp:374:    225.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:375:    556.0 / 44100.0
+packages/runtime/src/cpp/Engine.cpp:2298:    double dt = options_.sampleRate > 0.0 ? 1.0 / options_.sampleRate : 1.0 / 48000.0;
+packages/runtime/src/cpp/Engine.cpp:4857:    double sampleRate = options_.sampleRate > 0.0 ? options_.sampleRate : 48000.0;
+
+## C++ engine rate literals
+packages/runtime/src/cpp/V2Exports.cpp:57:    opts.sampleRate = sampleRate > 0.0 ? sampleRate : 48000.0;
+packages/runtime/src/cpp/include/v2/Engine.h:17:    double sampleRate = 48000.0;
+packages/runtime/src/cpp/include/v2/Engine.h:337:    double hostSampleRate_ = 48000.0;
+packages/runtime/src/cpp/Engine.cpp:368:    1557.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:369:    1617.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:370:    1491.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:371:    1422.0 / 44100.0
+packages/runtime/src/cpp/Engine.cpp:374:    225.0 / 44100.0,
+packages/runtime/src/cpp/Engine.cpp:375:    556.0 / 44100.0
+packages/runtime/src/cpp/Engine.cpp:2298:    double dt = options_.sampleRate > 0.0 ? 1.0 / options_.sampleRate : 1.0 / 48000.0;
+packages/runtime/src/cpp/Engine.cpp:4857:    double sampleRate = options_.sampleRate > 0.0 ? options_.sampleRate : 48000.0;
+
+## the DC blocker and parameter smoothing (rate enters as a divisor of a Hz or seconds figure)
+packages/runtime/src/cpp/Engine.cpp:531:// Mirrors MODULATION_SCALE_MIN/MAX and MODULATION_DC_SECONDS in
+packages/runtime/src/cpp/Engine.cpp:537:constexpr double kModulationDcSeconds = 10.0;
+packages/runtime/src/cpp/Engine.cpp:4444:    double r = std::exp((-2.0 * M_PI * 5.0) / sampleRate);
+packages/runtime/src/cpp/Engine.cpp:4886:                double alphaSmooth = 1.0 - std::exp(-1.0 / (0.010 * sampleRate));
+packages/runtime/src/cpp/Engine.cpp:4887:                line.currentLengthSamples += (line.targetLengthSamples - line.currentLengthSamples) * alphaSmooth;
+packages/runtime/src/cpp/Engine.cpp:4910:                double alphaMod = 1.0 / (kModulationDcSeconds * sampleRate);
+packages/runtime/src/cpp/Engine.cpp:4911:                dc.modDcEstimate += alphaMod * (modVolts - dc.modDcEstimate);
+packages/runtime/src/reference-runtime.ts:860:const MODULATION_DC_SECONDS = 10.0;
+packages/runtime/src/reference-runtime.ts:1384:			const alphaSmooth = 1 - Math.exp(-1 / (0.01 * input.sampleRate));
+packages/runtime/src/reference-runtime.ts:1385:			next = input.current + (input.target - input.current) * alphaSmooth;
+packages/runtime/src/reference-runtime.ts:1403:			const alphaMod = 1 / (MODULATION_DC_SECONDS * input.sampleRate);
+packages/runtime/src/reference-runtime.ts:1404:			estimate += alphaMod * (input.modVolts - estimate);
+packages/runtime/src/chain.ts:181:const DC_BLOCK_HZ = 10;
+packages/runtime/src/chain.ts:204:	private dcPole = 0;
+packages/runtime/src/chain.ts:306:		this.dcPole = sampleRate > 0 ? 1 - (2 * Math.PI * DC_BLOCK_HZ) / sampleRate : 0;
+packages/runtime/src/chain.ts:550:		if (!(this.dcPole > 0) || buffer.length === 0) {
+packages/runtime/src/chain.ts:556:			this.dcPreviousOut = sample - this.dcPreviousIn + this.dcPole * this.dcPreviousOut;
+
+## constants counted in SAMPLES (do not follow the rate)
+packages/runtime/src/worklet/v2-audio-worklet.ts:90:const TELEMETRY_INTERVAL_SAMPLES = 4096;
+packages/player/src/engine/worklet/player-worklet.ts:97:const TELEMETRY_INTERVAL_SAMPLES = 4096;
+packages/player/src/ir/types.ts:14:export const DEFAULT_MAX_IR_TAPS = 48000;
+packages/runtime/src/reference-runtime.ts:345:const PITCH_HISTORY = 4096;
+packages/runtime/src/reference-runtime.ts:346:const PITCH_WINDOW = 2048;
+packages/runtime/src/reference-runtime.ts:355:const TRACK_WINDOW = 2048;
+packages/runtime/src/reference-runtime.ts:356:const TRACK_HOP = 256;
+packages/runtime/src/reference-runtime.ts:357:const TRACK_MIN_LAG = 20;
+packages/runtime/src/reference-runtime.ts:358:const TRACK_MAX_LAG = 1024;
+packages/runtime/src/reference-runtime.ts:526:const NEWTON_UNPRODUCTIVE_PROBATION_SAMPLES = 1024;
+381:constexpr int32_t PITCH_HISTORY = 4096;
+382:constexpr int32_t PITCH_WINDOW = 2048;
+384:constexpr int32_t TRACK_WINDOW = 2048;
+385:constexpr int32_t TRACK_HOP = 256;
+386:constexpr int32_t TRACK_MIN_LAG = 20;
+387:constexpr int32_t TRACK_MAX_LAG = 1024;
+
+## where the worklet takes its rate
+316:					hostSampleRate: sampleRate,
+329:			runtime.prepare(sampleRate, { oversample });
+518:		const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+519:		const budgetMs = (quantumLength / currentSr) * 1000;
+561:			const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
+562:			const quantumBudgetMs = (quantumLength / currentSr) * 1000;
+
+## the NAM rate check and the IR resample trigger
+36:const SAMPLE_RATE_TOLERANCE_HZ = 0.5;
+215:				expected >= 0 &&
+216:				Math.abs(expected - this.sampleRate) > SAMPLE_RATE_TOLERANCE_HZ
+220:						`${this.sampleRate} Hz; refusing to run it at the wrong rate`,
+413:		if (this.sourceRate !== undefined && this.sourceRate !== this.sampleRate) {
+414:			this.ir = resampleImpulseResponse(
+
+## the predictor gate (factor-keyed, not dt-keyed)
+4884:			this.oversample > 1 &&
+5554:			this.oversample > 1 &&
+2522:    const bool predictorPass = oversample_ > 1 && !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;
+3078:    const bool predictorPass = oversample_ > 1 && !dc && (sourceScale == 1.0) && (gmin == GMIN_SIEMENS) && !block.linear;

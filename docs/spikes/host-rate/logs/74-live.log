@@ -1,0 +1,48 @@
+live: 2026-10-11T08:33:45.288Z chromium 149.0.7827.55
+API interactive requested 48000: ctx.sampleRate 48000 (honoured) state running baseLatency 10.021 ms (481.0 frames) outputLatency 32.0 ms renderCapacity undefined
+API interactive requested 96000: ctx.sampleRate 96000 (honoured) state running baseLatency 10.010 ms (961.0 frames) outputLatency 32.0 ms renderCapacity undefined
+API interactive requested 192000: ctx.sampleRate 192000 (honoured) state running baseLatency 10.005 ms (1921.0 frames) outputLatency 32.0 ms renderCapacity undefined
+API playback    requested 48000: ctx.sampleRate 48000 (honoured) state running baseLatency 21.333 ms (1024.0 frames) outputLatency 64.0 ms renderCapacity undefined
+API playback    requested 96000: ctx.sampleRate 96000 (honoured) state running baseLatency 21.333 ms (2048.0 frames) outputLatency 64.0 ms renderCapacity undefined
+API playback    requested 192000: ctx.sampleRate 192000 (honoured) state running baseLatency 21.333 ms (4096.0 frames) outputLatency 64.0 ms renderCapacity undefined
+RUN divider 48k x1   state running ctx 48000 rtf 0.9993 (context 7.99 s in 8.00 s wall) worklet cpuLoad 3.2 % overruns 0 load 1.38 -> 1.85
+RUN divider 48k os2  state running ctx 48000 rtf 1.0006 (context 8.01 s in 8.00 s wall) worklet cpuLoad 5.9 % overruns 0 load 1.35 -> 1.19
+RUN divider 48k os4  state running ctx 48000 rtf 1.0006 (context 8.01 s in 8.00 s wall) worklet cpuLoad 11.2 % overruns 0 load 1.19 -> 1.08
+RUN divider 96k x1   state running ctx 96000 rtf 0.9997 (context 8.00 s in 8.00 s wall) worklet cpuLoad 5.5 % overruns 0 load 1.08 -> 1.14
+RUN divider 96k os2  state running ctx 96000 rtf 0.9998 (context 8.00 s in 8.00 s wall) worklet cpuLoad 11.3 % overruns 0 load 1.14 -> 1.21
+RUN divider 96k os4  state running ctx 96000 rtf 0.9996 (context 8.00 s in 8.00 s wall) worklet cpuLoad 21.7 % overruns 0 load 1.21 -> 1.02
+RUN divider 192k x1  state running ctx 192000 rtf 1.0005 (context 8.00 s in 8.00 s wall) worklet cpuLoad 9.5 % overruns 946 load 1.02 -> 0.94
+RUN divider 192k os2 state running ctx 192000 rtf 0.9993 (context 7.99 s in 8.00 s wall) worklet cpuLoad 21.4 % overruns 2059 load 0.94 -> 0.87
+RUN muff    48k x1   state running ctx 48000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 51.8 % overruns 138 load 0.87 -> 0.88
+RUN muff    48k os2  state running ctx 48000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 72.6 % overruns 195 load 0.88 -> 0.82
+RUN muff    48k os4  state running ctx 48000 rtf 0.9993 (context 7.99 s in 8.00 s wall) worklet cpuLoad 95.4 % overruns 2003 load 0.82 -> 0.77
+RUN muff    96k x1   state running ctx 96000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 71.7 % overruns 337 load 0.77 -> 0.65
+RUN muff    96k os2  state running ctx 96000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 95.2 % overruns 2001 load 0.65 -> 0.94
+RUN muff    96k os4  state running ctx 96000 rtf 0.5755 (context 4.60 s in 8.00 s wall) worklet cpuLoad 172.7 % overruns 4288 load 0.94 -> 1.11
+RUN muff    192k x1  state running ctx 192000 rtf 0.8006 (context 6.40 s in 8.00 s wall) worklet cpuLoad 123.2 % overruns 9829 load 1.11 -> 1.16
+RUN muff    192k os2 state running ctx 192000 rtf 0.5659 (context 4.53 s in 8.00 s wall) worklet cpuLoad 175.1 % overruns 8480 load 1.16 -> 1.38
+RUN sd1     48k x1   state running ctx 48000 rtf 0.9996 (context 8.00 s in 8.00 s wall) worklet cpuLoad 66.1 % overruns 137 load 1.38 -> 1.24
+RUN sd1     48k os2  state running ctx 48000 rtf 0.9999 (context 8.00 s in 8.00 s wall) worklet cpuLoad 92.6 % overruns 1740 load 1.24 -> 1.36
+RUN sd1     48k os4  state running ctx 48000 rtf 0.8093 (context 6.47 s in 8.00 s wall) worklet cpuLoad 122.6 % overruns 3008 load 1.36 -> 1.38
+RUN sd1     96k x1   state running ctx 96000 rtf 0.9793 (context 7.83 s in 8.00 s wall) worklet cpuLoad 101.0 % overruns 2552 load 1.38 -> 1.39
+RUN sd1     96k os2  state running ctx 96000 rtf 0.8023 (context 6.42 s in 8.00 s wall) worklet cpuLoad 123.8 % overruns 3883 load 1.39 -> 1.33
+RUN sd1     96k os4  state running ctx 96000 rtf 0.4617 (context 3.69 s in 8.00 s wall) worklet cpuLoad 215.3 % overruns 3456 load 1.33 -> 1.28
+RUN sd1     192k x1  state running ctx 192000 rtf 0.5429 (context 4.34 s in 8.00 s wall) worklet cpuLoad 182.7 % overruns 8122 load 1.28 -> 1.32
+RUN sd1     192k os2 state running ctx 192000 rtf 0.4619 (context 3.70 s in 8.00 s wall) worklet cpuLoad 215.1 % overruns 6912 load 1.32 -> 1.42
+RUN ts9     48k x1   state running ctx 48000 rtf 0.9999 (context 8.00 s in 8.00 s wall) worklet cpuLoad 50.5 % overruns 314 load 1.42 -> 1.51
+RUN ts9     48k os2  state running ctx 48000 rtf 0.9980 (context 7.98 s in 8.00 s wall) worklet cpuLoad 57.6 % overruns 274 load 1.28 -> 1.38
+RUN ts9     48k os4  state running ctx 48000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 70.2 % overruns 162 load 1.38 -> 1.24
+RUN ts9     96k x1   state running ctx 96000 rtf 0.9998 (context 8.00 s in 8.00 s wall) worklet cpuLoad 58.1 % overruns 353 load 1.24 -> 1.35
+RUN ts9     96k os2  state running ctx 96000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 69.6 % overruns 307 load 1.35 -> 1.38
+RUN ts9     96k os4  state running ctx 96000 rtf 0.8343 (context 6.67 s in 8.00 s wall) worklet cpuLoad 118.5 % overruns 3606 load 1.38 -> 1.47
+RUN ts9     192k x1  state running ctx 192000 rtf 1.0000 (context 8.00 s in 8.00 s wall) worklet cpuLoad 93.8 % overruns 9382 load 1.47 -> 1.71
+RUN ts9     192k os2 state running ctx 192000 rtf 0.8206 (context 6.56 s in 8.00 s wall) worklet cpuLoad 120.5 % overruns 9833 load 1.37 -> 1.31
+RUN chain3  48k x1   state running ctx 48000 rtf 0.7557 (context 6.05 s in 8.00 s wall) worklet cpuLoad 131.4 % overruns 2816 load 1.31 -> 1.32
+RUN chain3  48k os2  state running ctx 48000 rtf 0.4590 (context 3.67 s in 8.00 s wall) worklet cpuLoad 217.0 % overruns 1696 load 1.32 -> 1.27
+RUN chain3  48k os4  state running ctx 48000 rtf 0.3007 (context 2.41 s in 8.00 s wall) worklet cpuLoad 331.4 % overruns 1120 load 1.27 -> 1.30
+RUN chain3  96k x1   state running ctx 96000 rtf 0.4533 (context 3.63 s in 8.00 s wall) worklet cpuLoad 219.1 % overruns 3392 load 1.30 -> 1.50
+RUN chain3  96k os2  state running ctx 96000 rtf 0.3177 (context 2.54 s in 8.00 s wall) worklet cpuLoad 313.3 % overruns 2368 load 1.42 -> 1.60
+RUN chain3  96k os4  state running ctx 96000 rtf 0.1855 (context 1.48 s in 8.00 s wall) worklet cpuLoad 537.2 % overruns 1376 load 1.30 -> 1.25
+RUN chain3  192k x1  state running ctx 192000 rtf 0.2472 (context 1.98 s in 8.00 s wall) worklet cpuLoad 401.5 % overruns 3680 load 1.25 -> 1.29
+RUN chain3  192k os2 state running ctx 192000 rtf 0.1864 (context 1.49 s in 8.00 s wall) worklet cpuLoad 534.2 % overruns 2784 load 1.29 -> 1.24
+live: done 2026-10-11T08:42:52.373Z
