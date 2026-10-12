@@ -3,8 +3,9 @@
 [![core npm version](https://img.shields.io/npm/v/%40vessel-dsp%2Fcore.svg)](https://www.npmjs.com/package/@vessel-dsp/core)
 
 TypeScript tooling for converting audio-circuit documents between project
-`.vdsp`, LTspice `.asc`, LiveSPICE `.schx`, and tscircuit Circuit JSON, plus an
-optional React package for core `Panel` controls.
+`.vdsp`, LTspice `.asc`, LiveSPICE `.schx`, and tscircuit Circuit JSON, plus
+headless compiler/runtime/chain simulation, a Web Audio player, Three.js
+preview packages, and an optional React package for core `Panel` controls.
 
 `@vessel-dsp/core` and `@vessel-dsp/stompbox` are React-free and do not include
 a custom editor or realtime simulator. They do preserve the source-visible
@@ -24,12 +25,12 @@ use tscircuit tooling to render or edit emitted Circuit JSON.
 | `@vessel-dsp/visual-effects` | Public npm package | Reusable Three.js toon, grain, and glitch preview effects for generated 3D viewers. |
 | `@vessel-dsp/amp` | Public npm package | Generated Three.js object graphs and GLB previews for amplifier profile visualization. |
 | `@vessel-dsp/cabinet` | Public npm package | Generated Three.js object graphs and GLB previews for speaker cabinet profile visualization. |
-| `@vessel-dsp/compiler` | Not yet published (0.1.0) | Headless circuit compiler lowering `.vdsp` documents to executable simulation Program ROMs. See the [Compiler guide](https://vessel-dsp.github.io/core/guides/compiler/). |
-| `@vessel-dsp/runtime` | Not yet published (0.1.0) | Headless real-time audio MNA solver console and Newton-Raphson simulation engine. See the [Runtime guide](https://vessel-dsp.github.io/core/guides/runtime/). |
-| `@vessel-dsp/chain` | Not yet published (0.1.0) | Headless audio signal chain graph engine: guitar input profiling, compiled circuit runtimes, amp shaping, cabinet IR convolution, and real NAM playback. |
+| `@vessel-dsp/compiler` | Public npm package | Headless circuit compiler lowering `.vdsp` documents to executable simulation Program ROMs. See the [Compiler guide](https://vessel-dsp.github.io/core/guides/compiler/). |
+| `@vessel-dsp/runtime` | Public npm package | Headless real-time audio MNA solver console and Newton-Raphson simulation engine. See the [Runtime guide](https://vessel-dsp.github.io/core/guides/runtime/). |
+| `@vessel-dsp/chain` | Public npm package | Headless audio signal chain graph engine: guitar input profiling, compiled circuit runtimes, amp shaping, cabinet IR convolution, and real NAM playback. |
 | `@vessel-dsp/player` | Public npm package | Embeddable HTML Custom Element (`<vessel-player>`) and Web Audio player with real-time spectrum visualizer. |
 
-See the [Signal Chain guide](https://vessel-dsp.github.io/core/guides/signal-chain/) for node order, the guitar cable model, cabinet IR convolution, and NAM playback; `@vessel-dsp/chain` 0.1.0 and its `@vessel-dsp/compiler` and `@vessel-dsp/runtime` 0.1.0 dependencies are not yet published on npm.
+See the [Signal Chain guide](https://vessel-dsp.github.io/core/guides/signal-chain/) for node order, the guitar cable model, cabinet IR convolution, and NAM playback.
 
 ## Install
 

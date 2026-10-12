@@ -11,7 +11,11 @@ is a headless companion library that consumes core `.vdsp`/`CircuitDocument`
 panel data and emits stompbox drill-layout data, drill-template SVG, preview
 SVG, and assembled preview GLB artifacts. `@vessel-dsp/control-ui` is the
 optional React/browser control-surface package for rendering core `Panel`
-controls.
+controls. `@vessel-dsp/compiler`, `@vessel-dsp/runtime`, and `@vessel-dsp/chain`
+form the headless audio simulation stack (Program ROM compiler, MNA solver
+console, signal-chain graph with NAM/IR). `@vessel-dsp/player` is the browser
+Web Audio player. `@vessel-dsp/visual-effects`, `@vessel-dsp/amp`, and
+`@vessel-dsp/cabinet` are Three.js preview packages.
 
 Current target formats:
 
@@ -22,10 +26,11 @@ Current target formats:
 - tscircuit `.circuit.json`;
 - legacy SPICE `.cir` / `.net` parser and netlist serializer support.
 
-Core and stompbox remain headless. Do not rebuild a custom schematic editor,
-repo-owned playground, realtime simulator, or audio runtime in this repo. Use
-tscircuit/Circuit JSON for schematic rendering and downstream electronics
-workflows.
+Core, stompbox, compiler, runtime, and chain remain headless. Player,
+control-ui, visual-effects, amp, and cabinet are the allowed browser/Web
+Audio/Three.js packages. Do not rebuild a custom schematic editor or
+repo-owned playground in this repo. Use tscircuit/Circuit JSON for schematic
+rendering and downstream electronics workflows.
 
 ## Packages
 
@@ -120,6 +125,12 @@ it. Chain tests live in `tests/chain`.
 - `packages/control-ui/src/index.ts` - optional React controls, state helpers,
   class hooks, theme provider, and control-surface rendering for core `Panel`
   data.
+- `packages/compiler/src/index.ts` - headless Program ROM compiler for `.vdsp`
+  documents.
+- `packages/runtime/src/index.ts` - headless MNA solver console and
+  simulation engine for Program ROMs.
+- `packages/chain/src/index.ts` - headless signal-chain graph with NAM/IR.
+- `packages/player/src/index.ts` - browser Web Audio player entry.
 - `tests/fixtures/*` - parser/conversion fixture corpus.
 
 ## Circuit JSON Contract
@@ -153,7 +164,7 @@ unsupported, lossy, or synthesized.
   dependencies to `packages/stompbox`.
 - Keep React/browser UI code inside `packages/control-ui`; do not import it from
   `packages/core` or `packages/stompbox`.
-- Do not add a repo-owned playground, schematic editor, or realtime runtime.
+- Do not add a repo-owned playground or schematic editor.
   Render or edit Circuit JSON in downstream tscircuit apps.
 
 ## Verification
@@ -172,4 +183,10 @@ Pick the smallest check that covers the change:
   `bun run --cwd packages/stompbox typecheck`.
 - Chain changes: `bun test tests/chain` and
   `bun run --cwd packages/chain typecheck`.
+- Compiler/runtime changes: `bun test tests/simulation.test.ts` and
+  `bun run --cwd packages/compiler typecheck` / `bun run --cwd packages/runtime typecheck`.
+- Player changes: `bun test tests/player` and
+  `bun run --cwd packages/player typecheck`.
+- Visual-effects/amp/cabinet changes: `bun test tests/visual-effects tests/amp tests/cabinet` and
+  the matching `bun run --cwd packages/<pkg> typecheck`.
 - Final full check: `bun test && bun run typecheck && bun run build && bun run build:pages`.
