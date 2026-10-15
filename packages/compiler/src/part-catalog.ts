@@ -318,12 +318,18 @@ const entries: readonly PartEntry[] = [
 	// 100 dB is 10^(100/20) = 100,000, which is what the part record's "100 k" states in the other
 	// unit. `boss-ce-2b` says `NJM4558DD`; the datasheet's own numbers differ from it only in
 	// package/rank suffix and are listed alongside.
+	// `JRC4558D` is the one knowingly non-printed id here: the Nisshinbo sheet prints NJM4558D,
+	// not JRC4558D, and the identification of JRC4558D as the NJR/JRC marking of the NJM4558D
+	// rests on `parts/op-amps/JRC4558D.md` ("NJR/JRC version. Same datasheet specs as NJM4558"),
+	// not on this sheet. It is carried anyway per owner decision 2026-10-15, because a real
+	// Boss SD-1 specimen carries a chip marked "JRC 4558D" and three corpus packets name it.
 	// **Pin labels corrected and role groups added 2026-09-02 (W2).** The pinout read `OUT_B, IN_B_MINUS, IN_B_PLUS, VEE, IN_A_PLUS, IN_A_MINUS, OUT_A, VCC` -- the datasheet's A and B swapped. Electrically it made no difference, because both sections are the same `ideal-opamp` law and each section's triple was internally consistent, so this is a documentation correction: the positions are physical DIP-8 pins either way and the `sections` indices are unchanged.
 	// The role groups carry **only** the pin-numbered spellings, deliberately. Generic aliases (`noninverting`, `out`) would let one declared role satisfy two different groups -- A's and B's -- and `matchesTerminalRoles` would then identify any 5-terminal section as this whole package. Pin-numbered tokens are unambiguous per position. `boss-dm-3`'s `IC1` is the only corpus device declaring a 4558 as an 8-pin package rather than as sections.
 	{
 		"partIds": [
 			"NJM4558DD",
 			"NJM4558D",
+			"JRC4558D",
 			"NJM4558M",
 			"NJM4558E",
 			"NJM4558V",
@@ -6846,12 +6852,17 @@ export type OpampGainBandwidthRow = {
 
 export const opampGainBandwidthDatasheet: readonly OpampGainBandwidthRow[] = [
 	{
-		partIds: ["NJM4558DD", "NJM4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558"],
+		partIds: ["NJM4558DD", "NJM4558D", "JRC4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558"],
 		hertz: 3e6,
 		source:
 			"NJM4558/datasheets/nisshinbo-njm4558.pdf (Nisshinbo NJM4558, date code 20250303) p2, ELECTRICAL " +
 			"CHARACTERISTICS (V+/V-=+-15V, Ta=25C): 'Gain Bandwidth Product | GB | MIN - | TYP 3 | MAX - | MHz'. " +
-			"One column for every suffix; the D rank changes the noise row only.",
+			"One column for every suffix; the D rank changes the noise row only. " +
+			"JRC4558D is not a printed id in this sheet: it is the NJR/JRC marking of the NJM4558D per " +
+			"parts/op-amps/JRC4558D.md ('NJR/JRC version. Same datasheet specs as NJM4558'; GBP 3 M), included per " +
+			"owner decision 2026-10-15 because a Boss SD-1 specimen carries a chip marked 'JRC 4558D' and three " +
+			"corpus packets name JRC4558D. Secondary only: the 1980s JRC databook scan prints the part as NJM4558D " +
+			"under the JRC logo (p2-98).",
 	},
 	{
 		partIds: ["RC4558", "RC4558P", "RC4558D"],
