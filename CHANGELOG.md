@@ -1,5 +1,54 @@
 # Changelog
 
+## compiler 0.5.0 / runtime 0.5.0 / chain 0.1.8 / player 0.2.6
+
+**The op-amp gain-bandwidth product is now a typed, per-part fact that reaches the solver on both consoles.** The compiler
+reads a packet's own typed `GBP`, else the datasheet typical figure for the exact part id from `part-catalog.ts`
+(`opampGainBandwidthDatasheet`, one transcribed TYP column per entry, never a graph reading), and emits it as the optional
+`gainBandwidthHz` on the ideal op-amp stamp (`Program.h` and `ProgramJson.cpp` carry the same field, which is why this is a
+minor bump). A section no source states a figure for, among them every `uPC4558` id whose datasheets print no gain-bandwidth
+row, stays on the 1 MHz class default and the compile names it with `opamp-gain-bandwidth-default`. **A runtime older than 0.5.0
+given such a program ignores the field and runs 1 MHz without saying so, so pin compiler and runtime together.**
+`JRC4558D` now resolves to the NJM4558 law entry and its 3 MHz row; that identification is the artifacts record
+`parts/op-amps/JRC4558D.md`, not a printed id in the Nisshinbo sheet, and the entry and the row say so.
+
+**Runtime: transient-solver fixes on both consoles** (the same logic in `reference-runtime.ts` and `Engine.cpp`):
+consistent linearisation beyond the band, a seed-relative first step, a re-armed fold reseed triggered by a cap pinned at the
+floor, and whole-update damping. They were needed because the bandwidth product changes the per-sample gain and so the
+trajectory, which exposed old behaviour on positive-feedback op-amp sections (`boss-mt-2`, `mxr-blue-box`).
+
+**What moves, as measured 2026-10-15 (836 renders, one 1 kHz sine at 0.5, 20 and 200 mV, default controls, 48 kHz, WASM and
+reference consoles, published compiler 0.4.0 + runtime 0.4.1 against this release).** Of the 123 packets in
+`schematics/vessel-dsp`, 48 change an op-amp bandwidth value; five of those are silent with a sine input and 43 are live. Of the
+43, 35, 38 and 39 are within 0.1 dB at 0.5, 20 and 200 mV. The rest: `boss-aw-2` about +15 dB at every level,
+`nobels-odr-1` +8.9 dB at small signal and +0.1 dB where it clips, `dod-envelope-filter-440-vintage-green` -6.1, -4.6 and
+-1.0 dB, `pro-co-rat-2-v4b-op07cp` +0.82 dB at small signal only, and `boss-ce-5` -0.95 dB on an output floor that does not
+depend on the input. **The default path is not bit-identical to 0.4.1.** The negative control found the runtime fixes move
+packets whose bandwidth did not change: 8 identical-program packets differ by at most 3e-7 dB (19 of 24 renders
+bit-identical) and 8 structurally-different-only packets by at most 0.13 dB (`electro-harmonix-deluxe-memory-man`
++0.105 to +0.130 dB, `boss-ch-1` -0.003 to -0.017 dB; both go from 2.0 to 1.0 Newton iterations per sample at 0.5 mV),
+11 of 24 renders bit-identical. Only 16 of the 75 packets whose bandwidth did not change were sampled.
+
+**Stability.** `boss-mt-2` completes 8 s at oversample 2 and 4, where the published stack did not finish in 900 s each; at
+oversample 1 it is not fixed (148 to 76 non-converged samples in 8 s, 472 to 191 in 20 s, peak iterations 1024, the cap).
+**One regression:** `mxr-blue-box` at oversample 2 goes from 0 to 1 non-converged sample with peak iterations 342 to 1024; it is
+clean at oversample 1 and 4 and in a 20 s oversample-1 run. `boss-dd-3b` (silent) goes from 5 to 0 non-converged samples at
+oversample 2 and 3 to 0 at 4. `boss-bf-3` reads every sample non-converged on both stacks (a DSP-chip packet; unchanged).
+Newton iterations fall by 20 to 70 percent on about 15 packets and are otherwise within 25 percent. Reference and WASM consoles
+agree within 0.01 dB on 126 of 128 renders (`boss-dd-3b` 0.12 dB old, 0.14 dB new). The owner accepted the regression and the
+level movers on 2026-10-15.
+
+**The generated kernels were regenerated** with this compiler over the 145 corpus programs: the table still has 139 kernels from
+561 scheduled blocks, but 6 fingerprints changed, so without the regeneration those six blocks would have run on the interpreter
+(same answer, slower). The published wasm is built by CI with emscripten 3.1.74; the local build used 6.0.4 and a previous release
+found the two bit-identical on six packets, which is not shown for the whole corpus here.
+
+**Not measured:** real-time cost, the browser, a guitar take, non-default controls or switch states, oversample 3 or 8, the 59
+packets not in the sample, and whether any change is closer to hardware. No claim is made that the corpus is unchanged.
+Evidence: `docs/releases/2026-10-15-release-prep-0.5.0.md`.
+
+chain 0.1.8 and player 0.2.6 change only their exact pins to compiler 0.5.0 and runtime 0.5.0 (and chain 0.1.8 for player).
+
 ## runtime 0.4.1 / chain 0.1.7 / player 0.2.5
 
 Fix: the Newton start predictor now runs only when `oversample > 1`. At the default factor 1 it neither seeds

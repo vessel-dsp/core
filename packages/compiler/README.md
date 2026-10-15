@@ -4,7 +4,7 @@ Headless circuit compiler turning `.vdsp` / `CircuitDocument` schematic data int
 
 ## Install
 
-`@vessel-dsp/compiler` 0.4.0 is on npm:
+`@vessel-dsp/compiler` 0.5.0 is on npm:
 
 ```bash
 bun add @vessel-dsp/compiler
