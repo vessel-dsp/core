@@ -42,7 +42,7 @@ import {
 	resampleStageSpec,
 } from "./resample";
 import type { SupplyAddress, SupplyInfo } from "./supply";
-import { taperFraction } from "./taper";
+import { IMPLEMENTED_TAPER_NAMES, taperFraction, unrecognisedTapers } from "./taper";
 
 /**
  * What the solver did, so that failing to solve is never silent.
@@ -2353,6 +2353,19 @@ export class ReferenceRuntime {
 		if (missingModels.length > 0) {
 			throw new RuntimeError(
 				`program requires ${missingModels.length === 1 ? "a DSP model" : "DSP models"} this runtime does not implement: ${missingModels.join(", ")}`,
+			);
+		}
+		// The same lockout for the taper vocabulary. A taper string used to be read by falling
+		// through to linear, so a program naming a curve this console lacks played the wrong one in
+		// silence; `requiredOperators` cannot carry it (typed by stamp kind), so the names a program
+		// uses are checked here, against the five this runtime implements, and each is named with
+		// where it appears. Before any per-block state is sized, like the two lockouts above.
+		const unrecognised = unrecognisedTapers(this.program);
+		if (unrecognised.length > 0) {
+			throw new RuntimeError(
+				`program names ${unrecognised.length === 1 ? "a taper" : "tapers"} this runtime does not implement: ${unrecognised
+					.map((entry) => `"${entry.taper}" (${entry.where})`)
+					.join(", ")}; it implements ${IMPLEMENTED_TAPER_NAMES.join(", ")}`,
 			);
 		}
 		// A dispatched macro block is refused by name, never executed and never ignored.

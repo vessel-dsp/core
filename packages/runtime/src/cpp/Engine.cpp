@@ -1,5 +1,6 @@
 #include "v2/Engine.h"
 #include "v2/ProgramJson.h"
+#include "v2/Taper.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -506,24 +507,6 @@ inline uint64_t packHistoryKey2(int32_t blockIndex, int32_t a, int32_t b) {
 
 inline uint64_t packHistoryKey3(int32_t blockIndex, int32_t a, int32_t b, int32_t c) {
     return ((static_cast<uint64_t>(blockIndex) * HISTORY_KEY_BASE + a) * HISTORY_KEY_BASE + b) * HISTORY_KEY_BASE + c;
-}
-
-inline double taperFraction(TaperKind taper, double position) {
-    double x = clamp(position, 0.0, 1.0);
-    // 1089/49: the base for which (b^0.5 - 1)/(b - 1) is exactly 0.175, the Alpha
-    // A-taper bracket midpoint at half rotation (see packages/runtime/src/taper.ts). Must stay
-    // bit-consistent with the TS console: both consoles round the same detents.
-    constexpr double audioBase = 1089.0 / 49.0;
-    if (taper == TaperKind::Logarithmic) {
-        return (std::pow(audioBase, x) - 1.0) / (audioBase - 1.0);
-    }
-    if (taper == TaperKind::AntiLogarithmic) {
-        return 1.0 - (std::pow(audioBase, 1.0 - x) - 1.0) / (audioBase - 1.0);
-    }
-    if (taper == TaperKind::ReverseLinear) {
-        return 1.0 - x;
-    }
-    return x;
 }
 
 constexpr double kTriodeGridCutoffThresholdVolts = -3.0;

@@ -23,6 +23,7 @@ import {
 	potDivider,
 	potReverseLinearTaper,
 	potLogarithmicTaper,
+	potSCurveTaper,
 	potSourceUnmarkedTaper,
 	potSteppedTaper,
 	potUnknownTaperCode,
@@ -214,6 +215,33 @@ describe("readNetlist", () => {
 		expect(readNetlist(potSourceUnmarkedTaper).controls[0]?.taper).toBe("linear");
 		// And a taper that resolves is silent, or the warning would be "this pedal has a pot".
 		expect(taperWarnings(potLogarithmicTaper)).toEqual([]);
+	});
+
+	it("reads s-curve as Alpha W(4B) by the law's name, in every folded spelling, and says nothing", () => {
+		const taperWarnings = (source: string): readonly string[] =>
+			(readNetlist(source).warnings ?? [])
+				.filter((warning) => warning.code === "taper-not-executable")
+				.map((warning) => (warning as { declared: string }).declared);
+		expect(readNetlist(potSCurveTaper).controls[0]?.taper).toBe("s-curve");
+		// `foldTaper` strips `-`, `_` and whitespace, so these are one spelling; a hyphenated map
+		// key would never be reached.
+		for (const spelling of ["s-curve", "S-Curve", "S Curve", "s_curve", "scurve"]) {
+			const source = derive(potSCurveTaper, 'Taper: "s-curve"', `Taper: "${spelling}"`);
+			expect(readNetlist(source).controls[0]?.taper).toBe("s-curve");
+			expect(taperWarnings(source)).toEqual([]);
+		}
+	});
+
+	it("never reads the letter W as the s-curve: a letter selects a curve only with its maker", () => {
+		const taperWarnings = (source: string): readonly string[] =>
+			(readNetlist(source).warnings ?? [])
+				.filter((warning) => warning.code === "taper-not-executable")
+				.map((warning) => (warning as { declared: string }).declared);
+		for (const code of ["W", "W20", "W20K", "custom"]) {
+			const source = derive(potSCurveTaper, 'Taper: "s-curve"', `Taper: "${code}"`);
+			expect(readNetlist(source).controls[0]?.taper).toBe("linear");
+			expect(taperWarnings(source)).toEqual([code]);
+		}
 	});
 
 	it("binds a control to the device it varies", () => {

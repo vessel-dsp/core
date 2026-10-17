@@ -309,12 +309,20 @@ export type DeclaredProgram = Readonly<{
  * `reverse-linear` is a real track the corpus declares (`klon-centaur`,
  * `vemuram-jan-ray`, `jhs-morning-glory`) and is not the same device as
  * `reverse-logarithmic`: the track is linear, only its direction is reversed.
+ *
+ * `s-curve` is Alpha's W(4B) and only that: the one S-curve a vendor sheet on file prints
+ * (RV16AF §2.4: 5-15 % at 90 degrees, 40-60 % at 150, 85-95 % at 210, of a 300-degree rotation).
+ * Any other S-curve is `custom` in the core format until a source prints its points.
+ *
+ * The runtime refuses a taper outside this list rather than reading it as linear, so a program
+ * naming a law a console does not implement stops at load instead of playing the wrong curve.
  */
 export type TaperKind =
 	| "linear"
 	| "logarithmic"
 	| "reverse-logarithmic"
-	| "reverse-linear";
+	| "reverse-linear"
+	| "s-curve";
 
 export type Control = {
 	readonly id: ControlId;
@@ -3337,7 +3345,7 @@ export type GenericTubeFitWarning = {
  * whose source explicitly records the marking as unknown, has nothing for this stage to have
  * failed to read and is silent. This fires only where the source states something: a part marking
  * whose law is not derivable here (`W20`, `Boss-G-taper`, `BH`), or a taper core's format supports
- * and this runtime has no curve for (`s-curve`, `stepped`, `custom`).
+ * and this runtime has no curve for (`stepped`, `custom`).
  *
  * Measured 2026-09-03: 69 of the corpus's 608 declared tapers fell through to linear, and all 69
  * did it silently. An audio pot rendered linear is audible across the whole knob sweep, which is

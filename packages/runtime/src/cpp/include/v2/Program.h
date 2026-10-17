@@ -15,7 +15,8 @@ enum class TaperKind {
     Linear,
     Logarithmic,
     AntiLogarithmic,
-    ReverseLinear
+    ReverseLinear,
+    SCurve
 };
 
 enum class StampKind {

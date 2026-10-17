@@ -1254,7 +1254,7 @@ export function readNetlist(
 				declared: componentTaper.unreadable,
 				detail:
 					`Control ${id}: ${owner.id} declares taper "${componentTaper.unreadable}", which ` +
-					"this stage cannot turn into one of its four laws, so the control renders " +
+					"this stage cannot turn into one of its laws, so the control renders " +
 					"linear. An audio pot rendered linear is audible across the whole sweep.",
 			});
 		}
@@ -3921,6 +3921,11 @@ function selectedOption(
  * Deliberately absent: `W`, `W20`, `G`, `D`, `L`, `BH`, `Stepped`, `Trim`,
  * `Boss-G-taper` and the other manufacturer-specific curves. We do not know their
  * shapes, and guessing one would be inventing a device law from a letter.
+ *
+ * `s-curve` is the one S-shaped law present, and it is the *law's name*, not Alpha's letter: a
+ * pot marked `W` or `W20` stays absent, because makers disagree on W and a letter selects a
+ * curve only with its maker. A document that has established its pot's S-curve is Alpha W(4B)
+ * says so by writing `s-curve`.
  */
 const taperSpellings = new Map<string, TaperKind>([
 	["linear", "linear"],
@@ -3938,6 +3943,9 @@ const taperSpellings = new Map<string, TaperKind>([
 	["negativelog", "reverse-logarithmic"],
 	["c", "reverse-logarithmic"],
 	["reverselinear", "reverse-linear"],
+	// Alpha W(4B). `foldTaper` strips `-`, `_` and whitespace, so this one key is `s-curve`,
+	// `S-Curve`, `S Curve` and `scurve`; a hyphenated key would be unreachable.
+	["scurve", "s-curve"],
 ]);
 
 /**
@@ -3957,12 +3965,11 @@ const taperUnknownSpellings: ReadonlySet<string> = new Set([
 /**
  * Tapers `@vessel-dsp/core`'s format supports and this runtime has no curve for.
  *
- * `PotentiometerTaper` carries seven values; `TaperKind` -- the executable law -- carries four.
- * A document declaring one of these three has stated a real taper that the render cannot produce,
+ * `PotentiometerTaper` carries seven values; `TaperKind` -- the executable law -- carries five.
+ * A document declaring one of these two has stated a real taper that the render cannot produce,
  * which is a different failure from an unreadable marking and is worth saying differently.
  */
 const taperWithoutLaw: ReadonlySet<string> = new Set([
-	"scurve",
 	"stepped",
 	"custom",
 ]);
@@ -3994,7 +4001,7 @@ function taperKind(value: string): TaperKind | null {
  *   have read;
  * - the value states anything else -> linear, and **name it**, whether it is a part marking whose
  *   curve is not derivable here (`W20`, `Boss-G-taper`) or a taper the format supports and this
- *   runtime has no law for (`s-curve`, `stepped`).
+ *   runtime has no law for (`stepped`, `custom`).
  */
 function declaredTaper(component: ComponentLike): {
 	readonly taper: TaperKind;

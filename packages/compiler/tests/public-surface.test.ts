@@ -29,6 +29,7 @@ import {
 	hybridDelayPedal,
 	invertingAmplifier,
 	potDivider,
+	potSCurveTaper,
 	rcLowPass,
 	resistorDivider,
 	unimplementedMacroRegistry,
@@ -119,13 +120,27 @@ describe("Program contract: the version surface is exact", () => {
 
 	it("carries a control per declared pot with a taper from the closed set", () => {
 		const program = programFor(potDivider);
-		const tapers = new Set(["linear", "logarithmic", "reverse-logarithmic", "reverse-linear"]);
+		const tapers = new Set(["linear", "logarithmic", "reverse-logarithmic", "reverse-linear", "s-curve"]);
 		expect(program.controls.length).toBeGreaterThan(0);
 		for (const control of program.controls) {
 			expect(tapers.has(control.taper)).toBe(true);
 			expect(control.defaultPosition).toBeGreaterThanOrEqual(0);
 			expect(control.defaultPosition).toBeLessThanOrEqual(1);
 		}
+	});
+});
+
+describe("a declared s-curve reaches the program", () => {
+	it("is carried by the control and by every stamp it governs, and by nothing else", () => {
+		const program = programFor(potSCurveTaper);
+		expect(program.controls.map((control) => control.taper)).toEqual(["s-curve"]);
+		const stampTapers = program.blocks.flatMap((block) =>
+			block.kind === "mna" ? block.stamps.flatMap((stamp) => ("taper" in stamp ? [stamp.taper] : [])) : [],
+		);
+		expect(stampTapers.length).toBeGreaterThan(0);
+		expect(new Set(stampTapers)).toEqual(new Set(["s-curve"]));
+		// And it survives the wire, which is how a runtime built later reads it.
+		expect(JSON.parse(emit(program).text)).toEqual(program);
 	});
 });
 

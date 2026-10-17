@@ -1,5 +1,6 @@
 #include "v2/Engine.h"
 #include "v2/Resample.h"
+#include "v2/Taper.h"
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -205,6 +206,19 @@ V2_EXPORT double v2_testonly_resample_process(void* handle, double sample) {
 V2_EXPORT void v2_testonly_resample_destroy(void* handle) {
     if (handle == nullptr) return;
     delete static_cast<V2TestResampleCascade*>(handle);
+}
+
+// Test-only, like the resample exports above: the taper law exactly as the console evaluates it,
+// reached by the program's own spelling so the name table and the curve are both under test.
+// Returns NaN for a name outside the five (the loader refuses it by name; an exception must not
+// cross the C boundary), so a comparison against the TypeScript console can never read a
+// refused taper as a number.
+V2_EXPORT double v2_testonly_taper_fraction(const char* name, double position) {
+    TaperKind kind = TaperKind::Linear;
+    if (name == nullptr || !tryParseTaperKind(name, &kind)) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    return taperFraction(kind, position);
 }
 
 V2_EXPORT void v2_engine_reset(void* handle) {

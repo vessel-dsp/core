@@ -41,7 +41,7 @@ Turns a parsed `.vdsp` / `CircuitDocument` into an immutable **`Program`**, a co
 - **Block Partitions & Linear/Nonlinear Regions**: Subcircuits partitioned by topological coupling and operational complexity.
 - **MNA Stamps, Not Matrices**: the Program holds a list of stamp operators per block plus compile time partition and schedule metadata. It holds no G, C, B, or D matrix. The runtime folds constant stamps into per block base matrices once per `prepare()` and applies the rest per sample.
 - **Nonlinear Operators**: Mathematical models for diodes, BJTs, JFETs, MOSFETs, triodes, pentodes, tube diodes, op-amps, OTAs, optocouplers, comparators, BBD and digital delay macros, compandors, transformers, switches, clock drivers, and logic gates. Part identity beyond device class comes from the injected registry (`emptyRegistry` versus `pedalPartCatalog`).
-- **Parameter Mappings & Controls**: Normalized control mapping with potentiometer taper laws (`linear`, `logarithmic`, `reverse-logarithmic`, `reverse-linear`).
+- **Parameter Mappings & Controls**: Normalized control mapping with potentiometer taper laws (`linear`, `logarithmic`, `reverse-logarithmic`, `reverse-linear`, `s-curve`).
 - **State Vector Layout**: Layout of dynamic capacitor voltages, inductor currents, and nonlinear state variables.
 
 *Constraints*: Pure TypeScript, deterministic, rate-independent, headless.

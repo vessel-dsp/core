@@ -161,16 +161,16 @@ describe("settledRender: the settle ladder reports a verdict, never a bare numbe
 
 describe("chain helpers: pure, deterministic, and from the barrel", () => {
 	it("taperFraction pins its endpoints, clamps, and mirrors the reverse tracks", () => {
-		// Three of the four tracks run 0 -> 0 and 1 -> 1; `reverse-logarithmic` is the audio
+		// Four of the five tracks run 0 -> 0 and 1 -> 1; `reverse-logarithmic` is the audio
 		// curve mirrored about the diagonal (fast start), not travelled backwards.
-		for (const taper of ["linear", "logarithmic", "reverse-logarithmic"] as const) {
+		for (const taper of ["linear", "logarithmic", "reverse-logarithmic", "s-curve"] as const) {
 			expect(taperFraction(taper, 0)).toBeCloseTo(0, 12);
 			expect(taperFraction(taper, 1)).toBeCloseTo(1, 12);
 		}
 		// `reverse-linear` alone travels the other way: it is a real track (klon, jan-ray).
 		expect(taperFraction("reverse-linear", 0)).toBeCloseTo(1, 12);
 		expect(taperFraction("reverse-linear", 1)).toBeCloseTo(0, 12);
-		for (const taper of ["linear", "logarithmic", "reverse-logarithmic", "reverse-linear"] as const) {
+		for (const taper of ["linear", "logarithmic", "reverse-logarithmic", "reverse-linear", "s-curve"] as const) {
 			expect(taperFraction(taper, -1)).toBe(taperFraction(taper, 0));
 			expect(taperFraction(taper, 2)).toBe(taperFraction(taper, 1));
 		}
@@ -181,6 +181,13 @@ describe("chain helpers: pure, deterministic, and from the barrel", () => {
 		// audio curve is exactly 0.175 at 0.5 (Alpha bracket midpoint).
 		expect(taperFraction("logarithmic", 0.5)).toBeCloseTo(0.175, 12);
 		expect(taperFraction("reverse-logarithmic", 0.5)).toBeCloseTo(0.825, 12);
+		// Alpha W(4B): the printed midpoints 0.10 / 0.50 / 0.90 at 0.30 / 0.50 / 0.70 of rotation,
+		// and the stops, exactly (RV16AF section 2.4; the shape between them is a convention).
+		expect(taperFraction("s-curve", 0)).toBe(0);
+		expect(taperFraction("s-curve", 0.3)).toBe(0.1);
+		expect(taperFraction("s-curve", 0.5)).toBe(0.5);
+		expect(taperFraction("s-curve", 0.7)).toBe(0.9);
+		expect(taperFraction("s-curve", 1)).toBe(1);
 		for (const step of [0, 10, 25, 50, 75, 90, 100]) {
 			const x = step / 100;
 			expect(taperFraction("reverse-logarithmic", x)).toBeCloseTo(1 - taperFraction("logarithmic", 1 - x), 12);

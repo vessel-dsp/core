@@ -1,4 +1,5 @@
 #include "v2/ProgramJson.h"
+#include "v2/Taper.h"
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
@@ -330,11 +331,23 @@ StampKind parseStampKind(const std::string& s) {
     return StampKind::Unknown;
 }
 
-TaperKind parseTaperKind(const std::string& s) {
-    if (s == "logarithmic") return TaperKind::Logarithmic;
-    if (s == "anti-logarithmic" || s == "reverse-logarithmic") return TaperKind::AntiLogarithmic;
-    if (s == "reverse-linear") return TaperKind::ReverseLinear;
-    return TaperKind::Linear;
+// A taper is a closed vocabulary (`kTaperNames`), and a name outside it is a load refusal that
+// says what it was and where it was read -- never linear. It used to be linear: a program naming
+// a curve this console lacks (an `s-curve` loaded by a binary older than the law) played the
+// wrong taper in silence, which the console/ROM contract forbids. A stamp or control that carries
+// no `taper` key at all (most stamp kinds have none) is not naming a taper and reads as linear.
+TaperKind readTaperKind(const JsonValue& obj, const std::string& where) {
+    const auto* value = obj.find("taper");
+    if (value == nullptr) return TaperKind::Linear;
+    if (!value->isString()) {
+        throw std::runtime_error("taper in " + where + " is not a string; this runtime implements: " + kTaperNames);
+    }
+    TaperKind kind = TaperKind::Linear;
+    if (!tryParseTaperKind(value->stringValue, &kind)) {
+        throw std::runtime_error(
+            "unknown taper \"" + value->stringValue + "\" in " + where + "; this runtime implements: " + kTaperNames);
+    }
+    return kind;
 }
 
 Stamp parseStamp(const JsonValue& obj) {
@@ -418,7 +431,7 @@ Stamp parseStamp(const JsonValue& obj) {
     st.throwCount = obj.getInt("throwCount", 1);
 
     st.control = obj.getString("control");
-    st.taper = parseTaperKind(obj.getString("taper"));
+    st.taper = readTaperKind(obj, "stamp \"" + st.kindStr + "\" (control \"" + st.control + "\")");
     st.side = obj.getString("side");
     st.macroId = obj.getString("macroId");
 
@@ -602,7 +615,7 @@ static void parseMacroPorts(const JsonValue& obj, Block& b) {
     if (ccObj && ccObj->isObject()) {
         MacroClockControl cc;
         cc.controlId = ccObj->getString("controlId");
-        cc.taper = parseTaperKind(ccObj->getString("taper"));
+        cc.taper = readTaperKind(*ccObj, "clockControl \"" + cc.controlId + "\" of block \"" + obj.getString("id") + "\"");
         cc.ohmsAtControlMin = ccObj->getDouble("ohmsAtControlMin", 0.0);
         cc.ohmsAtControlMax = ccObj->getDouble("ohmsAtControlMax", 0.0);
         cc.farads = ccObj->getDouble("farads", 0.0);
@@ -953,7 +966,7 @@ Block parseBlock(const JsonValue& obj) {
 Control parseControl(const JsonValue& obj) {
     Control c;
     c.id = obj.getString("id");
-    c.taper = parseTaperKind(obj.getString("taper"));
+    c.taper = readTaperKind(obj, "control \"" + c.id + "\"");
     c.defaultPosition = obj.getDouble("defaultPosition", 0.5);
     c.role = obj.getOptionalString("role");
     c.momentary = obj.getBool("momentary", false);

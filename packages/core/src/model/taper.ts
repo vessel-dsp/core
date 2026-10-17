@@ -47,6 +47,16 @@ import { normalizeToken } from "./tokens";
  * "reverse audio", "anti-log" or "negative log". Those are synonyms rather than spellings, so
  * they are not accepted: a document naming one is a document to correct.
  *
+ * **`s-curve` is one specific law: Alpha's W(4B).** It is the only S-shaped taper whose points a
+ * vendor sheet on file prints (Alpha RV16AF, reference SP16050157, section 2.4, read from two
+ * scans: 5-15 % of the track at 90 degrees, 40-60 % at 150 and 85-95 % at 210, of a 300-degree
+ * rotation). The compiler's consumers execute it as a smooth monotone curve through the midpoints
+ * 0.10 / 0.50 / 0.90 at 0.30 / 0.50 / 0.70 of rotation, stops included; the shape *between* those
+ * points is an engine convention, not something the sheet states. Declaring `s-curve` therefore
+ * states "this track follows Alpha's W", whatever maker's pot it is. **Every other S-curve is
+ * `custom` until a source prints its points**: makers disagree on what a letter W means, and the
+ * letter is never read as this law (`W`, `W20` stay unread).
+ *
  * `custom` is a real, distinct curve with no published form -- a wah's Hot Potz, a Boss G or W
  * taper. It says "there is a law here and it is none of the above", which is true where
  * inventing `log` would not be.

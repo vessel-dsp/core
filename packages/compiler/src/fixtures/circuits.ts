@@ -6819,10 +6819,17 @@ export const potSourceUnmarkedTaper = potWithTaper("source-unmarked");
 
 /**
  * A taper `@vessel-dsp/core`'s format carries and this runtime has no curve for. `TaperKind` has
- * four laws; `PotentiometerTaper` has seven. Stating one of the other three is a real taper the
- * render cannot produce, which is a different thing from an unreadable marking.
+ * five laws; `PotentiometerTaper` has seven. Stating one of the other two (`stepped`, `custom`) is
+ * a real taper the render cannot produce, which is a different thing from an unreadable marking.
  */
 export const potSteppedTaper = potWithTaper("stepped");
+
+/**
+ * Alpha W(4B), declared by the law's name: 0.10 / 0.50 / 0.90 of the track at 0.30 / 0.50 / 0.70
+ * of rotation (RV16AF §2.4). Written `s-curve` here; the folded spellings `S-Curve`, `S Curve`
+ * and `scurve` resolve to the same law.
+ */
+export const potSCurveTaper = potWithTaper("s-curve");
 
 /** A pot wired as a two-terminal rheostat, which lowering cannot stamp. */
 // Through `derive`, not `String.replace`: a replace that stops matching **silently returns its
