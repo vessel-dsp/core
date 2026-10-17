@@ -39,10 +39,18 @@
 // reason and gets no figure, so its stamp is `null` and the compile names it (`opamp-gain-bandwidth-default`).
 // Matching is by exact folded part id, as everywhere in this file: an id the datasheet does not print is not
 // covered because a sibling is.
+//
+// **Output swing is the third figure, and has its own table too** (`opampOutputSwingDatasheet`): the
+// distance the output stops short of each rail, as a printed **pair** (positive side, negative side) with
+// the condition it was printed at (total supply, load) and how it is carried to a pedal on another supply
+// (`translation`, `"constant"` or `"proportional"`). TYP column only, printed rows only; an id with no such
+// row is listed in `opampOutputSwingAbsent` with the reason and states no swing. Nearly every printed row
+// is at +-15 V and nearly every pedal runs at 9 V, so the carry is a named choice, and
+// `opamp-law-default-parameters` names every device it was carried for.
 
 import type { PartEntry, PartRegistry } from "./registry";
-import { foldPartId } from "./registry";
-import type { DeviceLaw } from "./types";
+import { foldPartId, opampOutputSwingOf } from "./registry";
+import type { DeviceLaw, OpampOutputSwingTranslation } from "./types";
 
 /**
  * An op-amp section as the registry states it: the part's own gain, and no rails.
@@ -419,18 +427,12 @@ const entries: readonly PartEntry[] = [
 	//
 	//   VOM  Maximum peak output voltage swing  RL = 10 kOhm, TA = 25 C, VCC+- = +-15 V
 	//        Min +-10 V   Typ +-13.5 V   (table 6.7)
-	//   Figure 6-1, VOM vs |VCC+-| (RL = 10 kOhm), is roughly linear: VOM is about 3.3 V at
-	//   |VCC+-| = 4.5 V, the +-4.5 V a 9 V single supply gives.
 	//
-	// `outputSwingDropVolts` is 1.2 V: the distance the output stops short of each rail at that
-	// 9 V operating point (4.5 - 3.3). **That figure is read by eye from the plotted line, not
-	// printed.** The printed figure is the 1.5 V (15 - 13.5) of table 6.7, at +-15 V. 1.2 was
-	// chosen because the pedals fitted with this part run on 9 V, and it is disclosed here rather
-	// than presented as a datasheet number. Open-loop gain stays the house 100000 the family
-	// entry it was split from carried; it is not a sourced TL06x figure.
-	//
-	// The drop also reaches a *declared* `opamp` device (the ElectroSmash script-logo Phase 90's
-	// TL061s) through `registryOpampSwingDrop`, which reads the first section's law.
+	// Open-loop gain stays the house 100000 the family entry it was split from carried; it is not a
+	// sourced TL06x figure. The output swing is not in this entry: it has its own table,
+	// `opampOutputSwingDatasheet`, which stamps the printed pair (1.5 V a side, `constant`) onto these
+	// ids, for a declared `opamp` device and a package alike. The graph-read 1.2 V this entry carried
+	// until row 16 (Figure 6-1 at +-4.5 V) was not a printed figure and is gone.
 	{
 		"partIds": [
 			"TL062",
@@ -458,8 +460,7 @@ const entries: readonly PartEntry[] = [
 						"kind": "ideal-opamp",
 						"railHigh": null,
 						"railLow": null,
-						"openLoopGain": 100000,
-						"outputSwingDropVolts": 1.2
+						"openLoopGain": 100000
 					},
 					"terminals": [
 						2,
@@ -472,8 +473,7 @@ const entries: readonly PartEntry[] = [
 						"kind": "ideal-opamp",
 						"railHigh": null,
 						"railLow": null,
-						"openLoopGain": 100000,
-						"outputSwingDropVolts": 1.2
+						"openLoopGain": 100000
 					},
 					"terminals": [
 						4,
@@ -516,8 +516,7 @@ const entries: readonly PartEntry[] = [
 						"kind": "ideal-opamp",
 						"railHigh": null,
 						"railLow": null,
-						"openLoopGain": 100000,
-						"outputSwingDropVolts": 1.2
+						"openLoopGain": 100000
 					},
 					"terminals": [
 						0,
@@ -3139,18 +3138,10 @@ const entries: readonly PartEntry[] = [
 
 	// Texas Instruments OP07x, from "OP07x Precision Operational Amplifiers" SLOS099H (rev. March
 	// 2023), `parts/op-amps/OP07/datasheets/op07-ti.pdf` in vessel-dsp/artifacts, section 6.5.
-	//
-	//   VOM  Output voltage swing, VS = +-15 V   RL = 10 kOhm: min +-12   typ +-13
-	//                                            RL = 2 kOhm:  min +-11.5 typ +-12.8
-	//
-	// `outputSwingDropVolts` is 2.2 V: 15 - 12.8, the table's own default condition (RL = 2 kOhm,
-	// typ). **That is a +-15 V figure carried to a 9 V single supply on the assumption that a
-	// bipolar output stage's headroom is constant, not proportional to the supply.** The datasheet
-	// states nothing at 9 V, and the proportional reading would give 0.66 V. The measured pin 6
-	// swing on a specimen has not been taken: the RAT specimen study
-	// (`packet-study/pro-co-rat-2-v4b-op07cp`) scored this law UNDECIDED, its band exceeding 20 dB,
-	// and it is shipped on the datasheet alone, as a typical and never a measured part. The datasheet
-	// bracket across load current is 2.0 (typ, 10 kOhm) to 3.5 (min spec, 2 kOhm).
+	// Open-loop gain stays the house 100000. The output swing is not in this entry: it has its own
+	// table (`opampOutputSwingDatasheet`), which types the printed +-12.8 V (RL = 2 kOhm, VS = +-15 V)
+	// as a `proportional` pair for OP07CP, OP07DP and OP07DN, and lists the bare `OP07` id absent (the
+	// sheet's characteristics apply to the C and D grades only).
 	{
 		"partIds": [
 			"OP07",
@@ -3184,8 +3175,7 @@ const entries: readonly PartEntry[] = [
 						"kind": "ideal-opamp",
 						"railHigh": null,
 						"railLow": null,
-						"openLoopGain": 100000,
-						"outputSwingDropVolts": 2.2
+						"openLoopGain": 100000
 					},
 					"terminals": [
 						0,
@@ -5462,10 +5452,11 @@ const entries: readonly PartEntry[] = [
 	// output=pinout[0] -- the `ideal-opamp` law reads only those three; vplus/vminus are not
 	// wired to the law (rails come from the circuit, exactly as the CD4049 template above).
 	// No MC33178 datasheet is vendored in the artifacts library, so the open-loop gain is the
-	// class-general 100 dB (1e4) rather than a sourced MC33178 figure. `outputSwingDropVolts` 1.1 is
-	// the registry's (`component-opamp-chips.json`) figure, 15 V - 13.9 V from the onsemi MC33178-D
-	// output swing table at +-15 V, RL = 2 kOhm; that datasheet is likewise not vendored here, so the
-	// figure is carried from the registry's citation and not re-read.
+	// class-general 100 dB (1e4) rather than a sourced MC33178 figure. It states **no output swing**:
+	// the 1.1 V this entry carried until row 16 was the registry's (`component-opamp-chips.json`)
+	// citation of the onsemi MC33178-D table at +-15 V, never re-read here because the datasheet is not
+	// vendored, which does not meet the printed-TYP-only rule; the id is listed in
+	// `opampOutputSwingAbsent` with that reason.
 	{
 		"partIds": [
 			"MC33178",
@@ -5482,8 +5473,7 @@ const entries: readonly PartEntry[] = [
 						"kind": "ideal-opamp",
 						"railHigh": null,
 						"railLow": null,
-						"openLoopGain": 100000,
-						"outputSwingDropVolts": 1.1
+						"openLoopGain": 100000
 					},
 					"terminals": [
 						2,
@@ -7071,6 +7061,255 @@ function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEn
 	return out;
 }
 
+// --- Op-amp output swing: datasheet TYP pair, by exact part id ---------------------------------------
+//
+// The same rules as the gain-bandwidth table above: paths are under the artifacts library,
+// `parts/op-amps/<dir>/datasheets/`; a row is a TYP figure **printed** in the vendored sheet with its
+// document, page, condition and column quoted; never a graph read by eye, never a registry or curated
+// number, never a figure chosen from a measurement. A row states the drop from each rail at the printed
+// condition. `translation` is how that pair is carried to a pedal on another supply:
+//   "constant"      the printed drops are applied as printed (a headroom independent of the supply);
+//   "proportional"  both are multiplied by the op-amp's supply span over `supplyVolts`.
+// The datasheet states neither: it is the owner's reading, recorded per row, and the table does not
+// say it is shown right. Only the OP07 reading has a held-out hardware test behind it (T-a1, row 16),
+// and a test of a rule written first is not a measurement of the rule.
+
+/** One datasheet-stated output-swing pair and the printed row it was transcribed from. */
+export type OpampOutputSwingRow = {
+	readonly partIds: readonly string[];
+	/** Volts the output stops short of the positive rail, at the printed condition. */
+	readonly highVolts: number;
+	/** Volts the output stops short of the negative rail, at the printed condition. */
+	readonly lowVolts: number;
+	/** The printed row's total supply, VS+ minus VS- (30 for +-15 V). */
+	readonly supplyVolts: number;
+	readonly loadOhms: number;
+	readonly translation: OpampOutputSwingTranslation;
+	/** The printed column the figure was read from. */
+	readonly column: string;
+	readonly source: string;
+};
+
+export const opampOutputSwingDatasheet: readonly OpampOutputSwingRow[] = [
+	{
+		partIds: ["OP07CP", "OP07DP", "OP07DN"],
+		highVolts: 2.2,
+		lowVolts: 2.2,
+		supplyVolts: 30,
+		loadOhms: 2000,
+		translation: "proportional",
+		column: "OP07C and OP07D, TYP",
+		source:
+			"OP07/datasheets/op07-ti.pdf (TI SLOS099H, rev Mar 2023) 6.5 p6 (continued table), 'at TA = 25C, VS = +-15 V, " +
+			"RL = 2 kOhm connected to mid-supply, and VCM = VOUT = mid-supply (unless otherwise noted)': 'OUTPUT | Voltage " +
+			"output swing | MIN +-11.5 | TYP +-12.8 | V' (the group's first row, no test condition printed beside it, so " +
+			"the table's default RL = 2 kOhm applies; the TA = 0C to 70C row reads +-11 / +-12.6, RL = 10 kOhm +-12 / " +
+			"+-13, RL = 1 kOhm +-12 typ); footnote (1): the listed specifications apply to OP07C and OP07D, so the bare " +
+			"'OP07' id has no column and is absent. A +-VOM row states both sides at once, so the pair is equal by " +
+			"print: 15 - 12.8 = 2.2 V a side. 'proportional' is the owner's decision of 2026-10-17 (row 16): the rule " +
+			"was written before the RAT pin-6 reading and that reading is its held-out test; the datasheet states " +
+			"nothing below +-15 V. At a 9 V pedal it gives 0.66 V a side, with a printed bracket of 2.0 V (TYP, " +
+			"RL = 10 kOhm: +-13) to 3.5 V (MIN, RL = 2 kOhm: +-11.5) at 30 V.",
+	},
+	{
+		partIds: ["TL061", "TL061CP", "TL061CN", "TL062", "TL062C", "TL062CP", "TL062CN"],
+		highVolts: 1.5,
+		lowVolts: 1.5,
+		supplyVolts: 30,
+		loadOhms: 10000,
+		translation: "constant",
+		column: "TL061C/TL062C and TL061AC/TL062AC, TYP",
+		source:
+			"TL062/datasheets/tl062.pdf (TI SLOS078N, rev Aug 2023) Table 6.7 p8, 'VCC+- = +-15 V, RL = 10 kOhm to " +
+			"(VCC+ + VCC-)/2 (unless otherwise noted)': 'VOM | Maximum peak output voltage swing | RL = 10 kOhm, TA = 25C " +
+			"| MIN +-10 | TYP +-13.5 | V' in both the TL06xC and the TL06xAC column (TA = full range, RL >= 10 kOhm: MIN " +
+			"+-10). A +-VOM row states both sides at once: 15 - 13.5 = 1.5 V a side. The ids are the gain-bandwidth " +
+			"row's, whose convention this follows. 'constant' is the owner's decision of 2026-10-17 (row 16, D3): the " +
+			"sheet prints no figure below +-15 V; Figure 6-1 (VOM against |VCC+-|, RL = 10 kOhm) is a graph, and the " +
+			"1.2 V that was read from it by eye (about 3.3 V at +-4.5 V) is retired because it is not printed.",
+	},
+];
+
+/**
+ * Op-amp ids this catalog holds that state no output-swing pair, and why. They keep the supply as their
+ * rails and `opamp-law-default-parameters` names them. **A printed row is not by itself a typed row**:
+ * several of these ids have one and are listed here on purpose (owner decision D4 of 2026-10-17: widening
+ * the table to the 4558 and TL07x families would move about 25 corpus packets at 9 V on a translation with
+ * one held-out data point, OP07, and one printed pair pointing the other way, NE5534). The reasons below
+ * that describe a datasheet other than the OP07 and TL06x ones are the plan's reading of 2026-10-17
+ * (`thoughts/shared/plans/2026-10-17-general-engine-improvements.md` section 1.4), not re-read when this
+ * table was written, and they type no value.
+ */
+export const opampOutputSwingAbsent: ReadonlyArray<{
+	readonly partIds: readonly string[];
+	readonly reason: string;
+}> = [
+	{
+		partIds: ["OP07"],
+		reason:
+			"The OP07 sheet's electrical characteristics apply to OP07C and OP07D only (footnote 1); the bare id has no column.",
+	},
+	{
+		partIds: ["MC33178", "MC33178P", "MC33178D"],
+		reason:
+			"No MC33178 datasheet is vendored. The registry's 1.1 V (15 - 13.9, onsemi MC33178-D at +-15 V, RL = 2 kOhm) " +
+			"is carried from a citation and was never re-read here, which does not meet the printed-TYP-only rule.",
+	},
+	{
+		partIds: [
+			"NJM4558DD", "NJM4558D", "JRC4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558",
+			"RC4558", "RC4558P", "RC4558D",
+			"uPC4558C", "uPC4558G2", "uPC4558",
+			"TL071", "TL071CN", "TL071CP", "TL072", "TL072CN", "TL072IP", "TL072D", "TL072CP", "TL082", "TL082CP",
+			"NE5534", "NJM5534", "NJM5534D", "NJM5534M",
+			"LM358", "LM358N", "LM358P",
+		],
+		reason:
+			"A printed swing row exists in the vendored sheet (NJM4558 p2 +-12/+-14 at RL >= 10 kOhm and +-10/+-13 at " +
+			"RL >= 2 kOhm; RC4558 SLOS073H 5.5 p6; uPC4558 R03DS0145EJ0200 p3, two tables and the sheet does not say which a " +
+			"bare id belongs to; TL07x/TL08x SLOS080W 5.8; NE5534 SLOS070D 7.5 p5, peak-to-peak, constant 2.0 V a side at +-15 " +
+			"V and +-18 V; LM358 SLOS068AB 5.7 p10, asymmetric and printed at 5 V and 30 V only) and is deliberately NOT typed: " +
+			"owner decision D4, 2026-10-17. Every one is printed at +-15 V or more and almost every pedal runs at 9 V; typing " +
+			"them would move about 25 corpus packets on a translation that has one held-out data point.",
+	},
+	{
+		partIds: ["RC4558C", "4558"],
+		reason: "RC4558C is not an orderable printed in SLOS073H and '4558' is a generic name no datasheet owns.",
+	},
+	{
+		partIds: ["NE5532", "NE5532P", "NE5532D"],
+		reason: "TI SLOS075K (Dec 2025) removed the output-swing row; its revision history says so.",
+	},
+	{
+		partIds: ["TL022", "TL022C", "TL022CP", "TL022CD", "TL022CN"],
+		reason: "TI SLOS076 prints VO(PP) as a peak-to-peak figure only (20 min / 26 typ at RL = 10 kOhm, +-15 V): no per-side figure.",
+	},
+	{
+		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "BA718", "CA1458", "CA1458E", "CA1458T"],
+		reason: "No vendored datasheet for these ids.",
+	},
+	{
+		partIds: [
+			"M5218AL", "M5218AP", "M5218AFP", "M5218A", "M5218L", "M5218P", "M5218FP", "M5218",
+			"M5216AL", "M5216AP", "M5216AFP", "M5216A", "M5216L", "M5216P", "M5216FP", "M5216",
+			"M5281AL", "M5281AP", "M5281AFP", "M5281A", "M5281L", "M5281P", "M5281FP", "M5281",
+			"M5223L", "M5223P", "M5223FP", "M5223",
+		],
+		reason:
+			"The vendored Mitsubishi sheets are image-only or package drawings; no swing row was read, and none is claimed.",
+	},
+	{
+		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
+		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
+	},
+];
+
+/**
+ * The catalog's op-amp entries with each datasheet swing pair stamped onto the sections of exactly the ids
+ * it covers. An entry whose ids have different rows (or none) is split into one entry per row, keeping every
+ * other field, so no id changes behaviour except by gaining its own pair.
+ *
+ * Loud on any mismatch, as `withDatasheetGainBandwidth` is: a row or absent id the catalog holds no op-amp
+ * entry for, an id in both lists, an id in two rows, a base entry that already carries a swing field (every
+ * figure comes through the table), or a row whose numbers do not validate (`opampOutputSwingOf`) throws at load.
+ */
+export function withDatasheetOutputSwing(
+	base: readonly PartEntry[],
+	rows: readonly OpampOutputSwingRow[] = opampOutputSwingDatasheet,
+	absentRows: ReadonlyArray<{ readonly partIds: readonly string[]; readonly reason: string }> = opampOutputSwingAbsent,
+): readonly PartEntry[] {
+	const rowOf = new Map<string, OpampOutputSwingRow>();
+	for (const row of rows) {
+		for (const id of row.partIds) {
+			const folded = foldPartId(id);
+			if (rowOf.has(folded)) throw new Error(`output-swing table names ${id} twice`);
+			rowOf.set(folded, row);
+		}
+	}
+	const absent = new Set<string>();
+	for (const { partIds, reason } of absentRows) {
+		if (reason.length === 0) throw new Error(`output-swing absent row for ${partIds.join(",")} states no reason`);
+		for (const id of partIds) {
+			const folded = foldPartId(id);
+			if (rowOf.has(folded)) throw new Error(`${id} is both given an output-swing pair and listed absent`);
+			absent.add(folded);
+		}
+	}
+	const seen = new Set<string>();
+	const out: PartEntry[] = [];
+	for (const entry of base) {
+		const sections = entry.model.kind === "sections" ? entry.model.sections : null;
+		const isOpamp =
+			sections !== null && sections.length > 0 && sections.every((section) => section.law.kind === "ideal-opamp");
+		if (!isOpamp || sections === null || entry.model.kind !== "sections") {
+			out.push(entry);
+			continue;
+		}
+		for (const section of sections) {
+			const law = section.law;
+			if (
+				law.kind === "ideal-opamp" &&
+				(law.outputSwingDropHighVolts !== undefined ||
+					law.outputSwingDropLowVolts !== undefined ||
+					law.outputSwingPrinted !== undefined)
+			) {
+				throw new Error(
+					`${entry.partIds.join(",")}: an op-amp entry states an output swing in place; it must come through opampOutputSwingDatasheet`,
+				);
+			}
+		}
+		const groups = new Map<OpampOutputSwingRow | null, string[]>();
+		for (const id of entry.partIds) {
+			const folded = foldPartId(id);
+			seen.add(folded);
+			const row = rowOf.get(folded) ?? null;
+			const group = groups.get(row);
+			if (group === undefined) groups.set(row, [id]);
+			else group.push(id);
+		}
+		const model = entry.model;
+		for (const [row, partIds] of groups) {
+			if (row === null) {
+				out.push(groups.size === 1 ? entry : { ...entry, partIds });
+				continue;
+			}
+			const stamped: PartEntry = {
+				...entry,
+				partIds,
+				model: {
+					...model,
+					sections: model.sections.map((section) =>
+						section.law.kind === "ideal-opamp"
+							? {
+									...section,
+									law: {
+										...section.law,
+										outputSwingDropHighVolts: row.highVolts,
+										outputSwingDropLowVolts: row.lowVolts,
+										outputSwingPrinted: {
+											supplyVolts: row.supplyVolts,
+											loadOhms: row.loadOhms,
+											translation: row.translation,
+										},
+									},
+								}
+							: section,
+					),
+				},
+			};
+			// A malformed row (a non-positive figure, an unknown translation) throws here, naming the ids.
+			for (const section of stamped.model.kind === "sections" ? stamped.model.sections : []) {
+				if (section.law.kind === "ideal-opamp") opampOutputSwingOf(section.law, partIds.join(","));
+			}
+			out.push(stamped);
+		}
+	}
+	for (const folded of [...rowOf.keys(), ...absent]) {
+		if (!seen.has(folded)) throw new Error(`output-swing table names ${folded}, which no op-amp entry holds`);
+	}
+	return out;
+}
+
 /**
  * Every part id whose `fet` entry refines the gate term only, folded for comparison.
  * `report-part-store-drift.ts` keys its channel-field exclusion on this set -- a catalog
@@ -7084,5 +7323,5 @@ export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(["2sk30a"]);
  * The catalog the corpus-facing scripts inject.
  */
 export const pedalPartCatalog: PartRegistry = {
-	entries: withDatasheetGainBandwidth(entries),
+	entries: withDatasheetOutputSwing(withDatasheetGainBandwidth(entries)),
 };

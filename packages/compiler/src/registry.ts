@@ -484,16 +484,61 @@ export function registryLawFor(
 	return null;
 }
 
+/** A part's printed output swing, as the registry states it. See `DeviceLaw` `outputSwingDropHighVolts`. */
+export type OpampOutputSwing = {
+	readonly highVolts: number;
+	readonly lowVolts: number;
+	readonly printed: NonNullable<Extract<DeviceLaw, { kind: "ideal-opamp" }>["outputSwingPrinted"]>;
+};
+
 /**
- * How far a part's output stops short of each supply rail, from the registry entry that names
- * it, or `null` when the part is not in the registry or states none (the rails are then used as
- * they are). Read from either an `ideal-opamp` law entry or the first section of a `sections`
- * entry, because a declared `opamp` device never reaches the section lowering.
+ * The output-swing pair, with the condition it was printed at, from an `ideal-opamp` law, or `null`
+ * when the law states none. **Both of the pair or neither, and the printed condition exactly when the
+ * pair is**: a law that states a half, or a pair with no condition, or a condition with no pair, is a
+ * table error and throws, naming the part. Nothing here guesses a missing side from the other.
  */
-export function registryOpampSwingDrop(
+export function opampOutputSwingOf(
+	law: Extract<DeviceLaw, { kind: "ideal-opamp" }>,
+	partId: string,
+): OpampOutputSwing | null {
+	const high = law.outputSwingDropHighVolts;
+	const low = law.outputSwingDropLowVolts;
+	const printed = law.outputSwingPrinted;
+	if (high === undefined && low === undefined && printed === undefined) {
+		return null;
+	}
+	if (high === undefined || low === undefined || printed === undefined) {
+		throw new Error(
+			`${partId}: an op-amp output swing is a pair with its printed condition, both sides and the condition or none ` +
+				`(outputSwingDropHighVolts ${String(high)}, outputSwingDropLowVolts ${String(low)}, outputSwingPrinted ${printed === undefined ? "absent" : "present"})`,
+		);
+	}
+	const finitePositive = (value: number) => Number.isFinite(value) && value > 0;
+	if (
+		!finitePositive(high) ||
+		!finitePositive(low) ||
+		!finitePositive(printed.supplyVolts) ||
+		!finitePositive(printed.loadOhms) ||
+		(printed.translation !== "constant" && printed.translation !== "proportional")
+	) {
+		throw new Error(
+			`${partId}: an op-amp output swing needs finite positive drops, supply and load and a translation of "constant" or "proportional"`,
+		);
+	}
+	return { highVolts: high, lowVolts: low, printed };
+}
+
+/**
+ * How far a part's output stops short of each supply rail, as its datasheet prints it, from the
+ * registry entry that names it by exact folded part id, or `null` when the part is not in the registry
+ * or its entry states none (the rails are then used as they are). Read from either an `ideal-opamp` law
+ * entry or the first section of a `sections` entry, because a declared `opamp` device never reaches the
+ * section lowering. Throws on a half-stated pair (`opampOutputSwingOf`).
+ */
+export function registryOpampSwing(
 	registry: PartRegistry,
 	partNumber: string | null,
-): number | null {
+): OpampOutputSwing | null {
 	if (partNumber === null) {
 		return null;
 	}
@@ -509,7 +554,7 @@ export function registryOpampSwingDrop(
 					? entry.model.sections[0]?.law
 					: undefined;
 		if (law !== undefined && law.kind === "ideal-opamp") {
-			return law.outputSwingDropVolts ?? null;
+			return opampOutputSwingOf(law, partNumber);
 		}
 	}
 	return null;
@@ -518,7 +563,7 @@ export function registryOpampSwingDrop(
 /**
  * The gain-bandwidth product, in hertz, that a part's datasheet states, from the registry entry
  * that names it by exact part id, or `null` when the part is not in the registry or its entry states
- * none. Read the same way as `registryOpampSwingDrop` -- from an `ideal-opamp` law entry or the first
+ * none. Read the same way as `registryOpampSwing` -- from an `ideal-opamp` law entry or the first
  * section of a `sections` entry -- and for the same reason: a declared `opamp` device never reaches
  * the section lowering, so this is the only door through which the catalog's figure reaches it.
  *

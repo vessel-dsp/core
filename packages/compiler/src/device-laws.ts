@@ -48,7 +48,9 @@ import {
 	registryLawFor,
 	registryModelFor,
 	registryOpampGainBandwidth,
-	registryOpampSwingDrop,
+	registryOpampSwing,
+	opampOutputSwingOf,
+	type OpampOutputSwing,
 	terminalWithRole,
 	withRecordedReads,
 } from "./registry";
@@ -418,20 +420,43 @@ function opampRails(
 }
 
 /**
- * The rails an op-amp's output can reach: each supply rail pulled in by the part's stated drop.
- * An unstated drop, an unknown rail, or a drop that would close the pair leaves the rails as they
- * are, so a part with no entry renders bit-for-bit as before.
+ * The rails an op-amp's output can reach: each supply rail pulled in by the part's printed drop for
+ * that side, carried to this op-amp's own supply by the row's stated `translation`.
+ *
+ * `"constant"` applies the printed drops as printed. `"proportional"` multiplies both by the
+ * op-amp's supply span (`high - low`, so 9 for a 9 V single supply and 18 for a +-9 V pair) over the
+ * span the row was printed at. An unstated swing, an unknown rail, a span that is not positive, or a
+ * pair that would close the output interval (`high - dropHigh <= low + dropLow`) leaves the rails as
+ * they are, so a part with no entry renders bit-for-bit as before. `carried` is set only when the rails
+ * moved; `opamp-law-default-parameters` reads it to tell a pair used at its printed supply from one
+ * carried across a supply.
  */
-function railsAfterSwingDrop(
+function railsAfterSwing(
 	rails: { readonly high: number | null; readonly low: number | null },
-	dropVolts: number | null,
-): { readonly high: number | null; readonly low: number | null } {
-	if (dropVolts === null || dropVolts <= 0 || rails.high === null || rails.low === null) {
-		return rails;
+	swing: OpampOutputSwing | null,
+): {
+	readonly rails: { readonly high: number | null; readonly low: number | null };
+	readonly carried: {
+		readonly highVolts: number;
+		readonly lowVolts: number;
+		readonly circuitSupplyVolts: number;
+	} | null;
+} {
+	if (swing === null || rails.high === null || rails.low === null) {
+		return { rails, carried: null };
 	}
-	const high = rails.high - dropVolts;
-	const low = rails.low + dropVolts;
-	return high > low ? { high, low } : rails;
+	const span = rails.high - rails.low;
+	if (!(span > 0)) {
+		return { rails, carried: null };
+	}
+	const scale = swing.printed.translation === "proportional" ? span / swing.printed.supplyVolts : 1;
+	const highVolts = swing.highVolts * scale;
+	const lowVolts = swing.lowVolts * scale;
+	const high = rails.high - highVolts;
+	const low = rails.low + lowVolts;
+	return high > low
+		? { rails: { high, low }, carried: { highVolts, lowVolts, circuitSupplyVolts: span } }
+		: { rails, carried: null };
 }
 
 /**
@@ -883,11 +908,13 @@ function sectionDevices(
 		}
 		// Read from the section's *parent* device, which is where the package's supply pins
 		// are declared -- a section's own terminal list is only its three signal pins.
-		const sectionDrop =
-			section.law.kind === "ideal-opamp" ? (section.law.outputSwingDropVolts ?? null) : null;
-		const sectionRails = railsAfterSwingDrop(opampRails(device, rails, nodeToVoltage), sectionDrop);
-		const railHigh = sectionRails.high;
-		const railLow = sectionRails.low;
+		const sectionSwing =
+			section.law.kind === "ideal-opamp"
+				? opampOutputSwingOf(section.law, identity.partId)
+				: null;
+		const sectionSwung = railsAfterSwing(opampRails(device, rails, nodeToVoltage), sectionSwing);
+		const railHigh = sectionSwung.rails.high;
+		const railLow = sectionSwung.rails.low;
 
 		// An op-amp's rails come from the op-amp's own supply terminals or the circuit's supply set,
 		// not from the registry -- the same substitution a declared `opamp` gets. A registry cannot know them:
@@ -906,8 +933,16 @@ function sectionDevices(
 						// The registry states the part's gain; only the rails are the pedal's.
 						openLoopGain: section.law.openLoopGain,
 						// Kept on the lowered law so `findOpampLawDefaults` can tell a part that
-						// states how close it gets to the rails from one that does not.
-						...(sectionDrop === null ? {} : { outputSwingDropVolts: sectionDrop }),
+						// states how close it gets to the rails from one that does not, and a pair
+						// used at its printed supply from one the lowering carried across a supply.
+						...(sectionSwing === null
+							? {}
+							: {
+									outputSwingDropHighVolts: sectionSwing.highVolts,
+									outputSwingDropLowVolts: sectionSwing.lowVolts,
+									outputSwingPrinted: sectionSwing.printed,
+								}),
+						...(sectionSwung.carried === null ? {} : { outputSwingCarried: sectionSwung.carried }),
 						// The part's datasheet product, when the entry states one. Absent stays
 						// absent: it lowers to a `null` stamp, which the compile names.
 						...(section.law.gainBandwidthHz === undefined
@@ -2305,13 +2340,13 @@ function resolveDevice(
 				},
 			};
 		case "opamp": {
-			const declaredDrop = registryOpampSwingDrop(registry, device.identity.partNumber);
-			const declaredRails = railsAfterSwingDrop(
+			const declaredSwing = registryOpampSwing(registry, device.identity.partNumber);
+			const declaredSwung = railsAfterSwing(
 				opampRails(device, rails, nodeToVoltage),
-				declaredDrop,
+				declaredSwing,
 			);
-			const railHigh = declaredRails.high;
-			const railLow = declaredRails.low;
+			const railHigh = declaredSwung.rails.high;
+			const railLow = declaredSwung.rails.low;
 
 			// The gain-bandwidth product: the packet's own typed `GBP` first, else the datasheet figure
 			// of the exact part id, else none. Never a class number -- `null` lowers to a stamp the
@@ -2329,7 +2364,14 @@ function resolveDevice(
 					railLow,
 					openLoopGain:
 						device.parameters.openLoopGain ?? DEFAULT_OPEN_LOOP_GAIN,
-					...(declaredDrop === null ? {} : { outputSwingDropVolts: declaredDrop }),
+					...(declaredSwing === null
+						? {}
+						: {
+								outputSwingDropHighVolts: declaredSwing.highVolts,
+								outputSwingDropLowVolts: declaredSwing.lowVolts,
+								outputSwingPrinted: declaredSwing.printed,
+							}),
+					...(declaredSwung.carried === null ? {} : { outputSwingCarried: declaredSwung.carried }),
 					...(gainBandwidthHz === null ? {} : { gainBandwidthHz }),
 				},
 			};

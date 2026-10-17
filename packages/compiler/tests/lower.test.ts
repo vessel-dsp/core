@@ -10,7 +10,7 @@ import {
 } from "../src/lower";
 import { readNetlist } from "../src/netlist";
 import { partition } from "../src/partition";
-import { emptyRegistry } from "../src/registry";
+import { emptyRegistry, type PartRegistry } from "../src/registry";
 import { computeStampPartition } from "../src/stamp-partition";
 import type { Block, Stamp } from "../src/types";
 import {
@@ -1429,29 +1429,77 @@ describe("bjt-law-default-parameters", () => {
 });
 
 describe("opamp-law-default-parameters", () => {
-	// An op-amp whose part states no output-swing drop runs the full supply, which no real
-	// op-amp does. It is named; a part that states its drop is not.
+	// An op-amp whose part states no output-swing pair runs the full supply, which no real op-amp does. It is
+	// named; a part that states its pair at the supply it runs at is not. The parts are the test's own
+	// (`FIXTURE-SWING-*`): no shipping catalog row is pinned by value here (`output-swing.test.ts` owns the
+	// contract and its structural checks).
+	const SPAN = 18; // railedAmplifier declares +9 and -9
+	const swingRegistry: PartRegistry = {
+		entries: [
+			{
+				partIds: ["FIXTURE-SWING-STATED"],
+				declaredTypes: [],
+				terminalRoleGroups: [],
+				model: {
+					kind: "sections",
+					pinout: [null, null, null],
+					sections: [
+						{
+							law: {
+								kind: "ideal-opamp",
+								railHigh: null,
+								railLow: null,
+								openLoopGain: 100000,
+								outputSwingDropHighVolts: 1.2,
+								outputSwingDropLowVolts: 0.8,
+								outputSwingPrinted: { supplyVolts: SPAN, loadOhms: 10_000, translation: "constant" },
+							},
+							terminals: [0, 1, 2],
+						},
+					],
+				},
+			},
+			{
+				partIds: ["FIXTURE-SWING-UNSTATED"],
+				declaredTypes: [],
+				terminalRoleGroups: [],
+				model: {
+					kind: "sections",
+					pinout: [null, null, null],
+					sections: [
+						{
+							law: { kind: "ideal-opamp", railHigh: null, railLow: null, openLoopGain: 100000 },
+							terminals: [0, 1, 2],
+						},
+					],
+				},
+			},
+		],
+	};
 	const withPart = (part: string) =>
 		railedAmplifier.replace(
 			'      Description: "MN3007 bucket brigade delay memory."',
 			`      PartNumber: ${part}\n      Description: "MN3007 bucket brigade delay memory."`,
 		);
 
-	it("names an op-amp whose part states no swing drop", () => {
-		const result = compile(withPart("LM358N"), { registry: pedalPartCatalog });
+	it("names an op-amp whose part states no swing pair", () => {
+		const result = compile(withPart("FIXTURE-SWING-UNSTATED"), { registry: swingRegistry });
 		expect(result.status).toBe("ok");
 		if (result.status !== "ok") return;
 		const named = result.warnings.filter((w) => w.code === "opamp-law-default-parameters");
 		expect(named).toHaveLength(1);
 		expect(named[0]?.code === "opamp-law-default-parameters" && named[0].devices).toEqual(["U1"]);
+		expect(named[0]?.code === "opamp-law-default-parameters" && named[0].items).toEqual([
+			{ device: "U1", reason: "not-stated" },
+		]);
 	});
 
-	it("stays silent for a part that states its drop, and pulls the rails in by it", () => {
-		const result = compile(withPart("TL061"), { registry: pedalPartCatalog });
+	it("stays silent for a part that states its pair at this supply, and pulls each rail in by its own side", () => {
+		const result = compile(withPart("FIXTURE-SWING-STATED"), { registry: swingRegistry });
 		expect(result.status).toBe("ok");
 		if (result.status !== "ok") return;
 		expect(result.warnings.some((w) => w.code === "opamp-law-default-parameters")).toBe(false);
-		const bare = compile(withPart("LM358N"), { registry: pedalPartCatalog });
+		const bare = compile(withPart("FIXTURE-SWING-UNSTATED"), { registry: swingRegistry });
 		if (bare.status !== "ok") return;
 		const rails = (r: typeof result) =>
 			r.program.blocks.flatMap((b) =>
@@ -1461,7 +1509,7 @@ describe("opamp-law-default-parameters", () => {
 			)[0];
 		const [lowBare, highBare] = rails(bare) ?? [null, null];
 		const [low, high] = rails(result) ?? [null, null];
-		expect(low).toBeCloseTo((lowBare ?? 0) + 1.2, 9);
+		expect(low).toBeCloseTo((lowBare ?? 0) + 0.8, 9);
 		expect(high).toBeCloseTo((highBare ?? 0) - 1.2, 9);
 	});
 });

@@ -49,9 +49,11 @@ import { GROUND } from "./types";
 import type {
 	BjtLawDefaultWarning,
 	OpampGainBandwidthDefaultWarning,
+	OpampLawDefaultItem,
 	OpampLawDefaultWarning,
 	CompileResult,
 	DeclaredDelayWarning,
+	DeviceId,
 	FetLawDefaultWarning,
 	LawedNetlist,
 	ModulationNotModelledWarning,
@@ -404,31 +406,86 @@ function findBjtLawDefaults(netlist: Netlist): readonly BjtLawDefaultWarning[] {
 	];
 }
 
-/** Op-amps that state no output-swing drop. See `OpampLawDefaultWarning`. */
+/**
+ * Op-amps whose output swing the part does not state at this pedal's supply. See
+ * `OpampLawDefaultWarning`.
+ *
+ * A package is lowered as one law per section, so a device is judged across all its sections:
+ * `not-stated` if any section carries no printed pair; otherwise `stated-at-other-supply` if the
+ * lowering carried the pair at a supply span other than the one it was printed at (compared to
+ * 1e-9 V). A pair used at exactly its printed supply, and a stated pair the lowering did not carry
+ * (unrailed op-amp, a pair that would close the interval), list nothing: no figure crossed a supply.
+ */
 function findOpampLawDefaults(lawed: LawedNetlist): readonly OpampLawDefaultWarning[] {
 	const byId = new Map(lawed.netlist.devices.map((device) => [device.id, device]));
-	const stated = new Map<string, boolean>();
+	type Judgement = { stated: boolean; carried: { printed: number; circuit: number } | null };
+	const judged = new Map<string, Judgement>();
 	for (const resolution of lawed.resolutions) {
 		if (resolution.outcome !== "law" || resolution.law.kind !== "ideal-opamp") continue;
 		// A section of a package is lowered as `<device>#<index>`; the warning names the device.
 		const id = resolution.device.replace(/#\d+$/, "");
-		stated.set(id, (stated.get(id) ?? true) && resolution.law.outputSwingDropVolts !== undefined);
+		const law = resolution.law;
+		const section = judged.get(id) ?? { stated: true, carried: null };
+		section.stated = section.stated && law.outputSwingPrinted !== undefined;
+		if (
+			section.carried === null &&
+			law.outputSwingPrinted !== undefined &&
+			law.outputSwingCarried !== undefined &&
+			Math.abs(law.outputSwingCarried.circuitSupplyVolts - law.outputSwingPrinted.supplyVolts) > 1e-9
+		) {
+			section.carried = {
+				printed: law.outputSwingPrinted.supplyVolts,
+				circuit: law.outputSwingCarried.circuitSupplyVolts,
+			};
+		}
+		judged.set(id, section);
 	}
-	const defaulted = [...stated].flatMap(([id, has]) => (has ? [] : [id]));
-	if (defaulted.length === 0) return [];
-	const listed = defaulted.map((id) => {
+	const items: OpampLawDefaultItem[] = [];
+	for (const [id, section] of judged) {
+		if (!section.stated) {
+			items.push({ device: id as DeviceId, reason: "not-stated" });
+		} else if (section.carried !== null) {
+			items.push({
+				device: id as DeviceId,
+				reason: "stated-at-other-supply",
+				printedSupplyVolts: section.carried.printed,
+				circuitSupplyVolts: section.carried.circuit,
+			});
+		}
+	}
+	if (items.length === 0) return [];
+	const label = (id: string) => {
 		const part = byId.get(id)?.identity.partNumber ?? null;
 		return `${id}${part === null ? "" : ` (${part})`}`;
-	});
+	};
+	const notStated = items.filter((item) => item.reason === "not-stated");
+	const carried = items.filter((item) => item.reason === "stated-at-other-supply");
+	const parts: string[] = [];
+	if (notStated.length > 0) {
+		parts.push(
+			`${notStated.length} op-amp(s) swing the full supply because the part states no ` +
+				`output-swing drop: ${notStated.map((item) => label(item.device)).join("; ")}`,
+		);
+	}
+	if (carried.length > 0) {
+		parts.push(
+			`${carried.length} op-amp(s) carry a datasheet swing printed at another supply: ` +
+				carried
+					.map((item) =>
+						item.reason === "stated-at-other-supply"
+							? `${label(item.device)} printed at ${item.printedSupplyVolts} V, carried to ${item.circuitSupplyVolts} V`
+							: "",
+					)
+					.join("; "),
+		);
+	}
 	return [
 		{
 			code: "opamp-law-default-parameters" as const,
 			device: null,
-			devices: defaulted as unknown as OpampLawDefaultWarning["devices"],
-			detail:
-				`${defaulted.length} op-amp(s) swing the full supply because the part states no ` +
-				`output-swing drop: ${listed.join("; ")}. Harmless for a stage that never nears ` +
-				"the rails; decisive for a comparator, an LFO or a clipper.",
+			devices: items.map((item) => item.device),
+			items,
+			detail: `${parts.join(". ")}. Harmless for a stage that never nears the rails; decisive for a comparator, an LFO or a clipper.`,
 		},
 	];
 }

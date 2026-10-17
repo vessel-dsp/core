@@ -428,6 +428,14 @@ export type PartIdentity = {
 
 // --- stage 3 -----------------------------------------------------------------
 
+/**
+ * How a printed op-amp output-swing pair is carried to a pedal whose supply is not the supply it
+ * was printed at (`DeviceLaw` `outputSwingPrinted`). A closed pair of words, compared whole:
+ * `"constant"` applies the printed drops as printed; `"proportional"` multiplies both by the
+ * op-amp's own supply span over the printed supply.
+ */
+export type OpampOutputSwingTranslation = "constant" | "proportional";
+
 /** A lumped constitutive relation the solver can stamp into a matrix. */
 export type DeviceLaw =
 	| { readonly kind: "conductance"; readonly siemens: number }
@@ -974,14 +982,48 @@ export type DeviceLaw =
 			 */
 			readonly openLoopGain: number;
 			/**
-			 * How far the output stops short of each supply rail, in volts. **A drop from the rail,
-			 * not an absolute swing**: the output clamps to `railLow + drop .. railHigh - drop`, so the
-			 * same figure is right on a 9 V pedal and an 18 V one. Absent means the part states none
-			 * and the rails are used as they are. The pedal still owns the rails; the part owns only how
-			 * close to them it gets. Symmetric, so it cannot say the LM358/LM324's asymmetric swing to
-			 * ground; those parts state none.
+			 * How far the output stops short of the positive and of the negative supply rail, in volts,
+			 * **as the part's datasheet prints it, at the condition it prints it at**
+			 * (`outputSwingPrinted`). A drop from the rail, not an absolute swing: the output clamps to
+			 * `railLow + low .. railHigh - high`. The pedal still owns the rails; the part owns only how
+			 * close to them it gets, and the two sides are separate facts so a part that prints them
+			 * separately (an LM358's swing to ground) can say so.
+			 *
+			 * **Both or neither**, and `outputSwingPrinted` exactly when the pair is: the catalog loader
+			 * and `registryOpampSwing` throw on anything else. Absent means the part states none and the
+			 * rails are used as they are (`opamp-law-default-parameters` names it). There is no single
+			 * symmetric field: the one that was here carried a figure printed at +-15 V to a 9 V pedal
+			 * without saying so.
+			 *
+			 * On a lowered law (a section of a resolved device) these stay the printed figures; what the
+			 * lowering actually applied is `outputSwingCarried`.
 			 */
-			readonly outputSwingDropVolts?: number;
+			readonly outputSwingDropHighVolts?: number;
+			readonly outputSwingDropLowVolts?: number;
+			/**
+			 * The condition `outputSwingDropHighVolts`/`outputSwingDropLowVolts` were printed at, and how
+			 * they are carried to a pedal on another supply: `supplyVolts` is the **total** supply of the
+			 * printed row (30 for +-15 V), `loadOhms` the printed load, `translation` the owner's stated
+			 * reading of the datasheet. `"constant"` applies the printed drops as printed;
+			 * `"proportional"` scales both by `(railHigh - railLow) / supplyVolts`. Evidence status is
+			 * part of the choice and lives in the table row's `source`, never in this field.
+			 */
+			readonly outputSwingPrinted?: {
+				readonly supplyVolts: number;
+				readonly loadOhms: number;
+				readonly translation: OpampOutputSwingTranslation;
+			};
+			/**
+			 * Set by the lowering, only on a lowered law, and only when it moved the rails: the drops it
+			 * applied (after `translation`) and the supply span of the op-amp they were applied to. Read
+			 * by `opamp-law-default-parameters` to tell a pair carried across a supply from one used at
+			 * the supply it was printed at.
+			 */
+			readonly outputSwingCarried?: {
+				readonly highVolts: number;
+				readonly lowVolts: number;
+				readonly circuitSupplyVolts: number;
+			};
 			/**
 			 * Gain-bandwidth product in hertz: where a single-pole part's open-loop gain falls to
 			 * unity, so its dominant pole sits at `gainBandwidthHz / openLoopGain`. A closed-loop
@@ -3049,24 +3091,47 @@ export type BjtLawDefaultWarning = {
 };
 
 /**
- * Op-amps whose output runs the full supply, because the part states no distance it stops short
- * of the rails (`outputSwingDropVolts`). One warning per document, naming every such device.
+ * Why one op-amp is named by `opamp-law-default-parameters`. `not-stated`: the part states no
+ * output-swing pair, so the output runs the full supply. `stated-at-other-supply`: the part's
+ * datasheet prints a pair, but at a supply other than this pedal's, and the lowering carried it
+ * across by the row's stated `translation`; `printedSupplyVolts` is the row's total supply and
+ * `circuitSupplyVolts` the span of the op-amp it was carried to.
+ */
+export type OpampLawDefaultItem =
+	| { readonly device: DeviceId; readonly reason: "not-stated" }
+	| {
+			readonly device: DeviceId;
+			readonly reason: "stated-at-other-supply";
+			readonly printedSupplyVolts: number;
+			readonly circuitSupplyVolts: number;
+	  };
+
+/**
+ * Op-amps whose output swing the compiler could not take from the part at this pedal's supply:
+ * either the part states no distance it stops short of the rails (`outputSwingDropHighVolts` /
+ * `outputSwingDropLowVolts`), or it states one printed at another supply and the lowering carried it.
+ * One warning per document, naming every such device with a typed reason (`items`); `devices` is
+ * the same list without the reason.
  *
  * **Why it is named.** No real op-amp reaches its rails. `mxr-phase-90` read WEAK 79.6 deg on
  * rail-to-rail TL062s and SWEEPING 106.0 deg once they stopped 1.2 V short of each rail
- * (packet-study/mxr-phase-90, 2026-09-29), and three simulators agreed on the wrong answer
- * because the oracle deck follows the program's rails. A comparator or LFO near the rails, or a
- * clipper, is decided by this number.
+ * (packet-study/mxr-phase-90, 2026-09-29), and three simulators agreed on the wrong answer because
+ * the oracle deck follows the program's rails. A comparator or LFO near the rails, or a clipper, is
+ * decided by this number. Almost every printed swing row is at +-15 V and almost every pedal runs
+ * at 9 V, so a figure carried across the supply is a choice the part's datasheet does not make; the
+ * second reason names it instead of hiding it.
  *
  * **What it does not claim.** Not that the source is wrong, and not that the stamped rails are
- * wrong for a circuit that never nears them; a unity-gain buffer at low level is untouched.
- * The claim is only that the swing came from the consumer's default (the supply), not the part.
- * LM358, LM324 and TL022 are listed until an asymmetric swing can be stated.
+ * wrong for a circuit that never nears them; a unity-gain buffer at low level is untouched. The
+ * claim is only that the swing came from the consumer's default (the supply) or from a datasheet
+ * row carried across a supply, not from a figure printed for this pedal. LM358, LM324 and TL022 are
+ * listed until a row for them is typed.
  */
 export type OpampLawDefaultWarning = {
 	readonly code: "opamp-law-default-parameters";
 	readonly device: null;
 	readonly devices: readonly DeviceId[];
+	readonly items: readonly OpampLawDefaultItem[];
 	readonly detail: string;
 };
 
