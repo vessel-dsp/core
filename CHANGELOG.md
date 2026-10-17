@@ -1,5 +1,79 @@
 # Changelog
 
+## compiler 0.6.0 / runtime 0.6.0 / chain 0.1.9 / player 0.2.7
+
+**Op-amp output swing is now a printed, conditioned, per-side pair, folded by the compiler into absolute rails.** The single
+symmetric `outputSwingDropVolts` is gone, with no alias and no migration. A registry entry now carries
+`outputSwingDropHighVolts` and `outputSwingDropLowVolts` together with the condition they were printed at
+(`outputSwingPrinted`: total supply, load, and a `translation` of `constant` or `proportional`), or none of the three, and the
+catalog loader refuses anything else. A new datasheet table, `opampOutputSwingDatasheet`, sits beside the gain-bandwidth
+table (one transcribed TYP column per entry, printed rows only, never a graph reading): `OP07CP`, `OP07DP` and `OP07DN` are
+2.2 V a side at 30 V total supply and a 2 kOhm load, `proportional` (TI SLOS099H, +-12.8 V typical), so a 9 V circuit gets
+0.66 V a side; `TL061` and `TL062` are 1.5 V a side at 30 V and 10 kOhm, `constant` (TI SLOS078N Table 6.7, +-13.5 V typical),
+which replaces a 1.2 V that had been read off a graph. The bare `OP07` id and `MC33178` move to a table of absences with a
+stated reason each: the 1.1 V the registry carried for `MC33178` has no datasheet on file, so those sections now run the full
+supply. `opamp-law-default-parameters` names, per device, whether the swing is `not-stated` or `stated-at-other-supply` (with
+the printed and the circuit supply), so a figure carried across a supply is visible instead of silent. The swing never
+leaves the compiler: the Stamp, `Program.h` and the kernels are unchanged, and only the `railHigh` and `railLow` of an ideal
+op-amp stamp differ. This is a typed datasheet reading and not a fit to any specimen.
+
+**A declared diode ideality is now read.** The diode law and stamp already carried `emissionCoefficient` and both consoles
+already read it, but the netlist reader never read the property, and a diode with no catalog row got a hard-coded 1.752, so a
+packet's stated ideality was discarded without a word. `EmissionCoefficient` is now read as a bare number, a number-only
+string or a `{value, unit: ""}`, and refused by naming the component and the value when it is non-numeric, non-finite, below 1
+or above 10 (no clamping). A declared value wins over an exact-part catalog entry, as the breakdown voltage, saturation
+current and series resistance already do. A document that declares nothing compiles to a byte-identical program. One corpus
+document declares it: `boss-sd-1`, 1.9 on D4 to D6, a 2026-07-14 packet declaration with no datasheet figure behind it.
+
+**`s-curve` executes, and an unknown taper is refused instead of read as linear.** `TaperKind` gains `s-curve`, the one
+S-shaped taper a vendor sheet on file prints (Alpha RV16AF W(4B): 5 to 15 percent at 90 degrees, 40 to 60 percent at 150,
+85 to 95 at 210 of a 300 degree rotation): a monotone cubic through (0,0), (0.30,0.10), (0.50,0.50), (0.70,0.90), (1,1) with
+zero slope at the stops and interior slopes 0.6, 2, 0.6, written as literals shared by `taper.ts` and the new
+`include/v2/Taper.h`, using only + - * / so the two consoles return identical doubles. The shape between the printed points
+is an engine convention and is not scored against anything. `parseTaperKind` used to map any unrecognised string to linear;
+both consoles now refuse a taper outside the five and name it and where it was read (control, stamp, clockControl), and an
+absent key still reads as linear. The C++ alias `anti-logarithmic`, never emitted by any compiler release, is gone. The
+compiler resolves the folded spelling `scurve` (and `S-Curve`, `S Curve`, `s_curve`) to `s-curve`; the bare letters `W` and
+`W20` stay unread. **The published runtime 0.5.0, given a program that carries `s-curve`, loads it with no message and plays it as linear**
+(bit-identical to the same program written `linear`, measured on both consoles; earlier runtimes were not tested), so pin
+compiler and runtime together (chain does). A compiler older than 0.6.0 can emit only the four older taper names, and the new
+runtime plays the programs the 0.5.0 compiler emits for the 145 compiling corpus documents unchanged (0 refusals, every render
+bit-identical on both consoles at the 43 ms cold start).
+`@vessel-dsp/core`'s format comment now defines `s-curve` as Alpha W(4B) and every other S-shaped pot as `custom`. A
+test-only wasm export, `v2_testonly_taper_fraction`, lets a test compare the two consoles' law bit for bit.
+
+**What moves, as measured 2026-10-17 against the published 0.5.0** (artifacts `f84464799`, 0 dirty files: 123 pedals and 23 amps, 145
+compile, `boss-dd-3t` is refused on both). Compile level: 137 documents compile to a byte-identical program and 8 differ, seven by
+the swing pair or the declared diode ideality and `sunn-beta-lead` by the taper. Every sparse schedule is byte-identical, and the
+generated-kernel table regenerated with this compiler over the corpus is byte-identical to the committed one, so nothing was
+regenerated. The seven: `pro-co-rat-2-v4b-op07cp` (OP07 rails 6.8 and 2.2 V to 8.34 and 0.66 V), `mxr-phase-90`,
+`mxr-phase-90-script`, `mxr-micro-flanger` and `mxr-micro-amp` (TL061 and TL062 rails 7.8 and 1.2 V to 7.5 and 1.5 V),
+`mxr-carbon-copy` (the same for its TL062C sections, and its `MC33178` sections go from 7.9 and 1.1 V to 9 and 0 V, the full
+supply) and `boss-sd-1` (D4 to D6 `emissionCoefficient` 1.752 to 1.9). `opamp-law-default-parameters` is now carried by 87
+documents against 81, gaining exactly the six swing movers. `sunn-beta-lead` has four conductance stamps move from linear to
+`s-curve` and loses its two `taper-not-executable` warnings. Audio level, default controls, both consoles, one two-tone
+(440 Hz at 0.25 and 1320 Hz at 0.1, 48 kHz): 2048 samples over the 145 compiling documents, and 3 s over a 74-document set. In
+both, every document outside the seven is bit-identical on both consoles (138 of 145, and 67 of 74), the seven differ, and
+`sunn-beta-lead` is among the identical because its two controls sit at 0.5. Level change of the seven over the last second of the
+3 s render, the two consoles agreeing to the printed digits: `pro-co-rat-2-v4b-op07cp` +0.41 dB, `boss-sd-1` +0.53 dB,
+`mxr-phase-90-script` +0.50 dB, `mxr-phase-90` -0.11 dB, `mxr-carbon-copy` +0.002 dB, and `mxr-micro-amp` and `mxr-micro-flanger`
+below 1e-6 dB. The new runtime given the programs the 0.5.0 compiler emits plays all 145 bit-identically on both consoles. A
+comparator with four known-answer controls passed before any verdict was read. On the swing series by itself the phaser-sweep
+instrument still reads both Phase 90 files SWEEPING (`mxr-phase-90` 144.4 to 131.7 degrees of depth, `mxr-phase-90-script`
+383.0 to 379.8). Its reported sweep period for `mxr-phase-90` goes from 7.80 s to 16.04 s, and a direct probe of the oscillator's
+own node does not show that: on the combined build the triangle swing narrows from 6.60 to 6.00 V peak to peak and its period
+reads 7.90 s against 8.00 s (TS console, 72 s, default controls, 0.05 s grid), so the doubled figure is the instrument's
+estimate and not the circuit's.
+
+**Not measured:** non-default controls and switch states, oversample above 1, real-time cost (the browser proofs ran, the worklet
+scoreboard did not), a guitar take in this release's gate, the 72 documents outside the 74-document set at 3 s, the packet
+catalogs, ngspice for the taper law (it imports the law, so it could only agree with itself), and whether any change is closer to
+hardware. No claim is made that the corpus is unchanged beyond the windows above, and `sunn-beta-lead` was not measured at
+non-default controls on this combined build.
+
+chain 0.1.9 and player 0.2.7 change only their exact pins, to compiler 0.6.0 and runtime 0.6.0 (and chain 0.1.9 for player).
+Evidence and the checks run: `docs/releases/2026-10-17-release-prep-0.6.0.md`.
+
 ## compiler 0.5.0 / runtime 0.5.0 / chain 0.1.8 / player 0.2.6
 
 **The op-amp gain-bandwidth product is now a typed, per-part fact that reaches the solver on both consoles.** The compiler
