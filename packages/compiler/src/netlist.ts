@@ -2391,6 +2391,74 @@ export function typedFrequencyHz(
 }
 
 /**
+ * The bounds of a declared diode `EmissionCoefficient` (the SPICE `N`, the ideality factor): 1, the
+ * Shockley limit nothing physical sits below, to 10, beyond which the part is not one junction. A
+ * value outside them is refused by name, never clamped.
+ */
+export const EMISSION_COEFFICIENT_MIN = 1;
+export const EMISSION_COEFFICIENT_MAX = 10;
+
+/**
+ * A diode's declared `EmissionCoefficient`, or `null` when the component states none.
+ *
+ * **The whole value is read, and a value that is not an emission coefficient is refused rather than
+ * skipped or clamped** -- the `typedFrequencyHz` pattern for a dimensionless number. Legal forms,
+ * each checked end to end: a bare number; a string that is exactly a number (`"1.9"`, `"1.9e0"`,
+ * nothing after it: not `"1.9 typ"`, not `"1.9n"`); and a structured `{value, unit}` whose `value`
+ * wins over `raw` and whose unit must be empty. The property is read under this one spelling only
+ * (the corpus has one); nothing here reads a part number, a name or a description.
+ *
+ * A property that is present and is not a number in `EMISSION_COEFFICIENT_MIN` to
+ * `EMISSION_COEFFICIENT_MAX` is a packet error, so this throws and names the component and the
+ * offending value. It states something, and what it states is not an ideality factor.
+ */
+export function typedEmissionCoefficient(component: ComponentLike): number | null {
+	const key = "EmissionCoefficient";
+	const property = (component.properties as Record<string, unknown>)[key];
+	if (property === undefined || property === null) {
+		return null;
+	}
+	const refuse = (why: string): never => {
+		throw new NetlistError(
+			`${component.id}: ${key} ${JSON.stringify(property)} ${why}; a declared emission coefficient must be a number from ${EMISSION_COEFFICIENT_MIN} to ${EMISSION_COEFFICIENT_MAX}, bare, as a number-only string, or as a {value, unit: ""}`,
+			String(component.id),
+		);
+	};
+	let n: number;
+	if (typeof property === "number") {
+		n = property;
+	} else if (typeof property === "string") {
+		const text = property
+			.trim()
+			.replace(/^['"]+|['"]+$/gu, "")
+			.trim();
+		if (text === "") {
+			return null;
+		}
+		if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/u.test(text)) {
+			return refuse("is not a number");
+		}
+		n = Number(text);
+	} else if (typeof property === "object" && !Array.isArray(property)) {
+		const { value, unit } = property as { value?: unknown; unit?: unknown };
+		if (typeof value !== "number") {
+			return refuse("has no numeric value");
+		}
+		const token = typeof unit === "string" ? unit.replaceAll("'", "").trim() : "";
+		if (token !== "") {
+			return refuse(`has unit "${token}", which is not dimensionless`);
+		}
+		n = value;
+	} else {
+		return refuse("is not a number, string or structured quantity");
+	}
+	if (!Number.isFinite(n) || n < EMISSION_COEFFICIENT_MIN || n > EMISSION_COEFFICIENT_MAX) {
+		return refuse(`is not a finite number from ${EMISSION_COEFFICIENT_MIN} to ${EMISSION_COEFFICIENT_MAX}`);
+	}
+	return n;
+}
+
+/**
  * Parse a quantity to SI base units. A value that cannot be parsed is an error, not a
  * default -- a silently defaulted component is a silently wrong circuit.
  */
@@ -2798,6 +2866,12 @@ function parametersFor(
 			optionalQuantity(component, "OhmicResistance") ??
 			optionalQuantity(component, "RS") ??
 			optionalQuantity(component, "Rs");
+		// `EmissionCoefficient` -- the junction's ideality, the slope of its knee. One packet declares
+		// it (`boss-sd-1`, 1.9 on three clipping diodes) and until this read it was discarded: the law
+		// stamped 1.752 whatever the source said, and nothing said so, so a knee that a packet states
+		// was a knee the engine never had. Typed and refused when unreadable, like `GBP`; absent stays
+		// absent, so `deviceLaw` keeps ownership of what an undeclared coefficient means.
+		const emission = typedEmissionCoefficient(component);
 		return {
 			...(breakdown !== null && breakdown > 0
 				? { breakdownVolts: breakdown }
@@ -2808,6 +2882,7 @@ function parametersFor(
 			...(seriesResistance !== null && seriesResistance > 0
 				? { seriesResistance }
 				: {}),
+			...(emission === null ? {} : { emissionCoefficient: emission }),
 		};
 	}
 	// A bipolar transistor's device type and SPICE parameters, which this stage used to

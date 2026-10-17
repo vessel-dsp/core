@@ -2246,6 +2246,7 @@ function resolveDevice(
 						declared.breakdownVolts !== undefined ||
 						declared.saturationCurrent !== undefined ||
 						declared.seriesResistance !== undefined ||
+						declared.emissionCoefficient !== undefined ||
 						device.isLed === true
 					) {
 						return {
@@ -2259,6 +2260,8 @@ function resolveDevice(
 									declared.saturationCurrent ?? catalogued.saturationCurrent,
 								seriesResistance:
 									declared.seriesResistance ?? catalogued.seriesResistance,
+								emissionCoefficient:
+									declared.emissionCoefficient ?? catalogued.emissionCoefficient,
 								isLed: device.isLed === true ? true : catalogued.isLed,
 							},
 						};
@@ -2275,7 +2278,8 @@ function resolveDevice(
 					// If it is an LED, use physical LED defaults (higher forward knee ~1.8V to 2.2V),
 					// otherwise use class defaults (1N4148-ish silicon signal diode).
 					saturationCurrent: device.parameters.saturationCurrent ?? (isLed ? 1e-12 : 2.52e-9),
-					emissionCoefficient: 1.752,
+					// The source's own `EmissionCoefficient` when it states one, else the class default.
+					emissionCoefficient: device.parameters.emissionCoefficient ?? 1.752,
 					thermalVoltage: device.parameters.thermalVoltage ?? (isLed ? 0.05 : THERMAL_VOLTAGE),
 					// 0 for an ordinary diode. Read from the source, never inferred from a part
 					// number: `1N4733` is a 5.1 V zener and `1N4148` is not, and telling them apart
