@@ -2696,6 +2696,8 @@ function resolveDevice(
 									declared.seriesResistance ?? catalogued.seriesResistance,
 								emissionCoefficient:
 									declared.emissionCoefficient ?? catalogued.emissionCoefficient,
+								thermalVoltage:
+									declared.thermalVoltage ?? catalogued.thermalVoltage,
 								isLed: device.isLed === true ? true : catalogued.isLed,
 							},
 						};
@@ -2955,7 +2957,19 @@ function resolveDevice(
 				law: { kind: "voltage-source", volts, sourceOhms: SUPPLY_SOURCE_OHMS },
 			};
 		}
-		case "bjt":
+		case "bjt": {
+			// A registered part refines the class defaults, exactly as the diode and
+			// JFET-gate cases do. Exact part number only -- see `registryLawFor`.
+			// Declared parameters win over everything, every time: the entries exist
+			// to fill absence, not to overrule a packet that states the value.
+			// Unregistered parts keep the class default bit-identically.
+			const catalogued = registryLawFor(
+				registry,
+				device.identity.partNumber,
+				"bjt",
+			);
+			const entry =
+				catalogued !== null && catalogued.kind === "bjt" ? catalogued : null;
 			return {
 				outcome: "law",
 				device: device.id,
@@ -2963,22 +2977,30 @@ function resolveDevice(
 					kind: "bjt",
 					polarity: device.parameters.pnp === 1 ? "pnp" : "npn",
 					saturationCurrent:
-						device.parameters.saturationCurrent ?? SILICON_SATURATION_CURRENT,
-					forwardBeta: device.parameters.beta ?? SILICON_FORWARD_BETA,
-					reverseBeta: device.parameters.reverseBeta ?? 1,
-					thermalVoltage: THERMAL_VOLTAGE,
+						device.parameters.saturationCurrent ??
+						entry?.saturationCurrent ??
+						SILICON_SATURATION_CURRENT,
+					forwardBeta:
+						device.parameters.beta ?? entry?.forwardBeta ?? SILICON_FORWARD_BETA,
+					reverseBeta: device.parameters.reverseBeta ?? entry?.reverseBeta ?? 1,
+					thermalVoltage:
+						device.parameters.thermalVoltage ??
+						entry?.thermalVoltage ??
+						THERMAL_VOLTAGE,
 					// Absent for every silicon part in the corpus, and for the one germanium
 					// packet whose `LeakageCurrent` is a sentence rather than a value.
-					leakageAmps: device.parameters.leakageAmps ?? 0,
+					leakageAmps:
+						device.parameters.leakageAmps ?? entry?.leakageAmps ?? 0,
 				},
 			};
+		}
 		case "jfet": {
-			// A registered part refines the class gate, exactly as `GENERIC_TUBE_GRID`'s
+			// A registered part refines the class channel, exactly as `GENERIC_TUBE_GRID`'s
 			// note says a registry entry should. Exact part number only -- see
-			// `registryLawFor`. The refinement is the gate term alone: the channel
-			// stays the declared-or-class law byte-for-byte (rank-dependent, and the
-			// database beta disagrees with at least one packet's record), so a covered
-			// part's channel is indistinguishable from an unregistered one's. Declared
+			// `registryLawFor`. The 2SK30A entry's channel repeats the class default by
+			// construction (rank-dependent, and the database beta disagrees with at
+			// least one packet's record), so a covered part's channel is
+			// indistinguishable from an unregistered one's. Declared
 			// Vt0/Beta win over everything, every time: the entries exist to fill
 			// absence, not to overrule a packet that states the value (the same overlay
 			// the diode case applies). Unregistered parts keep the class default
@@ -3001,14 +3023,18 @@ function resolveDevice(
 					// A JFET is depletion mode: it conducts at zero gate bias and pinches
 					// off as the gate goes negative, so the threshold is negative.
 					thresholdVolts:
-						device.parameters.thresholdVolts ?? JFET_DEFAULT_THRESHOLD_VOLTS,
+						device.parameters.thresholdVolts ??
+						entry?.thresholdVolts ??
+						JFET_DEFAULT_THRESHOLD_VOLTS,
 					transconductance:
-						device.parameters.transconductance ?? JFET_DEFAULT_TRANSCONDUCTANCE,
-					channelLengthModulation: 0,
+						device.parameters.transconductance ??
+						entry?.transconductance ??
+						JFET_DEFAULT_TRANSCONDUCTANCE,
+					channelLengthModulation: entry?.channelLengthModulation ?? 0,
 					// Subthreshold conduction (see the `fet` law docs in types.ts): the
 					// gradual region a knee-biased JFET actually sweeps in. MOSFETs
 					// keep 0 below.
-					subthresholdVolts: 0.07,
+					subthresholdVolts: entry?.subthresholdVolts ?? 0.07,
 					// A JFET gate is a silicon PN junction, so it conducts once forward-biased.
 					// Saturation current and scale are **reused from the triode grid**, which
 					// `compact-mna-dynamic-triode-cell` reports 0 Newton failures with; the onset
@@ -3017,30 +3043,45 @@ function resolveDevice(
 					// part refines the current through its catalog entry, and the
 					// unregistered default stays exactly what it was.
 					gateSaturationCurrent: entry?.gateSaturationCurrent ?? 1.0e-5,
-					gateOnsetVolts: 0.5,
-					gateScaleVolts: 0.06,
+					gateOnsetVolts: entry?.gateOnsetVolts ?? 0.5,
+					gateScaleVolts: entry?.gateScaleVolts ?? 0.06,
 				},
 			};
 		}
-		case "mosfet":
+		case "mosfet": {
+			// The same registry refinement as the JFET channel above: a registered
+			// part refines the class defaults, declared parameters win, and
+			// unregistered parts keep the class default bit-identically. Exact part
+			// number only. This shares the `fet` law kind with JFET entries; part
+			// ids are disjoint across the two classes, so a lookup by exact folded
+			// part id cannot cross from one to the other.
+			const catalogued = registryLawFor(
+				registry,
+				device.identity.partNumber,
+				"fet",
+			);
+			const entry =
+				catalogued !== null && catalogued.kind === "fet" ? catalogued : null;
 			return {
 				outcome: "law",
 				device: device.id,
 				law: {
 					kind: "fet",
 					channel: device.parameters.pChannel === 1 ? "p" : "n",
-					thresholdVolts: device.parameters.thresholdVolts ?? 2,
-					transconductance: device.parameters.transconductance ?? 1e-3,
-					channelLengthModulation: 0,
+					thresholdVolts: device.parameters.thresholdVolts ?? entry?.thresholdVolts ?? 2,
+					transconductance:
+						device.parameters.transconductance ?? entry?.transconductance ?? 1e-3,
+					channelLengthModulation: entry?.channelLengthModulation ?? 0,
 					// Insulated gate: no subthreshold region is modelled, behavior unchanged.
-					subthresholdVolts: 0,
+					subthresholdVolts: entry?.subthresholdVolts ?? 0,
 					// An insulated gate draws no current at any bias. Zero, deliberately: this
 					// is what the law did for every FET before the JFET junction was added.
-					gateSaturationCurrent: 0,
-					gateOnsetVolts: 0,
-					gateScaleVolts: 1,
+					gateSaturationCurrent: entry?.gateSaturationCurrent ?? 0,
+					gateOnsetVolts: entry?.gateOnsetVolts ?? 0,
+					gateScaleVolts: entry?.gateScaleVolts ?? 1,
 				},
 			};
+		}
 		case "ota":
 			return otaDeviceClassLaw(device);
 		case "inverter":
