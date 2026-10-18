@@ -7,7 +7,7 @@ import { describe, expect, it } from "bun:test";
 import { nonInvertingStage } from "../../runtime/tests/non-inverting-stage";
 import { compile } from "../src/compile";
 import { typedFrequencyHz } from "../src/netlist";
-import { opampGainBandwidthAbsent, opampGainBandwidthDatasheet, pedalPartCatalog } from "../src/part-catalog";
+import { opampGainBandwidthAbsent, opampRegistryRecords, pedalPartCatalog } from "../src/part-catalog";
 import { emptyRegistry, registryOpampGainBandwidth } from "../src/registry";
 import type { PartRegistry } from "../src/registry";
 import type { Program, Stamp } from "../src/types";
@@ -273,11 +273,13 @@ describe("opamp-gain-bandwidth-default names the sections that run on the class 
 describe("the shipping catalog's gain-bandwidth table is applied exactly", () => {
 	// Structural, not a membership snapshot: it holds for whatever rows the table carries.
 	it("answers every datasheet row's ids with that row's figure, by exact id", () => {
-		for (const row of opampGainBandwidthDatasheet) {
-			expect(Number.isFinite(row.hertz) && row.hertz > 0).toBe(true);
-			expect(row.source.length).toBeGreaterThan(40);
+		for (const row of opampRegistryRecords) {
+			const cited = row.gainBandwidthHz;
+			if (cited === undefined) continue;
+			expect(Number.isFinite(cited.value) && cited.value > 0).toBe(true);
+			expect(cited.source.length).toBeGreaterThan(40);
 			for (const id of row.partIds) {
-				expect(registryOpampGainBandwidth(pedalPartCatalog, id)).toBe(row.hertz);
+				expect(registryOpampGainBandwidth(pedalPartCatalog, id)).toBe(cited.value);
 			}
 		}
 	});
@@ -292,7 +294,7 @@ describe("the shipping catalog's gain-bandwidth table is applied exactly", () =>
 	});
 
 	it("gives a sibling nothing: an id no row names has no figure, whatever it resembles", () => {
-		for (const row of opampGainBandwidthDatasheet) {
+		for (const row of opampRegistryRecords) {
 			for (const id of row.partIds) {
 				expect(registryOpampGainBandwidth(pedalPartCatalog, `${id}X`)).toBeNull();
 				expect(registryOpampGainBandwidth(pedalPartCatalog, `X${id}`)).toBeNull();
@@ -301,7 +303,7 @@ describe("the shipping catalog's gain-bandwidth table is applied exactly", () =>
 	});
 
 	it("never lists an id both given a figure and absent", () => {
-		const given = new Set(opampGainBandwidthDatasheet.flatMap((row) => row.partIds.map((id) => id.toLowerCase())));
+		const given = new Set(opampRegistryRecords.flatMap((row) => row.partIds.map((id) => id.toLowerCase())));
 		for (const { partIds } of opampGainBandwidthAbsent) {
 			for (const id of partIds) expect(given.has(id.toLowerCase())).toBe(false);
 		}

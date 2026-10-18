@@ -24,6 +24,30 @@ export {
 export { canonicalPartId } from "./part-number";
 export { pedalPartCatalog, zenerCatalogPartIds, gateOnlyFetPartIds } from "./part-catalog";
 export {
+	assemblePartData,
+	definePartData,
+	defineOpampRecords,
+	findPartData,
+	findPartRegistryData,
+	opampGainBandwidthAbsent,
+	opampOutputSwingAbsent,
+	opampRegistryRecords,
+	chargePumpRegistryRecords,
+	jfetRegistryRecords,
+	partRegistryData,
+	regulatorRegistryRecords,
+	validateCitedParam,
+	zenerRegistryRecords,
+	CLASS_PARAM_SCHEMAS,
+	classParamNames,
+	type CitedParam,
+	type OpampRegistryRecord,
+	type OpampSwingPrinted,
+	type ParamBasis,
+	type PartClassName,
+	type PartDataEntry,
+} from "./registry-data";
+export {
 	resolveSupplyStamps,
 	type RefusedSupply,
 	type ResolvedSupply,

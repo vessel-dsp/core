@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
 import { attachDeviceLaws } from "@vessel-dsp/compiler/device-laws";
 import { readNetlist } from "@vessel-dsp/compiler/netlist";
-import { opampGainBandwidthAbsent, opampGainBandwidthDatasheet } from "@vessel-dsp/compiler/part-catalog";
+import { opampGainBandwidthAbsent, opampRegistryRecords } from "@vessel-dsp/compiler/part-catalog";
 import { foldPartId } from "@vessel-dsp/compiler/registry";
 import { arg, corpusFiles } from "./lib";
 
@@ -49,7 +49,11 @@ const table = (title: string, rs: Row[]) => {
 	const absentReason = new Map<string, string>();
 	for (const a of opampGainBandwidthAbsent) for (const id of a.partIds) absentReason.set(foldPartId(id), a.reason);
 	const rowFor = new Map<string, number>();
-	for (const r of opampGainBandwidthDatasheet) for (const id of r.partIds) rowFor.set(foldPartId(id), r.hertz);
+	for (const r of opampRegistryRecords) {
+		const hertz = r.gainBandwidthHz?.value;
+		if (hertz === undefined) continue;
+		for (const id of r.partIds) rowFor.set(foldPartId(id), hertz);
+	}
 	for (const [part, group] of [...by(rs, (r) => r.part ?? "(no part number)")].sort((a, b) => b[1].length - a[1].length)) {
 		const slugs = new Set(group.map((r) => r.slug));
 		const packet = group.filter((r) => r.source === "packet").length, catalog = group.filter((r) => r.source === "catalog").length;

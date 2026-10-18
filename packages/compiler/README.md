@@ -103,6 +103,8 @@ Values on `.`:
 | `parseQuantity` | Parse a quantity to SI base units (`10k` to 10000). |
 | `emptyRegistry` | No part knowledge; measures what device class laws alone cover. |
 | `pedalPartCatalog` | The catalog corpus facing scripts inject. |
+| `partRegistryData` | Stage-1 data registry: every migrated parameter as a cited `{ value, basis, source }`, validated at load. |
+| `findPartRegistryData` | Find a stage-1 data entry by exact folded part id or alias. |
 | `foldPartId` | Fold case and separators (`MN-3007` is `mn3007`). |
 | `foldToken` | Fold case and whitespace for typed vocabulary values. |
 | `registryEntryFor` | Entry lookup for a device. |

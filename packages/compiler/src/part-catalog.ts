@@ -9,9 +9,10 @@
 // them. So the generator and the lowering JSON were deleted and this file kept, rather than the
 // reverse: the hand edits are the corrections. Recovery point for both: `892cdcf6`.
 //
-// The electrical parameters that come from the device database
-// (`web/assets/registry/component-*-chips.json`, still the product's canonical device data) are
-// held in agreement with this file by `scripts/report-part-store-drift.ts`, not by generation.
+// The electrical parameters that come from the device database live in
+// `registry-data/` as cited values (`{ value, basis, source }`), and this file builds the
+// entries that carry them. `scripts/report-part-store-drift.ts` is gone (deleted with the
+// lowering-JSON generator); nothing re-runs a generator over this file.
 //
 // `registry.ts` deliberately holds no parts -- it is the shape and the matching rules, so the
 // compiler itself knows about no specific chip and `emptyRegistry` stays a legitimate
@@ -30,27 +31,55 @@
 // `openLoopGain` plus rails, and the rails are the pedal's rather than the part's, so a dual op-amp
 // is a complete model from one published number and its pinout.
 //
-// **Gain-bandwidth product is the second figure, and it has its own table** (`opampGainBandwidthDatasheet`
-// below) rather than a field on each entry, because one entry here often covers parts whose datasheets
-// print different products (the TL072/NE5532/LM358 entry is one law over three datasheets). The TYP column
-// is transcribed ("typical" here is that datasheet's own TYP column for that part, not a generic typical
-// value), never MIN or MAX, never a graph read by eye, never a registry or curated-record number.
-// A part whose datasheet prints no TYP gain-bandwidth row is listed in `opampGainBandwidthAbsent` with the
-// reason and gets no figure, so its stamp is `null` and the compile names it (`opamp-gain-bandwidth-default`).
-// Matching is by exact folded part id, as everywhere in this file: an id the datasheet does not print is not
-// covered because a sibling is.
+// **Gain-bandwidth product is the second figure, and it lives in the data registry**
+// (`registry-data/opamp.ts`) rather than as a field on each entry, because one entry here
+// often covers parts whose datasheets print different products (the TL072/NE5532/LM358 entry
+// is one law over three datasheets). The TYP column is transcribed ("typical" here is that
+// datasheet's own TYP column for that part, not a generic typical value), never MIN or MAX,
+// never a graph read by eye, never a registry or curated-record number.
+// A part whose datasheet prints no TYP gain-bandwidth row is listed in
+// `opampGainBandwidthAbsent` with the reason and gets no figure, so its stamp is `null`
+// and the compile names it (`opamp-gain-bandwidth-default`).
+// Matching is by exact folded part id, as everywhere in this file: an id the datasheet
+// does not print is not covered because a sibling is.
 //
-// **Output swing is the third figure, and has its own table too** (`opampOutputSwingDatasheet`): the
-// distance the output stops short of each rail, as a printed **pair** (positive side, negative side) with
-// the condition it was printed at (total supply, load) and how it is carried to a pedal on another supply
-// (`translation`, `"constant"` or `"proportional"`). TYP column only, printed rows only; an id with no such
-// row is listed in `opampOutputSwingAbsent` with the reason and states no swing. Nearly every printed row
-// is at +-15 V and nearly every pedal runs at 9 V, so the carry is a named choice, and
-// `opamp-law-default-parameters` names every device it was carried for.
+// **Output swing is the third figure, and lives there too** (`registry-data/opamp.ts`): the
+// distance the output stops short of each rail, as a printed **pair** (positive side, negative
+// side) with the condition it was printed at (total supply, load) and how it is carried to a
+// pedal on another supply (`translation`, `"constant"` or `"proportional"`). TYP column only,
+// printed rows only; an id with no such row is listed in `opampOutputSwingAbsent` with the
+// reason and states no swing. Nearly every printed row is at +-15 V and nearly every pedal
+// runs at 9 V, so the carry is a named choice, and `opamp-law-default-parameters` names
+// every device it was carried for.
 
 import type { PartEntry, PartRegistry } from "./registry";
 import { foldPartId, opampOutputSwingOf } from "./registry";
-import type { DeviceLaw, OpampOutputSwingTranslation } from "./types";
+import type { DeviceLaw } from "./types";
+import {
+	chargePumpRegistryRecords,
+	findPartRegistryData,
+	jfetRegistryRecords,
+	opampGainBandwidthAbsent,
+	opampOutputSwingAbsent,
+	opampRegistryRecords,
+	regulatorRegistryRecords,
+	zenerRegistryRecords,
+	type CitedParam,
+	type OpampRegistryRecord,
+	type PartDataEntry,
+} from "./registry-data";
+import type { PartClassName } from "./registry-data/schema";
+
+// The absent lists and the merged op-amp records live in `registry-data/opamp.ts` and are
+// re-exported here so their existing import sites keep working.
+export {
+	opampGainBandwidthAbsent,
+	opampOutputSwingAbsent,
+	opampRegistryRecords,
+	type OpampRegistryRecord,
+	type OpampSwingPrinted,
+} from "./registry-data";
+export type { CitedParam, PartDataEntry, PartClassName };
 
 /**
  * An op-amp section as the registry states it: the part's own gain, and no rails.
@@ -123,54 +152,17 @@ function zenerLaw(partIds: readonly string[], breakdownVolts: number): PartEntry
 }
 
 /**
- * Every part id a `zenerLaw` entry covers, folded for comparison. `report-part-store-drift.ts`
- * keys its forward-law exclusion on this set -- a catalog product -- rather than on the
- * registry row's `type`, so a hand-fitted diode law that happens to sit on a zener id is
- * still graded, and a zener entry is never mistaken for a forward claim.
+ * Every part id a `zenerLaw` entry covers, folded for comparison: a hand-fitted diode law
+ * that happens to sit on a zener id is still graded as a forward claim, and a zener entry
+ * is never mistaken for one.
  */
 
 // --- Switch JFETs: per-part silicon gate data, channel deliberately unrefined -----------------
 //
-// The JFET class default (`device-laws.ts`'s `case "jfet"`) is avowedly no part's values, and
-// its gate prefactor (`gateSaturationCurrent: 1e-5`, reused from the triode grid) parks a
-// series switch whose gate sits ~0.4 V above its channel in the junction's exponential foot,
-// rectifying microamp signal currents into the audio path. Measured 2026-10-06 on
-// `ibanez-ts9` Q102 (Vgs +0.392, gate peaks 5 uA): the engine's H2 sits at -29.6 dB there
-// against -57 to -64 dB on the physical reissue specimen and -77.9 dB with the FET replaced
-// by 100 ohm; killing only the gate terms reproduces the resistor swap to the printed digit,
-// and ngspice with the stock-card-equivalent NJF mapping agrees with the engine to 0.1/0.8 dB,
-// so the defect is the parameter value, not the solver. The TS9 H2 is channel-inert (a
-// 52-to-836-ohm Rds sweep moves it 0.2 dB), so the entry below refines the gate term only.
-//
-// The entry carries the class channel by construction, not by measurement:
-// `thresholdVolts`, `transconductance`, `channelLengthModulation` and `subthresholdVolts`
-// repeat the class default, and `device-laws.ts` reads only the gate term from a part
-// entry. The channel is rank-dependent (an unbinned 2SK30A spans IDSS 0.3-6.5 mA across
-// R/O/Y/GR), and the database row's beta.typ disagrees with `boss-sg-1-slow-gear`'s
-// recorded gain-cell island (report 4: the island's own Beta=1.2m reproduces its 59.9x,
-// beta.typ 0.0004664 would halve it), so refining the channel here would trade one
-// packet's fix for another's regression on evidence neither side owns. A rank-binned
-// channel fit belongs in the packet or a rank-suffixed entry, not here.
-//
-// Provenance and uncertainty, stated rather than fitted: the gate transcribes the device
-// database's silicon-junction convention (`saturationCurrent.typ` 1e-14, the same constant
-// as `SILICON_SATURATION_CURRENT`); onset/scale stay class. The Toshiba 2SK30A sheet
-// (`parts/jfets/2SK30A/datasheets/toshiba-2sk30a.pdf`, curated in `parts/jfets/2SK30A.md`)
-// prints IDSS ranks, VGS(off) and Yfs, and no forward gate current at all (only reverse
-// IGSS). The gate IS is therefore a silicon-junction order choice, not a measured 2SK30A
-// forward current: it puts the foot current at switch biases three orders below signal
-// currents (verified H2-free for gateSaturationCurrent in {1e-7, 1e-8, 1e-9, 0}; 1e-14 sits
-// inside that verified-flat region at the repo's silicon constant). Never fitted to a specimen.
-//
-// Coverage is deliberately a single exact id: the part `ibanez-ts9` declares.
-// The match is `registryLawFor`'s whole folded id (`2sk30a`), with no prefix or
-// substring rule anywhere on the path, so `2SK30ATM`, `2SK30ATM-Y` and `2SK44SPC
-// do not match. `boss-cs-2` (2SK30ATM-Y), `boss-ds-1` (2SK30ATM), `boss-dm-2`
-// (2SK30ATM-Y) and `ibanez-ts808` (2SK44SPC) each need their own packet study
-// before their behaviour may move, so they stay on the class default until then.
-// `boss-sg-1-slow-gear` declares the same id; its gate sits 0.5 V below onset in
-// every state, so the gate refinement is inert there (a ~0.02 dB Vgs shift from the
-// removed 4.5 nA foot current, measured in the report-5 rerun).
+// The JFET class default is avowedly no part's values; see `registry-data/jfet.ts` for the
+// measured gate-defect note, the rank argument for keeping the class channel, and the
+// provenance. The registry-data record carries the gate term only; the `fetLaw` entry below
+// repeats the class channel by construction.
 function fetLaw(
 	partIds: readonly string[],
 	law: Extract<DeviceLaw, { kind: "fet" }>,
@@ -183,68 +175,285 @@ function fetLaw(
 	};
 }
 
-// --- Zener diodes: reverse breakdown from the device database ------------------------------------
+// --- Zener diodes: reverse breakdown from the data registry -------------------------------------
 //
 // `breakdownVolts` only; forward behaviour repeats the class default by construction (see
 // `zenerLaw` above). A device that declares its own breakdown keeps it: `device-laws.ts`
-// overlays the declared value on a catalog match, so the 26 corpus diodes that already
+// overlays the declared value on a catalog match, so the corpus diodes that already
 // declare one (e.g. `boss-ph-1r` D1 11 V against the registry's 10.99) render unchanged.
-//
-// Only real manufacturer part numbers appear here: no prose aliases (`3V`, `5V6 zener`,
-// `zener/protection diode`) and no `SOURCE-*-ZENER` placeholder ids. A packet that prints a
-// voltage instead of a part number states no part, so the catalog must not answer it; those
-// values belong in the packet as declared `breakdownVolts`.
-//
-// Each row is `[partIds, breakdownVolts]`; the entries array below maps the table through
-// `zenerLaw`, so the drift script's membership set above and the shipped entries cannot drift
-// apart: there is one list, not two.
-const zenerBreakdownVolts: ReadonlyArray<
-	readonly [partIds: readonly string[], breakdownVolts: number]
-> = [
-	[["1N5230"], 4.7],
-	[["1N961B"], 10],
-	[["1N965B"], 15],
-	[["1N969B"], 22],
-	[["1N4744A"], 15],
-	[["1N4751A", "1N4751A 30V", "1N4751A-30V", "1N4751A 30 V"], 30],
-	[["1N4753A"], 36],
-	[["RD5.1EB3", "RD5.1EB 3", "RD5.1EB-3"], 5.235],
-	// Bare RD5.1EB spans every bin but only B3 is in the registry (NEC RD5.1E B3:
-	// Vz 5.12–5.35 V, typ 5.235; vendored at parts/diodes/RD5_1EB3). Stamping B3's
-	// typical for the unbinned part is a derived stand-in, disclosed, not a printed
-	// unbinned value.
-	[["RD5.1EB"], 5.235],
-	// RD3.0EB1/RD3.0EB3 are real part numbers whose registry value lives on the
-	// SOURCE-3V-ZENER row (BV 3); the placeholder id and the prose aliases stay out.
-	[["RD3.0EB3", "RD3.0EB1", "RD3.0EB-1", "RD3.0EB-3"], 3],
-	[["RD4.7EB", "02BZ4.7A", "02BZ4_7A", "02BZ4-7A"], 4.7],
-	[["RD5.6EB3", "RD-5.6EB3", "RD5.6EB 3", "RD5.6EB-3"], 5.76],
-	[["RD5.6EB2", "RD-5.6EB2", "RD5.6EB 2", "RD5.6EB-2", "RD5.6JB2", "RD5.6J B2", "RD5.6J-B2"], 5.58],
-	[["RD6.6EB3", "RD6.6EB 3", "RD6.6EB-3"], 6.62],
-	[["RD8.2EB3", "RD8.2EB 3", "RD8.2EB-3"], 8.18],
-	// MTZ5.6B is the real part behind the SOURCE-5V6-ZENER row (BV 5.6).
-	[["MTZ5.6B"], 5.6],
-	[["RD11EB3", "RD11EB 3", "RD11EB-3", "RD11E B3", "RD11E-B3"], 10.99],
-	// RD11EB is the unbinned part with its own registry row (NEC suffix-B range
-	// 10.18–11.26 V, typ 11): not the B3 typical under a shorter name.
-	[["RD11EB"], 11],
-	[["0Z11A", "05Z11A"], 11],
-	[["1N4733A"], 5.1],
-	[["1N5331"], 5.1],
-	[["1N5239B"], 9.1],
-	[["1N4742A", "1N4742"], 12],
-	[["RD5.6S", "RD5.6S B3", "RD5.6SB3", "RD5.6S-B3"], 5.6],
-	[["RD11FB3", "RD11FB-3"], 11.15],
-	[["PESD12VL1BA"], 12],
-	// The flat `component-zener-diode-chips.json` rows with no diode-file entry.
-	[["1N5231"], 5.1],
-	[["1N5231B"], 5.1],
-	[["1N4733"], 5.1],
-];
+// The rows live in `registry-data/zener.ts` as cited values; the entries array below maps
+// them through `zenerLaw`, so the membership set below and the shipped entries cannot
+// drift apart: there is one list, not two.
+
+/** Read a zener record's cited breakdown, loudly. The loader guarantees the citation. */
+function zenerBreakdownVoltsOf(record: PartDataEntry): number {
+	const breakdown = record.params["breakdownVolts"];
+	if (breakdown === undefined || !Number.isFinite(breakdown.value)) {
+		throw new Error(
+			`${record.partIds.join(",")}: a zener record states no breakdownVolts`,
+		);
+	}
+	return breakdown.value;
+}
 
 export const zenerCatalogPartIds: ReadonlySet<string> = new Set(
-	zenerBreakdownVolts.flatMap(([partIds]) => partIds.map(foldPartId)),
+	zenerRegistryRecords.flatMap((record) =>
+		record.partIds.map((id) => foldPartId(id)),
+	),
 );
+
+// --- Fixed-rail regulators: wiring skeletons over registry-data voltages ---------------------------
+// The rail numbers live in `registry-data/regulator.ts` as cited values; this table holds only
+// the terminal wiring (role groups, section terminals) each rail's entry shares. Keyed by the
+// rail volts the record states, so a record always lands on its own wiring and a skeleton row
+// no record consumes throws at load (see the check below). `pinout` is `[null, null, null]`
+// for all of them: no regulator entry asserts a pin order.
+const regulatorTerminalStructures: Record<
+	number,
+	{ readonly terminalRoleGroups: readonly (readonly string[])[]; readonly terminals: readonly [number, number] }
+> = {
+	// UNRESOLVED: this entry conflates two packages with OPPOSITE pin orders. The TO-92/SOT-89 78L05 is pin1=VOUT, pin2=GND, pin3=VIN (verified: TI LM78L, SNVS754O, Figure 4-2 SOT-89 top view and Figure 4-3 LP 3-pin TO-92 bottom view). The TO-220 7805 is pin1=VIN, pin2=GND, pin3=VOUT. The role groups below assert the 7805 order, because `pin1` sits in the vin group and `pin3` in the vout group.
+	// Consequence: a document that declares a 78L05's terminals as pin1/pin2/pin3 binds its input and output the wrong way round. No corpus packet does today -- all seven three-pin regulators declare typed roles as of 2026-09-05 -- so this is latent, not live. Fixing it means SPLITTING the entry by package before a `pinout` can be written, because one pin map cannot serve both.
+	5: {
+		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "pin2"], ["vout", "out", "output", "pin3"]],
+		terminals: [2, 1],
+	},
+	9: {
+		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "pin2"], ["vout", "out", "output", "pin3"]],
+		terminals: [2, 1],
+	},
+	// electro-harmonix-q-tron's U6 (PartNumber 78L18AC) is the 24V-to-+18V rail; it matches by part id on the first rung, so the role groups below are the standard in/gnd/out family spelling kept for parity with the 5V/9V entries, not a new contract.
+	18: {
+		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "ground", "pin2"], ["vout", "out", "output", "pin3"]],
+		terminals: [2, 1],
+	},
+	// `volts` here is SIGNED, which contradicts the convention its consumer documents: `declaredRegulatorTerminals` says "the law carries a magnitude" and reverses the source's sense for an output declared `negative`. Declaring `negative` against a signed -15 therefore double-negates and puts +15V on the rail -- measured 2026-09-05. Until this is settled, a negative regulator using this entry must declare its output `positive`, which is why deluxe-memory-man does.
+	[-15]: {
+		terminalRoleGroups: [["gnd", "pin1"], ["vin", "in", "input", "pin2"], ["vout", "out", "output", "pin3"]],
+		terminals: [2, 0],
+	},
+	// `terminalRoleGroups` is left empty rather than copying the existing regulators' generic `in`/`gnd`/`out` aliases: `VR1` already resolves through the exact part id, and this repo's own corpus shows that generic pinout-signature fallback misidentifying an unrelated part with similarly generic terminal names (`boss-oc-2`'s `BA634-5`, five terminals including `in`/`gnd`/`out`, incidentally satisfies the existing 78L05 groups and is only saved from a wrong law by the later terminal-count guard). No reason to add a second entry to that same weak ladder when the exact part id already does the job.
+	15: {
+		terminalRoleGroups: [],
+		terminals: [2, 1],
+	},
+};
+
+/** Build one regulator entry from its registry record and the wiring skeleton for its rail. */
+function regulatorEntry(record: PartDataEntry): PartEntry {
+	const volts = record.params["volts"];
+	const sourceOhms = record.params["sourceOhms"];
+	if (volts === undefined || sourceOhms === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: a regulator record states no volts or sourceOhms`,
+		);
+	}
+	const structure = regulatorTerminalStructures[volts.value];
+	if (structure === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: no regulator wiring skeleton for ${String(volts.value)} V`,
+		);
+	}
+	return {
+		partIds: [...record.partIds],
+		declaredTypes: [],
+		terminalRoleGroups: structure.terminalRoleGroups,
+		model: {
+			kind: "sections",
+			sections: [
+				{
+					law: {
+						kind: "voltage-source",
+						volts: volts.value,
+						sourceOhms: sourceOhms.value,
+					},
+					terminals: [...structure.terminals],
+				},
+			],
+			pinout: [null, null, null],
+		},
+	};
+}
+
+/** The regulator entry for one rail, by the volts its registry record states. Position-preserving. */
+function regulatorEntryForVolts(volts: number): PartEntry {
+	const record = regulatorRegistryRecords.find(
+		(candidate) => candidate.params["volts"]?.value === volts,
+	);
+	if (record === undefined) {
+		throw new Error(`no regulator registry record states ${String(volts)} V`);
+	}
+	return regulatorEntry(record);
+}
+
+// Every skeleton row is consumed by exactly one record, and every record lands on a row:
+// a rail added to one side without the other throws here rather than silently defaulting.
+for (const key of Object.keys(regulatorTerminalStructures)) {
+	if (
+		!regulatorRegistryRecords.some(
+			(record) => record.params["volts"]?.value === Number(key),
+		)
+	) {
+		throw new Error(`regulator wiring skeleton for ${key} V is consumed by no registry record`);
+	}
+}
+
+// --- Charge pumps: wiring skeletons over registry-data loss/slope ---------------------------------
+// The two numbers the derivation reads (`sourceOhms`, `chargePumpLossVolts`) live in
+// `registry-data/charge-pump.ts` as cited values; this table holds only the terminal wiring
+// (role groups, package-order pinout) each pump's entry shares. The 8-pin parts are NOT
+// pin-identical: pin 1 is BOOST (TC1044S, ICL7660S, TC7662B, MAX1044), NC (ICL7660, ICL7660A),
+// FB/SD (LT1054) or SHDN (LTC1144). Keyed by the record's first part id, so a record always
+// lands on its own wiring; a record with no skeleton row, or a skeleton row no record
+// consumes, throws at load (see the check below).
+//
+// `volts: 0` in the built law is an unused placeholder: the pump rail is derived per circuit
+// from the input node (see `pumpDerivation` in device-laws.ts), and pump parts bypass generic
+// section expansion, `registrySuppliedVoltages`, and `declaredRegulatorTerminals`, so this
+// number is never stamped.
+const chargePumpTerminalStructures: Record<
+	string,
+	{
+		readonly terminalRoleGroups: readonly (readonly string[])[];
+		readonly pinout: readonly (string | null)[];
+	}
+> = {
+	// Pinout verified against Microchip DS21348A (2001), p1 pin-configuration diagram and general
+	// description: 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+.
+	BOOST_7660: {
+		terminalRoleGroups: [
+			["boost"],
+			["capp", "capplus"],
+			["gnd", "ground"],
+			["capm", "capminus"],
+			["vout", "negativeoutput", "voutnegative", "out", "output"],
+			["lv", "lowvoltage"],
+			["osc", "oscillator"],
+			["vplus", "vin", "vdd", "vcc", "input"],
+		],
+		pinout: ["boost", "capp", "gnd", "capm", "vout", "lv", "osc", "vplus"],
+	},
+	// Pinout verified against Intersil FN3072 Rev 7.00, p1 pinout diagram (8 Ld PDIP/SOIC top view):
+	// 1 NC, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+.
+	NC_7660: {
+		terminalRoleGroups: [
+			["nc", "noconnect"],
+			["capp", "capplus"],
+			["gnd", "ground"],
+			["capm", "capminus"],
+			["vout", "negativeoutput", "voutnegative", "out", "output"],
+			["lv", "lowvoltage"],
+			["osc", "oscillator"],
+			["vplus", "vin", "vdd", "vcc", "input"],
+		],
+		pinout: ["nc", "capp", "gnd", "capm", "vout", "lv", "osc", "vplus"],
+	},
+	// Pinout verified against TI SLVS033G, p3 pin config + pin-functions table (PDIP-8): 1 FB/SD
+	// (shutdown/error-amp input), 2 CAP+, 3 GND, 4 CAP-, 5 VOUT (output), 6 VREF (2.5 V reference
+	// output), 7 OSC (input), 8 VCC (supply). This is NOT the 7660 pin order: pin 1 is an input and
+	// pin 6 an output, so the part is footprint-compatible but not a drop-in substitute.
+	FBSD_LT1054: {
+		terminalRoleGroups: [
+			["fbsd", "fb", "sd", "shutdown"],
+			["capp", "capplus"],
+			["gnd", "ground"],
+			["capm", "capminus"],
+			["vout", "negativeoutput", "voutnegative", "out", "output"],
+			["vref", "reference"],
+			["osc", "oscillator"],
+			["vcc", "vin", "vplus", "vdd", "input"],
+		],
+		pinout: ["fbsd", "capp", "gnd", "capm", "vout", "vref", "osc", "vcc"],
+	},
+	// Pinout verified against Linear Technology 1144fa, p2 config + p5 Pin Functions: 1 BOOST
+	// (x10 when tied high), 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 SHDN (float/V+ = run, GND = shutdown),
+	// 7 OSC, 8 V+. No LV pin and no low-voltage mode split.
+	SHDN_LTC1144: {
+		terminalRoleGroups: [
+			["boost"],
+			["capp", "capplus"],
+			["gnd", "ground"],
+			["capm", "capminus"],
+			["vout", "negativeoutput", "voutnegative", "out", "output"],
+			["shdn", "shutdown"],
+			["osc", "oscillator"],
+			["vplus", "vin", "vdd", "vcc", "input"],
+		],
+		pinout: ["boost", "capp", "gnd", "capm", "vout", "shdn", "osc", "vplus"],
+	},
+};
+
+/** Which wiring skeleton each charge-pump record builds on, by the record's first part id. */
+const chargePumpStructureFor: Record<string, keyof typeof chargePumpTerminalStructures> = {
+	TC1044S: "BOOST_7660",
+	ICL7660: "NC_7660",
+	ICL7660A: "NC_7660",
+	ICL7660S: "BOOST_7660",
+	TC7662B: "BOOST_7660",
+	LT1054: "FBSD_LT1054",
+	LTC1144: "SHDN_LTC1144",
+	MAX1044: "BOOST_7660",
+};
+
+/** Build one charge-pump entry from its registry record and its wiring skeleton. */
+function chargePumpEntry(record: PartDataEntry): PartEntry {
+	const sourceOhms = record.params["sourceOhms"];
+	const loss = record.params["chargePumpLossVolts"];
+	if (sourceOhms === undefined || loss === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: a charge-pump record states no sourceOhms or chargePumpLossVolts`,
+		);
+	}
+	const key = record.partIds[0];
+	const skeletonName = key === undefined ? undefined : chargePumpStructureFor[key];
+	const skeleton =
+		skeletonName === undefined ? undefined : chargePumpTerminalStructures[skeletonName];
+	if (skeleton === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: no charge-pump wiring skeleton for ${String(key)}`,
+		);
+	}
+	return {
+		partIds: [...record.partIds],
+		declaredTypes: [],
+		terminalRoleGroups: skeleton.terminalRoleGroups,
+		model: {
+			kind: "sections",
+			sections: [
+				{
+					law: {
+						kind: "voltage-source",
+						volts: 0,
+						sourceOhms: sourceOhms.value,
+					},
+					terminals: [4, 2],
+				},
+			],
+			pinout: skeleton.pinout,
+		},
+		chargePumpLossVolts: loss.value,
+	};
+}
+
+/** The charge-pump entry for one family, by the record's first part id. Position-preserving. */
+function chargePumpEntryFor(firstPartId: string): PartEntry {
+	const record = chargePumpRegistryRecords.find(
+		(candidate) => candidate.partIds[0] === firstPartId,
+	);
+	if (record === undefined) {
+		throw new Error(`no charge-pump registry record starts with ${firstPartId}`);
+	}
+	return chargePumpEntry(record);
+}
+
+// Every skeleton row is consumed by exactly one record, and every record lands on a row.
+for (const key of Object.keys(chargePumpStructureFor)) {
+	if (
+		!chargePumpRegistryRecords.some((record) => record.partIds[0] === key)
+	) {
+		throw new Error(`charge-pump wiring skeleton for ${key} is consumed by no registry record`);
+	}
+}
 
 const entries: readonly PartEntry[] = [
 // uPC4558, from the artifacts library's own vendored copy:
@@ -430,7 +639,7 @@ const entries: readonly PartEntry[] = [
 	//
 	// Open-loop gain stays the house 100000 the family entry it was split from carried; it is not a
 	// sourced TL06x figure. The output swing is not in this entry: it has its own table,
-	// `opampOutputSwingDatasheet`, which stamps the printed pair (1.5 V a side, `constant`) onto these
+	// `registry-data/opamp.ts`, which stamps the printed pair (1.5 V a side, `constant`) onto these
 	// ids, for a declared `opamp` device and a package alike. The graph-read 1.2 V this entry carried
 	// until row 16 (Figure 6-1 at +-4.5 V) was not a printed figure and is gone.
 	{
@@ -3139,7 +3348,7 @@ const entries: readonly PartEntry[] = [
 	// Texas Instruments OP07x, from "OP07x Precision Operational Amplifiers" SLOS099H (rev. March
 	// 2023), `parts/op-amps/OP07/datasheets/op07-ti.pdf` in vessel-dsp/artifacts, section 6.5.
 	// Open-loop gain stays the house 100000. The output swing is not in this entry: it has its own
-	// table (`opampOutputSwingDatasheet`), which types the printed +-12.8 V (RL = 2 kOhm, VS = +-15 V)
+	// registry-data record (`registry-data/opamp.ts`), which types the printed +-12.8 V (RL = 2 kOhm, VS = +-15 V)
 	// as a `proportional` pair for OP07CP, OP07DP and OP07DN, and lists the bare `OP07` id absent (the
 	// sheet's characteristics apply to the C and D grades only).
 	{
@@ -3284,172 +3493,15 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
-// --- 5V Voltage Regulators (78L05, uPC78L05, 78M05, TA78L05F) - Causal input-dependent physical modeling! ------------------
-// UNRESOLVED: this entry conflates two packages with OPPOSITE pin orders. The TO-92/SOT-89 78L05 is pin1=VOUT, pin2=GND, pin3=VIN (verified: TI LM78L, SNVS754O, Figure 4-2 SOT-89 top view and Figure 4-3 LP 3-pin TO-92 bottom view). The TO-220 7805 is pin1=VIN, pin2=GND, pin3=VOUT. The role groups below assert the 7805 order, because `pin1` sits in the vin group and `pin3` in the vout group.
-// Consequence: a document that declares a 78L05's terminals as pin1/pin2/pin3 binds its input and output the wrong way round. No corpus packet does today -- all seven three-pin regulators declare typed roles as of 2026-09-05 -- so this is latent, not live. Fixing it means SPLITTING the entry by package before a `pinout` can be written, because one pin map cannot serve both.
-	{
-		"partIds": [
-			"uPC78L05",
-			"78L05",
-			"7805",
-			"78M05",
-			"TA78L05F",
-			// Toshiba's TA78L05S (product page detail.TA78L05S): the same 5 V TA78L die in TO-92.
-			// Without it, `boss-dd-5`'s IC5 fell to the pin-name rung and matched the 78L18 entry,
-			// solving the pedal's 5 V rail at 18 V.
-			"TA78L05S",
-			"2930L05",
-			"BA78L05",
-			"uPC78L05T"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"vin",
-				"in",
-				"input",
-				"pin1"
-			],
-			[
-				"gnd",
-				"pin2"
-			],
-			[
-				"vout",
-				"out",
-				"output",
-				"pin3"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 5,
-						"sourceOhms": 1
-					},
-					"terminals": [
-						2,
-						1
-					]
-				}
-			],
-			"pinout": [
-				null,
-				null,
-				null
-			]
-		}
-	},
 
-// --- 9V Voltage Regulators (7809, 78L09, 78M09, uPC78L09) - Causal input-dependent physical modeling! ------------------
-	{
-		"partIds": [
-			"uPC78L09",
-			"78L09",
-			"7809",
-			"78M09",
-			"TA78L09F",
-			"2930L09",
-			"BA78L09",
-			"uPC78L09T"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"vin",
-				"in",
-				"input",
-				"pin1"
-			],
-			[
-				"gnd",
-				"pin2"
-			],
-			[
-				"vout",
-				"out",
-				"output",
-				"pin3"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 9,
-						"sourceOhms": 1
-					},
-					"terminals": [
-						2,
-						1
-					]
-				}
-			],
-			"pinout": [
-				null,
-				null,
-				null
-			]
-		}
-	},
+// --- 5V Voltage Regulators: ids and rail from registry-data/regulator.ts; wiring above --------
+	regulatorEntryForVolts(5),
 
-// --- 18V Voltage Regulators (78L18, 78L18AC, 78L18T) - same 3-pin voltage-source shape as 5V/9V above ----------------------
-	// electro-harmonix-q-tron's U6 (PartNumber 78L18AC) is the 24V-to-+18V rail; it matches by part id on the first rung, so the
-	// role groups below are the standard in/gnd/out family spelling kept for parity with the 5V/9V entries, not a new contract.
-	{
-		"partIds": [
-			"78L18",
-			"78L18AC",
-			"78L18T",
-			"7818"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"vin",
-				"in",
-				"input",
-				"pin1"
-			],
-			[
-				"gnd",
-				"ground",
-				"pin2"
-			],
-			[
-				"vout",
-				"out",
-				"output",
-				"pin3"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 18,
-						"sourceOhms": 1
-					},
-					"terminals": [
-						2,
-						1
-					]
-				}
-			],
-			"pinout": [
-				null,
-				null,
-				null
-			]
-		}
-	},
+// --- 9V Voltage Regulators: ids and rail from registry-data/regulator.ts; wiring above --------
+	regulatorEntryForVolts(9),
+
+// --- 18V Voltage Regulators: ids and rail from registry-data/regulator.ts; wiring above --------
+	regulatorEntryForVolts(18),
 
 // --- Active Physical Analog Comparators (LM311, NJM311M, LM319, NJM319M) ----------------------------------------------------
 	// --- Active Physical Analog Comparators (LM311, NJM311M, LM319, NJM319M, LM393, LM339) ------------------------------------
@@ -5288,785 +5340,36 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
-// --- Negative Voltage Regulators (LM7915, LM7912) - Causal input-dependent physical modeling! --------------------------------
-// UNRESOLVED, two separate problems. (1) `7912`/`LM7912` are -12V parts sharing an entry hardcoded to volts: -15, so a 7912 would be modelled 3V low. Only one corpus device uses this entry (deluxe-memory-man's U12_LM7915), so the defect is latent.
-// (2) `volts` here is SIGNED, which contradicts the convention its consumer documents: `declaredRegulatorTerminals` says "the law carries a magnitude" and reverses the source's sense for an output declared `negative`. Declaring `negative` against a signed -15 therefore double-negates and puts +15V on the rail -- measured 2026-09-05. Until this is settled, a negative regulator using this entry must declare its output `positive`, which is why deluxe-memory-man does.
-	{
-		"partIds": [
-			"LM7915",
-			"7915",
-			"7912",
-			"LM7912"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"gnd",
-				"pin1"
-			],
-			[
-				"vin",
-				"in",
-				"input",
-				"pin2"
-			],
-			[
-				"vout",
-				"out",
-				"output",
-				"pin3"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": -15,
-						"sourceOhms": 1
-					},
-					"terminals": [
-						2,
-						0
-					]
-				}
-			],
-			"pinout": [
-				null,
-				null,
-				null
-			]
-		}
-	},
+// --- Negative Voltage Regulators: ids and rail from registry-data/regulator.ts; wiring above --------
+// The 7912/LM7912 sharing and the signed-volts convention are recorded on the record; the
+// wiring skeleton for -15 V is shared. Until the convention is settled, a negative regulator
+// using this entry must declare its output `positive`, which is why deluxe-memory-man does.
+	regulatorEntryForVolts(-15),
 
-// --- TC1044S charge-pump inverter (Microchip): derived negative rail, never a fixed one -------------------
-// Pinout verified against Microchip DS21348A (2001), p1 pin-configuration diagram and general
-// description: 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+. Pin 1 is BOOST here
-// and NC on the ICL7660 (Intersil FN3072 p1): the 8-pin parts are NOT pin-identical.
-// Supply 1.5-12 V (3-12 LV open; 1.5-3.5 LV to GND; RL = 10 k, DS21348A p2). Oscillator 10 kHz
-// typ (pin 7 open, pin 1 open/GND), 45 kHz typ with BOOST = V+ (pp1-2, 5). Output resistance
-// 60 TYP / 100 MAX ohm at IOUT = 20 mA, V+ = 5 V, COSC = 0, 25 C (DS21348A p2 electrical
-// characteristics). Open-circuit conversion 99-99.9% at RL = infinity (p2), so the loss term
-// is 0 and the rail is ideal inversion plus the series resistance: the p4 worked example
-// reads "a nearly ideal voltage source in series with 70 ohm ... for -10 mA at +5 V, -4.3 V".
-// Ordering codes below are all printed on DS21348A p1 (SCPA = commercial PDIP, the DIY
-// census staple). Bare "TC1044" is NOT printed there and is not covered (sibling rule).
-// `volts: 0` is an unused placeholder: the pump rail is derived per circuit from the input
-// node (see `pumpDerivation` in device-laws.ts), and pump parts bypass generic section
-// expansion, `registrySuppliedVoltages`, and `declaredRegulatorTerminals`, so this number
-// is never stamped.
-	{
-		"partIds": [
-			"TC1044S",
-			"TC1044SCPA",
-			"TC1044SCOA",
-			"TC1044SEPA",
-			"TC1044SEOA",
-			"TC1044SIJA",
-			"TC1044SMJA"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"boost"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"lv",
-				"lowvoltage"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 60
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"boost",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"lv",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
 
-// --- ICL7660 charge-pump inverter (Intersil/Renesas): NC on pin 1, 10 V max -------------------------------
-// Pinout verified against Intersil FN3072 Rev 7.00 (2010-10-05), p1 pinout diagram (8 Ld PDIP/SOIC
-// top view): 1 NC, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+. Supply 1.5-10.0 V (3-10 LV
-// open; 1.5-3.5 LV to GND; FN3072 pp2-3). Oscillator 10 kHz typ at V+ = 5 V, COSC = 0 (pp1-3),
-// lowered by a pin-7 capacitor or external overdrive. Output resistance 55 TYP / 100 MAX ohm at
-// IOUT = 20 mA, 25 C, V+ = 5 V (pp2-3; Fig 7 curve slope 55 ohm); Thevenin model is an ideal -V+
-// source in series with ROUT (p7 Fig 13B: "the voltage source has a value of -V+"), and the
-// RO formula (p7: ~= 2*RSW + 1/(fPUMP*C1) + 4*ESR_C1 + ESR_C2, RSW ~23 ohm at 25 C/5 V) reduces
-// to the printed row at the test-circuit values. Open-circuit conversion 97/99.9% (p3): loss 0.
-// Part ids are the datasheet title plus the p2 ordering table (CPA/CBA, Z = Pb-free) and the
-// package markings the same table prints ("7660CPA" etc.). The S-suffixed codes live in the
-// ICL7660S entry (FN3179), whose pin 1 is BOOST, not NC. `volts: 0` placeholder as above.
-	{
-		"partIds": [
-			"ICL7660",
-			"ICL7660CPA",
-			"ICL7660CPAZ",
-			"ICL7660CBA",
-			"ICL7660CBAZ",
-			"7660CPA",
-			"7660CPAZ",
-			"7660CBA",
-			"7660CBAZ"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"nc",
-				"noconnect"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"lv",
-				"lowvoltage"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 55
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"nc",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"lv",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
+// --- TC1044S charge-pump inverter (Microchip): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("TC1044S"),
 
-// --- ICL7660A charge-pump inverter (Intersil/Renesas): NC on pin 1, 12 V max ------------------------------
-// Same FN3072 datasheet as the ICL7660, A-model columns: supply 1.5-12.0 V (pp2-3), output
-// resistance 60 TYP / 100 MAX ohm at 20 mA, 25 C (p3 five-volt table; 120 max 0-70 C,
-// 120 max -40-85 C), oscillator 10 kHz typ, open-circuit conversion 99/99.9% (loss 0).
-// Part ids from the FN3072 p2 ordering table, commercial and industrial, PDIP and SOIC,
-// plus the printed package markings. `volts: 0` placeholder as above.
-	{
-		"partIds": [
-			"ICL7660A",
-			"ICL7660ACPA",
-			"ICL7660ACPAZ",
-			"ICL7660ACBA",
-			"ICL7660ACBAZ",
-			"ICL7660AIBA",
-			"ICL7660AIBAZ",
-			"7660ACPA",
-			"7660ACPAZ",
-			"7660ACBA",
-			"7660ACBAZ",
-			"7660AIBA",
-			"7660AIBAZ"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"nc",
-				"noconnect"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"lv",
-				"lowvoltage"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 60
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"nc",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"lv",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
+// --- ICL7660 charge-pump inverter (Intersil/Renesas): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("ICL7660"),
 
-// --- ICL7660S charge-pump inverter (Renesas): BOOST on pin 1, covers 7660SCPAZ ----------------------------
-// Pinout verified against Renesas FN3179 Rev 7.01, p1: 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT,
-// 6 LV, 7 OSC, 8 V+. Supply 1.5-12 V (3-12 LV open; 1.5-3.5 LV to GND; FN3179 p3). Oscillator
-// 5 min / 10 typ kHz with pin 1 open/GND, 35 typ kHz with pin 1 = V+ (p3). Output resistance
-// 60 TYP / 100 MAX ohm at IOUT = 20 mA, V+ = 5 V, OSC free-running, 25 C (p3; 120 max 0-70 C).
-// Open-circuit conversion 99/99.9% at RL = infinity (p3): loss 0. Part ids from the FN3179
-// ordering table, which prints ICL7660SCPA (marked "no longer available") and ICL7660SCPAZ
-// (marking "7660S CPAZ"); the bare marking folds to "7660SCPAZ"/"7660SCPA" and both are
-// covered as printed-marking aliases. `volts: 0` placeholder as above.
-	{
-		"partIds": [
-			"ICL7660S",
-			"ICL7660SCPA",
-			"ICL7660SCPAZ",
-			"7660SCPA",
-			"7660SCPAZ"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"boost"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"lv",
-				"lowvoltage"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 60
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"boost",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"lv",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
+// --- ICL7660A charge-pump inverter (Intersil/Renesas): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("ICL7660A"),
 
-// --- TC7662B charge-pump inverter (Microchip): 15 V max, bare "7662" bound by family ----------------------
-// Pinout verified against Microchip DS20001469B, p1 diagram and p7 Table 3-1: 1 BOOST, 2 CAP+,
-// 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+. Supply 1.5-15 V (3-15 LV open; 1.5-3.5 LV to GND;
-// pp3-4). Oscillator 5 min / 10 typ kHz with pin 1 open/GND, 35 typ kHz with pin 1 = V+;
-// pump switching frequency is fOSC/2 (p4 note 5). Output resistance 65 TYP / 100 MAX ohm at
-// IOUT = 20 mA, 0-70 C, V+ = 5 V, OSC free-running (pp3-4; 120 max -40-85 C). Open-circuit
-// conversion 99/99.9% at RL = infinity (p4): loss 0. Order codes BCPA/BEPA/BCOA/BEOA are
-// printed on p1. Bare "7662" is NOT printed anywhere in the document and is covered ONLY
-// because moogerfooger-mf-102 declares exactly that PartNumber on a charge-pump-inverter
-// shell whose declared roles fit the inverter use (V+ in, GND, negative out); without it the
-// packet would refuse. That is an explicit, documented exception to the sibling rule above,
-// not a precedent: the family doc is authoritative for the 7662 function and pinout, and the
-// shell carries its own role evidence. `volts: 0` placeholder as above.
-	{
-		"partIds": [
-			"TC7662B",
-			"TC7662BCPA",
-			"TC7662BEPA",
-			"TC7662BCOA",
-			"TC7662BEOA",
-			"7662"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"boost"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"lv",
-				"lowvoltage"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 65
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"boost",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"lv",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
+// --- ICL7660S charge-pump inverter (Renesas): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("ICL7660S"),
 
-// --- LT1054 switched-capacitor converter (TI second source): different pins, printed loss -----------------
-// Pinout verified against TI SLVS033G, p3 pin config + pin-functions table (PDIP-8): 1 FB/SD
-// (shutdown/error-amp input), 2 CAP+, 3 GND, 4 CAP-, 5 VOUT (output), 6 VREF (2.5 V reference
-// output), 7 OSC (input), 8 VCC (supply). This is NOT the 7660 pin order: pin 1 is an input and
-// pin 6 an output, so the part is footprint-compatible but not a drop-in substitute (see the
-// evidence file). Supply VCC 3.5-15 V recommended (p5). Oscillator 15 min / 25 typ / 35 max
-// kHz over 3.5-15 V (p5). Output resistance 10 TYP / 15 MAX ohm as the dVO/dIO slope from 10
-// to 100 mA (p5 + fn5). Voltage loss VCC - |VO|: 0.35 TYP / 0.55 MAX V at 10 mA, 1.1/1.6 V at
-// 100 mA, device as inverter with pins 1, 6, 7 unconnected, CI = CO = 100 uF tantalum
-// (p5 + fn4) -- the loss term below is that 10 mA TYP row with its conditions, and the slope
-// resistance rides separately on sourceOhms. Shutdown 100 uA typ with FB/SD = 0 V (pp5, 12);
-// shutdown state is not modelled (normal operation assumed). Part ids LT1054C/LT1054I (families,
-// p5) and the orderable LT1054CP (PDIP-8, marking LT1054CP) + LT1054CPE4 (package addendum).
-// `volts: 0` placeholder as above.
-	{
-		"partIds": [
-			"LT1054",
-			"LT1054C",
-			"LT1054CP",
-			"LT1054CPE4",
-			"LT1054I"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"fbsd",
-				"fb",
-				"sd",
-				"shutdown"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"vref",
-				"reference"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vcc",
-				"vin",
-				"vplus",
-				"vdd",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 10
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"fbsd",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"vref",
-				"osc",
-				"vcc"
-			]
-		},
-		"chargePumpLossVolts": 0.35
-	},
+// --- TC7662B charge-pump inverter (Microchip): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("TC7662B"),
 
-// --- LTC1144 wide-input converter (Linear Tech): SHDN on pin 6 --------------------------------------------
-// Pinout verified against Linear Technology 1144fa, p2 config + p5 Pin Functions: 1 BOOST
-// (x10 when tied high), 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 SHDN (float/V+ = run, GND = shutdown),
-// 7 OSC, 8 V+. No LV pin and no low-voltage mode split: supply 2-18 V (p1, p3). Oscillator
-// 10 kHz at 15 V, 4 kHz at 5 V (p3). Output resistance 56 TYP / 100 MAX ohm at V+ = 15 V,
-// IL = 20 mA, 10 kHz, 25 C (p3; 120/140 max full-temp; 90/250-300 at 5 V/3 mA/4 kHz).
-// Open-circuit conversion 97.0/99.9% at RL = infinity (p3): loss 0. Shutdown 8 uA typ with
-// SHDN = 0 V (p1); shutdown state is not modelled (normal operation assumed). Part ids LTC1144
-// (title) plus the printed package order codes CN8/IN8/CS8/IS8 (p3 ordering). `volts: 0`
-// placeholder as above.
-	{
-		"partIds": [
-			"LTC1144",
-			"LTC1144CN8",
-			"LTC1144IN8",
-			"LTC1144CS8",
-			"LTC1144IS8"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"boost"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"shdn",
-				"shutdown"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 56
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"boost",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"shdn",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
+// --- LT1054 switched-capacitor converter (TI second source): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("LT1054"),
 
-// --- MAX1044 switched-capacitor converter (Maxim): BOOST on pin 1 -----------------------------------------
-// Pinout verified against Maxim 19-4667 Rev 1 (7/94), p1 pin configuration ("(N.C.) BOOST":
-// N.C. on Maxim's ICL7660, BOOST on the MAX1044): 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT,
-// 6 LV, 7 OSC, 8 V+. Supply 1.5-10 V (3-10 LV open; 1.5-3.5 LV to GND; the MAX1044's LV may
-// be grounded at any voltage, unlike the ICL7660's -- p7). Oscillator at the 5 kHz test
-// condition (p2), BOOST = V+ raises it x~6 (p7 text). Output resistance 65 TYP / 100 MAX ohm
-// at IL = 20 mA, fOSC = 5 kHz, LV open, 25 C, V+ = 5 V, BOOST open (p2 EC; worked example p8:
-// ~50 ohm typ at 5 V with 10 uF pump caps, -4.5 V out at 10 mA). Open-circuit conversion
-// 97.0/99.9% at RL = infinity (p2): loss 0. Part ids MAX1044 (title) plus the printed
-// CPA/CSA/EPA/ESA order codes (p1 ordering + end-of-doc list); bare "MAX1044S" is not printed
-// and not covered. Maxim's own ICL7660 rows (55/100 ohm) stay with the ICL7660 entries.
-// `volts: 0` placeholder as above.
-	{
-		"partIds": [
-			"MAX1044",
-			"MAX1044CPA",
-			"MAX1044CSA",
-			"MAX1044EPA",
-			"MAX1044ESA"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [
-			[
-				"boost"
-			],
-			[
-				"capp",
-				"capplus"
-			],
-			[
-				"gnd",
-				"ground"
-			],
-			[
-				"capm",
-				"capminus"
-			],
-			[
-				"vout",
-				"negativeoutput",
-				"voutnegative",
-				"out",
-				"output"
-			],
-			[
-				"lv",
-				"lowvoltage"
-			],
-			[
-				"osc",
-				"oscillator"
-			],
-			[
-				"vplus",
-				"vin",
-				"vdd",
-				"vcc",
-				"input"
-			]
-		],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 0,
-						"sourceOhms": 65
-					},
-					"terminals": [
-						4,
-						2
-					]
-				}
-			],
-			"pinout": [
-				"boost",
-				"capp",
-				"gnd",
-				"capm",
-				"vout",
-				"lv",
-				"osc",
-				"vplus"
-			]
-		},
-		"chargePumpLossVolts": 0
-	},
+// --- LTC1144 wide-input converter (Linear Tech): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("LTC1144"),
+
+// --- MAX1044 switched-capacitor converter (Maxim): ids and loss/slope from registry-data/charge-pump.ts; wiring above ---
+	chargePumpEntryFor("MAX1044"),
 
 // --- AK4552VT8 8-pin codec body alternative ----------------------------------------------------------------------------------
 	{
@@ -6540,52 +5843,14 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
-// --- LM340T-15 +15V linear regulator (mxr-m117r-flanger) --------------------------------------------------------------------
-	//
-	// Not a CMOS/analog-switch part either, but the sole remaining blocker on `mxr-m117r-flanger`
-	// after the `CD4013AE` fix above: its `VR1` names PartNumber `LM340T-15`, an unregistered fixed
-	// +15V linear regulator. Same shape and same `voltage-source` law as the existing 78L05/78L09
-	// entries above (input/ground/output, output held at the regulator's fixed rail relative to
-	// ground) -- only the voltage differs, read directly off the part number and the component's own
-	// `Description: "15 V regulator from the selected factory schematic."` `VR1` declares exactly
-	// three terminals, `input, ground, output`, in that order, matching the existing regulator
-	// entries' `terminals: [2, 1]` (output relative to ground) convention directly.
-	//
-	// `terminalRoleGroups` is left empty rather than copying the existing regulator entries'
-	// generic `in`/`gnd`/`out` aliases: `VR1` already resolves through the exact-partId rung, and
-	// this repo's own corpus shows that generic pinout-signature fallback misidentifying an unrelated
-	// part with similarly-generic terminal names (`boss-oc-2`'s `BA634-5`, five terminals including
-	// `in`/`gnd`/`out`, incidentally satisfies the existing 78L05 entry's groups and is only saved
-	// from a wrong law by the later terminal-count guard). No reason to add a second entry to that
-	// same weak ladder when the exact part id already does the job.
-	{
-		"partIds": [
-			"LM340T-15"
-		],
-		"declaredTypes": [],
-		"terminalRoleGroups": [],
-		"model": {
-			"kind": "sections",
-			"sections": [
-				{
-					"law": {
-						"kind": "voltage-source",
-						"volts": 15,
-						"sourceOhms": 1
-					},
-					"terminals": [
-						2,
-						1
-					]
-				}
-			],
-			"pinout": [
-				null,
-				null,
-				null
-			]
-		}
-	},
+// --- LM340T-15 +15V linear regulator (mxr-m117r-flanger): ids and rail from registry-data/regulator.ts; wiring above ----
+// The sole remaining blocker on `mxr-m117r-flanger` after the `CD4013AE` fix above: its `VR1`
+// names PartNumber `LM340T-15`, an unregistered fixed +15V linear regulator. Same shape and same
+// `voltage-source` law as the 78L05/78L09 entries (input/ground/output, output held at the
+// regulator's fixed rail relative to ground) -- `VR1` declares exactly three terminals,
+// `input, ground, output`, in that order, matching the regulator entries' `terminals: [2, 1]`
+// (output relative to ground) convention directly.
+	regulatorEntryForVolts(15),
 
 // --- Tube rectifiers ------------------------------------------------------------------
 	//
@@ -7533,203 +6798,48 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
-	...zenerBreakdownVolts.map(([partIds, breakdownVolts]) =>
-		zenerLaw(partIds, breakdownVolts),
+	...zenerRegistryRecords.map((record) =>
+		zenerLaw(record.partIds, zenerBreakdownVoltsOf(record)),
 	),
 
-	// 2SK30A series/shunt switches (`ibanez-ts9` Q102/Q104, the only packet with
-	// specimen evidence; `boss-sg-1-slow-gear` declares the same id and its gate is
-	// inert there). Channel repeats the class default by construction (see above);
-	// only `gateSaturationCurrent` carries part data.
-	fetLaw(["2SK30A"], {
-		kind: "fet",
-		channel: "n",
-		thresholdVolts: -2,
-		transconductance: 1e-3,
-		channelLengthModulation: 0,
-		subthresholdVolts: 0.07,
-		gateSaturationCurrent: 1e-14,
-		gateOnsetVolts: 0.5,
-		gateScaleVolts: 0.06,
+	// 2SK30A series/shunt switches: the channel repeats the class default by construction
+	// (see `registry-data/jfet.ts`); only `gateSaturationCurrent` carries part data.
+	...jfetRegistryRecords.map((record) => {
+		const gate = record.params["gateSaturationCurrent"];
+		if (gate === undefined || !Number.isFinite(gate.value)) {
+			throw new Error(
+				`${record.partIds.join(",")}: a jfet record states no gateSaturationCurrent`,
+			);
+		}
+		return fetLaw(record.partIds, {
+			kind: "fet",
+			channel: "n",
+			thresholdVolts: -2,
+			transconductance: 1e-3,
+			channelLengthModulation: 0,
+			subthresholdVolts: 0.07,
+			gateSaturationCurrent: gate.value,
+			gateOnsetVolts: 0.5,
+			gateScaleVolts: 0.06,
+		});
 	}),
 ];
 
-// --- Op-amp gain-bandwidth product: datasheet typical figure, by exact part id ----------------------
+// --- Op-amp gain-bandwidth product: stamped from the data registry ------------------------------
 //
-// Paths are under the artifacts library, `parts/op-amps/<dir>/datasheets/`. Every row was read from the
-// vendored copy and the printed row text is quoted. The registry (`component-opamp-chips.json`) and the
-// curated `parts/op-amps/<PART>.md` records were read as cross-checks only; where they differ from the
-// datasheet the datasheet is taken and the difference is recorded (see `docs/spikes/2026-10-10-opamp-gbw.md`).
-
-/** One datasheet-stated gain-bandwidth product and the printed row it was transcribed from. */
-export type OpampGainBandwidthRow = {
-	readonly partIds: readonly string[];
-	readonly hertz: number;
-	readonly source: string;
-};
-
-export const opampGainBandwidthDatasheet: readonly OpampGainBandwidthRow[] = [
-	{
-		partIds: ["NJM4558DD", "NJM4558D", "JRC4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558"],
-		hertz: 3e6,
-		source:
-			"NJM4558/datasheets/nisshinbo-njm4558.pdf (Nisshinbo NJM4558, date code 20250303) p2, ELECTRICAL " +
-			"CHARACTERISTICS (V+/V-=+-15V, Ta=25C): 'Gain Bandwidth Product | GB | MIN - | TYP 3 | MAX - | MHz'. " +
-			"One column for every suffix; the D rank changes the noise row only. " +
-			"JRC4558D is not a printed id in this sheet: it is the NJR/JRC marking of the NJM4558D per " +
-			"parts/op-amps/JRC4558D.md ('NJR/JRC version. Same datasheet specs as NJM4558'; GBP 3 M), included per " +
-			"owner decision 2026-10-15 because a Boss SD-1 specimen carries a chip marked 'JRC 4558D' and three " +
-			"corpus packets name JRC4558D. Secondary only: the 1980s JRC databook scan prints the part as NJM4558D " +
-			"under the JRC logo (p2-98).",
-	},
-	{
-		partIds: ["RC4558", "RC4558P", "RC4558D"],
-		hertz: 4e6,
-		source:
-			"RC4558/datasheets/rc4558-ti.pdf and RC4558P/datasheets/rc4558p-ti.pdf (TI SLOS073H, rev Oct 2024; the " +
-			"two are identical through p35) 5.5 p6, VCC+-=+-15V, TA=25C, RL=2k: 'GBW | Gain-bandwidth product | " +
-			"f = 10kHz | TYP 4 | MHz'. Rev G printed 3 MHz; this copy (Rev H) changed it to 4.",
-	},
-	{
-		partIds: ["TL061", "TL061CP", "TL061CN", "TL062", "TL062C", "TL062CP", "TL062CN"],
-		hertz: 1e6,
-		source:
-			"TL062/datasheets/tl062.pdf (TI SLOS078N, rev Aug 2023) Table 6.7 p8 (the same row and value in Tables " +
-			"6.8 p9 and 6.9 p10): 'B1 | Unity-gain bandwidth | RL = 10k, TA = 25C | TYP 1 | MHz' in every grade column.",
-	},
-	{
-		partIds: ["TL071CP", "TL072CP", "TL082CP"],
-		hertz: 5.25e6,
-		source:
-			"TL072/datasheets/tl072.pdf and TL071/datasheets/tl071.pdf (byte-identical; TI SLOS080W, rev Jul 2025) " +
-			"5.8 p15, VS=+-15V, TA=25C: 'GBW | Gain-bandwidth product | All other devices | TYP 5.25 | MHz' (the row " +
-			"'All NS and PS packages; All TL07xM devices' is TYP 3). TL082CP: TL082/datasheets/tl082.pdf (SLOS081O, " +
-			"rev Sep 2025) 5.8 p14, the same two rows; its Rev N entry p29: 'Increased gain bandwidth of all " +
-			"non-NS/non-PS packages and non-TL08xM devices from 3 MHz to 5.25 MHz'. A -CP part is a PDIP: neither an " +
-			"NS/PS package nor an M device, so the 'all other devices' row applies.",
-	},
-	{
-		partIds: ["NE5532", "NE5532P", "NE5532D"],
-		hertz: 12e6,
-		source:
-			"NE5532/datasheets/ne5532.pdf (TI SLOS075K, rev Dec 2025) 5.5 p4, VCC+-=+-15V, TA=25C: 'B1 | Unity-gain " +
-			"bandwidth | TYP 12 | MHz' (p1 Features: '12MHz Typ'; Rev K p11: 'Changed ... from 10MHz to 12MHz typ'). " +
-			"The same document's prose, 6.3.1 p6 and 7.1.2.1 p8, still says 10 MHz; the characteristics table is taken.",
-	},
-	{
-		partIds: ["LM358", "LM358N", "LM358P"],
-		hertz: 0.7e6,
-		source:
-			"LM358/datasheets/lm358-ti.pdf (TI SLOS068AB, rev Oct 2024) 5.7 p10 (LM358, LM358A), VS=5V, TA=25C: " +
-			"'GBW | Gain bandwidth product | TYP 0.7 | MHz'. The B/BA versions (5.5 p6) are TYP 1.2 and are different " +
-			"part ids; the only PDIP orderables printed are LM358P and LM358AP.",
-	},
-	{
-		partIds: ["M5218AL", "M5218AP", "M5218AFP"],
-		hertz: 7e6,
-		source:
-			"5218/datasheets/mitsubishi-m5218.pdf (Mitsubishi M5218AL/P/FP, no document number or date; image scan) " +
-			"p2 (folio 2-468), Ta=25C, Vcc=+-15V: 'fT | Gain bandwidth product | TYP 7 | MHz' (p1 Features: " +
-			"'fT=7MHz(typ.)'). The sheet is the A grade; the plain M5218L, P and FP ids are not on it.",
-	},
-	{
-		partIds: ["TL022", "TL022C", "TL022CP", "TL022CD", "TL022CN"],
-		hertz: 0.5e6,
-		source:
-			"TL022/datasheets/ti-tl022.pdf (TI SLOS076, rev Sep 1990) p3, VCC+-=+-15V, TA=25C: 'B1 | Unity-gain " +
-			"bandwidth | TL022C TYP 0.5 | TL022M TYP 0.5 | MHz'.",
-	},
-	{
-		partIds: ["OP07CP", "OP07DP", "OP07DN"],
-		hertz: 0.6e6,
-		source:
-			"OP07/datasheets/op07-ti.pdf (TI SLOS099H, rev Mar 2023) 6.5 p6, TA=25C, VS=+-15V, RL=2k, FREQUENCY " +
-			"RESPONSE: 'Unity gain bandwidth | MIN 0.4 | TYP 0.6 | MHz'; footnote (1): the listed specifications apply " +
-			"to OP07C and OP07D. The row has no package split.",
-	},
-	{
-		partIds: ["NE5534", "NJM5534", "NJM5534D", "NJM5534M"],
-		hertz: 10e6,
-		source:
-			"NJM5534D/datasheets/NE5534_TI.pdf (TI SLOS070D, rev Nov 2014) 7.5 p5, VCC+-=+-15V, TA=25C: 'B1 | " +
-			"Unity-gain bandwidth | CC = 22 pF, CL = 100 pF | TYP 10 | MHz'; and njrc-njm5534d-page-2.png (New Japan " +
-			"Radio NJM5534, folio 4-236): 'Gain Bandwidth Product | GB | CC=22pF, CL=100pF | TYP 10 | MHz'. Both state " +
-			"the figure with a 22 pF compensation capacitor.",
-	},
-];
-
-/** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. They stay `null`. */
-export const opampGainBandwidthAbsent: ReadonlyArray<{
-	readonly partIds: readonly string[];
-	readonly reason: string;
-}> = [
-	{
-		partIds: ["uPC4558C", "uPC4558G2", "uPC4558"],
-		reason:
-			"UPC4558/datasheets/renesas-upc258-upc4558.pdf (Renesas R03DS0145EJ0200 Rev 2.00) prints no gain-bandwidth " +
-			"row: the p3 electrical characteristics list slew rate (1.0 V/us) and no GB/GBW/fT/B1. The p4 'AV vs. f' " +
-			"graph reaches 0 dB near 1.5 MHz by eye, which is not a printed figure. The registry's 3 MHz has no " +
-			"support in this sheet.",
-	},
-	{
-		partIds: ["RC4558C", "4558"],
-		reason:
-			"RC4558C is not an orderable printed in SLOS073H, and '4558' is a generic name no datasheet owns.",
-	},
-	{
-		partIds: ["TL071", "TL071CN", "TL072", "TL072CN", "TL072IP", "TL072D", "TL082"],
-		reason:
-			"The TL07x/TL08x GBW row splits on package and grade (TYP 3 MHz for NS/PS packages and M grades, TYP 5.25 " +
-			"for all other devices). These ids do not state, or the datasheet does not print for them, which row " +
-			"applies.",
-	},
-	{
-		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "MC33178", "MC33178P", "MC33178D", "BA718"],
-		reason: "No vendored datasheet.",
-	},
-	{
-		partIds: ["CA1458", "CA1458E", "CA1458T"],
-		reason:
-			"The datasheet this file cites for open-loop gain (Harris File Number 531.2) is not vendored in the " +
-			"artifacts library, so no GBW row can be quoted.",
-	},
-	{
-		partIds: [
-			"M5218A", "M5218L", "M5218P", "M5218FP", "M5218",
-			"M5216AL", "M5216AP", "M5216AFP", "M5216A", "M5216L", "M5216P", "M5216FP", "M5216",
-			"M5281AL", "M5281AP", "M5281AFP", "M5281A", "M5281L", "M5281P", "M5281FP", "M5281",
-		],
-		reason:
-			"The vendored Mitsubishi sheet is the M5218AL/P/FP document; the plain M5218 L/P/FP, the bare 'A' and " +
-			"'M5218' ids are not printed on it, and M5216/M5281 appear in no vendored datasheet.",
-	},
-	{
-		partIds: ["M5223L", "M5223P", "M5223FP", "M5223"],
-		reason:
-			"M5223AL/datasheets/m5223al-page-2.png has no gain-bandwidth row; its 'Voltage Gain vs Frequency Response' " +
-			"graph reaches 0 dB near 1 MHz at VCC=15 V and near 2 MHz at VCC=30 V by eye.",
-	},
-	{
-		partIds: ["OP07"],
-		reason: "The OP07 sheet's electrical characteristics apply to OP07C and OP07D only; the bare id has no column.",
-	},
-	{
-		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
-		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
-	},
-];
-
-/**
- * The catalog's op-amp entries with each datasheet product stamped onto the sections of exactly the ids
- * it covers. An entry whose ids have different products (or none) is split into one entry per product,
- * keeping every other field, so no id changes behaviour except by gaining its own figure.
- *
- * Loud on any mismatch: a row or absent id the catalog holds no op-amp entry for, an id in both lists, or
- * an id in two rows is a table error and throws at load rather than being silently skipped.
- */
+// The figures live in `registry-data/opamp.ts` as cited values (datasheet TYP rows, quoted).
+// This pass stamps each record's product onto the op-amp sections of exactly the ids it
+// covers. An entry whose ids have different products (or none) is split into one entry per
+// product, keeping every other field, so no id changes behaviour except by gaining its own
+// figure.
+//
+// Loud on any mismatch, as before: a record or absent id the catalog holds no op-amp entry
+// for, an id in both lists, or an id in two records is a table error and throws at load
+// rather than being silently skipped.
 function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEntry[] {
-	const rowOf = new Map<string, OpampGainBandwidthRow>();
-	for (const row of opampGainBandwidthDatasheet) {
+	const rowOf = new Map<string, OpampRegistryRecord>();
+	for (const row of opampRegistryRecords) {
+		if (row.gainBandwidthHz === undefined) continue;
 		for (const id of row.partIds) {
 			const folded = foldPartId(id);
 			if (rowOf.has(folded)) throw new Error(`gain-bandwidth table names ${id} twice`);
@@ -7754,7 +6864,7 @@ function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEn
 			out.push(entry);
 			continue;
 		}
-		const groups = new Map<OpampGainBandwidthRow | null, string[]>();
+		const groups = new Map<OpampRegistryRecord | null, string[]>();
 		for (const id of entry.partIds) {
 			const folded = foldPartId(id);
 			seen.add(folded);
@@ -7769,6 +6879,12 @@ function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEn
 				out.push(groups.size === 1 ? entry : { ...entry, partIds });
 				continue;
 			}
+			const hertz = row.gainBandwidthHz?.value;
+			if (hertz === undefined || !(hertz > 0)) {
+				throw new Error(
+					`${partIds.join(",")}: gain-bandwidth record states no positive product`,
+				);
+			}
 			out.push({
 				...entry,
 				partIds,
@@ -7776,7 +6892,7 @@ function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEn
 					...model,
 					sections: model.sections.map((section) =>
 						section.law.kind === "ideal-opamp"
-							? { ...section, law: { ...section.law, gainBandwidthHz: row.hertz } }
+							? { ...section, law: { ...section.law, gainBandwidthHz: hertz } }
 							: section,
 					),
 				},
@@ -7789,165 +6905,43 @@ function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEn
 	return out;
 }
 
-// --- Op-amp output swing: datasheet TYP pair, by exact part id ---------------------------------------
+// --- Op-amp output swing: stamped from the data registry -------------------------------------------------
 //
-// The same rules as the gain-bandwidth table above: paths are under the artifacts library,
-// `parts/op-amps/<dir>/datasheets/`; a row is a TYP figure **printed** in the vendored sheet with its
-// document, page, condition and column quoted; never a graph read by eye, never a registry or curated
-// number, never a figure chosen from a measurement. A row states the drop from each rail at the printed
-// condition. `translation` is how that pair is carried to a pedal on another supply:
+// The same rules as the gain-bandwidth pass above. A record states the drop from each rail at
+// the printed condition; `translation` is how that pair is carried to a pedal on another supply:
 //   "constant"      the printed drops are applied as printed (a headroom independent of the supply);
 //   "proportional"  both are multiplied by the op-amp's supply span over `supplyVolts`.
-// The datasheet states neither: it is the owner's reading, recorded per row, and the table does not
+// The datasheet states neither: it is the owner's reading, recorded per record, and the table does not
 // say it is shown right. Only the OP07 reading has a held-out hardware test behind it (T-a1, row 16),
 // and a test of a rule written first is not a measurement of the rule.
 
-/** One datasheet-stated output-swing pair and the printed row it was transcribed from. */
-export type OpampOutputSwingRow = {
-	readonly partIds: readonly string[];
-	/** Volts the output stops short of the positive rail, at the printed condition. */
-	readonly highVolts: number;
-	/** Volts the output stops short of the negative rail, at the printed condition. */
-	readonly lowVolts: number;
-	/** The printed row's total supply, VS+ minus VS- (30 for +-15 V). */
-	readonly supplyVolts: number;
-	readonly loadOhms: number;
-	readonly translation: OpampOutputSwingTranslation;
-	/** The printed column the figure was read from. */
-	readonly column: string;
-	readonly source: string;
-};
-
-export const opampOutputSwingDatasheet: readonly OpampOutputSwingRow[] = [
-	{
-		partIds: ["OP07CP", "OP07DP", "OP07DN"],
-		highVolts: 2.2,
-		lowVolts: 2.2,
-		supplyVolts: 30,
-		loadOhms: 2000,
-		translation: "proportional",
-		column: "OP07C and OP07D, TYP",
-		source:
-			"OP07/datasheets/op07-ti.pdf (TI SLOS099H, rev Mar 2023) 6.5 p6 (continued table), 'at TA = 25C, VS = +-15 V, " +
-			"RL = 2 kOhm connected to mid-supply, and VCM = VOUT = mid-supply (unless otherwise noted)': 'OUTPUT | Voltage " +
-			"output swing | MIN +-11.5 | TYP +-12.8 | V' (the group's first row, no test condition printed beside it, so " +
-			"the table's default RL = 2 kOhm applies; the TA = 0C to 70C row reads +-11 / +-12.6, RL = 10 kOhm +-12 / " +
-			"+-13, RL = 1 kOhm +-12 typ); footnote (1): the listed specifications apply to OP07C and OP07D, so the bare " +
-			"'OP07' id has no column and is absent. A +-VOM row states both sides at once, so the pair is equal by " +
-			"print: 15 - 12.8 = 2.2 V a side. 'proportional' is the owner's decision of 2026-10-17 (row 16): the rule " +
-			"was written before the RAT pin-6 reading and that reading is its held-out test; the datasheet states " +
-			"nothing below +-15 V. At a 9 V pedal it gives 0.66 V a side, with a printed bracket of 2.0 V (TYP, " +
-			"RL = 10 kOhm: +-13) to 3.5 V (MIN, RL = 2 kOhm: +-11.5) at 30 V.",
-	},
-	{
-		partIds: ["TL061", "TL061CP", "TL061CN", "TL062", "TL062C", "TL062CP", "TL062CN"],
-		highVolts: 1.5,
-		lowVolts: 1.5,
-		supplyVolts: 30,
-		loadOhms: 10000,
-		translation: "constant",
-		column: "TL061C/TL062C and TL061AC/TL062AC, TYP",
-		source:
-			"TL062/datasheets/tl062.pdf (TI SLOS078N, rev Aug 2023) Table 6.7 p8, 'VCC+- = +-15 V, RL = 10 kOhm to " +
-			"(VCC+ + VCC-)/2 (unless otherwise noted)': 'VOM | Maximum peak output voltage swing | RL = 10 kOhm, TA = 25C " +
-			"| MIN +-10 | TYP +-13.5 | V' in both the TL06xC and the TL06xAC column (TA = full range, RL >= 10 kOhm: MIN " +
-			"+-10). A +-VOM row states both sides at once: 15 - 13.5 = 1.5 V a side. The ids are the gain-bandwidth " +
-			"row's, whose convention this follows. 'constant' is the owner's decision of 2026-10-17 (row 16, D3): the " +
-			"sheet prints no figure below +-15 V; Figure 6-1 (VOM against |VCC+-|, RL = 10 kOhm) is a graph, and the " +
-			"1.2 V that was read from it by eye (about 3.3 V at +-4.5 V) is retired because it is not printed.",
-	},
-];
-
 /**
- * Op-amp ids this catalog holds that state no output-swing pair, and why. They keep the supply as their
- * rails and `opamp-law-default-parameters` names them. **A printed row is not by itself a typed row**:
- * several of these ids have one and are listed here on purpose (owner decision D4 of 2026-10-17: widening
- * the table to the 4558 and TL07x families would move about 25 corpus packets at 9 V on a translation with
- * one held-out data point, OP07, and one printed pair pointing the other way, NE5534). The reasons below
- * that describe a datasheet other than the OP07 and TL06x ones are the plan's reading of 2026-10-17
- * (`thoughts/shared/plans/2026-10-17-general-engine-improvements.md` section 1.4), not re-read when this
- * table was written, and they type no value.
- */
-export const opampOutputSwingAbsent: ReadonlyArray<{
-	readonly partIds: readonly string[];
-	readonly reason: string;
-}> = [
-	{
-		partIds: ["OP07"],
-		reason:
-			"The OP07 sheet's electrical characteristics apply to OP07C and OP07D only (footnote 1); the bare id has no column.",
-	},
-	{
-		partIds: ["MC33178", "MC33178P", "MC33178D"],
-		reason:
-			"No MC33178 datasheet is vendored. The registry's 1.1 V (15 - 13.9, onsemi MC33178-D at +-15 V, RL = 2 kOhm) " +
-			"is carried from a citation and was never re-read here, which does not meet the printed-TYP-only rule.",
-	},
-	{
-		partIds: [
-			"NJM4558DD", "NJM4558D", "JRC4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558",
-			"RC4558", "RC4558P", "RC4558D",
-			"uPC4558C", "uPC4558G2", "uPC4558",
-			"TL071", "TL071CN", "TL071CP", "TL072", "TL072CN", "TL072IP", "TL072D", "TL072CP", "TL082", "TL082CP",
-			"NE5534", "NJM5534", "NJM5534D", "NJM5534M",
-			"LM358", "LM358N", "LM358P",
-		],
-		reason:
-			"A printed swing row exists in the vendored sheet (NJM4558 p2 +-12/+-14 at RL >= 10 kOhm and +-10/+-13 at " +
-			"RL >= 2 kOhm; RC4558 SLOS073H 5.5 p6; uPC4558 R03DS0145EJ0200 p3, two tables and the sheet does not say which a " +
-			"bare id belongs to; TL07x/TL08x SLOS080W 5.8; NE5534 SLOS070D 7.5 p5, peak-to-peak, constant 2.0 V a side at +-15 " +
-			"V and +-18 V; LM358 SLOS068AB 5.7 p10, asymmetric and printed at 5 V and 30 V only) and is deliberately NOT typed: " +
-			"owner decision D4, 2026-10-17. Every one is printed at +-15 V or more and almost every pedal runs at 9 V; typing " +
-			"them would move about 25 corpus packets on a translation that has one held-out data point.",
-	},
-	{
-		partIds: ["RC4558C", "4558"],
-		reason: "RC4558C is not an orderable printed in SLOS073H and '4558' is a generic name no datasheet owns.",
-	},
-	{
-		partIds: ["NE5532", "NE5532P", "NE5532D"],
-		reason: "TI SLOS075K (Dec 2025) removed the output-swing row; its revision history says so.",
-	},
-	{
-		partIds: ["TL022", "TL022C", "TL022CP", "TL022CD", "TL022CN"],
-		reason: "TI SLOS076 prints VO(PP) as a peak-to-peak figure only (20 min / 26 typ at RL = 10 kOhm, +-15 V): no per-side figure.",
-	},
-	{
-		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "BA718", "CA1458", "CA1458E", "CA1458T"],
-		reason: "No vendored datasheet for these ids.",
-	},
-	{
-		partIds: [
-			"M5218AL", "M5218AP", "M5218AFP", "M5218A", "M5218L", "M5218P", "M5218FP", "M5218",
-			"M5216AL", "M5216AP", "M5216AFP", "M5216A", "M5216L", "M5216P", "M5216FP", "M5216",
-			"M5281AL", "M5281AP", "M5281AFP", "M5281A", "M5281L", "M5281P", "M5281FP", "M5281",
-			"M5223L", "M5223P", "M5223FP", "M5223",
-		],
-		reason:
-			"The vendored Mitsubishi sheets are image-only or package drawings; no swing row was read, and none is claimed.",
-	},
-	{
-		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
-		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
-	},
-];
-
-/**
- * The catalog's op-amp entries with each datasheet swing pair stamped onto the sections of exactly the ids
- * it covers. An entry whose ids have different rows (or none) is split into one entry per row, keeping every
- * other field, so no id changes behaviour except by gaining its own pair.
+ * The catalog's op-amp entries with each registry record's swing pair stamped onto the sections
+ * of exactly the ids it covers. An entry whose ids have different rows (or none) is split into
+ * one entry per row, keeping every other field, so no id changes behaviour except by gaining
+ * its own pair.
  *
- * Loud on any mismatch, as `withDatasheetGainBandwidth` is: a row or absent id the catalog holds no op-amp
- * entry for, an id in both lists, an id in two rows, a base entry that already carries a swing field (every
- * figure comes through the table), or a row whose numbers do not validate (`opampOutputSwingOf`) throws at load.
+ * Loud on any mismatch, as `withDatasheetGainBandwidth` is: a record or absent id the catalog
+ * holds no op-amp entry for, an id in both lists, an id in two records, a base entry that
+ * already carries a swing field (every figure comes through the registry), or a record whose
+ * numbers do not validate (`opampOutputSwingOf`) throws at load.
  */
 export function withDatasheetOutputSwing(
 	base: readonly PartEntry[],
-	rows: readonly OpampOutputSwingRow[] = opampOutputSwingDatasheet,
+	rows: readonly OpampRegistryRecord[] = opampRegistryRecords,
 	absentRows: ReadonlyArray<{ readonly partIds: readonly string[]; readonly reason: string }> = opampOutputSwingAbsent,
 ): readonly PartEntry[] {
-	const rowOf = new Map<string, OpampOutputSwingRow>();
+	const rowOf = new Map<string, OpampRegistryRecord>();
 	for (const row of rows) {
+		const high = row.outputSwingDropHighVolts;
+		const low = row.outputSwingDropLowVolts;
+		const printed = row.outputSwingPrinted;
+		if (high === undefined && low === undefined && printed === undefined) continue;
+		if (high === undefined || low === undefined || printed === undefined) {
+			throw new Error(
+				`${row.partIds.join(",")}: an op-amp swing record states a half pair (high ${high === undefined ? "absent" : "present"}, low ${low === undefined ? "absent" : "present"}, printed ${printed === undefined ? "absent" : "present"})`,
+			);
+		}
 		for (const id of row.partIds) {
 			const folded = foldPartId(id);
 			if (rowOf.has(folded)) throw new Error(`output-swing table names ${id} twice`);
@@ -7982,11 +6976,11 @@ export function withDatasheetOutputSwing(
 					law.outputSwingPrinted !== undefined)
 			) {
 				throw new Error(
-					`${entry.partIds.join(",")}: an op-amp entry states an output swing in place; it must come through opampOutputSwingDatasheet`,
+					`${entry.partIds.join(",")}: an op-amp entry states an output swing in place; it must come through the registry`,
 				);
 			}
 		}
-		const groups = new Map<OpampOutputSwingRow | null, string[]>();
+		const groups = new Map<OpampRegistryRecord | null, string[]>();
 		for (const id of entry.partIds) {
 			const folded = foldPartId(id);
 			seen.add(folded);
@@ -8001,6 +6995,14 @@ export function withDatasheetOutputSwing(
 				out.push(groups.size === 1 ? entry : { ...entry, partIds });
 				continue;
 			}
+			const high = row.outputSwingDropHighVolts?.value;
+			const low = row.outputSwingDropLowVolts?.value;
+			const printed = row.outputSwingPrinted;
+			if (high === undefined || low === undefined || printed === undefined) {
+				throw new Error(
+					`${partIds.join(",")}: an op-amp swing record states a half pair`,
+				);
+			}
 			const stamped: PartEntry = {
 				...entry,
 				partIds,
@@ -8012,12 +7014,12 @@ export function withDatasheetOutputSwing(
 									...section,
 									law: {
 										...section.law,
-										outputSwingDropHighVolts: row.highVolts,
-										outputSwingDropLowVolts: row.lowVolts,
+										outputSwingDropHighVolts: high,
+										outputSwingDropLowVolts: low,
 										outputSwingPrinted: {
-											supplyVolts: row.supplyVolts,
-											loadOhms: row.loadOhms,
-											translation: row.translation,
+											supplyVolts: printed.supplyVolts,
+											loadOhms: printed.loadOhms,
+											translation: printed.translation,
 										},
 									},
 								}
@@ -8025,7 +7027,7 @@ export function withDatasheetOutputSwing(
 					),
 				},
 			};
-			// A malformed row (a non-positive figure, an unknown translation) throws here, naming the ids.
+			// A malformed record (a non-positive figure, an unknown translation) throws here, naming the ids.
 			for (const section of stamped.model.kind === "sections" ? stamped.model.sections : []) {
 				if (section.law.kind === "ideal-opamp") opampOutputSwingOf(section.law, partIds.join(","));
 			}
@@ -8040,12 +7042,16 @@ export function withDatasheetOutputSwing(
 
 /**
  * Every part id whose `fet` entry refines the gate term only, folded for comparison.
- * `report-part-store-drift.ts` keys its channel-field exclusion on this set -- a catalog
- * product -- rather than on the registry row, so a gate-only entry's avowed class channel
- * is never graded against the database's beta/lambda/Vp the way a transcribed channel
- * would be. Mirrors `zenerCatalogPartIds` above.
+ * Derived from the jfet registry records: an entry that states only a gate parameter
+ * keeps its avowed class channel, which is never graded against the database's
+ * beta/lambda/Vp the way a transcribed channel would be. Mirrors `zenerCatalogPartIds`.
  */
-export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(["2sk30a"]);
+export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(
+	jfetRegistryRecords.flatMap((record) => [
+		...record.partIds,
+		...(record.aliases ?? []),
+	]).map((id) => foldPartId(id)),
+);
 
 /**
  * The catalog the corpus-facing scripts inject.

@@ -9,11 +9,12 @@ import { nonInvertingStage } from "../../runtime/tests/non-inverting-stage";
 import { compile } from "../src/compile";
 import {
 	opampOutputSwingAbsent,
-	opampOutputSwingDatasheet,
+	opampRegistryRecords,
 	pedalPartCatalog,
 	withDatasheetOutputSwing,
-	type OpampOutputSwingRow,
+	type OpampRegistryRecord,
 } from "../src/part-catalog";
+import type { CitedParam } from "../src/registry-data";
 import {
 	emptyRegistry,
 	opampOutputSwingOf,
@@ -380,20 +381,40 @@ describe("opamp-law-default-parameters names the reason an op-amp's swing is not
 
 describe("withDatasheetOutputSwing is loud on a table error", () => {
 	const holder = (ids: readonly string[]) => opampEntry(ids);
+	const cited = (value: number): CitedParam => ({
+		value,
+		basis: "datasheet",
+		source: "test source",
+	});
 	const row = (
 		partIds: readonly string[],
-		extra: Partial<OpampOutputSwingRow> = {},
-	): OpampOutputSwingRow => ({
+		extra: Partial<OpampRegistryRecord> = {},
+	): OpampRegistryRecord => ({
 		partIds,
-		highVolts: 1.5,
-		lowVolts: 1.5,
-		supplyVolts: 30,
-		loadOhms: 10_000,
-		translation: "constant",
-		column: "test column",
-		source: "test source",
+		outputSwingDropHighVolts: cited(1.5),
+		outputSwingDropLowVolts: cited(1.5),
+		outputSwingPrinted: {
+			supplyVolts: 30,
+			loadOhms: 10_000,
+			translation: "constant",
+			column: "test column",
+		},
 		...extra,
 	});
+	const printedRecord = (
+		partIds: readonly string[],
+		supplyVolts: number,
+		loadOhms = 10_000,
+		translation: "constant" | "proportional" = "constant",
+	): OpampRegistryRecord =>
+		row(partIds, {
+			outputSwingPrinted: {
+				supplyVolts,
+				loadOhms,
+				translation,
+				column: "test column",
+			},
+		});
 	const absent = (partIds: readonly string[], reason = "no row printed") => ({
 		partIds,
 		reason,
@@ -462,11 +483,11 @@ describe("withDatasheetOutputSwing is loud on a table error", () => {
 
 	it("throws on a row whose numbers do not validate", () => {
 		for (const bad of [
-			row(["FIX-A"], { highVolts: 0 }),
-			row(["FIX-A"], { lowVolts: -1 }),
-			row(["FIX-A"], { supplyVolts: Number.NaN }),
-			row(["FIX-A"], { loadOhms: 0 }),
-			row(["FIX-A"], { translation: "scaled" as never }),
+			row(["FIX-A"], { outputSwingDropHighVolts: cited(0) }),
+			row(["FIX-A"], { outputSwingDropLowVolts: cited(-1) }),
+			printedRecord(["FIX-A"], Number.NaN),
+			printedRecord(["FIX-A"], 30, 0),
+			printedRecord(["FIX-A"], 30, 10_000, "scaled" as never),
 		]) {
 			expect(() =>
 				withDatasheetOutputSwing([holder(["FIX-A"])], [bad], []),
@@ -490,19 +511,23 @@ describe("withDatasheetOutputSwing is loud on a table error", () => {
 describe("the shipping catalog's output-swing table is applied exactly", () => {
 	// Structural, not a membership snapshot: it holds for whatever rows the table carries.
 	it("answers every datasheet row's ids with that row's pair and condition, by exact id", () => {
-		for (const row of opampOutputSwingDatasheet) {
-			expect(Number.isFinite(row.highVolts) && row.highVolts > 0).toBe(true);
-			expect(Number.isFinite(row.lowVolts) && row.lowVolts > 0).toBe(true);
-			expect(row.source.length).toBeGreaterThan(80);
-			expect(row.column.length).toBeGreaterThan(0);
+		for (const row of opampRegistryRecords) {
+			const high = row.outputSwingDropHighVolts;
+			const low = row.outputSwingDropLowVolts;
+			const printed = row.outputSwingPrinted;
+			if (high === undefined || low === undefined || printed === undefined) continue;
+			expect(Number.isFinite(high.value) && high.value > 0).toBe(true);
+			expect(Number.isFinite(low.value) && low.value > 0).toBe(true);
+			expect(high.source.length).toBeGreaterThan(80);
+			expect(printed.column.length).toBeGreaterThan(0);
 			for (const id of row.partIds) {
 				expect(registryOpampSwing(pedalPartCatalog, id)).toEqual({
-					highVolts: row.highVolts,
-					lowVolts: row.lowVolts,
+					highVolts: high.value,
+					lowVolts: low.value,
 					printed: {
-						supplyVolts: row.supplyVolts,
-						loadOhms: row.loadOhms,
-						translation: row.translation,
+						supplyVolts: printed.supplyVolts,
+						loadOhms: printed.loadOhms,
+						translation: printed.translation,
 					},
 				});
 			}
@@ -519,7 +544,7 @@ describe("the shipping catalog's output-swing table is applied exactly", () => {
 	});
 
 	it("gives a sibling nothing: an id no row names has no pair, whatever it resembles", () => {
-		for (const row of opampOutputSwingDatasheet) {
+		for (const row of opampRegistryRecords) {
 			for (const id of row.partIds) {
 				expect(registryOpampSwing(pedalPartCatalog, `${id}X`)).toBeNull();
 				expect(registryOpampSwing(pedalPartCatalog, `X${id}`)).toBeNull();
@@ -529,8 +554,10 @@ describe("the shipping catalog's output-swing table is applied exactly", () => {
 
 	it("never lists an id both given a pair and absent", () => {
 		const given = new Set(
-			opampOutputSwingDatasheet.flatMap((row) =>
-				row.partIds.map((id) => id.toLowerCase()),
+			opampRegistryRecords.flatMap((row) =>
+				row.outputSwingDropHighVolts === undefined
+					? []
+					: row.partIds.map((id) => id.toLowerCase()),
 			),
 		);
 		for (const { partIds } of opampOutputSwingAbsent) {
@@ -540,7 +567,7 @@ describe("the shipping catalog's output-swing table is applied exactly", () => {
 
 	it("keeps no figure on an op-amp entry that did not come through the table", () => {
 		const tabled = new Set(
-			opampOutputSwingDatasheet.flatMap((row) =>
+			opampRegistryRecords.flatMap((row) =>
 				row.partIds.map((id) => id.toLowerCase()),
 			),
 		);
