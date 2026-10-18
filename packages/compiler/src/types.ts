@@ -1305,6 +1305,17 @@ export type OpenIcReason =
 	| "registry-arity-mismatch"
 	| "electrically-isolated"
 	| "charge-pump-declared-rail"
+	// A charge-pump part the registry identifies, whose generated rail the document does
+	// NOT declare anywhere, but whose supply input carries no declared voltage either --
+	// so the rail cannot be derived and the pump is compiled open. The honest counterpart
+	// to `charge-pump-declared-rail`: that reason says the rail is modelled (it is, by the
+	// document); this one says it is not (nothing states the input it inverts).
+	| "charge-pump-no-input"
+	// A charge-pump part whose supply input IS declared, but whose output terminal drives
+	// nothing else in the solved circuit -- so stamping the derived rail would change
+	// nothing except the circuit-wide rail extremes other devices fall back to. Compiled
+	// open rather than asserting a rail no load can observe.
+	| "charge-pump-output-unloaded"
 	| "registry-open"
 	| "declared-class-without-model";
 

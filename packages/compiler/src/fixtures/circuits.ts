@@ -11881,6 +11881,204 @@ export const undeclaredRegulator = derive(
 );
 
 /**
+ * A charge pump driving a load from a declared V+: the registry's TC1044S entry derives
+ * the negative rail instead of the document declaring it.
+ *
+ * The pump is the 7-terminal named shell the corpus transcribes (input, inverted output,
+ * ground, flying-cap, boost, low-voltage, oscillator pins), on a declared 9 V rail with
+ * a 1 k load from the derived output to ground. Expected model: ideal inversion of the
+ * declared input (loss 0, DS21348A open-circuit conversion 99-99.9%) in series with the
+ * datasheet TYP output resistance (60 ohm at 20 mA, 5 V, 25 C), so the section law reads
+ * exactly -9 V / 60 ohm and the lowered dc-source stamp carries the same numbers.
+ *
+ * Names and descriptions are adversarial on purpose: a load resistor called like a BBD
+ * stage, prose claiming clock/reverb behavior. None of it may move the result.
+ */
+export const chargePumpDerivedRail = `${header("Derived Pump Rail")}deviceInterface:
+  controls:
+    - id: JIN
+      label: INPUT
+      kind: jack
+      role: input
+    - id: JOUT
+      label: OUTPUT
+      kind: jack
+      role: output
+components:
+  - id: JIN
+    kind: jack
+    name: INPUT
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        role: tip
+        node: 2
+        position:
+          x: -200
+          y: -20
+      - name: sleeve
+        role: sleeve
+        node: 0
+        position:
+          x: -200
+          y: 20
+    properties:
+      Name: INPUT
+  - id: JOUT
+    kind: jack
+    name: OUTPUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        role: tip
+        node: 2
+        position:
+          x: 200
+          y: -20
+      - name: sleeve
+        role: sleeve
+        node: 0
+        position:
+          x: 200
+          y: 20
+    properties:
+      Name: OUTPUT
+  - id: VPLUS
+    kind: rail
+    name: VPLUS
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: -100
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: positive
+        node: 1
+        position:
+          x: -100
+          y: 0
+    properties:
+      Voltage:
+        raw: "9 V"
+        value: 9
+        unit: V
+      Name: VPLUS
+      Description: "Bucket brigade clock driver supply rail."
+  - id: U1
+    kind: ic
+    name: CLOCK_DRIVER_CHIP
+    sourceTypeName: Circuit.IC
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: boost
+        role: pin
+        node: 3
+        position:
+          x: -20
+          y: -30
+      - name: capMinus
+        role: pin
+        node: 4
+        position:
+          x: -20
+          y: -10
+      - name: ground
+        role: pin
+        node: 0
+        position:
+          x: -20
+          y: 10
+      - name: negativeOutput
+        role: pin
+        node: 2
+        position:
+          x: 20
+          y: 30
+      - name: lv
+        role: pin
+        node: 5
+        position:
+          x: 20
+          y: 10
+      - name: osc
+        role: pin
+        node: 6
+        position:
+          x: 20
+          y: -10
+      - name: vplus
+        role: pin
+        node: 1
+        position:
+          x: 20
+          y: -30
+    properties:
+      Name: CLOCK_DRIVER_CHIP
+      PartNumber: TC1044SCPA
+      Description: "Reverb tank clock recovery stage."
+  - id: RLOAD
+    kind: resistor
+    name: BBD_DELAY_MEMORY
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 100
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        role: end
+        node: 2
+        position:
+          x: 100
+          y: -20
+      - name: b
+        role: end
+        node: 0
+        position:
+          x: 100
+          y: 20
+    properties:
+      Resistance:
+        raw: "1k"
+        value: 1000
+        unit: ohm
+      Name: BBD_DELAY_MEMORY
+      Description: "Delay line bias feed resistor."
+nodes:
+  - id: 0
+    name: GND
+  - id: 1
+    name: VPLUS
+  - id: 2
+    name: VMINUS
+  - id: 3
+    name: PUMP_BOOST
+  - id: 4
+    name: PUMP_CAP
+  - id: 5
+    name: PUMP_LV
+  - id: 6
+    name: PUMP_OSC
+`;
+
+/**
  * `invertingAmplifier` with the op-amp **packaged as an eight-pin chip**, expanded by
  * `sectionsRegistry`.
  *

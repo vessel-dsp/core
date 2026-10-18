@@ -560,47 +560,40 @@ function quiescentSupplyDraw(
 	];
 }
 
-/**
- * Nodes that reach a declared voltage through one two-terminal passive
- * (diode, capacitor, resistor, inductor). Covers the LT1054 → D17 → VA-rail
- * path where the charge pump's output is a diode away from the declared rail.
- */
-function buildOneHopVoltageMap(
-	netlist: Netlist,
-	nodeToVoltage: ReadonlyMap<NodeId, number>,
-): Map<NodeId, number> {
-	const map = new Map<NodeId, number>();
-	for (const device of netlist.devices) {
-		if (
-			device.nodes.length !== 2 ||
-			(device.kind !== "diode" &&
-				device.kind !== "capacitor" &&
-				device.kind !== "resistor" &&
-				device.kind !== "inductor")
-		) {
-			continue;
-		}
-		const [a, b] = device.nodes;
-		const va = nodeToVoltage.get(a);
-		const vb = nodeToVoltage.get(b);
-		if (va !== undefined && b !== 0 && vb === undefined) {
-			map.set(b, va);
-		} else if (vb !== undefined && a !== 0 && va === undefined) {
-			map.set(a, vb);
-		}
-	}
-	return map;
-}
-
 export function attachDeviceLaws(
 	netlist: Netlist,
 	registry: PartRegistry,
 ): LawedNetlist {
-	const regulated = registrySuppliedVoltages(netlist, registry);
+	const regulatedBase = registrySuppliedVoltages(netlist, registry);
+	const nodeToVoltage = buildNodeToVoltageMap(netlist, regulatedBase);
+	const devicesTouchingNode = deviceCountByNode(netlist);
+	// A pump's rail is derived from the declared input, so every derivation runs against
+	// the document's own voltages -- before any pump output joins the map -- and the
+	// derived supplies merge into the rail set after. A pump can never back itself.
+	const pumpDerivations = new Map<string, PumpDerivation>();
+	for (const device of netlist.devices) {
+		const derivation = pumpDerivation(
+			device,
+			registry,
+			nodeToVoltage,
+			devicesTouchingNode,
+		);
+		if (derivation !== null) {
+			pumpDerivations.set(device.id, derivation);
+		}
+	}
+	const regulated = [...regulatedBase];
+	for (const derivation of pumpDerivations.values()) {
+		if (derivation.kind !== "model") {
+			continue;
+		}
+		regulated.push({ node: derivation.outputNode, volts: derivation.volts });
+		if (!nodeToVoltage.has(derivation.outputNode)) {
+			nodeToVoltage.set(derivation.outputNode, derivation.volts);
+		}
+	}
 	const rails = supplyRails(netlist, regulated);
 	const supply = supplyNodes(netlist);
-	const nodeToVoltage = buildNodeToVoltageMap(netlist, regulated);
-	const oneHopVoltage = buildOneHopVoltageMap(netlist, nodeToVoltage);
 	const mainsFrequencyHz = mainsFrequency(netlist);
 	// Stage 1 (`netlist.ts`) already resolved each control's real taper -- from the panel
 	// control's own declaration, or failing that, from the first device bound to it -- onto
@@ -615,7 +608,6 @@ export function attachDeviceLaws(
 	// is multi-section. Expanding into ordinary devices means partitioning, lowering and the runtime
 	// see nothing new -- the alternative, a fourth `DeviceResolution` outcome, would have to be
 	// understood by every consumer of one.
-	const devicesTouchingNode = deviceCountByNode(netlist);
 	// Nodes inside a registered package, numbered past every node the document uses.
 	const internalNodes = new Map<string, NodeId>();
 	const firstInternal = Math.max(0, ...netlist.nodes) + 1;
@@ -630,7 +622,16 @@ export function attachDeviceLaws(
 	const devices: Device[] = [];
 	const resolutions: DeviceResolution[] = [];
 	for (const device of netlist.devices) {
-		const expanded = sectionDevices(device, registry, rails, supply, nodeToVoltage, internalNode, netlist);
+		const expanded = sectionDevices(
+			device,
+			registry,
+			rails,
+			supply,
+			nodeToVoltage,
+			internalNode,
+			netlist,
+			pumpDerivations.get(device.id) ?? null,
+		);
 		const draw = quiescentSupplyDraw(device, registry, expanded !== null, rails, nodeToVoltage);
 		if (draw !== null) {
 			devices.push(draw[0]);
@@ -648,7 +649,6 @@ export function attachDeviceLaws(
 					mainsFrequencyHz,
 					devicesTouchingNode,
 					nodeToVoltage,
-					oneHopVoltage,
 					netlist,
 				),
 			);
@@ -700,6 +700,12 @@ export function declaredRegulatorTerminals(
 	// kinds whose vocabulary carries them (`regulator`, `power-converter`, `voltage-source`,
 	// `rail`, `battery`), and an `ic` may declare nothing but `pin`. A device that reaches here
 	// carrying a supply electrode was therefore declared as a kind entitled to state one.
+	// Charge-pump parts never take this path: their volts are derived per circuit from the
+	// input node, and the placeholder volts in their entries must not be stamped. They are
+	// bound by `pumpDerivation` instead, which runs before this is consulted.
+	if (isChargePumpPart(device)) {
+		return null;
+	}
 	if (model.sections.length !== 1) {
 		return null;
 	}
@@ -768,7 +774,17 @@ function sectionDevices(
 		throw new Error("no internal-node allocator");
 	},
 	netlist?: Netlist,
+	pump: PumpDerivation | null = null,
 ): readonly (readonly [Device, DeviceResolution])[] | null {
+	// A decided pump never reaches generic expansion: the placeholder volts in the pump
+	// entries must not be stamped. An isolated pump defers to `resolveDevice`, which
+	// names the isolation before any pump question.
+	if (pump !== null) {
+		if (pump.kind === "isolated") {
+			return null;
+		}
+		return pumpSectionDevices(device, pump);
+	}
 	// **`mayCarryRegistrySections`, not `requiresIdentification`.** An OTA reaches here so a
 	// registered multi-section part (the BA662A's OTA plus its Darlington buffer) can be expanded;
 	// when the registry has no matching entry this returns null and the caller falls through to
@@ -1555,6 +1571,12 @@ function registrySuppliedVoltages(
 		if (device.parameters.volts !== undefined) {
 			continue;
 		}
+		// Pump parts never supply a static rail: their output is derived per circuit from
+		// the input node by `pumpDerivation`, and the placeholder volts in their entries
+		// must not leak into the rail set through a role that happens to read as an output.
+		if (isChargePumpPart(device)) {
+			continue;
+		}
 		const identity = identify(device, registry);
 		if (identity === null) {
 			continue;
@@ -1695,36 +1717,449 @@ export function deviceCountByNode(netlist: Netlist): Map<NodeId, number> {
 	return counts;
 }
 
+/**
+ * Charge-pump inverter parts, by folded part number: every spelling the DIY BOM census
+ * attributes to the family (TC1044S/SCPA, LT1054/CP, 7660 // SCPAZ, TC7662BC, ICL7660SCPA(Z),
+ * LTC1144, MAX1044/S) plus the order codes and package markings the datasheets print.
+ * Compared whole with `foldPartId`, never by substring: membership routes a part to the
+ * pump handling, it does not model it -- modelling needs a registry entry, and a member
+ * with no entry falls through to the honest unknown-chip path.
+ */
 const CHARGE_PUMP_PARTS: ReadonlySet<string> = new Set([
-	"tc1044",
+	"tc1044s",
 	"tc1044scpa",
-	"max1044",
+	"tc1044scoa",
+	"tc1044sepa",
+	"tc1044seoa",
+	"tc1044sija",
+	"tc1044smja",
+	"icl7660",
+	"icl7660cpa",
+	"icl7660cpaz",
+	"icl7660cba",
+	"icl7660cbaz",
+	"7660cpa",
+	"7660cpaz",
+	"7660cba",
+	"7660cbaz",
+	"icl7660a",
+	"icl7660acpa",
+	"icl7660acpaz",
+	"icl7660acba",
+	"icl7660acbaz",
+	"icl7660aiba",
+	"icl7660aibaz",
+	"7660acpa",
+	"7660acpaz",
+	"7660acba",
+	"7660acbaz",
+	"7660aiba",
+	"7660aibaz",
+	"icl7660s",
+	"icl7660scpa",
+	"icl7660scpaz",
+	"7660scpa",
+	"7660scpaz",
+	"tc7662b",
+	"tc7662bcpa",
+	"tc7662bepa",
+	"tc7662bcoa",
+	"tc7662beoa",
 	"7662",
-	"lt1054cp",
 	"lt1054",
+	"lt1054c",
+	"lt1054cp",
+	"lt1054cpe4",
+	"lt1054i",
+	"ltc1144",
+	"ltc1144cn8",
+	"ltc1144in8",
+	"ltc1144cs8",
+	"ltc1144is8",
+	"max1044",
+	"max1044cpa",
+	"max1044csa",
+	"max1044epa",
+	"max1044esa",
+	// Census spellings with no registry entry: routed here so a pump whose rail the
+	// document declares still opens honestly, and one whose rail is undeclared refuses
+	// as an unknown chip instead of claiming a modelled rail.
+	"tc7662bc",
+	"max1044s",
+	"7660",
 ]);
 
-/**
- * A charge-pump IC whose output node is already backed by a declared rail is a
- * view-only structural anchor: the rail supplies the voltage, the IC adds nothing.
- * The Klon's MAX1044 is handled by `isElectricallyIsolated` (all nodes private);
- * this covers the wider class where the pump shares nets with the declared rail.
- */
-function isChargePumpWithDeclaredRail(
-	device: Device,
-	nodeToVoltage: ReadonlyMap<NodeId, number>,
-	oneHopVoltage: ReadonlyMap<NodeId, number>,
-): boolean {
+/** Whether this device names a charge-pump inverter part, compared whole. */
+function isChargePumpPart(device: Device): boolean {
 	const partNumber = device.identity.partNumber;
 	if (partNumber === null) {
 		return false;
 	}
-	if (!CHARGE_PUMP_PARTS.has(partNumber.toLowerCase())) {
+	return CHARGE_PUMP_PARTS.has(foldPartId(partNumber));
+}
+
+/**
+ * The closed role vocabularies a pump's three supply terminals are bound by, compared as
+ * whole folded tokens by `terminalWithRole` -- never as substrings, never against a
+ * description. These query the ENTRY's role groups (which carry the datasheet pinout in
+ * package order), so a document naming its terminals in any order binds, and a document
+ * numbering its pins binds positionally instead.
+ */
+const PUMP_INPUT_ROLES = ["vplus", "vin", "vdd", "vcc", "input"] as const;
+const PUMP_OUTPUT_ROLES = [
+	"negativeoutput",
+	"voutnegative",
+	"vout",
+	"voutput",
+	"out",
+	"output",
+] as const;
+const PUMP_GROUND_ROLES = ["gnd", "ground"] as const;
+
+/**
+ * A charge-pump IC whose OUTPUT node is already backed by a declared rail is a
+ * view-only structural anchor: the rail supplies the voltage, the IC adds nothing.
+ * The Klon's MAX1044 is handled by `isElectricallyIsolated` (all nodes private);
+ * this covers the wider class where the pump shares nets with the declared rail.
+ *
+ * Tests the pump's OUTPUT node, by role, and nothing else. The previous version asked
+ * whether ANY non-ground node of the pump touched a declared OR one-hop voltage, and a
+ * reservoir capacitor to ground was enough to satisfy it: with both Plumes rails deleted,
+ * nodes 35 and 36 each one-hop to 0 V through C102/C101, and the pump claimed a modelled
+ * rail on ground continuity alone. Ground is not a rail, and an input rail is not the
+ * output rail -- pigtronix's LT1054 sat on the same false positive through its input
+ * capacitor, and moogerfooger's 7662 through its output capacitor.
+ */
+function isChargePumpWithDeclaredRail(
+	device: Device,
+	nodeToVoltage: ReadonlyMap<NodeId, number>,
+): boolean {
+	if (!isChargePumpPart(device)) {
 		return false;
 	}
-	return device.nodes.some(
-		(node) => node !== 0 && (nodeToVoltage.has(node) || oneHopVoltage.has(node)),
+	const output = chargePumpOutputIndex(device);
+	if (output === null) {
+		return false;
+	}
+	const node = device.nodes[output];
+	if (node === undefined || node === 0) {
+		return false;
+	}
+	return nodeToVoltage.has(node);
+}
+
+/**
+ * The index of the pump's inverted-output terminal, or `null` when the document does
+ * not settle it.
+ *
+ * A declared supply electrode decides first: a shell that states `ground` plus
+ * `negative` (or `positive`, the regulator convention deluxe-memory-man uses for its
+ * -15 V output) names its output outright. Otherwise the folded terminal names are read
+ * against the output vocabulary -- whole tokens, unambiguous or nothing.
+ */
+function chargePumpOutputIndex(device: Device): number | null {
+	const declared = device.identity.declaredTerminalRoles;
+	const onlyDeclared = (role: string): number | null => {
+		const found = declared.flatMap((value, index) =>
+			value === role ? [index] : [],
+		);
+		return found.length === 1 ? (found[0] as number) : null;
+	};
+	const fromDeclaration =
+		onlyDeclared("negative") ?? onlyDeclared("positive");
+	if (fromDeclaration !== null) {
+		return fromDeclaration;
+	}
+	return terminalWithRole(
+		device.identity.terminalRoles,
+		PUMP_OUTPUT_ROLES,
 	);
+}
+
+/**
+ * What the pump derivation decided for one device, or `null` when the generic path
+ * should proceed (not a pump part, or a pump part no entry identifies).
+ *
+ * All derivations run against the document's own voltages -- declared rails plus
+ * regulator-supplied ones, before any pump output joins the map -- so a pump can never
+ * back itself, and a cascaded pump (one pump feeding another, the datasheets' Figure 5
+ * tripler) reads its input as undeclared and stays open rather than chaining a guess.
+ * That is a documented limitation, not a supported topology: no corpus packet cascades.
+ */
+type PumpDerivation =
+	| {
+			readonly kind: "model";
+			readonly inputNode: NodeId;
+			readonly outputNode: NodeId;
+			readonly groundNode: NodeId;
+			readonly inputVolts: number;
+			readonly volts: number;
+			readonly sourceOhms: number;
+	  }
+	| { readonly kind: "backed" }
+	| { readonly kind: "no-input" }
+	| { readonly kind: "unloaded" }
+	| { readonly kind: "unbound"; readonly detail: string }
+	| { readonly kind: "isolated" };
+
+function pumpDerivation(
+	device: Device,
+	registry: PartRegistry,
+	nodeToVoltage: ReadonlyMap<NodeId, number>,
+	devicesTouchingNode: ReadonlyMap<NodeId, number>,
+): PumpDerivation | null {
+	if (!isChargePumpPart(device)) {
+		return null;
+	}
+	// Isolation stays the isolation reporter's beat: a pump on private nodes is view-only
+	// however it is part-numbered, and `resolveDevice` names it before any pump question.
+	if (isElectricallyIsolated(device, devicesTouchingNode)) {
+		return { kind: "isolated" };
+	}
+	const identity = identify(device, registry);
+	if (identity === null) {
+		return null;
+	}
+	const entry = registryEntryFor(registry, identity, device.nodes.length);
+	if (entry === null || entry.model.kind !== "sections") {
+		return null;
+	}
+	const section = entry.model.sections[0];
+	if (
+		entry.model.sections.length !== 1 ||
+		section === undefined ||
+		section.law.kind !== "voltage-source" ||
+		section.terminals.length !== 2
+	) {
+		return {
+			kind: "unbound",
+			detail:
+				`part ${identity.partId} is routed to the charge-pump derivation but its registry ` +
+				`entry is not a single two-terminal voltage-source section, so no rail can be ` +
+				`derived from it`,
+		};
+	}
+	const sourceOhms = section.law.sourceOhms;
+	// Which package positions the supply input, inverted output, and reference sit at,
+	// read off the ENTRY's role groups -- the datasheet pinout in package order -- so one
+	// entry serves every declaration order that names its terminals at all.
+	const groups = entry.terminalRoleGroups;
+	const groupIndex = (vocab: readonly string[]): number | null => {
+		const wanted = new Set(vocab.map((alias) => foldToken(alias)));
+		const hits: number[] = [];
+		groups.forEach((group, index) => {
+			if (group.some((alias) => wanted.has(foldToken(alias)))) {
+				hits.push(index);
+			}
+		});
+		return hits.length === 1 ? (hits[0] as number) : null;
+	};
+	const inputPos = groupIndex(PUMP_INPUT_ROLES);
+	const outputPos = groupIndex(PUMP_OUTPUT_ROLES);
+	const groundPos = groupIndex(PUMP_GROUND_ROLES);
+	if (inputPos === null || outputPos === null || groundPos === null) {
+		return {
+			kind: "unbound",
+			detail:
+				`part ${identity.partId} is registered as a charge pump but its entry does not ` +
+				`name a distinct supply input, inverted output, and ground reference`,
+		};
+	}
+	const roles = device.identity.terminalRoles;
+	const declared = device.identity.declaredTerminalRoles;
+	const onlyDeclared = (role: string): number | null => {
+		const found = declared.flatMap((value, index) =>
+			value === role ? [index] : [],
+		);
+		return found.length === 1 ? (found[0] as number) : null;
+	};
+	// A declared supply electrode outranks the entry's pin numbering, the same rule the
+	// regulator path documents: the reference is `ground`, the inverted output is
+	// `negative` (or `positive`, the convention deluxe-memory-man's -15 V output uses),
+	// and the input is the one remaining terminal sitting on a declared nonzero voltage.
+	const declaredBinding = ((): {
+		input: number;
+		output: number;
+		ground: number;
+	} | null => {
+		const ground = onlyDeclared("ground");
+		const output = onlyDeclared("negative") ?? onlyDeclared("positive");
+		if (ground === null || output === null || ground === output) {
+			return null;
+		}
+		const candidates = roles
+			.map((_, index) => index)
+			.filter((index) => index !== ground && index !== output)
+			.filter((index) => {
+				const node = device.nodes[index];
+				if (node === undefined || node === 0) {
+					return false;
+				}
+				const volts = nodeToVoltage.get(node);
+				return volts !== undefined && volts !== 0;
+			});
+		if (candidates.length !== 1) {
+			return null;
+		}
+		return { input: candidates[0] as number, output, ground };
+	})();
+	// Otherwise the folded terminal names, bound through the entry's own aliases so any
+	// declaration order lands on the right pins.
+	const roleBinding = ((): {
+		input: number;
+		output: number;
+		ground: number;
+	} | null => {
+		const input = terminalWithRole(roles, [...groups[inputPos] as readonly string[]]);
+		const output = terminalWithRole(roles, [...groups[outputPos] as readonly string[]]);
+		const ground = terminalWithRole(roles, [...groups[groundPos] as readonly string[]]);
+		if (input === null || output === null || ground === null) {
+			return null;
+		}
+		if (new Set([input, output, ground]).size !== 3) {
+			return null;
+		}
+		return { input, output, ground };
+	})();
+	// Otherwise a bare-pin shell in package order: terminals numbered pin1..pinN fold to
+	// no role at all, so declaration order against the entry's package-order pinout is
+	// the only reading, exactly as the regulator entries already assume.
+	const positionalBinding = ((): {
+		input: number;
+		output: number;
+		ground: number;
+	} | null => {
+		if (!roles.every((role) => role === null)) {
+			return null;
+		}
+		if (
+			entry.model.kind !== "sections" ||
+			entry.model.pinout.length !== roles.length
+		) {
+			return null;
+		}
+		return { input: inputPos, output: outputPos, ground: groundPos };
+	})();
+	const binding = declaredBinding ?? roleBinding ?? positionalBinding;
+	if (binding === null) {
+		return {
+			kind: "unbound",
+			detail:
+				`part ${identity.partId} is registered as a charge pump, but neither its terminal ` +
+				`names, its declared supply electrodes, nor its pin order bind a supply input, ` +
+				`inverted output, and ground reference: ${device.nodes.length} terminals against ` +
+				`a ${entry.model.pinout.length}-terminal pinout`,
+		};
+	}
+	const inputNode = device.nodes[binding.input];
+	const outputNode = device.nodes[binding.output];
+	const groundNode = device.nodes[binding.ground];
+	if (
+		inputNode === undefined ||
+		outputNode === undefined ||
+		groundNode === undefined
+	) {
+		return {
+			kind: "unbound",
+			detail:
+				`part ${identity.partId} charge-pump binding names a terminal this component ` +
+				`does not declare`,
+		};
+	}
+	// The reference is circuit ground. A pump tied to anything else is a shell the
+	// derivation cannot place, not a rail against an unknown reference.
+	if (groundNode !== 0 || outputNode === 0) {
+		return {
+			kind: "unbound",
+			detail:
+				`part ${identity.partId} charge-pump binding puts the reference off circuit ` +
+				`ground, so no rail can be derived from it`,
+		};
+	}
+	// The document keeps the last word: an output the document already drives --
+	// declared rail or regulator-supplied -- stays the document's, and the pump stays open.
+	if (nodeToVoltage.has(outputNode)) {
+		return { kind: "backed" };
+	}
+	const inputVolts = nodeToVoltage.get(inputNode);
+	if (inputVolts === undefined || inputVolts === 0) {
+		return { kind: "no-input" };
+	}
+	// An output no other device touches cannot move the solve: stamping it would only
+	// widen the circuit-wide rail extremes other devices fall back to.
+	if ((devicesTouchingNode.get(outputNode) ?? 0) < 2) {
+		return { kind: "unloaded" };
+	}
+	const lossVolts = entry.chargePumpLossVolts ?? 0;
+	return {
+		kind: "model",
+		inputNode,
+		outputNode,
+		groundNode,
+		inputVolts,
+		volts: -inputVolts - Math.sign(-inputVolts) * lossVolts,
+		sourceOhms: section.law.sourceOhms,
+	};
+}
+
+/**
+ * A derived pump rail as one ordinary section device plus its law, or the original device
+ * opened with the reason the derivation recorded. Never `null` for a device the
+ * derivation decided: the placeholder volts in the pump entries must not reach generic
+ * expansion, so every decided device is consumed here.
+ */
+function pumpSectionDevices(
+	device: Device,
+	derivation: Exclude<PumpDerivation, { readonly kind: "isolated" }>,
+): readonly (readonly [Device, DeviceResolution])[] {
+	switch (derivation.kind) {
+		case "backed":
+			return [[device, openIc(device, "charge-pump-declared-rail")] as const];
+		case "no-input":
+			return [[device, openIc(device, "charge-pump-no-input")] as const];
+		case "unloaded":
+			return [[device, openIc(device, "charge-pump-output-unloaded")] as const];
+		case "unbound":
+			return [
+				[
+					device,
+					{
+						outcome: "law",
+						device: device.id,
+						law: { kind: "open" },
+						openReason: "registry-arity-mismatch",
+						insteadOfRefusal: derivation.detail,
+					},
+				] as const,
+			];
+		case "model": {
+			const sectionId = `${device.id}#0`;
+			const sectionDevice: Device = {
+				...device,
+				id: sectionId,
+				nodes: [derivation.outputNode, derivation.groundNode],
+				identity: {
+					...device.identity,
+					terminalRoles: canonicalRoles("voltage-source", 2),
+					declaredTerminalRoles: canonicalRoles("voltage-source", 2),
+				},
+			};
+			return [
+				[
+					sectionDevice,
+					{
+						outcome: "law",
+						device: sectionId,
+						law: {
+							kind: "voltage-source",
+							volts: derivation.volts,
+							sourceOhms: derivation.sourceOhms,
+						},
+					},
+				] as const,
+			];
+		}
+	}
 }
 
 /**
@@ -1972,7 +2407,6 @@ function resolveDevice(
 	mainsFrequencyHz: number | null,
 	devicesTouchingNode: ReadonlyMap<NodeId, number>,
 	nodeToVoltage: ReadonlyMap<NodeId, number>,
-	oneHopVoltage: ReadonlyMap<NodeId, number>,
 	netlist?: Netlist,
 ): DeviceResolution {
 	// A component declared as one transistor that is really several devices in one shell. Opened
@@ -2008,7 +2442,7 @@ function resolveDevice(
 			// `findElectricallyIsolatedIcs`, which compile() runs over the same predicate.
 			return openIc(device, "electrically-isolated");
 		}
-		if (isChargePumpWithDeclaredRail(device, nodeToVoltage, oneHopVoltage)) {
+		if (isChargePumpWithDeclaredRail(device, nodeToVoltage)) {
 			// The rail the pump generates is separately declared as a voltage-carrying
 			// port; the IC itself is a view-only structural anchor, not a solved model.
 			return openIc(device, "charge-pump-declared-rail");
@@ -4023,6 +4457,10 @@ export function findIcsNotExecuted(
 					? `${head}: it is registered as a source-boundary shell, drawn for topological continuity rather than execution, so it is compiled as open.`
 					: reason === "charge-pump-declared-rail"
 						? `${head}: it is a charge pump whose generated rail the document declares separately, so the rail is modelled and the pump itself is compiled as open.`
+						: reason === "charge-pump-no-input"
+							? `${head}: it is a charge pump whose generated rail the document does not declare and whose supply input carries no declared voltage, so no rail can be derived from it and it is compiled as open. Whatever the pump does in the real circuit is absent.`
+							: reason === "charge-pump-output-unloaded"
+								? `${head}: it is a charge pump whose supply input is declared but whose output terminal drives nothing else in the circuit, so stamping its derived rail would change nothing and it is compiled as open.`
 						: reason === "registry-arity-mismatch"
 					? `${head}: ${resolution.insteadOfRefusal ?? "its registry entry could not bind the declared terminals"}. The part is registered, so this is an arity disagreement rather than an unknown chip: either the document declares a shell rather than the part's own pins, or the catalog needs an entry at this terminal count.${wiring} It is compiled as open rather than refusing the pedal.`
 					: reason === "registry-open"

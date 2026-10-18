@@ -247,6 +247,20 @@ export type PartEntry = {
 	 */
 	readonly quiescentSupplyAmps?: number;
 	/**
+	 * **A charge pump's fixed open-circuit shortfall below ideal inversion, in volts,
+	 * from its datasheet.**
+	 *
+	 * Present only on single-section `voltage-source` entries that model a
+	 * switched-capacitor inverter: the derived rail is
+	 * `-(inputVolts) - sign * chargePumpLossVolts` with the section law's `sourceOhms`
+	 * carrying the load-dependent drop (see `pumpDerivation` in `device-laws.ts`).
+	 * The CMOS 7660 family prints ~99.9% open-circuit conversion efficiency and so
+	 * carries 0; the LT1054 prints a loss table (0.35 V TYP at 10 mA, TI SLVS033G p5)
+	 * and carries that. Absent means the entry is not a pump model and the derivation
+	 * never reads it.
+	 */
+	readonly chargePumpLossVolts?: number;
+	/**
 	 * **What each terminal IS, with per-terminal evidence.** Absent means `unpopulated`, which is a
 	 * correct state rather than a gap: a consumer that needs audio terminals must fall back to
 	 * bridging everything and **report its result as an upper bound**.

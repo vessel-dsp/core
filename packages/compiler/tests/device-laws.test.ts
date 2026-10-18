@@ -16,6 +16,7 @@ import { emptyRegistry, pinoutMatches, type PartRegistry } from "../src/registry
 import type { Block, Device, LawedNetlist } from "../src/types";
 import { pedalPartCatalog } from "../src/part-catalog";
 import {
+	chargePumpDerivedRail,
 	declaredRegulator,
 	undeclaredRegulator,
 	acMainsDivider,
@@ -871,6 +872,64 @@ describe("a regulator's declared electrodes", () => {
 		// removed, the same document resolves the other way round. A test that passed both ways
 		// would be measuring the fixture, not the binding.
 		expect(supplySpan(undeclaredRegulator)).not.toEqual([2, 0]);
+	});
+});
+
+describe("a charge pump's derived rail", () => {
+	it("derives the negative rail from the declared input, with the datasheet output resistance in series", () => {
+		// The registry's TC1044S entry carries no volts of its own: the rail is ideal
+		// inversion of the declared 9 V input (loss 0, DS21348A open-circuit conversion
+		// 99-99.9%) in series with the datasheet TYP output resistance (60 ohm at 20 mA,
+		// 5 V, 25 C). The section spans the derived output and ground, like any other
+		// single-section supply.
+		const lawed = attachDeviceLaws(
+			readNetlist(chargePumpDerivedRail),
+			pedalPartCatalog,
+		);
+		const resolution = lawed.resolutions.find(
+			(candidate) => candidate.device === "U1#0",
+		);
+		if (resolution?.outcome !== "law") {
+			throw new Error("fixture pump has no lawed section");
+		}
+		if (resolution.law.kind !== "voltage-source") {
+			throw new Error(
+				`expected a voltage-source law, got ${resolution.law.kind}`,
+			);
+		}
+		expect(resolution.law.volts).toBe(-9);
+		expect(resolution.law.sourceOhms).toBe(60);
+		const device = lawed.netlist.devices.find(
+			(candidate) => candidate.id === "U1#0",
+		);
+		expect(device?.nodes).toEqual([2, 0]);
+	});
+
+	it("lowers the derived rail to a dc-source stamp both consoles execute", () => {
+		// No new law or stamp kind: the pump section lowers through the same
+		// voltage-source branch every declared supply takes, so the runtime and the
+		// C++ console need no change to solve it.
+		const result = compile(chargePumpDerivedRail, {
+			registry: pedalPartCatalog,
+		});
+		expect(result.status).toBe("ok");
+		if (result.status !== "ok") return;
+		// Node ids are renumbered by partitioning, so the stamp is found by what only
+		// the pump could have put there: a negative rail in series with 60 ohm.
+		const stamp = result.program.blocks
+			.filter((block) => block.kind === "mna")
+			.flatMap((block) =>
+				block.kind === "mna" ? block.stamps : [],
+			)
+			.find(
+				(candidate) =>
+					candidate.kind === "dc-source" && candidate.volts === -9,
+			);
+		if (stamp?.kind !== "dc-source") {
+			throw new Error("fixture pump rail has no dc-source stamp");
+		}
+		expect(stamp.negative).toBe(0);
+		expect(stamp.sourceOhms).toBe(60);
 	});
 });
 

@@ -5340,6 +5340,734 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
+// --- TC1044S charge-pump inverter (Microchip): derived negative rail, never a fixed one -------------------
+// Pinout verified against Microchip DS21348A (2001), p1 pin-configuration diagram and general
+// description: 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+. Pin 1 is BOOST here
+// and NC on the ICL7660 (Intersil FN3072 p1): the 8-pin parts are NOT pin-identical.
+// Supply 1.5-12 V (3-12 LV open; 1.5-3.5 LV to GND; RL = 10 k, DS21348A p2). Oscillator 10 kHz
+// typ (pin 7 open, pin 1 open/GND), 45 kHz typ with BOOST = V+ (pp1-2, 5). Output resistance
+// 60 TYP / 100 MAX ohm at IOUT = 20 mA, V+ = 5 V, COSC = 0, 25 C (DS21348A p2 electrical
+// characteristics). Open-circuit conversion 99-99.9% at RL = infinity (p2), so the loss term
+// is 0 and the rail is ideal inversion plus the series resistance: the p4 worked example
+// reads "a nearly ideal voltage source in series with 70 ohm ... for -10 mA at +5 V, -4.3 V".
+// Ordering codes below are all printed on DS21348A p1 (SCPA = commercial PDIP, the DIY
+// census staple). Bare "TC1044" is NOT printed there and is not covered (sibling rule).
+// `volts: 0` is an unused placeholder: the pump rail is derived per circuit from the input
+// node (see `pumpDerivation` in device-laws.ts), and pump parts bypass generic section
+// expansion, `registrySuppliedVoltages`, and `declaredRegulatorTerminals`, so this number
+// is never stamped.
+	{
+		"partIds": [
+			"TC1044S",
+			"TC1044SCPA",
+			"TC1044SCOA",
+			"TC1044SEPA",
+			"TC1044SEOA",
+			"TC1044SIJA",
+			"TC1044SMJA"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"boost"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"lv",
+				"lowvoltage"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 60
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"boost",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"lv",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
+// --- ICL7660 charge-pump inverter (Intersil/Renesas): NC on pin 1, 10 V max -------------------------------
+// Pinout verified against Intersil FN3072 Rev 7.00 (2010-10-05), p1 pinout diagram (8 Ld PDIP/SOIC
+// top view): 1 NC, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+. Supply 1.5-10.0 V (3-10 LV
+// open; 1.5-3.5 LV to GND; FN3072 pp2-3). Oscillator 10 kHz typ at V+ = 5 V, COSC = 0 (pp1-3),
+// lowered by a pin-7 capacitor or external overdrive. Output resistance 55 TYP / 100 MAX ohm at
+// IOUT = 20 mA, 25 C, V+ = 5 V (pp2-3; Fig 7 curve slope 55 ohm); Thevenin model is an ideal -V+
+// source in series with ROUT (p7 Fig 13B: "the voltage source has a value of -V+"), and the
+// RO formula (p7: ~= 2*RSW + 1/(fPUMP*C1) + 4*ESR_C1 + ESR_C2, RSW ~23 ohm at 25 C/5 V) reduces
+// to the printed row at the test-circuit values. Open-circuit conversion 97/99.9% (p3): loss 0.
+// Part ids are the datasheet title plus the p2 ordering table (CPA/CBA, Z = Pb-free) and the
+// package markings the same table prints ("7660CPA" etc.). The S-suffixed codes live in the
+// ICL7660S entry (FN3179), whose pin 1 is BOOST, not NC. `volts: 0` placeholder as above.
+	{
+		"partIds": [
+			"ICL7660",
+			"ICL7660CPA",
+			"ICL7660CPAZ",
+			"ICL7660CBA",
+			"ICL7660CBAZ",
+			"7660CPA",
+			"7660CPAZ",
+			"7660CBA",
+			"7660CBAZ"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"nc",
+				"noconnect"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"lv",
+				"lowvoltage"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 55
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"nc",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"lv",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
+// --- ICL7660A charge-pump inverter (Intersil/Renesas): NC on pin 1, 12 V max ------------------------------
+// Same FN3072 datasheet as the ICL7660, A-model columns: supply 1.5-12.0 V (pp2-3), output
+// resistance 60 TYP / 100 MAX ohm at 20 mA, 25 C (p3 five-volt table; 120 max 0-70 C,
+// 120 max -40-85 C), oscillator 10 kHz typ, open-circuit conversion 99/99.9% (loss 0).
+// Part ids from the FN3072 p2 ordering table, commercial and industrial, PDIP and SOIC,
+// plus the printed package markings. `volts: 0` placeholder as above.
+	{
+		"partIds": [
+			"ICL7660A",
+			"ICL7660ACPA",
+			"ICL7660ACPAZ",
+			"ICL7660ACBA",
+			"ICL7660ACBAZ",
+			"ICL7660AIBA",
+			"ICL7660AIBAZ",
+			"7660ACPA",
+			"7660ACPAZ",
+			"7660ACBA",
+			"7660ACBAZ",
+			"7660AIBA",
+			"7660AIBAZ"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"nc",
+				"noconnect"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"lv",
+				"lowvoltage"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 60
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"nc",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"lv",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
+// --- ICL7660S charge-pump inverter (Renesas): BOOST on pin 1, covers 7660SCPAZ ----------------------------
+// Pinout verified against Renesas FN3179 Rev 7.01, p1: 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT,
+// 6 LV, 7 OSC, 8 V+. Supply 1.5-12 V (3-12 LV open; 1.5-3.5 LV to GND; FN3179 p3). Oscillator
+// 5 min / 10 typ kHz with pin 1 open/GND, 35 typ kHz with pin 1 = V+ (p3). Output resistance
+// 60 TYP / 100 MAX ohm at IOUT = 20 mA, V+ = 5 V, OSC free-running, 25 C (p3; 120 max 0-70 C).
+// Open-circuit conversion 99/99.9% at RL = infinity (p3): loss 0. Part ids from the FN3179
+// ordering table, which prints ICL7660SCPA (marked "no longer available") and ICL7660SCPAZ
+// (marking "7660S CPAZ"); the bare marking folds to "7660SCPAZ"/"7660SCPA" and both are
+// covered as printed-marking aliases. `volts: 0` placeholder as above.
+	{
+		"partIds": [
+			"ICL7660S",
+			"ICL7660SCPA",
+			"ICL7660SCPAZ",
+			"7660SCPA",
+			"7660SCPAZ"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"boost"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"lv",
+				"lowvoltage"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 60
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"boost",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"lv",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
+// --- TC7662B charge-pump inverter (Microchip): 15 V max, bare "7662" bound by family ----------------------
+// Pinout verified against Microchip DS20001469B, p1 diagram and p7 Table 3-1: 1 BOOST, 2 CAP+,
+// 3 GND, 4 CAP-, 5 VOUT, 6 LV, 7 OSC, 8 V+. Supply 1.5-15 V (3-15 LV open; 1.5-3.5 LV to GND;
+// pp3-4). Oscillator 5 min / 10 typ kHz with pin 1 open/GND, 35 typ kHz with pin 1 = V+;
+// pump switching frequency is fOSC/2 (p4 note 5). Output resistance 65 TYP / 100 MAX ohm at
+// IOUT = 20 mA, 0-70 C, V+ = 5 V, OSC free-running (pp3-4; 120 max -40-85 C). Open-circuit
+// conversion 99/99.9% at RL = infinity (p4): loss 0. Order codes BCPA/BEPA/BCOA/BEOA are
+// printed on p1. Bare "7662" is NOT printed anywhere in the document and is covered ONLY
+// because moogerfooger-mf-102 declares exactly that PartNumber on a charge-pump-inverter
+// shell whose declared roles fit the inverter use (V+ in, GND, negative out); without it the
+// packet would refuse. That is an explicit, documented exception to the sibling rule above,
+// not a precedent: the family doc is authoritative for the 7662 function and pinout, and the
+// shell carries its own role evidence. `volts: 0` placeholder as above.
+	{
+		"partIds": [
+			"TC7662B",
+			"TC7662BCPA",
+			"TC7662BEPA",
+			"TC7662BCOA",
+			"TC7662BEOA",
+			"7662"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"boost"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"lv",
+				"lowvoltage"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 65
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"boost",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"lv",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
+// --- LT1054 switched-capacitor converter (TI second source): different pins, printed loss -----------------
+// Pinout verified against TI SLVS033G, p3 pin config + pin-functions table (PDIP-8): 1 FB/SD
+// (shutdown/error-amp input), 2 CAP+, 3 GND, 4 CAP-, 5 VOUT (output), 6 VREF (2.5 V reference
+// output), 7 OSC (input), 8 VCC (supply). This is NOT the 7660 pin order: pin 1 is an input and
+// pin 6 an output, so the part is footprint-compatible but not a drop-in substitute (see the
+// evidence file). Supply VCC 3.5-15 V recommended (p5). Oscillator 15 min / 25 typ / 35 max
+// kHz over 3.5-15 V (p5). Output resistance 10 TYP / 15 MAX ohm as the dVO/dIO slope from 10
+// to 100 mA (p5 + fn5). Voltage loss VCC - |VO|: 0.35 TYP / 0.55 MAX V at 10 mA, 1.1/1.6 V at
+// 100 mA, device as inverter with pins 1, 6, 7 unconnected, CI = CO = 100 uF tantalum
+// (p5 + fn4) -- the loss term below is that 10 mA TYP row with its conditions, and the slope
+// resistance rides separately on sourceOhms. Shutdown 100 uA typ with FB/SD = 0 V (pp5, 12);
+// shutdown state is not modelled (normal operation assumed). Part ids LT1054C/LT1054I (families,
+// p5) and the orderable LT1054CP (PDIP-8, marking LT1054CP) + LT1054CPE4 (package addendum).
+// `volts: 0` placeholder as above.
+	{
+		"partIds": [
+			"LT1054",
+			"LT1054C",
+			"LT1054CP",
+			"LT1054CPE4",
+			"LT1054I"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"fbsd",
+				"fb",
+				"sd",
+				"shutdown"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"vref",
+				"reference"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vcc",
+				"vin",
+				"vplus",
+				"vdd",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 10
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"fbsd",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"vref",
+				"osc",
+				"vcc"
+			]
+		},
+		"chargePumpLossVolts": 0.35
+	},
+
+// --- LTC1144 wide-input converter (Linear Tech): SHDN on pin 6 --------------------------------------------
+// Pinout verified against Linear Technology 1144fa, p2 config + p5 Pin Functions: 1 BOOST
+// (x10 when tied high), 2 CAP+, 3 GND, 4 CAP-, 5 VOUT, 6 SHDN (float/V+ = run, GND = shutdown),
+// 7 OSC, 8 V+. No LV pin and no low-voltage mode split: supply 2-18 V (p1, p3). Oscillator
+// 10 kHz at 15 V, 4 kHz at 5 V (p3). Output resistance 56 TYP / 100 MAX ohm at V+ = 15 V,
+// IL = 20 mA, 10 kHz, 25 C (p3; 120/140 max full-temp; 90/250-300 at 5 V/3 mA/4 kHz).
+// Open-circuit conversion 97.0/99.9% at RL = infinity (p3): loss 0. Shutdown 8 uA typ with
+// SHDN = 0 V (p1); shutdown state is not modelled (normal operation assumed). Part ids LTC1144
+// (title) plus the printed package order codes CN8/IN8/CS8/IS8 (p3 ordering). `volts: 0`
+// placeholder as above.
+	{
+		"partIds": [
+			"LTC1144",
+			"LTC1144CN8",
+			"LTC1144IN8",
+			"LTC1144CS8",
+			"LTC1144IS8"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"boost"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"shdn",
+				"shutdown"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 56
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"boost",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"shdn",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
+// --- MAX1044 switched-capacitor converter (Maxim): BOOST on pin 1 -----------------------------------------
+// Pinout verified against Maxim 19-4667 Rev 1 (7/94), p1 pin configuration ("(N.C.) BOOST":
+// N.C. on Maxim's ICL7660, BOOST on the MAX1044): 1 BOOST, 2 CAP+, 3 GND, 4 CAP-, 5 VOUT,
+// 6 LV, 7 OSC, 8 V+. Supply 1.5-10 V (3-10 LV open; 1.5-3.5 LV to GND; the MAX1044's LV may
+// be grounded at any voltage, unlike the ICL7660's -- p7). Oscillator at the 5 kHz test
+// condition (p2), BOOST = V+ raises it x~6 (p7 text). Output resistance 65 TYP / 100 MAX ohm
+// at IL = 20 mA, fOSC = 5 kHz, LV open, 25 C, V+ = 5 V, BOOST open (p2 EC; worked example p8:
+// ~50 ohm typ at 5 V with 10 uF pump caps, -4.5 V out at 10 mA). Open-circuit conversion
+// 97.0/99.9% at RL = infinity (p2): loss 0. Part ids MAX1044 (title) plus the printed
+// CPA/CSA/EPA/ESA order codes (p1 ordering + end-of-doc list); bare "MAX1044S" is not printed
+// and not covered. Maxim's own ICL7660 rows (55/100 ohm) stay with the ICL7660 entries.
+// `volts: 0` placeholder as above.
+	{
+		"partIds": [
+			"MAX1044",
+			"MAX1044CPA",
+			"MAX1044CSA",
+			"MAX1044EPA",
+			"MAX1044ESA"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"boost"
+			],
+			[
+				"capp",
+				"capplus"
+			],
+			[
+				"gnd",
+				"ground"
+			],
+			[
+				"capm",
+				"capminus"
+			],
+			[
+				"vout",
+				"negativeoutput",
+				"voutnegative",
+				"out",
+				"output"
+			],
+			[
+				"lv",
+				"lowvoltage"
+			],
+			[
+				"osc",
+				"oscillator"
+			],
+			[
+				"vplus",
+				"vin",
+				"vdd",
+				"vcc",
+				"input"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "voltage-source",
+						"volts": 0,
+						"sourceOhms": 65
+					},
+					"terminals": [
+						4,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"boost",
+				"capp",
+				"gnd",
+				"capm",
+				"vout",
+				"lv",
+				"osc",
+				"vplus"
+			]
+		},
+		"chargePumpLossVolts": 0
+	},
+
 // --- AK4552VT8 8-pin codec body alternative ----------------------------------------------------------------------------------
 	{
 		"partIds": [
