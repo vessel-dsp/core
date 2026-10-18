@@ -313,6 +313,19 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"the figure with a 22 pF compensation capacitor.",
 		},
 	},
+	{
+		// Wave 1. GBW only: the output-swing pair is deliberately not typed (owner decision
+		// D4, 2026-10-17, upheld by the coordinator 2026-10-18 for this wave -- see
+		// `opampOutputSwingAbsent`, which this id is intentionally NOT added to).
+		partIds: ["LM833"],
+		gainBandwidthHz: {
+			value: 16e6,
+			basis: "datasheet",
+			source:
+				"LM833/datasheets/lm833-ti.pdf (TI SLOS481B, rev Oct 2014) 7.6 p5, VCC+-=+-15V, TA=25C: " +
+				"'GBW | Gain bandwidth product | f = 100 kHz | MIN 10 TYP 16 | MHz'.",
+		},
+	},
 ]);
 
 /** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. */

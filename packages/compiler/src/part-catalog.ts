@@ -56,9 +56,12 @@ import type { PartEntry, PartRegistry } from "./registry";
 import { foldPartId, opampOutputSwingOf } from "./registry";
 import type { DeviceLaw } from "./types";
 import {
+	bjtRegistryRecords,
 	chargePumpRegistryRecords,
+	diodeRegistryRecords,
 	findPartRegistryData,
 	jfetRegistryRecords,
+	mosfetRegistryRecords,
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
 	opampRegistryRecords,
@@ -157,23 +160,195 @@ function zenerLaw(partIds: readonly string[], breakdownVolts: number): PartEntry
  * is never mistaken for one.
  */
 
-// --- Switch JFETs: per-part silicon gate data, channel deliberately unrefined -----------------
+// --- Wave-1 discrete builders: cited record -> law entry --------------------------------------
 //
-// The JFET class default is avowedly no part's values; see `registry-data/jfet.ts` for the
-// measured gate-defect note, the rank argument for keeping the class channel, and the
-// provenance. The registry-data record carries the gate term only; the `fetLaw` entry below
-// repeats the class channel by construction.
-function fetLaw(
-	partIds: readonly string[],
-	law: Extract<DeviceLaw, { kind: "fet" }>,
-): PartEntry {
+// Stage-1 wired the bjt, mosfet, diode-forward and jfet-channel cases to read the registry
+// (document-typed > registry > class default, exact folded part id). These builders turn the
+// wave-1 `registry-data` records into the law entries those cases read. Every builder maps the
+// record's PRESENT parameters and gap-fills the rest with the class default the unregistered
+// path stamps -- the literals below repeat `device-laws.ts` (`SILICON_SATURATION_CURRENT`,
+// `SILICON_FORWARD_BETA`, reverseBeta 1, `THERMAL_VOLTAGE`, leakageAmps 0; the JFET/MOSFET
+// channel and gate constants; the diode forward defaults) BY VALUE, deliberately: importing
+// them would drag the stamping path into the catalog, and a drift between the two copies is
+// caught by the sparse-record test (`registry-discrete-wiring`), which stamps a one-parameter
+// entry and requires every omitted field to equal the empty-registry stamp.
+//
+// Bin and package spellings merge into the entry's `partIds`: `registryLawFor` matches whole
+// folded ids against `partIds` only, so an alias that stayed on the record would never match.
+// The data loader's uniqueness scope already covers ids plus aliases, so the merge cannot
+// introduce a collision the loader missed.
+//
+// Structural fields stay at stamp time, never in the entry: a bjt entry's `polarity` and a
+// fet entry's `channel` are inert placeholders (`npn` / `n`) that `device-laws.ts` always
+// overwrites from the device's own `pnp` / `pChannel`. A bjt entry therefore serves NPN and
+// PNP parts alike, and no entry asserts a polarity or channel about anyone's part.
+
+/** One record's cited value for a schema parameter, or absent when the record omits it. */
+function citedValueOf(record: PartDataEntry, name: string): number | undefined {
+	const param = record.params[name];
+	return param === undefined ? undefined : param.value;
+}
+
+/** The entry's id list: canonical ids plus typed alias spellings, in listing order. */
+function entryIdsOf(record: PartDataEntry): readonly string[] {
+	return [...record.partIds, ...(record.aliases ?? [])];
+}
+
+/** A bjt record's law entry. Throws when the record is not class `bjt` or states nothing. */
+export function bjtLawEntry(record: PartDataEntry): PartEntry {
+	if (record.class !== "bjt") {
+		throw new Error(
+			`${record.partIds.join(",")}: a bjt entry needs class "bjt", not "${record.class}"`,
+		);
+	}
+	if (Object.keys(record.params).length === 0) {
+		throw new Error(
+			`${record.partIds.join(",")}: a bjt record states no parameters`,
+		);
+	}
 	return {
-		partIds,
+		partIds: entryIdsOf(record),
 		declaredTypes: [],
 		terminalRoleGroups: [],
-		model: { kind: "law", law },
+		model: {
+			kind: "law",
+			law: {
+				kind: "bjt",
+				polarity: "npn",
+				saturationCurrent:
+					citedValueOf(record, "saturationCurrent") ?? 1e-14,
+				forwardBeta: citedValueOf(record, "forwardBeta") ?? 100,
+				reverseBeta: citedValueOf(record, "reverseBeta") ?? 1,
+				thermalVoltage: citedValueOf(record, "thermalVoltage") ?? 0.025_852,
+				leakageAmps: citedValueOf(record, "leakageAmps") ?? 0,
+			},
+		},
 	};
 }
+
+/**
+ * A signal-diode record's law entry. Requires the forward pair together: the only
+ * derivation the registry admits (two printed (If, Vf) points) yields IS and n as one
+ * working, so a lone IS without n is a broken derivation and throws rather than shipping
+ * half a knee. Gap-filled breakdownVolts 0 keeps the no-knee reading the unregistered path
+ * stamps (a zener knee belongs to class `zener` and the existing `zenerLaw` path, not here).
+ */
+export function diodeLawEntry(record: PartDataEntry): PartEntry {
+	if (record.class !== "diode") {
+		throw new Error(
+			`${record.partIds.join(",")}: a diode entry needs class "diode", not "${record.class}"`,
+		);
+	}
+	const saturationCurrent = citedValueOf(record, "saturationCurrent");
+	const emissionCoefficient = citedValueOf(record, "emissionCoefficient");
+	if (saturationCurrent === undefined || emissionCoefficient === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: a diode record states no forward pair ` +
+				`(saturationCurrent ${saturationCurrent === undefined ? "absent" : "present"}, ` +
+				`emissionCoefficient ${emissionCoefficient === undefined ? "absent" : "present"})`,
+		);
+	}
+	return {
+		partIds: entryIdsOf(record),
+		declaredTypes: [],
+		terminalRoleGroups: [],
+		model: {
+			kind: "law",
+			law: {
+				kind: "diode",
+				saturationCurrent,
+				emissionCoefficient,
+				thermalVoltage: citedValueOf(record, "thermalVoltage") ?? 0.025_852,
+				breakdownVolts: citedValueOf(record, "breakdownVolts") ?? 0,
+				seriesResistance: citedValueOf(record, "seriesResistance") ?? 1.0,
+				isLed: false,
+			},
+		},
+	};
+}
+
+/**
+ * A JFET- or MOSFET-channel record's law entry. The class selects the gap-fill constants
+ * (JFET depletion defaults with the silicon gate; MOSFET enhancement defaults with the
+ * insulated gate), so a JFET record can never stamp MOSFET gate zeros and the reverse.
+ * Throws on any other class and on an empty record.
+ */
+export function fetLawEntry(
+	record: PartDataEntry,
+	cls: "jfet" | "mosfet",
+): PartEntry {
+	if (record.class !== cls) {
+		throw new Error(
+			`${record.partIds.join(",")}: a ${cls} entry needs class "${cls}", not "${record.class}"`,
+		);
+	}
+	if (Object.keys(record.params).length === 0) {
+		throw new Error(
+			`${record.partIds.join(",")}: a ${cls} record states no parameters`,
+		);
+	}
+	const channelDefaults =
+		cls === "jfet"
+			? {
+					thresholdVolts: -2,
+					transconductance: 1e-3,
+					channelLengthModulation: 0,
+					subthresholdVolts: 0.07,
+					gateSaturationCurrent: 1e-5,
+					gateOnsetVolts: 0.5,
+					gateScaleVolts: 0.06,
+				}
+			: {
+					thresholdVolts: 2,
+					transconductance: 1e-3,
+					channelLengthModulation: 0,
+					subthresholdVolts: 0,
+					gateSaturationCurrent: 0,
+					gateOnsetVolts: 0,
+					gateScaleVolts: 1,
+				};
+	return {
+		partIds: entryIdsOf(record),
+		declaredTypes: [],
+		terminalRoleGroups: [],
+		model: {
+			kind: "law",
+			law: {
+				kind: "fet",
+				channel: "n",
+				thresholdVolts:
+					citedValueOf(record, "thresholdVolts") ??
+					channelDefaults.thresholdVolts,
+				transconductance:
+					citedValueOf(record, "transconductance") ??
+					channelDefaults.transconductance,
+				channelLengthModulation:
+					citedValueOf(record, "channelLengthModulation") ??
+					channelDefaults.channelLengthModulation,
+				subthresholdVolts:
+					citedValueOf(record, "subthresholdVolts") ??
+					channelDefaults.subthresholdVolts,
+				gateSaturationCurrent:
+					citedValueOf(record, "gateSaturationCurrent") ??
+					channelDefaults.gateSaturationCurrent,
+				gateOnsetVolts:
+					citedValueOf(record, "gateOnsetVolts") ??
+					channelDefaults.gateOnsetVolts,
+				gateScaleVolts:
+					citedValueOf(record, "gateScaleVolts") ??
+					channelDefaults.gateScaleVolts,
+			},
+		},
+	};
+}
+
+// --- JFET channel records: built by `fetLawEntry` (wave-1 builders above) -------------------
+//
+// The JFET class default is avowedly no part's values; see `registry-data/jfet.ts` for the
+// measured gate-defect note, the rank argument for keeping the 2SK30A class channel, and the
+// provenance. The generic builder maps each record's present parameters and gap-fills the
+// class channel, so 2SK30A (gate term only) stamps byte-identically to before while full
+// channels (2N5457) stamp their cited values.
 
 // --- Zener diodes: reverse breakdown from the data registry -------------------------------------
 //
@@ -6798,31 +6973,110 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
+	// Wave-1 op-amp entries: sections whose gain-bandwidth product the data registry
+	// stamps (see `registry-data/opamp.ts` and `withDatasheetGainBandwidth` below). The
+	// open-loop gain is the sheet's own TYP AOL transcribed; the swing pair is deliberately
+	// absent (owner D4 freeze, upheld for this wave).
+
+	// TI LM833 dual audio op-amp, from `parts/op-amps/LM833/datasheets/lm833-ti.pdf` (TI
+	// SLOS481B, rev Oct 2014). Pin diagram and Pin Functions table, 6 p3 (D/SOIC, DGK/MSOP
+	// and P/PDIP packages, TOP VIEW): 1 OUT1, 2 IN1-, 3 IN1+, 4 VCC-, 5 IN2+, 6 IN2-,
+	// 7 OUT2, 8 VCC+ -- the standard dual order, read off the sheet's own table, with the
+	// same pin-numbered role convention as the 4558 entry above (pin-numbered tokens only;
+	// no generic alias may satisfy two sections at once).
+	//
+	// Electrical characteristics 7.5/7.6 p5 at VCC+- = +-15 V, TA = 25 C:
+	//   Large-signal differential voltage amplification AVD, RL >= 2 kOhm, VO = +-10 V:
+	//   MIN 90 TYP 110 dB. Used as `openLoopGain: decibelGain(110)`, the typ figure.
+	// GBW is not in this entry: it lives in the data-registry row (TYP 16 MHz at f = 100 kHz),
+	// stamped by the pass below.
+	{
+		"partIds": [
+			"LM833"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 316227.7660168379
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 316227.7660168379
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
 	...zenerRegistryRecords.map((record) =>
 		zenerLaw(record.partIds, zenerBreakdownVoltsOf(record)),
 	),
 
-	// 2SK30A series/shunt switches: the channel repeats the class default by construction
-	// (see `registry-data/jfet.ts`); only `gateSaturationCurrent` carries part data.
-	...jfetRegistryRecords.map((record) => {
-		const gate = record.params["gateSaturationCurrent"];
-		if (gate === undefined || !Number.isFinite(gate.value)) {
-			throw new Error(
-				`${record.partIds.join(",")}: a jfet record states no gateSaturationCurrent`,
-			);
-		}
-		return fetLaw(record.partIds, {
-			kind: "fet",
-			channel: "n",
-			thresholdVolts: -2,
-			transconductance: 1e-3,
-			channelLengthModulation: 0,
-			subthresholdVolts: 0.07,
-			gateSaturationCurrent: gate.value,
-			gateOnsetVolts: 0.5,
-			gateScaleVolts: 0.06,
-		});
-	}),
+	// Wave-1 discrete fill: bjt, diode-forward, mosfet and jfet-channel records become
+	// law entries through the builders above -- one list per class, so the entries cannot
+	// drift from the records. 2SK30A rides the same generic path as every other JFET: its
+	// record carries only gateSaturationCurrent, so the builder gap-fills the class channel
+	// and the stamp is byte-identical to the bespoke mapping this replaces.
+	...bjtRegistryRecords.map((record) => bjtLawEntry(record)),
+	...diodeRegistryRecords.map((record) => diodeLawEntry(record)),
+	...mosfetRegistryRecords.map((record) => fetLawEntry(record, "mosfet")),
+	...jfetRegistryRecords.map((record) => fetLawEntry(record, "jfet")),
 ];
 
 // --- Op-amp gain-bandwidth product: stamped from the data registry ------------------------------
@@ -7042,15 +7296,27 @@ export function withDatasheetOutputSwing(
 
 /**
  * Every part id whose `fet` entry refines the gate term only, folded for comparison.
- * Derived from the jfet registry records: an entry that states only a gate parameter
- * keeps its avowed class channel, which is never graded against the database's
+ * Derived from the jfet registry records that state NO channel parameter (a record that
+ * states thresholdVolts or transconductance carries a full channel and is not gate-only):
+ * such an entry keeps its avowed class channel, which is never graded against the database's
  * beta/lambda/Vp the way a transcribed channel would be. Mirrors `zenerCatalogPartIds`.
  */
+const GATE_ONLY_EXCLUDED_PARAMS: ReadonlySet<string> = new Set([
+	"thresholdVolts",
+	"transconductance",
+	"channelLengthModulation",
+	"subthresholdVolts",
+]);
 export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(
-	jfetRegistryRecords.flatMap((record) => [
-		...record.partIds,
-		...(record.aliases ?? []),
-	]).map((id) => foldPartId(id)),
+	jfetRegistryRecords
+		.filter((record) =>
+			Object.keys(record.params).every((name) => !GATE_ONLY_EXCLUDED_PARAMS.has(name)),
+		)
+		.flatMap((record) => [
+			...record.partIds,
+			...(record.aliases ?? []),
+		])
+		.map((id) => foldPartId(id)),
 );
 
 /**

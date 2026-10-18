@@ -9,13 +9,16 @@ import { describe, expect, it } from "bun:test";
 import {
 	CLASS_PARAM_SCHEMAS,
 	assemblePartData,
+	bjtRegistryRecords,
 	chargePumpRegistryRecords,
 	classParamNames,
 	defineOpampRecords,
 	definePartData,
+	diodeRegistryRecords,
 	findPartData,
 	findPartRegistryData,
 	jfetRegistryRecords,
+	mosfetRegistryRecords,
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
 	opampRegistryRecords,
@@ -222,16 +225,22 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 	});
 });
 
-describe("stage-1 migration inventory", () => {
-	it("moved exactly the listed parametric data, no more", () => {
-		// Op-amp gain-bandwidth + swing rows, zener rows, one JFET row, regulator rails,
-		// charge-pump loss/slope. IC macros and `sections` entries stayed in code.
-		expect(opampRegistryRecords).toHaveLength(10);
+describe("wave-1 fill inventory", () => {
+	it("holds exactly the stage-1 migration plus the wave-1 fill, no more", () => {
+		// Stage 1: op-amp gain-bandwidth + swing rows, zener rows, one JFET row, regulator
+		// rails, charge-pump loss/slope. IC macros and `sections` entries stayed in code.
+		// Wave 1: one more op-amp GBW row (LM833, GBW-only per the D4 swing freeze), ten BJT
+		// rows, two more JFET rows, two MOSFET threshold rows; diode rows stay empty by
+		// verdict (all eight wave-1 diodes excluded -- MAX-only forward limits).
+		expect(opampRegistryRecords).toHaveLength(11);
 		expect(zenerRegistryRecords).toHaveLength(29);
-		expect(jfetRegistryRecords).toHaveLength(1);
+		expect(jfetRegistryRecords).toHaveLength(3);
 		expect(regulatorRegistryRecords).toHaveLength(5);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(partRegistryData).toHaveLength(10 + 29 + 1 + 5 + 8);
+		expect(bjtRegistryRecords).toHaveLength(10);
+		expect(diodeRegistryRecords).toHaveLength(0);
+		expect(mosfetRegistryRecords).toHaveLength(2);
+		expect(partRegistryData).toHaveLength(11 + 10 + 0 + 2 + 29 + 3 + 5 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

@@ -18,11 +18,20 @@ import {
 } from "../src/fixtures/circuits";
 import { readNetlist } from "../src/netlist";
 import {
+	bjtLawEntry,
+	diodeLawEntry,
+	fetLawEntry,
+	pedalPartCatalog,
+} from "../src/part-catalog";
+import {
 	emptyRegistry,
+	registryOpampGainBandwidth,
 	type PartEntry,
 	type PartRegistry,
 } from "../src/registry";
+import { findPartRegistryData } from "../src/registry-data";
 import type { DeviceLaw } from "../src/types";
+import type { PartDataEntry } from "../src/registry-data/loader";
 
 function lawEntry(partId: string, law: DeviceLaw): PartEntry {
 	return {
@@ -239,5 +248,119 @@ describe("discrete registry wiring", () => {
 		if (law.kind !== "fet") throw new Error("unreachable");
 		expect(law.thresholdVolts).toBe(-2);
 		expect(law.transconductance).toBe(1e-3);
+	});
+});
+
+describe("wave-1 record builders", () => {
+	const bjtRecord = (
+		partIds: readonly string[],
+		params: PartDataEntry["params"],
+		extra: Partial<PartDataEntry> = {},
+	): PartDataEntry => ({ partIds, class: "bjt", params, ...extra });
+
+	test("a sparse BJT record gap-fills the live class defaults", () => {
+		// 2N5088 states only forwardBeta: every omitted field must equal the
+		// empty-registry stamp, so a drift between the builder literals and
+		// device-laws.ts fails here rather than shipping silently.
+		const doc = derive(
+			emitterFollower,
+			'      Description: "Bucket brigade delay memory chip."',
+			'      PartNumber: 2N5088\n      Description: "Bucket brigade delay memory chip."',
+		);
+		const filled = stampOf(doc, "Q1", pedalPartCatalog);
+		const bare = stampOf(doc, "Q1", emptyRegistry);
+		expect(filled.kind).toBe("bjt");
+		expect(bare.kind).toBe("bjt");
+		if (filled.kind !== "bjt" || bare.kind !== "bjt") throw new Error("unreachable");
+		expect(filled.forwardBeta).toBe(700);
+		expect(filled.saturationCurrent).toBe(bare.saturationCurrent);
+		expect(filled.reverseBeta).toBe(bare.reverseBeta);
+		expect(filled.thermalVoltage).toBe(bare.thermalVoltage);
+		expect(filled.leakageAmps).toBe(bare.leakageAmps);
+	});
+
+	test("a sparse MOSFET record gap-fills the live class defaults", () => {
+		const doc = derive(
+			mosfetFollower,
+			'      Description: "Clock driver chip."',
+			'      PartNumber: BS170\n      Description: "Clock driver chip."',
+		);
+		const filled = stampOf(doc, "Q1", pedalPartCatalog);
+		const bare = stampOf(doc, "Q1", emptyRegistry);
+		expect(filled.kind).toBe("fet");
+		expect(bare.kind).toBe("fet");
+		if (filled.kind !== "fet" || bare.kind !== "fet") throw new Error("unreachable");
+		expect(filled.thresholdVolts).toBe(2.0);
+		expect(filled.transconductance).toBe(bare.transconductance);
+		expect(filled.channelLengthModulation).toBe(bare.channelLengthModulation);
+		expect(filled.subthresholdVolts).toBe(bare.subthresholdVolts);
+		expect(filled.gateSaturationCurrent).toBe(bare.gateSaturationCurrent);
+	});
+
+	test("shipped BJT data reaches the stamp", () => {
+		const doc = derive(
+			emitterFollower,
+			'      Description: "Bucket brigade delay memory chip."',
+			'      PartNumber: 2N3904\n      Description: "Bucket brigade delay memory chip."',
+		);
+		const law = stampOf(doc, "Q1", pedalPartCatalog);
+		expect(law.kind).toBe("bjt");
+		if (law.kind !== "bjt") throw new Error("unreachable");
+		expect(law.saturationCurrent).toBe(2.5150964e-15);
+		expect(law.forwardBeta).toBe(173.2050808);
+	});
+
+	test("a typed alias spelling resolves through the built entry", () => {
+		const record = bjtRecord(
+			["SYNTH-ALIAS-BASE"],
+			{
+				forwardBeta: { value: 321, basis: "datasheet", source: "test source" },
+			},
+			{ aliases: ["SYNTH-ALIAS-BIN"] },
+		);
+		const entry = bjtLawEntry(record);
+		const registry: PartRegistry = { entries: [entry] };
+		const doc = derive(
+			emitterFollower,
+			'      Description: "Bucket brigade delay memory chip."',
+			'      PartNumber: SYNTH-ALIAS-BIN\n      Description: "Bucket brigade delay memory chip."',
+		);
+		const law = stampOf(doc, "Q1", registry);
+		expect(law.kind).toBe("bjt");
+		if (law.kind !== "bjt") throw new Error("unreachable");
+		expect(law.forwardBeta).toBe(321);
+	});
+
+	test("builders refuse the wrong class, empty params, and half pairs", () => {
+		expect(() =>
+			bjtLawEntry(bjtRecord(["X"], {}, { class: "diode" }) as PartDataEntry),
+		).toThrow(/class/);
+		expect(() => bjtLawEntry(bjtRecord(["X"], {}))).toThrow(/no parameters/);
+		expect(() =>
+			diodeLawEntry({
+				partIds: ["Y"],
+				class: "diode",
+				params: {
+					saturationCurrent: { value: 1e-9, basis: "datasheet", source: "s" },
+				},
+			}),
+		).toThrow(/forward pair/);
+		expect(() =>
+			fetLawEntry(
+				{
+					partIds: ["Z"],
+					class: "diode",
+					params: {
+						thresholdVolts: { value: -1, basis: "datasheet", source: "s" },
+					},
+				},
+				"jfet",
+			),
+		).toThrow(/class/);
+	});
+
+	test("the LM833 gain-bandwidth row reaches the catalog lookup", () => {
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "LM833")).toBe(16e6);
+		expect(findPartRegistryData("LM833")?.class).toBe("opamp");
 	});
 });

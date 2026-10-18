@@ -9,11 +9,21 @@
 // fetch in the browser. The cost is verbosity, which is the point: each value carries its
 // citation inline.
 // 
-// What lives here at stage 1 (mechanically moved, behaviour unchanged):
-// - op-amp gain-bandwidth products and output-swing pairs (10 + 2 datasheet rows);
+// What lives here after wave 1 (stage 1 moved mechanically, behaviour unchanged; wave 1
+// fills the discrete classes under the four derived bases):
+// - op-amp gain-bandwidth products and output-swing pairs (11 + 2 datasheet rows; LM833 is
+//   GBW-only per the D4 swing freeze);
 // - zener reverse-breakdown rows (30 rows; forward behaviour stays class default);
-// - the 2SK30A gate refinement (1 row; channel stays class default);
+// - BJT records (10 rows: unbinned parts plus 2SC1815-Y/BL ranks; IS by form 1 from a
+//   printed Vbe range midpoint or TYP, BF by form 2 geomean or printed TYP; IS omitted where
+//   the sheet prints a MAX-only Vbe; reverseBeta/leakageAmps/thermalVoltage omitted throughout
+//   for want of a citable figure);
+// - JFET rows (3 rows: 2SK30A gate-only, 2N5457 and J201 full channel by form 3);
+// - MOSFET rows (2 rows: BS170 and 2N7000 thresholdVolts only -- gfs is small-signal gm, not
+//   square-law Beta, and no approved form converts it);
 // - fixed-rail regulator voltages (5 records) and charge-pump loss/slope (8 records).
+// Diode records are empty by verdict: all eight wave-1 diodes print MAX-only forward limits
+// (or a single TYP point); form (4) needs two printed typical (If, Vf) points.
 // Everything else -- IC macros, `sections` entries, open-loop gains, tube laws, the
 // class-default fallbacks -- stays in `part-catalog.ts` / `device-laws.ts` code.
 // 
@@ -23,6 +33,9 @@
 
 import { assemblePartData, definePartData, findPartData } from "./loader";
 import type { PartDataEntry } from "./loader";
+import { bjtRegistryRecords } from "./bjt";
+import { diodeRegistryRecords } from "./diode";
+import { mosfetRegistryRecords } from "./mosfet";
 import { opampRegistryRecords } from "./opamp";
 import { zenerRegistryRecords } from "./zener";
 import { jfetRegistryRecords } from "./jfet";
@@ -43,6 +56,9 @@ export {
 	type ParamBasis,
 	type PartDataEntry,
 } from "./loader";
+export { bjtRegistryRecords } from "./bjt";
+export { diodeRegistryRecords } from "./diode";
+export { mosfetRegistryRecords } from "./mosfet";
 export {
 	defineOpampRecords,
 	opampGainBandwidthAbsent,
@@ -81,12 +97,15 @@ const opampAsEntries: readonly PartDataEntry[] = definePartData(
 );
 
 /**
- * The whole stage-1 data set, validated and frozen. Throws at module load on a duplicate
+ * The whole wave-1 data set, validated and frozen. Throws at module load on a duplicate
  * part id or alias across the per-class lists -- an alias that collides with another
  * entry is refused rather than shadowed.
  */
 export const partRegistryData: readonly PartDataEntry[] = assemblePartData([
 	opampAsEntries,
+	bjtRegistryRecords,
+	diodeRegistryRecords,
+	mosfetRegistryRecords,
 	zenerRegistryRecords,
 	jfetRegistryRecords,
 	regulatorRegistryRecords,
