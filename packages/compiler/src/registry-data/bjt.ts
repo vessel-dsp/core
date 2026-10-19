@@ -281,7 +281,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 1.6350012e-14,
 				basis: "derived",
 				source:
-					"Fetched manufacturer sheet (no vendored copy): onsemi BC550/D, Feb 2026 Rev. 6 (family " +
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family " +
 					"sheet BC546/547/548/549/550), p2, ELECTRICAL CHARACTERISTICS: 'Base-Emitter On Voltage " +
 					"VBE(on), VCE = 5 V, IC = 2 mA, MIN 580 TYP 660 MAX 700 mV' (one row for the family, no " +
 					"per-part split)",
@@ -293,12 +293,302 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 579.6550698,
 				basis: "derived",
 				source:
-					"Fetched manufacturer sheet (no vendored copy): onsemi BC550/D, Feb 2026 Rev. 6, p2, hFE " +
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, p2, hFE " +
 					"CLASSIFICATION table: 'C: 420 ~ 800' (the family hFE row is MIN 110 MAX 800 at VCE = 5 V, " +
 					"IC = 2 mA; the C bin is the bin this part is)",
 				derivation:
 					"Printed C-bin hFE 420-800; geometric midpoint (form 2, gains): " +
 					"sqrt(420 * 800) = 579.6550698.",
+			},
+		},
+	},
+	{
+		// Wave 3. Farnell/Multicomp BC107-108-109 family sheet (V1.0 30/05/05) p3: one
+		// VBE(on) row for the family (no per-part split, no TYP), so IS is shared with
+		// BC109 below. DC hFE bins are per part at the same bias, so BF differs.
+		partIds: ["BC108"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 6.3312899e-14,
+				basis: "derived",
+				source:
+					"BC109/datasheets/farnell-bc107-bc108-bc109.pdf (Multicomp BC107/BC108/BC109, V1.0 " +
+					"30/05/05) p3, ELECTRICAL CHARACTERISTICS: 'Base Emitter on Voltage VBE(on), " +
+					"IC = 2 mA, VCE = 5 V, MIN 0.55 MAX 0.70 V' (no TYP; one row for the family, " +
+					"no per-part split; the VBE(sat) rows are MAX-only 0.83 V at 10 mA and 1.05 V " +
+					"at 100 mA and yield nothing)",
+				derivation:
+					"Printed VBE(on) range 0.55-0.70 V at IC = 2 mA, VCE = 5 V; arithmetic " +
+					"midpoint 0.625 V (form 2, printed range, no TYP); IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.625 / 0.025852) = 6.3312899e-14.",
+			},
+			forwardBeta: {
+				value: 296.6479395,
+				basis: "derived",
+				source:
+					"BC109/datasheets/farnell-bc107-bc108-bc109.pdf (Multicomp BC107/BC108/BC109, V1.0 " +
+					"30/05/05) p3: 'DC Current Gain hFE, IC = 2 mA, VCE = 5 V: BC108 MIN 110 MAX 800' " +
+					"(BC107 110-450 and BC109 200-800 are the sibling rows; the small-signal hfe " +
+					"row at f = 1 kHz reads BC108 125-900 and is not used -- the DC bin at the " +
+					"same bias is the quantity the law wants, per the 2N3904/2SC1815 precedent)",
+				derivation:
+					"Printed BC108 DC hFE bin 110-800 at IC = 2 mA, VCE = 5 V; geometric " +
+					"midpoint (form 2, gains): sqrt(110 * 800) = 296.6479395.",
+			},
+		},
+	},
+	{
+		// Wave 3. Same family VBE(on) row as BC108 (shared IS); own DC hFE bin.
+		partIds: ["BC109"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 6.3312899e-14,
+				basis: "derived",
+				source:
+					"BC109/datasheets/farnell-bc107-bc108-bc109.pdf (Multicomp BC107/BC108/BC109, V1.0 " +
+					"30/05/05) p3, ELECTRICAL CHARACTERISTICS: 'Base Emitter on Voltage VBE(on), " +
+					"IC = 2 mA, VCE = 5 V, MIN 0.55 MAX 0.70 V' (no TYP; one row for the family, " +
+					"no per-part split; the VBE(sat) rows are MAX-only and yield nothing)",
+				derivation:
+					"Printed VBE(on) range 0.55-0.70 V at IC = 2 mA, VCE = 5 V; arithmetic " +
+					"midpoint 0.625 V (form 2, printed range, no TYP); IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.625 / 0.025852) = 6.3312899e-14.",
+			},
+			forwardBeta: {
+				value: 400,
+				basis: "derived",
+				source:
+					"BC109/datasheets/farnell-bc107-bc108-bc109.pdf (Multicomp BC107/BC108/BC109, V1.0 " +
+					"30/05/05) p3: 'DC Current Gain hFE, IC = 2 mA, VCE = 5 V: BC109 MIN 200 MAX 800' " +
+					"(the small-signal hfe row at f = 1 kHz reads BC109 240-900 and is not used, " +
+					"same reason as BC108)",
+				derivation:
+					"Printed BC109 DC hFE bin 200-800 at IC = 2 mA, VCE = 5 V; geometric " +
+					"midpoint (form 2, gains): sqrt(200 * 800) = 400.",
+			},
+		},
+	},
+	{
+		// Wave 3. Same onsemi BC550/D family sheet as BC549C (one VBE(on) row, C bin).
+		partIds: ["BC550C"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family " +
+					"sheet BC546/547/548/549/550), p2, ELECTRICAL CHARACTERISTICS: 'Base-Emitter On " +
+					"Voltage VBE(on), VCE = 5 V, IC = 2 mA, MIN 580 TYP 660 MAX 700 mV' (one row " +
+					"for the family, no per-part split)",
+				derivation:
+					"Printed VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA; IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 579.6550698,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, hFE " +
+					"CLASSIFICATION table: 'C: 420 ~ 800' (the family hFE row is MIN 110 MAX 800 " +
+					"at VCE = 5 V, IC = 2 mA; the C bin is the bin this part is)",
+				derivation:
+					"Printed C-bin hFE 420-800; geometric midpoint (form 2, gains): " +
+					"sqrt(420 * 800) = 579.6550698.",
+			},
+		},
+	},
+	{
+		// Wave 3. Same family VBE(on) row (shared IS); B bin.
+		partIds: ["BC549B"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family " +
+					"sheet BC546/547/548/549/550), p2: 'Base-Emitter On Voltage VBE(on), VCE = 5 V, " +
+					"IC = 2 mA, MIN 580 TYP 660 MAX 700 mV' (one row for the family)",
+				derivation:
+					"Printed VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA; IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 300,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, hFE " +
+					"CLASSIFICATION table: 'B: 200 ~ 450'",
+				derivation:
+					"Printed B-bin hFE 200-450; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 450) = 300.",
+			},
+		},
+	},
+	{
+		// Wave 3. Same family VBE(on) row (shared IS); B bin (same bin as BC549B: the
+		// classification table is by letter, not by part number).
+		partIds: ["BC547B"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family " +
+					"sheet BC546/547/548/549/550), p2: 'Base-Emitter On Voltage VBE(on), VCE = 5 V, " +
+					"IC = 2 mA, MIN 580 TYP 660 MAX 700 mV' (one row for the family)",
+				derivation:
+					"Printed VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA; IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 300,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, hFE " +
+					"CLASSIFICATION table: 'B: 200 ~ 450' (by bin letter)",
+				derivation:
+					"Printed B-bin hFE 200-450; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 450) = 300.",
+			},
+		},
+	},
+	{
+		// Wave 3. Unsuffixed BC550: the family VBE(on) row (shared IS) but no bin of its
+		// own, so BF is the family DC row's midpoint (the unbinned 2SC1815 precedent).
+		partIds: ["BC550"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family " +
+					"sheet BC546/547/548/549/550), p2: 'Base-Emitter On Voltage VBE(on), VCE = 5 V, " +
+					"IC = 2 mA, MIN 580 TYP 660 MAX 700 mV' (one row for the family)",
+				derivation:
+					"Printed VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA; IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 296.6479395,
+				basis: "derived",
+				source:
+					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, " +
+					"family hFE row: MIN 110 MAX 800 at VCE = 5 V, IC = 2 mA (no bin for the " +
+					"unsuffixed label)",
+				derivation:
+					"Printed family hFE 110-800; geometric midpoint (form 2, gains): " +
+					"sqrt(110 * 800) = 296.6479395.",
+			},
+		},
+	},
+	{
+		// Wave 3. 2N3903: the family sheet's only Vbe basis is the VBE(sat) row shared
+		// with 2N3904 (IC = 10 mA, within the IC <= 20 mA gate; identical row, conditions
+		// and arithmetic to the shipped 2N3904 IS, which stands). BF is the 2N3903 DC
+		// row at the same bias (sibling-consistent with 2N3904's DC bin, not the
+		// small-signal hfe row).
+		partIds: ["2N3903"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.5150964e-15,
+				basis: "derived",
+				source:
+					"2N3903/datasheets/2n3903.pdf (onsemi 2N3903/D, Aug 2021 Rev. 9, family sheet " +
+					"2N3903 + 2N3904) p2, ELECTRICAL CHARACTERISTICS: 'Base-Emitter Saturation " +
+					"Voltage VBE(sat), IC = 10 mA, IB = 1.0 mA, MIN 0.65 MAX 0.85 V' (shared row, " +
+					"no per-part split; the 50 mA row is MAX-only 0.95 V)",
+				derivation:
+					"Printed VBE(sat) range 0.65-0.85 V at IC = 10 mA, IB = 1.0 mA (IC within the " +
+					"form-1 IC <= 20 mA gate); arithmetic midpoint 0.75 V (form 2); " +
+					"IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.01 * exp(-0.75 / 0.025852) = 2.5150964e-15 -- same row and arithmetic " +
+					"as the shipped 2N3904 IS.",
+			},
+			forwardBeta: {
+				value: 86.6025404,
+				basis: "derived",
+				source:
+					"2N3903/datasheets/2n3903.pdf (onsemi 2N3903/D, Aug 2021 Rev. 9) p2, ON " +
+					"CHARACTERISTICS: 'DC Current Gain hFE, IC = 10 mA, VCE = 1.0 V: 2N3903 " +
+					"MIN 50 MAX 150' (2N3904 100-300 is the sibling row; the small-signal hfe " +
+					"row at 1 mA reads 2N3903 50-200 and is not used -- the DC bin at the same " +
+					"bias as 2N3904 is the sibling-consistent quantity)",
+				derivation:
+					"Printed 2N3903 DC hFE bin 50-150 at IC = 10 mA, VCE = 1.0 V; geometric " +
+					"midpoint (form 2, gains): sqrt(50 * 150) = 86.6025404.",
+			},
+		},
+	},
+	{
+		// Wave 3. Toshiba 2SC732TM rank entry (the 2SC1815-Y/BL precedent: a rank is a
+		// different gain, so its own entry, never an alias). VBE TYP transcribed (active
+		// region, IC = 2 mA); BF is the GR rank's midpoint.
+		partIds: ["2SC732TM-GR"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.4071917e-14,
+				basis: "derived",
+				source:
+					"2SC732/datasheets/toshiba-2sc732.pdf (Toshiba 2SC732TM, 1996-09-02, scan p1, " +
+					"read visually, no text layer) ELECTRICAL CHARACTERISTICS (Ta = 25C): " +
+					"'Base-Emitter Voltage VBE, VCE = 6 V, IC = 2 mA: TYP 0.65 V' (no MIN/MAX; " +
+					"the VCE(sat) row is MAX-only 0.3 V at IC = 10 mA and yields nothing)",
+				derivation:
+					"Printed VBE TYP 0.65 V at VCE = 6 V, IC = 2 mA (active region, within the " +
+					"form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.65 / 0.025852) = 2.4071917e-14.",
+			},
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"2SC732/datasheets/toshiba-2sc732.pdf (Toshiba 2SC732TM, 1996-09-02, scan p1) " +
+					"ELECTRICAL CHARACTERISTICS: 'DC Current Gain hFE (Note), VCE = 6 V, IC = 2 mA: " +
+					"MIN 200 MAX 700' with Note 'hFE Classification GR: 200~400, BL: 350~600'",
+				derivation:
+					"Printed GR-rank hFE bin 200-400 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 400) = 282.8427125.",
+			},
+		},
+	},
+	{
+		// Wave 3. NEC 2SC945 rank entry (same rank-entry precedent). VBE TYP transcribed
+		// (active region, IC = 1 mA); BF is the P rank's midpoint.
+		partIds: ["2SC945-P"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 3.8411256e-14,
+				basis: "derived",
+				source:
+					"2SC945/datasheets/nec-2sc945.pdf (NEC 2SC945 databook p258, scan, read " +
+					"visually, no text layer) ELECTRICAL CHARACTERISTICS (Ta = 25C): 'VBE Base to " +
+					"Emitter Voltage, MIN 0.55 TYP 0.62 MAX 0.65 V at VCE = 6.0 V, IC = 1.0 mA' " +
+					"(the VBE(sat) row is TYP 0.86 MAX 1.0 V at IC = 100 mA -- high-current, excluded)",
+				derivation:
+					"Printed VBE TYP 0.62 V at VCE = 6.0 V, IC = 1.0 mA (active region, within " +
+					"the form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.001 * exp(-0.62 / 0.025852) = 3.8411256e-14.",
+			},
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"2SC945/datasheets/nec-2sc945.pdf (NEC 2SC945 databook p258) ELECTRICAL " +
+					"CHARACTERISTICS: 'hFE2 DC Current Gain, MIN 90 TYP 200 MAX 600 at VCE = 6.0 V, " +
+					"IC = 1.0 mA' with 'Classification of hFE2: R 90-180, Q 135-270, P 200-400, " +
+					"K 300-600; hFE2 Test Conditions: VCE = 6.0 V, IC = 1.0 mA'",
+				derivation:
+					"Printed P-rank hFE2 bin 200-400 at VCE = 6.0 V, IC = 1.0 mA; geometric " +
+					"midpoint (form 2, gains): sqrt(200 * 400) = 282.8427125.",
 			},
 		},
 	},

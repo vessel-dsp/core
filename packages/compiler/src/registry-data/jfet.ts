@@ -110,4 +110,41 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 3. Full channel by the same J201 form (no TYP either side): IDSS and
+		// VGS(off) are range midpoints (form 2) and Beta follows by the square law
+		// (form 3). Gate terms stay class defaults (reverse IGSS only, never forward).
+		// The printed yfs 2.0-6.5 mS at VGS = 0 is a zero-bias small-signal figure, not
+		// the square-law Beta, and is not used.
+		partIds: ["2N5952"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -2.4,
+				basis: "derived",
+				source:
+					"2N5952/datasheets/2N5949_SERIES.pdf (Central Semiconductor 2N5949 Series, R1 " +
+					"25-April-2018; sha256 " +
+					"da3614d6a24b425e670ad9f6abf27d50dc8c073243cc76065350e8ae4b19c053) p1, " +
+					"ELECTRICAL CHARACTERISTICS (TA = 25C), MIN/MAX columns, no TYP column on any " +
+					"row: 'VGS(OFF), VDS = 15 V, ID = 100 nA: 2N5952 MIN 1.3 MAX 3.5 V' (magnitudes; " +
+					"N-channel, so Vt0 is negative)",
+				derivation:
+					"Printed 2N5952 VGS(OFF) range 1.3-3.5 V at VDS = 15 V, ID = 100 nA; " +
+					"arithmetic midpoint (form 2, volts are not gains): -(1.3 + 3.5) / 2 = -2.4 V.",
+			},
+			transconductance: {
+				value: 1.0416667e-3,
+				basis: "derived",
+				source:
+					"2N5952/datasheets/2N5949_SERIES.pdf (Central Semiconductor 2N5949 Series, R1 " +
+					"25-April-2018) p1: 'IDSS, VDS = 15 V, VGS = 0: 2N5952 MIN 4.0 MAX 8.0 mA' " +
+					"(no TYP; 2N5949/5951/5953 columns are the siblings)",
+				derivation:
+					"Printed 2N5952 IDSS range 4.0-8.0 mA; arithmetic midpoint (form 2): " +
+					"(4.0 + 8.0) / 2 = 6.0 mA. Square law (form 3) with the derived Vt0 -2.4 V: " +
+					"Beta = IDSS / Vt0^2 = 6e-3 / 2.4^2 = 1.0416667e-3 S.",
+			},
+		},
+	},
 ]);

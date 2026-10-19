@@ -388,6 +388,41 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"AC/BC 50/200, M 35/200, I MIN-only 25).",
 		},
 	},
+	{
+		// Wave 3. GBW only (D4 swing freeze stands). The sheet prints NJM4580 variants; the
+		// JRC ids rest on parts/op-amps/JRC4580.md ('JRC4580D / NJM4580D', primary local
+		// datasheet this sheet, aliases JRC4580/NJM4580/NJM4580D) -- the JRC4558D precedent
+		// (owner decision 2026-10-15: the NJR/JRC marking rides the NJM sheet). The gain and
+		// GBW rows are rank-independent (only the noise row splits by D rank).
+		partIds: ["JRC4580D", "JRC4580", "NJM4580D", "NJM4580"],
+		gainBandwidthHz: {
+			value: 15e6,
+			basis: "datasheet",
+			source:
+				"JRC4580/datasheets/njm4580d-njr.pdf (NJR NJM4580, Ver. 2012-09-14) p2, ELECTRICAL " +
+				"CHARACTERISTICS (V+/V- = +-15 V, Ta = 25C): 'Gain Bandwidth Product GB, f = 10 kHz: " +
+				"TYP 15 MHz' (no MIN/MAX; p1 Features: 'Wide GBW 15MHz typ.'). The AVD row that sets " +
+				"the sections gain is on the same table: 'Voltage Gain AV, RL >= 2 kOhm, VO = +-10 V: " +
+				"MIN 90 TYP 110 dB'.",
+		},
+	},
+	{
+		// Wave 3. GBW only (D4 swing freeze stands). OPA2134PA is a printed PDIP-8
+		// orderable of the same die (orderable table, marking OPA2134PA); the specs are
+		// family-wide with no per-orderable split.
+		partIds: ["OPA2134", "OPA2134PA"],
+		gainBandwidthHz: {
+			value: 8e6,
+			basis: "datasheet",
+			source:
+				"OPA2134/datasheets/opa2134-ti.pdf (TI OPA2134, SBOS058B, Dec 1997, Rev. B Nov 2024) " +
+				"5.7 p7, Electrical Characteristics (TA = 25C, VS = +-15 V): 'GBW Gain bandwidth " +
+				"product: TYP 8 MHz' (MIN/MAX blank; p1 Features: 'Bandwidth: 8MHz'). The AOL row " +
+				"that sets the sections gain is on the same table: 'AOL Open-loop voltage gain, " +
+				"RL = 2 kOhm, -13.8 V <= VO <= 13.5 V: MIN 104 TYP 120 dB' (a second row at " +
+				"RL = 10 kOhm reads the same 104/120).",
+		},
+	},
 ]);
 
 /** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. */
@@ -455,6 +490,15 @@ export const opampGainBandwidthAbsent: ReadonlyArray<{
 			"figure is transcribed; the sections entry carries the citable AOL TYP 400 V/mV alone.",
 	},
 	{
+		partIds: ["LM1458", "LM1458N"],
+		reason:
+			"LM1458/datasheets/lm1458.pdf (TI SNOSBU4D, Apr 1998, Rev. D Mar 2013, ex-National) prints " +
+			"no gain-bandwidth, unity-gain-frequency or frequency-response spec row at all " +
+			"(full-text search finds only the Features bullet 'No Frequency Compensation Required'). " +
+			"Curves must not be read by eye, so no figure is transcribed; the sections entry carries " +
+			"the citable AOL TYP 160 V/mV alone (same AOL-only shape as AD712).",
+	},
+	{
 		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
 		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
 	},
@@ -517,6 +561,16 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 			"2026-10-17, upheld for this wave). Printed swing rows exist (LF347 VOM +-12/+-13.5 at " +
 			"RL = 10 kOhm; LF351 VO +-12/+-13.5; TL074 VOM rows) and are left untyped for the same " +
 			"supply-translation reason as the 2026-10-17 list.",
+	},
+	{
+		partIds: ["JRC4580D", "JRC4580", "NJM4580D", "NJM4580", "OPA2134", "OPA2134PA", "LM1458", "LM1458N"],
+		reason:
+			"Wave-3 fills: the sections entries carry the citable AOL TYP (NJM4580 110 dB, OPA2134 " +
+			"120 dB, LM1458 160 V/mV) and the GBW rows (all but LM1458/N) the product; the " +
+			"output-swing pair is deliberately NOT typed (owner decision D4, 2026-10-17, upheld " +
+			"for this wave). Printed swing rows exist (NJM4580 VOM +-12/+-14 and +-10/+-13; OPA2134 " +
+			"VO -14.5/+13.8 at RL = 10 kOhm and -13.8/+13.5 at RL = 2 kOhm; LM1458 VO +-12/+-13.5) " +
+			"and are left untyped for the same supply-translation reason as the 2026-10-17 list.",
 	},
 	{
 		partIds: [

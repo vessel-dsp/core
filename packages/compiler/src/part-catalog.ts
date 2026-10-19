@@ -7064,6 +7064,280 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
+	// Wave-3 op-amp entries: sections whose open-loop gain is the sheet's own TYP AOL
+	// transcribed (the gain-bandwidth product lives in `registry-data/opamp.ts`, stamped by
+	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog
+	// entries are 1:1 by part id, so no entry splits. LM1458/N carry AOL only (no GBW row
+	// exists; see `opampGainBandwidthAbsent`).
+
+	// NJR NJM4580 dual audio op-amp, from `parts/op-amps/JRC4580/datasheets/njm4580d-njr.pdf`
+	// (NJR Ver. 2012-09-14). PIN FUNCTION table, p1 (DIP-8 TOP VIEW): 1 A OUTPUT, 2 A -INPUT,
+	// 3 A +INPUT, 4 V-, 5 B +INPUT, 6 B -INPUT, 7 B OUTPUT, 8 V+ -- the standard dual order,
+	// with the same pin-numbered role convention as the LM833 entry above (pin-numbered
+	// tokens only; no generic alias may satisfy two sections at once).
+	//
+	// Electrical characteristics p2 at V+/V- = +-15 V, Ta = 25 C:
+	//   Voltage Gain AV, RL >= 2 kOhm, VO = +-10 V: MIN 90 TYP 110 dB.
+	// Used as `openLoopGain: decibelGain(110)`, the typ figure (the D rank changes the noise
+	// row only). The JRC ids rest on `parts/op-amps/JRC4580.md` ('JRC4580D / NJM4580D',
+	// primary local datasheet this sheet) -- the JRC4558D precedent (owner decision
+	// 2026-10-15: the NJR/JRC marking rides the NJM sheet). GBW is not in this entry: it
+	// lives in the data-registry row (TYP 15 MHz at f = 10 kHz), stamped by the pass below.
+	{
+		"partIds": [
+			"JRC4580D",
+			"JRC4580",
+			"NJM4580D",
+			"NJM4580"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 316227.7660168379
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 316227.7660168379
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// TI OPA2134 dual audio op-amp, from `parts/op-amps/OPA2134/datasheets/opa2134-ti.pdf`
+	// (TI SBOS058B, Dec 1997, Rev. B Nov 2024). Table 4-1 Pin Functions: OPA2134, p3 (D/SOIC
+	// and P/PDIP 8-pin, top view Fig. 4-2): OUT A-1, -IN A-2, +IN A-3, V--4, +IN B-5, -IN B-6,
+	// OUT B-7, V+-8 -- the standard dual order, same pin-numbered role convention.
+	// OPA2134PA is a printed PDIP-8 orderable of the same die (orderable table, marking
+	// OPA2134PA); the specs below are family-wide with no per-orderable split.
+	//
+	// Electrical characteristics 5.7 p7 at TA = 25 C, VS = +-15 V:
+	//   AOL Open-loop voltage gain, RL = 2 kOhm, -13.8 V <= VO <= 13.5 V:
+	//   MIN 104 TYP 120 dB (a second row at RL = 10 kOhm reads the same 104/120).
+	// Used as `openLoopGain: decibelGain(120)`, the typ figure. GBW is not in this entry:
+	// it lives in the data-registry row (TYP 8 MHz), stamped by the pass below.
+	{
+		"partIds": [
+			"OPA2134",
+			"OPA2134PA"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 1000000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 1000000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// TI LM1458 dual op-amp, from `parts/op-amps/LM1458/datasheets/lm1458.pdf` (TI SNOSBU4D,
+	// Apr 1998, Rev. D Mar 2013, ex-National; NOT the ST sheet `MC1458.md` points at).
+	// Connection Diagram Fig. 2 Dual-In-Line Package (Top View), p1: 1 OUTPUT A,
+	// 2 INVERTING INPUT A, 3 NON-INVERTING INPUT A, 4 V-, 5 NON-INVERTING INPUT B,
+	// 6 INVERTING INPUT B, 7 OUTPUT B, 8 V+ -- the standard dual order, same pin-numbered
+	// role convention. LM1458N is printed (Abs Max 'LM1458N 400 mW' p2; orderables
+	// LM1458N/NOPB p5, PDIP-8); the AC specs sit under the generic LM1458 column, which
+	// covers it (the CA1458 entry above is the neighbouring point not jumped to: Harris
+	// 200,000 vs TI 160,000 for the same row, so this comes from the document that names
+	// LM1458).
+	//
+	// Electrical characteristics p2 at TA = 25 C, VS = +-15 V, VOUT = +-10 V, RL >= 2 kOhm:
+	//   Large Signal Voltage Gain: LM1458 MIN 20 TYP 160 V/mV (LM1558 50/160 is the sibling
+	//   column). Used as `openLoopGain: 160000`, the typ figure. The sheet prints no GBW row
+	//   at all (see `opampGainBandwidthAbsent`); the swing pair stays absent per the D4 freeze
+	//   (see `opampOutputSwingAbsent`).
+	{
+		"partIds": [
+			"LM1458",
+			"LM1458N"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 160000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 160000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
 	// Wave-2 op-amp entries: sections whose open-loop gain is the sheet's own TYP AOL
 	// transcribed (the gain-bandwidth product lives in `registry-data/opamp.ts`, stamped by
 	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog

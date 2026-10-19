@@ -512,15 +512,15 @@ describe("wave-1 fill inventory", () => {
 		// Wave 2: four more op-amp GBW rows (LF347, LF351, L272M, TL074; AD712 is GBW-absent
 		// by verdict) and manufacturer-model IS on two existing BJT rows (2N2222A, 2N5088);
 		// diode rows stay empty (manufacturer model files unretrievable, no two-TYP sheet).
-		expect(opampRegistryRecords).toHaveLength(15);
+		expect(opampRegistryRecords).toHaveLength(17);
 		expect(zenerRegistryRecords).toHaveLength(29);
-		expect(jfetRegistryRecords).toHaveLength(3);
+		expect(jfetRegistryRecords).toHaveLength(4);
 		expect(regulatorRegistryRecords).toHaveLength(5);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(bjtRegistryRecords).toHaveLength(10);
+		expect(bjtRegistryRecords).toHaveLength(19);
 		expect(diodeRegistryRecords).toHaveLength(12);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(15 + 10 + 12 + 2 + 29 + 3 + 5 + 8);
+		expect(partRegistryData).toHaveLength(17 + 19 + 12 + 2 + 29 + 4 + 5 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
