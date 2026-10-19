@@ -1,56 +1,559 @@
-// Diode registry data: wave-1 discrete fill.
+// Diode registry data: wave-3 manufacturer-model fill.
 //
-// One value per parameter; a parameter with no datasheet citation is not loadable, so it
-// is omitted here and the stamp falls back to the class default (never a guess):
+// One value per parameter; a parameter with no allowed-source citation is not loadable,
+// so it is omitted here and the stamp gap-fills the class default (never a guess):
 //
-// - `saturationCurrent` + `emissionCoefficient`: derived ONLY together by form (4), from
-//   TWO printed typical (If, Vf) points. A lone point, a MIN/MAX-only limit, a graph, or a
-//   vendor's SPICE-model card is not a pair of printed points and yields neither parameter.
-// - `thermalVoltage`: omitted for every part below. kT/q at room temperature, not a
-//   per-part datasheet figure.
-// - `breakdownVolts`: omitted for every signal diode below (the stamp keeps the no-knee 0;
-//   a knee belongs to class `zener` and the existing `zenerLaw` path, not here).
-// - `seriesResistance`: omitted for every part below. No sheet in this wave prints an ohmic
-//   series resistance (dynamic impedance at breakdown is a different quantity and is never
-//   mapped onto it); the stamp keeps the class 1.0 ohm.
+// - `saturationCurrent` + `emissionCoefficient`: transcribed from the manufacturer's own
+//   SPICE/PSpice model card (`basis: "manufacturer-model"`), IS and N as printed.
+// - `seriesResistance`: the card's ohmic RS, which is the quantity the engine's diode
+//   law stamps (unlike the dynamic impedance at breakdown, which is never mapped).
+// - `thermalVoltage`: omitted throughout (kT/q at room temperature, not a per-part
+//   figure); the stamp keeps 0.025852 V.
+// - `breakdownVolts`: omitted throughout (the stamp keeps the no-knee 0; a knee belongs
+//   to class `zener` and the existing `zenerLaw` path, not here). CJO/M/VJ/TT/BV/IBV
+//   have no schema field and are never mapped.
 //
-// This module is empty BY VERDICT, not by omission: all eight wave-1 diodes were examined
-// and every one is excluded -- the four vendored sheets (1N5817, 1N914, 1N4007, 1N34A) print
-// MAX-only forward limits, and the four fetched sheets (Vishay 1N4148/1N5817/1N914/BAT41/BAT46,
-// ST BAT41/BAT46, Diodes Inc/Zetex 1N400x, Central Semi 1N34A attempt) print MAX-only limits
-// or a single TYP point where the derivation needs two. Form (4) needs two printed typical
-// (If, Vf) points; a limit is not a point and one point underdetermines IS+n. See the wave-1
-// report for the per-part table. The builder (`diodeLawEntry`) and wiring stand ready for a
-// part whose sheet prints the pair.
+// Wave-1/2 verdict (empty by verdict, not by omission) is superseded for the eleven
+// parts below plus 1N914: every entry was read from a manufacturer-published model file
+// in this run. No entry is derived from a datasheet here (form 4 needs two printed
+// typical (If, Vf) points and never met). Typed aliases: none -- a `DI_` model-name
+// prefix is not an equivalence claim, and no file below states one.
 //
-// Wave-2 re-examination (same verdict, extended): the manufacturer-model rule unlocks nothing
-// retrievable for these parts in this run. onsemi's diode model files are portal-gated
-// (guessed /download/models/txt/*.lib.txt URLs fall back to the docs landing page; only
-// 2n2222a.lib.txt is directly fetchable), Diodes Inc's portal is bot-walled (403), ST's
-// 'Signal Schottky PSpice v8.0' zip (BAT41/BAT46) is not bot-downloadable, Nexperia's pages
-// are bot-walled, and Vishay publishes no SPICE for 1N4148/BAT41/BAT46/BAT85S. The one
-// onsemi-authored line circulating for this family (1N4148/1N914 Is=2.52n N=1.752) reaches
-// this repo only through LTspice's standard files, which the owner rule explicitly excludes.
-// Re-checked sheets, all MAX-only or single-TYP (one printed typical point, form (4) needs
-// two): Vishay 1N4148 (VF MAX-only 1 V @ 10 mA); Vishay BAT41 85659 (VF @ 1 mA TYP 400 MAX
-// 450 mV, @ 200 mA MAX-only 1000 mV -- one TYP point); Vishay BAT85S 85513 (all five VF rows
-// MAX-only: 240/320/400/500/800 mV at 0.1/1/10/30/100 mA); Taitron 1N60/1N60P (VF 1.0 V @
-// 5 mA, single figure); onsemi 1N4007 (vF TYP 0.93 MAX 1.1 V @ 1 A -- one TYP point).
-// 1N60P is a Semtech part (outside the seven allowed manufacturers); 1N34A is germanium
-// with no allowed-manufacturer model; D9E/D9K are Soviet germanium with no authoritative
-// source at all (owner measurement needed). Owner follow-up: download the ST PSpice zip,
-// the Diodes Inc per-part .spice.txt files, and the onsemi MMSD4148 simulation-models ZIP
-// from the manufacturers' portals; each yields citable IS+n under `manufacturer-model`.
+// MEASURED FUTURE (no entries yet): the `measured` basis in `loader.ts` is for the
+// residue -- generic LED colour defaults and the diodes with no manufacturer model
+// (1N4148, 1N34A, 1N60P, D9E, D9K, BAT85S, BAT85S). Each measured IS+n will cite the
+// committed measurement JSON (schema `vesseldsp.junction-default-measurement.v1`,
+// `perDevice` `isEngine`/`nEngine` pooled over every sample at the engine VT 0.025852 V)
+// with instrument, conditions, sample count, date, repo-relative path and sha256; see
+// `led-measurement.html` and its README. The owner has not measured yet.
 //
-// MEASURED FUTURE (no entries yet): the `measured` basis in `loader.ts` is for exactly the
-// residue above -- generic LED colour defaults and the diodes with no manufacturer model
-// (1N4148, 1N914, 1N34A, 1N60P, D9E, D9K, BAT85S). Each measured IS+n will cite the committed
-// measurement JSON (schema `vesseldsp.junction-default-measurement.v1`, `perDevice`
-// `isEngine`/`nEngine` pooled over every sample at the engine VT 0.025852 V) with
-// instrument, conditions, sample count, date, repo-relative path and sha256; see
-// `led-measurement.html` and its README. The owner has not measured yet, so nothing here
-// uses `measured`.
+// Plausibility disclosures (transcribed as printed, not fitted): 1N5817 IS 870 uA lands
+// the 1 mA Vf at ~7 mV (a high-current fit, weak at low current); BAT43 N 4.995 lands
+// the 1 mA Vf at ~95 mV; B340A N 0.775 is below unity. The loader checks shape and
+// provenance, never plausibility; the Vf table in the wave-3 report shows each model.
 
 import { definePartData, type PartDataEntry } from "./loader";
 
-export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([]);
+const ST_BAT46_PAGE = "https://www.st.com/en/diodes-and-rectifiers/bat46.html";
+const ST_ZIP_CAUTION =
+	"Owner download /home/joseph/projects/VesselDSP/tmp/st_signal_schottky_diodes_pspice_models_v4.zip " +
+	"sha256 5b256603d6d12fa9957aa6d149d3762e2fd623eff37a50aa67a4fb4499e6f197, inner file " +
+	"ST_SIGNAL_SCHOTTKY_V8.LIB header 'Revision 8.0, DEC 2021' (CRLF; `.MODEL` lines continue on `+` lines). " +
+	"The same zip is listed on the BAT41 product page (https://www.st.com/en/diodes-and-rectifiers/bat41.html).";
+const DIODES_SPICE_INDEX = "https://www.diodes.com/design/tools/spice-models";
+const DIODES_BUNDLE_CAUTION =
+	"Owner download /home/joseph/projects/VesselDSP/tmp/Schottky (.5A and Above).spice.txt " +
+	"sha256 648628e3ed53cfcda631fee8cdc3a49de0d85be99962a3e6e6fc0c3aff57d493.";
+
+export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
+	{
+		// ST small-signal Schottky, DO-35 (exact part id; the Minimelf/SOD-323/SOD-523/
+		// SOD-123 FILM lines in the same file are package variants, not registered).
+		partIds: ["BAT41"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 10e-9,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO-35 card:\n` +
+					".MODEL BAT41 D\n+ IS=10.000E-9 N=1.4402 RS=.12219 IKF=291.59E-6 EG=.69 CJO=3.5613E-12\n+ M=.49981 VJ=.36559 ISR=2.0076E-9 FC=0.5 NR=4.9950 TT=0  XTI=2",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT41 D\n+ IS=10.000E-9 N=1.4402 RS=.12219 IKF=291.59E-6 EG=.69 CJO=3.5613E-12\n+ M=.49981 VJ=.36559 ISR=2.0076E-9 FC=0.5 NR=4.9950 TT=0  XTI=2",
+			},
+			emissionCoefficient: {
+				value: 1.4402,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO-35 card:\n` +
+					".MODEL BAT41 D\n+ IS=10.000E-9 N=1.4402 RS=.12219 IKF=291.59E-6 EG=.69 CJO=3.5613E-12\n+ M=.49981 VJ=.36559 ISR=2.0076E-9 FC=0.5 NR=4.9950 TT=0  XTI=2",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT41 D\n+ IS=10.000E-9 N=1.4402 RS=.12219 IKF=291.59E-6 EG=.69 CJO=3.5613E-12\n+ M=.49981 VJ=.36559 ISR=2.0076E-9 FC=0.5 NR=4.9950 TT=0  XTI=2",
+			},
+			seriesResistance: {
+				value: 0.12219,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO-35 card:\n` +
+					".MODEL BAT41 D\n+ IS=10.000E-9 N=1.4402 RS=.12219 IKF=291.59E-6 EG=.69 CJO=3.5613E-12\n+ M=.49981 VJ=.36559 ISR=2.0076E-9 FC=0.5 NR=4.9950 TT=0  XTI=2",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT41 D\n+ IS=10.000E-9 N=1.4402 RS=.12219 IKF=291.59E-6 EG=.69 CJO=3.5613E-12\n+ M=.49981 VJ=.36559 ISR=2.0076E-9 FC=0.5 NR=4.9950 TT=0  XTI=2",
+			},
+		},
+	},
+	{
+		// ST small-signal Schottky, DO-35.
+		partIds: ["BAT46"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 15.896e-6,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO-35 card:\n` +
+					".MODEL BAT46 D\n+ IS=15.896E-6 N=2.3964 RS=7.7928E-3 IKF=5.4695E-3 EG=.69 CJO=11.684E-12\n+ M=.5 VJ=.36094 ISR=10.010E-21 FC=0.5 NR=4.9950 TT=0 XTI=2",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT46 D\n+ IS=15.896E-6 N=2.3964 RS=7.7928E-3 IKF=5.4695E-3 EG=.69 CJO=11.684E-12\n+ M=.5 VJ=.36094 ISR=10.010E-21 FC=0.5 NR=4.9950 TT=0 XTI=2",
+			},
+			emissionCoefficient: {
+				value: 2.3964,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO-35 card:\n` +
+					".MODEL BAT46 D\n+ IS=15.896E-6 N=2.3964 RS=7.7928E-3 IKF=5.4695E-3 EG=.69 CJO=11.684E-12\n+ M=.5 VJ=.36094 ISR=10.010E-21 FC=0.5 NR=4.9950 TT=0 XTI=2",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT46 D\n+ IS=15.896E-6 N=2.3964 RS=7.7928E-3 IKF=5.4695E-3 EG=.69 CJO=11.684E-12\n+ M=.5 VJ=.36094 ISR=10.010E-21 FC=0.5 NR=4.9950 TT=0 XTI=2",
+			},
+			seriesResistance: {
+				value: 7.7928e-3,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO-35 card:\n` +
+					".MODEL BAT46 D\n+ IS=15.896E-6 N=2.3964 RS=7.7928E-3 IKF=5.4695E-3 EG=.69 CJO=11.684E-12\n+ M=.5 VJ=.36094 ISR=10.010E-21 FC=0.5 NR=4.9950 TT=0 XTI=2",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT46 D\n+ IS=15.896E-6 N=2.3964 RS=7.7928E-3 IKF=5.4695E-3 EG=.69 CJO=11.684E-12\n+ M=.5 VJ=.36094 ISR=10.010E-21 FC=0.5 NR=4.9950 TT=0 XTI=2",
+			},
+		},
+	},
+	{
+		// ST small-signal Schottky, DO35. N 4.995 is the printed fit value (see module note).
+		partIds: ["BAT43"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 480.77e-6,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO35 card:\n` +
+					".MODEL BAT43 D IS=480.77E-6 N=4.9950 RS=40.150E-3 IKF=20.507\n+ EG=.69 XTI=2 CJO=13.698E-12 M=.50005 VJ=.38464 ISR=10.010E-21\n+ FC=0.5 NR=4.9950 TT=0",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT43 D IS=480.77E-6 N=4.9950 RS=40.150E-3 IKF=20.507\n+ EG=.69 XTI=2 CJO=13.698E-12 M=.50005 VJ=.38464 ISR=10.010E-21\n+ FC=0.5 NR=4.9950 TT=0",
+			},
+			emissionCoefficient: {
+				value: 4.995,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO35 card:\n` +
+					".MODEL BAT43 D IS=480.77E-6 N=4.9950 RS=40.150E-3 IKF=20.507\n+ EG=.69 XTI=2 CJO=13.698E-12 M=.50005 VJ=.38464 ISR=10.010E-21\n+ FC=0.5 NR=4.9950 TT=0",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT43 D IS=480.77E-6 N=4.9950 RS=40.150E-3 IKF=20.507\n+ EG=.69 XTI=2 CJO=13.698E-12 M=.50005 VJ=.38464 ISR=10.010E-21\n+ FC=0.5 NR=4.9950 TT=0",
+			},
+			seriesResistance: {
+				value: 40.15e-3,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO35 card:\n` +
+					".MODEL BAT43 D IS=480.77E-6 N=4.9950 RS=40.150E-3 IKF=20.507\n+ EG=.69 XTI=2 CJO=13.698E-12 M=.50005 VJ=.38464 ISR=10.010E-21\n+ FC=0.5 NR=4.9950 TT=0",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT43 D IS=480.77E-6 N=4.9950 RS=40.150E-3 IKF=20.507\n+ EG=.69 XTI=2 CJO=13.698E-12 M=.50005 VJ=.38464 ISR=10.010E-21\n+ FC=0.5 NR=4.9950 TT=0",
+			},
+		},
+	},
+	{
+		// ST small-signal Schottky, DO35.
+		partIds: ["BAT48"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 263.91e-9,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO35 card:\n` +
+					".MODEL BAT48 D IS=263.91E-9 N=1.0966 RS=.4109 IKF=29.589E-3\n+ EG=.69 XTI=2 CJO=29.800E-12 M=.50094 VJ=.41054 ISR=90.294E-9\n+ FC=0.5 NR=4.9949 TT=0",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT48 D IS=263.91E-9 N=1.0966 RS=.4109 IKF=29.589E-3\n+ EG=.69 XTI=2 CJO=29.800E-12 M=.50094 VJ=.41054 ISR=90.294E-9\n+ FC=0.5 NR=4.9949 TT=0",
+			},
+			emissionCoefficient: {
+				value: 1.0966,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO35 card:\n` +
+					".MODEL BAT48 D IS=263.91E-9 N=1.0966 RS=.4109 IKF=29.589E-3\n+ EG=.69 XTI=2 CJO=29.800E-12 M=.50094 VJ=.41054 ISR=90.294E-9\n+ FC=0.5 NR=4.9949 TT=0",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT48 D IS=263.91E-9 N=1.0966 RS=.4109 IKF=29.589E-3\n+ EG=.69 XTI=2 CJO=29.800E-12 M=.50094 VJ=.41054 ISR=90.294E-9\n+ FC=0.5 NR=4.9949 TT=0",
+			},
+			seriesResistance: {
+				value: 0.4109,
+				basis: "manufacturer-model",
+				source:
+					`ST product page ${ST_BAT46_PAGE}. ` +
+					`${ST_ZIP_CAUTION} DO35 card:\n` +
+					".MODEL BAT48 D IS=263.91E-9 N=1.0966 RS=.4109 IKF=29.589E-3\n+ EG=.69 XTI=2 CJO=29.800E-12 M=.50094 VJ=.41054 ISR=90.294E-9\n+ FC=0.5 NR=4.9949 TT=0",
+				modelFileUrl: ST_BAT46_PAGE,
+				modelLine:
+					".MODEL BAT48 D IS=263.91E-9 N=1.0966 RS=.4109 IKF=29.589E-3\n+ EG=.69 XTI=2 CJO=29.800E-12 M=.50094 VJ=.41054 ISR=90.294E-9\n+ FC=0.5 NR=4.9949 TT=0",
+			},
+		},
+	},
+	{
+		// Diodes Inc Schottky barrier rectifier. The bundle copy is identical to the
+		// single file; the exact-part single file is cited.
+		partIds: ["1N5817"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 870e-6,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/270/1N5817.spice.txt " +
+					"(Diodes Inc 1N5817.spice.txt, MANIFEST sha256 " +
+					"98e1fc5c0bfe70520852736011a4066e903c037497363da1b2a60d6b0fb4ca33, " +
+					"identical card in the owner bundle Schottky (.5A and Above).spice.txt). Card lines:\n" +
+					".MODEL DI_1N5817 D  ( IS=870u RS=81.3m BV=20.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.81 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/270/1N5817.spice.txt",
+				modelLine:
+					".MODEL DI_1N5817 D  ( IS=870u RS=81.3m BV=20.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.81 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.81,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/270/1N5817.spice.txt " +
+					"(Diodes Inc 1N5817.spice.txt, MANIFEST sha256 " +
+					"98e1fc5c0bfe70520852736011a4066e903c037497363da1b2a60d6b0fb4ca33, " +
+					"identical card in the owner bundle Schottky (.5A and Above).spice.txt). Card lines:\n" +
+					".MODEL DI_1N5817 D  ( IS=870u RS=81.3m BV=20.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.81 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/270/1N5817.spice.txt",
+				modelLine:
+					".MODEL DI_1N5817 D  ( IS=870u RS=81.3m BV=20.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.81 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 81.3e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/270/1N5817.spice.txt " +
+					"(Diodes Inc 1N5817.spice.txt, MANIFEST sha256 " +
+					"98e1fc5c0bfe70520852736011a4066e903c037497363da1b2a60d6b0fb4ca33, " +
+					"identical card in the owner bundle Schottky (.5A and Above).spice.txt). Card lines:\n" +
+					".MODEL DI_1N5817 D  ( IS=870u RS=81.3m BV=20.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.81 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/270/1N5817.spice.txt",
+				modelLine:
+					".MODEL DI_1N5817 D  ( IS=870u RS=81.3m BV=20.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.81 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc Schottky barrier rectifier; bundle-only in hand (no per-part URL
+		// recorded), so the SPICE-models index page is the model file URL and the bundle
+		// path, sha and card are quoted.
+		partIds: ["1N5819"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 390e-9,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_1N5819 D  ( IS=390n RS=0.115 BV=40.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.70 TT=4.32u )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_1N5819 D  ( IS=390n RS=0.115 BV=40.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.70 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.7,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_1N5819 D  ( IS=390n RS=0.115 BV=40.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.70 TT=4.32u )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_1N5819 D  ( IS=390n RS=0.115 BV=40.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.70 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 0.115,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_1N5819 D  ( IS=390n RS=0.115 BV=40.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.70 TT=4.32u )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_1N5819 D  ( IS=390n RS=0.115 BV=40.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.70 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc Schottky; bundle-only in hand (same index-page citation as 1N5819).
+		// N 0.775 is the printed fit value (see module note).
+		partIds: ["B340A"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 9.9e-9,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_B340A D  ( IS=9.90n RS=14.0m BV=40.0 IBV=500u\n+ CJO=464p  M=0.333 N=0.775 TT=7.20n )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_B340A D  ( IS=9.90n RS=14.0m BV=40.0 IBV=500u\n+ CJO=464p  M=0.333 N=0.775 TT=7.20n )",
+			},
+			emissionCoefficient: {
+				value: 0.775,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_B340A D  ( IS=9.90n RS=14.0m BV=40.0 IBV=500u\n+ CJO=464p  M=0.333 N=0.775 TT=7.20n )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_B340A D  ( IS=9.90n RS=14.0m BV=40.0 IBV=500u\n+ CJO=464p  M=0.333 N=0.775 TT=7.20n )",
+			},
+			seriesResistance: {
+				value: 14e-3,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_B340A D  ( IS=9.90n RS=14.0m BV=40.0 IBV=500u\n+ CJO=464p  M=0.333 N=0.775 TT=7.20n )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_B340A D  ( IS=9.90n RS=14.0m BV=40.0 IBV=500u\n+ CJO=464p  M=0.333 N=0.775 TT=7.20n )",
+			},
+		},
+	},
+	{
+		// Diodes Inc rectifier diode; the exact-part single file is cited (the G file
+		// covers only a part id that says G and is not registered here).
+		partIds: ["1N4001"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 76.9e-12,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/80/1N4001.spice.txt " +
+					"(Diodes Inc 1N4001.spice.txt, MANIFEST sha256 " +
+					"577be751162947cd5e3c6e6c9bf91f7f0815cbcda92330a29df18da268ad2118). Card lines:\n" +
+					".MODEL DI_1N4001 D  ( IS=76.9p RS=42.0m BV=50.0 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/80/1N4001.spice.txt",
+				modelLine:
+					".MODEL DI_1N4001 D  ( IS=76.9p RS=42.0m BV=50.0 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.45,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/80/1N4001.spice.txt " +
+					"(Diodes Inc 1N4001.spice.txt, MANIFEST sha256 " +
+					"577be751162947cd5e3c6e6c9bf91f7f0815cbcda92330a29df18da268ad2118). Card lines:\n" +
+					".MODEL DI_1N4001 D  ( IS=76.9p RS=42.0m BV=50.0 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/80/1N4001.spice.txt",
+				modelLine:
+					".MODEL DI_1N4001 D  ( IS=76.9p RS=42.0m BV=50.0 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 42e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/80/1N4001.spice.txt " +
+					"(Diodes Inc 1N4001.spice.txt, MANIFEST sha256 " +
+					"577be751162947cd5e3c6e6c9bf91f7f0815cbcda92330a29df18da268ad2118). Card lines:\n" +
+					".MODEL DI_1N4001 D  ( IS=76.9p RS=42.0m BV=50.0 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/80/1N4001.spice.txt",
+				modelLine:
+					".MODEL DI_1N4001 D  ( IS=76.9p RS=42.0m BV=50.0 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc rectifier diode; fetched whole in this run (one request, no scanning).
+		partIds: ["1N4002"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 76.9e-12,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/407/1N4002.spice.txt " +
+					"(fetched 2026-10-19 in this run, sha256 " +
+					"a487113aa51562c46cd0b3f2b824b8ee8be4bd505d111230bc9a154e13f7a2f1). Card lines:\n" +
+					".MODEL DI_1N4002 D  ( IS=76.9p RS=42.0m BV=100 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/407/1N4002.spice.txt",
+				modelLine:
+					".MODEL DI_1N4002 D  ( IS=76.9p RS=42.0m BV=100 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.45,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/407/1N4002.spice.txt " +
+					"(fetched 2026-10-19 in this run, sha256 " +
+					"a487113aa51562c46cd0b3f2b824b8ee8be4bd505d111230bc9a154e13f7a2f1). Card lines:\n" +
+					".MODEL DI_1N4002 D  ( IS=76.9p RS=42.0m BV=100 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/407/1N4002.spice.txt",
+				modelLine:
+					".MODEL DI_1N4002 D  ( IS=76.9p RS=42.0m BV=100 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 42e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/407/1N4002.spice.txt " +
+					"(fetched 2026-10-19 in this run, sha256 " +
+					"a487113aa51562c46cd0b3f2b824b8ee8be4bd505d111230bc9a154e13f7a2f1). Card lines:\n" +
+					".MODEL DI_1N4002 D  ( IS=76.9p RS=42.0m BV=100 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/407/1N4002.spice.txt",
+				modelLine:
+					".MODEL DI_1N4002 D  ( IS=76.9p RS=42.0m BV=100 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc rectifier diode; fetched whole in this run (one request, no scanning).
+		partIds: ["1N4004"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 76.9e-12,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/339/1N4004.spice.txt " +
+					"(fetched 2026-10-19 in this run, sha256 " +
+					"abd809fc674fcc61430437c3476e97f4b54349d1780a5b281186c1e355eb232a). Card lines:\n" +
+					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/339/1N4004.spice.txt",
+				modelLine:
+					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.45,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/339/1N4004.spice.txt " +
+					"(fetched 2026-10-19 in this run, sha256 " +
+					"abd809fc674fcc61430437c3476e97f4b54349d1780a5b281186c1e355eb232a). Card lines:\n" +
+					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/339/1N4004.spice.txt",
+				modelLine:
+					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 42e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/339/1N4004.spice.txt " +
+					"(fetched 2026-10-19 in this run, sha256 " +
+					"abd809fc674fcc61430437c3476e97f4b54349d1780a5b281186c1e355eb232a). Card lines:\n" +
+					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/339/1N4004.spice.txt",
+				modelLine:
+					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc rectifier diode; the exact-part single file is cited.
+		partIds: ["1N4007"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 76.9e-12,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/396/1N4007.spice.txt " +
+					"(Diodes Inc 1N4007.spice.txt, MANIFEST sha256 " +
+					"f69508c4e201d3d7cb11a4bb10719c116e064792da627510adb5020a1254d9). Card lines:\n" +
+					".MODEL DI_1N4007 D  ( IS=76.9p RS=42.0m BV=1.00k IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/396/1N4007.spice.txt",
+				modelLine:
+					".MODEL DI_1N4007 D  ( IS=76.9p RS=42.0m BV=1.00k IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.45,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/396/1N4007.spice.txt " +
+					"(Diodes Inc 1N4007.spice.txt, MANIFEST sha256 " +
+					"f69508c4e201d3d7cb11a4bb10719c116e064792da627510adb5020a1254d9). Card lines:\n" +
+					".MODEL DI_1N4007 D  ( IS=76.9p RS=42.0m BV=1.00k IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/396/1N4007.spice.txt",
+				modelLine:
+					".MODEL DI_1N4007 D  ( IS=76.9p RS=42.0m BV=1.00k IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 42e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/396/1N4007.spice.txt " +
+					"(Diodes Inc 1N4007.spice.txt, MANIFEST sha256 " +
+					"f69508c4e201d3d7cb11a4bb10719c116e064792da627510adb5020a1254d9). Card lines:\n" +
+					".MODEL DI_1N4007 D  ( IS=76.9p RS=42.0m BV=1.00k IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/396/1N4007.spice.txt",
+				modelLine:
+					".MODEL DI_1N4007 D  ( IS=76.9p RS=42.0m BV=1.00k IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Central Semiconductor 1N914: LICENSE LIMIT -- the file header forbids
+		// re-selling/redistributing the model and modifying it, so the full card is NOT
+		// copied into this repo and only the two fragments carrying the mapped values are
+		// quoted as the model line. RS is therefore NOT mapped here (the stamp keeps the
+		// class 1.0 ohm against the card's RS .33636); IS and N are.
+		partIds: ["1N914"],
+		class: "diode",
+		note:
+			"License limit: Central Semiconductor header forbids re-selling, re-distributing " +
+			"or modifying the model, so only the IS/N fragments are quoted and the full card is " +
+			"not vendored. RS .33636 is disclosed but not mapped (stamp keeps class 1.0 ohm). " +
+			"Owner stance to confirm.",
+		params: {
+			saturationCurrent: {
+				value: 6.2229e-9,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor, LLC model, item 1N914, Rev A, date 12/07/11 " +
+					"(header '*SRC=1N914;1N914;Diodes;Si;100V 150mA 4.0ns  Central Semi'). " +
+					"Per-file page not recorded by the owner; owner file " +
+					"/home/joseph/projects/VesselDSP/tmp/1N914.LIB sha256 " +
+					"3b9a0db01f2d6ce870a43e07493aa9f4ffd2cb93a858223b5dcbc0d827087413 " +
+					"(35 lines, CRLF). Central Semiconductor, LLC is the author (see header). " +
+					"Manufacturer site https://www.centralsemi.com/ for host validity. " +
+					"Quoted fragments (license limit, full card not copied): IS=6.2229E-9 N=1.9224",
+				modelFileUrl: "https://www.centralsemi.com/",
+				modelLine: "IS=6.2229E-9 N=1.9224",
+			},
+			emissionCoefficient: {
+				value: 1.9224,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor, LLC model, item 1N914, Rev A, date 12/07/11 " +
+					"(header '*SRC=1N914;1N914;Diodes;Si;100V 150mA 4.0ns  Central Semi'). " +
+					"Per-file page not recorded by the owner; owner file " +
+					"/home/joseph/projects/VesselDSP/tmp/1N914.LIB sha256 " +
+					"3b9a0db01f2d6ce870a43e07493aa9f4ffd2cb93a858223b5dcbc0d827087413 " +
+					"(35 lines, CRLF). Central Semiconductor, LLC is the author (see header). " +
+					"Manufacturer site https://www.centralsemi.com/ for host validity. " +
+					"Quoted fragments (license limit, full card not copied): IS=6.2229E-9 N=1.9224",
+				modelFileUrl: "https://www.centralsemi.com/",
+				modelLine: "IS=6.2229E-9 N=1.9224",
+			},
+		},
+	},
+]);

@@ -32,7 +32,8 @@
 // loud checks (a half-stated swing pair still throws in `withDatasheetOutputSwing`).
 // A third-party model library (LTspice's standard files, Tina, a forum) is NOT a
 // manufacturer model and is not admitted: the file URL must be the manufacturer's own
-// publication (onsemi, Vishay, STMicroelectronics, Nexperia, Diodes Inc, TI, Analog Devices).
+// publication (onsemi, Vishay, STMicroelectronics, Nexperia, Diodes Inc, TI, Analog Devices,
+// Central Semiconductor).
 
 import { foldPartId } from "../registry";
 import { CLASS_PARAM_SCHEMAS, classParamNames, type PartClassName } from "./schema";
@@ -51,9 +52,10 @@ const MANUFACTURER_MODEL_HOSTS = [
 	"diodes.com",
 	"ti.com",
 	"analog.com",
+	"centralsemi.com",
 ] as const;
 
-/** True when the URL's host belongs to one of the seven publishing manufacturers. */
+/** True when the URL's host belongs to one of the eight publishing manufacturers. */
 function isManufacturerModelHost(url: string): boolean {
 	let host = "";
 	try {
@@ -77,7 +79,7 @@ export type ParamBasis = "datasheet" | "derived" | "manufacturer-model" | "measu
  * the value they are quoted in `derivation` (zener typ from a min/max row) or the value is
  * the printed TYP transcribed with its row quoted in `source` (op-amp gain-bandwidth).
  * A `manufacturer-model` parameter is read directly from the manufacturer's own model
- * file: `modelFileUrl` is that file's URL (one of the seven publishing manufacturers'
+ * file: `modelFileUrl` is that file's URL (one of the eight publishing manufacturers'
  * own hosts) and `modelLine` is the exact model line the value was read from, verbatim
  * as printed -- a `.MODEL` / `.SUBCKT` card (with its continuation lines) from a model
  * file, or a Microsim-style `NPN (...)` line from the manufacturer's own datasheet --

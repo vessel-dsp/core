@@ -416,6 +416,19 @@ describe("definePartData accepts honest provenance", () => {
 		expect(validateCitedParam("FIX-A", "breakdownVolts", param)).toEqual(param);
 	});
 
+	it("loads a Central Semiconductor manufacturer-model URL (wave-3 1N914 host)", () => {
+		const param: CitedParam = {
+			value: 6.2229e-9,
+			basis: "manufacturer-model",
+			source:
+				"Central Semiconductor 1N914 https://www.centralsemi.com/ fragments IS=6.2229E-9 N=1.9224",
+			modelFileUrl: "https://www.centralsemi.com/",
+			modelLine: "IS=6.2229E-9 N=1.9224",
+		};
+		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
+		expect(out).toHaveLength(1);
+	});
+
 	it("treats two spellings folding to one id in one entry as redundant, not conflicting", () => {
 		const out = definePartData([
 			entry(["RD5.6JB2", "RD5.6J B2", "RD5.6J-B2"], {
@@ -505,9 +518,9 @@ describe("wave-1 fill inventory", () => {
 		expect(regulatorRegistryRecords).toHaveLength(5);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(10);
-		expect(diodeRegistryRecords).toHaveLength(0);
+		expect(diodeRegistryRecords).toHaveLength(12);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(15 + 10 + 0 + 2 + 29 + 3 + 5 + 8);
+		expect(partRegistryData).toHaveLength(15 + 10 + 12 + 2 + 29 + 3 + 5 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

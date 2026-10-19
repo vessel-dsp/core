@@ -29,8 +29,9 @@
 // - MOSFET rows (2 rows: BS170 and 2N7000 thresholdVolts only -- gfs is small-signal gm, not
 //   square-law Beta, and no approved form converts it);
 // - fixed-rail regulator voltages (5 records) and charge-pump loss/slope (8 records).
-// Diode records are empty by verdict: all eight wave-1 diodes print MAX-only forward limits
-// (or a single TYP point); form (4) needs two printed typical (If, Vf) points.
+// Diode records are wave-3 manufacturer-model fills (12 rows: BAT41/46/43/48, 1N5817/5819,
+// B340A, 1N4001/4002/4004/4007, 1N914); no datasheet-derived diode pair exists (form 4
+// needs two printed typical points and never met).
 // Everything else -- IC macros, `sections` entries, open-loop gains, tube laws, the
 // class-default fallbacks -- stays in `part-catalog.ts` / `device-laws.ts` code.
 // 

@@ -334,6 +334,44 @@ describe("wave-1 record builders", () => {
 		expect(law5088.forwardBeta).toBe(700);
 	});
 
+	test("shipped diode manufacturer-model pairs reach the stamp", () => {
+		const doc4001 = derive(
+			diodeClipper,
+			`      Description: "Clipping diode."\n  - id: D2`,
+			`      PartNumber: 1N4001\n      Description: "Clipping diode."\n  - id: D2`,
+		);
+		const law4001 = stampOf(doc4001, "D1", pedalPartCatalog);
+		expect(law4001.kind).toBe("diode");
+		if (law4001.kind !== "diode") throw new Error("unreachable");
+		expect(law4001.saturationCurrent).toBe(76.9e-12);
+		expect(law4001.emissionCoefficient).toBe(1.45);
+		expect(law4001.seriesResistance).toBe(42e-3);
+		const docBat41 = derive(
+			diodeClipper,
+			`      Description: "Clipping diode."\n  - id: D2`,
+			`      PartNumber: BAT41\n      Description: "Clipping diode."\n  - id: D2`,
+		);
+		const lawBat41 = stampOf(docBat41, "D1", pedalPartCatalog);
+		expect(lawBat41.kind).toBe("diode");
+		if (lawBat41.kind !== "diode") throw new Error("unreachable");
+		expect(lawBat41.saturationCurrent).toBe(10e-9);
+		expect(lawBat41.emissionCoefficient).toBe(1.4402);
+		expect(lawBat41.seriesResistance).toBe(0.12219);
+		// 1N914 maps IS+N only (license limit: RS fragment not quoted); the stamp
+		// keeps the class 1.0 ohm series resistance.
+		const doc914 = derive(
+			diodeClipper,
+			`      Description: "Clipping diode."\n  - id: D2`,
+			`      PartNumber: 1N914\n      Description: "Clipping diode."\n  - id: D2`,
+		);
+		const law914 = stampOf(doc914, "D1", pedalPartCatalog);
+		expect(law914.kind).toBe("diode");
+		if (law914.kind !== "diode") throw new Error("unreachable");
+		expect(law914.saturationCurrent).toBe(6.2229e-9);
+		expect(law914.emissionCoefficient).toBe(1.9224);
+		expect(law914.seriesResistance).toBe(1.0);
+	});
+
 	test("a typed alias spelling resolves through the built entry", () => {
 		const record = bjtRecord(
 			["SYNTH-ALIAS-BASE"],
