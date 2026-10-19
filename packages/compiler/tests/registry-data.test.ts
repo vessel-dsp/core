@@ -645,8 +645,8 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 	});
 });
 
-describe("wave-1 fill inventory", () => {
-	it("holds exactly the stage-1 migration plus the wave-1 and wave-2 fills, no more", () => {
+describe("wave-4 fill inventory", () => {
+	it("holds exactly the stage-1 migration plus the wave-1 to wave-4 fills, no more", () => {
 		// Stage 1: op-amp gain-bandwidth + swing rows, zener rows, one JFET row, regulator
 		// rails, charge-pump loss/slope. IC macros and `sections` entries stayed in code.
 		// Wave 1: one more op-amp GBW row (LM833, GBW-only per the D4 swing freeze), ten BJT
@@ -655,15 +655,22 @@ describe("wave-1 fill inventory", () => {
 		// Wave 2: four more op-amp GBW rows (LF347, LF351, L272M, TL074; AD712 is GBW-absent
 		// by verdict) and manufacturer-model IS on two existing BJT rows (2N2222A, 2N5088);
 		// diode rows stay empty (manufacturer model files unretrievable, no two-TYP sheet).
-		expect(opampRegistryRecords).toHaveLength(17);
+		// Wave 3: two more op-amp GBW rows (NJM4580, OPA2134; LM1458 AOL-only), 12
+		// manufacturer-model diode rows, 9 BJT rows, 1 JFET row (2N5952).
+		// Wave 4: four more op-amp GBW rows (LM324, TLC2262, MC33174, LM833N; LM308 and
+		// UA741CP are AOL-only by the same AD712/LM1458 verdict), 18 BJT rows (unbinned
+		// plus corpus-used ranks; 2SC2458/2SC828/2SC3378 IS-less, 2N5133/2N4125/2N4126/
+		// BC109C BF-only, BC239C/BC107B IS+BF) and 13 JFET rows (2N5485, 2SK30A-Y/GR plus
+		// TM aliases, 2SK118 + Y, 2SK184 + GR, 2SK209, 2N5458, MPF4393, J309, J202, PF5102).
+		expect(opampRegistryRecords).toHaveLength(21);
 		expect(zenerRegistryRecords).toHaveLength(29);
-		expect(jfetRegistryRecords).toHaveLength(4);
+		expect(jfetRegistryRecords).toHaveLength(17);
 		expect(regulatorRegistryRecords).toHaveLength(5);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(bjtRegistryRecords).toHaveLength(19);
+		expect(bjtRegistryRecords).toHaveLength(37);
 		expect(diodeRegistryRecords).toHaveLength(12);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(17 + 19 + 12 + 2 + 29 + 4 + 5 + 8);
+		expect(partRegistryData).toHaveLength(21 + 37 + 12 + 2 + 29 + 17 + 5 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

@@ -317,13 +317,19 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 		// Wave 1. GBW only: the output-swing pair is deliberately not typed (owner decision
 		// D4, 2026-10-17, upheld by the coordinator 2026-10-18 for this wave -- see
 		// `opampOutputSwingAbsent`, which this id is intentionally NOT added to).
+		// Wave 4: LM833N rides the shared sections entry for open-loop gain (TI LM833-N
+		// sheet SNOSBD8E prints LM833N/NOPB as the PDIP orderable of the same die with the
+		// same AV 110 dB TYP) but carries its own GBW row below: the LM833-N sheet prints
+		// GBW TYP 15 MHz, not this row's 16, so the gain-bandwidth pass splits the entry.
 		partIds: ["LM833"],
 		gainBandwidthHz: {
 			value: 16e6,
 			basis: "datasheet",
 			source:
 				"LM833/datasheets/lm833-ti.pdf (TI SLOS481B, rev Oct 2014) 7.6 p5, VCC+-=+-15V, TA=25C: " +
-				"'GBW | Gain bandwidth product | f = 100 kHz | MIN 10 TYP 16 | MHz'.",
+				"'GBW | Gain bandwidth product | f = 100 kHz | MIN 10 TYP 16 | MHz'. LM833N: TI " +
+				"LM833-N SNOSBD8E Rev. E May 2012 prints LM833N/NOPB (PDIP) orderables; the same " +
+				"table prints AV 90/110 dB and GBW 10/15 MHz for the die.",
 		},
 	},
 	{
@@ -423,6 +429,76 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"RL = 10 kOhm reads the same 104/120).",
 		},
 	},
+	{
+		// Wave 4. GBW only (D4 swing freeze stands). LM324B prints its own labelled GBW
+		// row (also 1.2 MHz) and is NOT aliased: only the plain ids that section 6.7 and
+		// the operating conditions cover are listed. The B1 row is a unity-gain bandwidth,
+		// which IS the gain-bandwidth product (coordinator ruling 2026-10-19), quoted with
+		// the 8.3.1 sentence that states the figure for these devices.
+		partIds: ["LM324"],
+		gainBandwidthHz: {
+			value: 1.2e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI LMx24/LMx24x/LM2902 SLOS066AE " +
+				"(Aug 1975, rev Sept 2025) 6.10 Operating Conditions (VCC = +-15 V, TA = 25C) p13: " +
+				"'B1 | Unity-gain bandwidth | RL = 1 MOhm, CL = 20 pF | TYP 1.2 | MHz'; and 8.3.1 " +
+				"Unity-Gain Bandwidth p16: 'To calculate the gain bandwidth product, multiply the " +
+				"measured bandwidth of an amplifier by the measured bandwidth gain. These devices " +
+				"have a high gain bandwidth of 1.2MHz.' The AVD row that sets the sections gain is " +
+				"6.7 p11 (VCC = 15 V, VO = 1 V to 11 V, RL >= 2 kOhm, 25C): MIN 25 TYP 100 V/mV.",
+		},
+	},
+	{
+		// Wave 4. GBW only (D4 swing freeze stands). Coordinator standing rule 2026-10-19:
+		// the bare id the datasheet names in its description takes the commercial (C)
+		// grade column, disclosed; no suffixed grade is aliased. The +-5 V (10 V total)
+		// table is quoted as the one closest to a 9 V pedal.
+		partIds: ["TLC2262"],
+		gainBandwidthHz: {
+			value: 0.73e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI Advanced LinCMOS Rail-To-Rail " +
+				"Op Amps SLOS177D (Feb 1997, rev Mar 2001) TLC2262C operating characteristics " +
+				"(VDD+- = +-5 V) p7: 'Gain-bandwidth product, f = 10 kHz, RL = 50 kOhm, CL = 100 pF, " +
+				"VO(PP) = 4.6 V, AV = 1: TYP 0.73 MHz' (the VDD = 5 V table prints 0.71 MHz; quoted " +
+				"is the 10 V table, closest to 9 V). The AVD row that sets the sections gain is the " +
+				"same table: 'Large-signal differential voltage amplification, RL = 50 kOhm, " +
+				"VO = +-4 V: MIN 80 TYP 200 V/mV'.",
+		},
+	},
+	{
+		// Wave 4. GBW only (D4 swing freeze stands).
+		partIds: ["MC33174"],
+		gainBandwidthHz: {
+			value: 1.8e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): onsemi MC33171/D Rev. 14 Jul 2025, " +
+				"AC table (VCC = +15 V, VEE = -15 V, RL to ground, TA = 25C) p4: 'Gain Bandwidth " +
+				"Product (f = 100 kHz), GBW MIN 1.4 TYP 1.8 MHz'. The AVOL row that sets the sections " +
+				"gain is the DC table p3: 'Large Signal Voltage Gain (VO = +-10 V, RL = 10 k), " +
+				"TA = +25C: MIN 50 TYP 500 V/mV'.",
+		},
+	},
+	{
+		// Wave 4. GBW only (D4 swing freeze stands). LM833N/NOPB is the PDIP orderable of
+		// the LM833 die (TI LM833-N SNOSBD8E Rev. E May 2012) but its sheet prints its own
+		// GBW TYP (15 MHz, not the LM833 sheet's 16), so it carries its own row and the
+		// gain-bandwidth pass splits the shared sections entry by row.
+		partIds: ["LM833N"],
+		gainBandwidthHz: {
+			value: 15e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI LM833-N SNOSBD8E Rev. E May 2012 " +
+				"(TA = 25C, VS = +-15 V, RL = 2 kOhm), AC Electrical Characteristics: 'GBW Gain " +
+				"Bandwidth Product, f = 100 kHz, MIN 10 TYP 15 MHz'; the sheet's orderables table " +
+				"prints LM833N/NOPB (PDIP P|8) and the DC table prints 'AV Voltage Gain, RL = 2 kOhm, " +
+				"VO = +-10 V: MIN 90 TYP 110 dB' (same 110 dB as the shared sections entry).",
+		},
+	},
 ]);
 
 /** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. */
@@ -499,6 +575,23 @@ export const opampGainBandwidthAbsent: ReadonlyArray<{
 			"the citable AOL TYP 160 V/mV alone (same AOL-only shape as AD712).",
 	},
 	{
+		partIds: ["LM308"],
+		reason:
+			"Fetched manufacturer sheet (no vendored copy): TI LM108/LM208/LM308 SNOSBS5A (May 2004, " +
+			"rev Sept 2011, OBSOLETE) prints no gain-bandwidth or unity-gain row: only compensation " +
+			"values and open-loop response graphs (Fig. 5/6 numbers are the LM101A-boosted application " +
+			"circuit's, not the LM308's). The sections entry carries the citable AOL TYP 300 V/mV " +
+			"alone (same AOL-only shape as AD712).",
+	},
+	{
+		partIds: ["UA741CP"],
+		reason:
+			"Fetched manufacturer sheet (no vendored copy): TI uA741 SLOS094H (Nov 1970, rev Feb 2026) " +
+			"prints no gain-bandwidth or unity-gain row for uA741C (the switching tables print only " +
+			"rise time 0.3 us TYP, 5% overshoot, SR 0.5 V/us). The sections entry carries the citable " +
+			"AOL TYP 200 V/mV alone (same AOL-only shape as AD712).",
+	},
+	{
 		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
 		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
 	},
@@ -570,6 +663,17 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 			"output-swing pair is deliberately NOT typed (owner decision D4, 2026-10-17, upheld " +
 			"for this wave). Printed swing rows exist (NJM4580 VOM +-12/+-14 and +-10/+-13; OPA2134 " +
 			"VO -14.5/+13.8 at RL = 10 kOhm and -13.8/+13.5 at RL = 2 kOhm; LM1458 VO +-12/+-13.5) " +
+			"and are left untyped for the same supply-translation reason as the 2026-10-17 list.",
+	},
+	{
+		partIds: ["LM308", "LM324", "UA741CP", "TLC2262", "MC33174"],
+		reason:
+			"Wave-4 fills: the sections entries carry the citable AOL TYP (LM308 300 V/mV, LM324 " +
+			"100 V/mV, UA741CP 200 V/mV, TLC2262 200 V/mV C-grade, MC33174 500 V/mV) and the GBW rows " +
+			"(LM324 1.2 MHz, TLC2262 0.73 MHz, MC33174 1.8 MHz; LM308/UA741CP print none) the product; " +
+			"the output-swing pair is deliberately NOT typed (owner decision D4, 2026-10-17, upheld " +
+			"for this wave). Printed swing rows exist (LM308 VOM +-13/+-14 at RL = 10 kOhm; UA741CP " +
+			"VOM +-10/+-14.8 at RL = 2 kOhm; TLC2262C VO 1-4 V at VDD = 5 V; MC33174 VOH/VOL rows) " +
 			"and are left untyped for the same supply-translation reason as the 2026-10-17 list.",
 	},
 	{

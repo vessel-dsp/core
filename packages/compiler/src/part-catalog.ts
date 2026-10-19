@@ -7010,10 +7010,14 @@ const entries: readonly PartEntry[] = [
 	//   Large-signal differential voltage amplification AVD, RL >= 2 kOhm, VO = +-10 V:
 	//   MIN 90 TYP 110 dB. Used as `openLoopGain: decibelGain(110)`, the typ figure.
 	// GBW is not in this entry: it lives in the data-registry row (TYP 16 MHz at f = 100 kHz),
-	// stamped by the pass below.
+	// stamped by the pass below. Wave 4: LM833N rides this entry for open-loop gain
+	// (TI LM833-N sheet SNOSBD8E prints LM833N/NOPB as the PDIP orderable of the same
+	// die with the same AV 110 dB TYP) but carries its own GBW row: the LM833-N sheet
+	// prints GBW TYP 15 MHz, not the LM833 sheet's 16, so the pass splits the entry.
 	{
 		"partIds": [
-			"LM833"
+			"LM833",
+			"LM833N"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [
@@ -7353,6 +7357,473 @@ const entries: readonly PartEntry[] = [
 						4,
 						5,
 						6
+					]
+				}
+			]
+		}
+	},
+
+	// Wave-4 op-amp entries: sections whose open-loop gain is the sheet's own TYP AOL
+	// transcribed (the gain-bandwidth product lives in `registry-data/opamp.ts`, stamped by
+	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog
+	// entries are 1:1 by part id, so no entry splits. LM308 and UA741CP carry AOL only (no
+	// GBW row exists; see `opampGainBandwidthAbsent`).
+
+	// TI LM108/LM208/LM308 single precision op-amp, from SNOSBS5A (May 2004, rev Sept
+	// 2011, OBSOLETE): 5.x Electrical Characteristics (TA = 25C, VS = +-15 V, VOUT = +-10 V,
+	// RL >= 10 kOhm): 'Large Signal Voltage Gain | MIN 50 (LM108/208) / 25 (LM308) |
+	// TYP 300 | V/mV'. Used as `openLoopGain: 300000`. No GBW row is transcribed (the
+	// sheet prints compensation values and open-loop response graphs only; the Fig. 6
+	// 250 kHz/3.5 MHz numbers belong to the LM101A-boosted application circuit).
+	// Pinout: Figure 8 Dual-In-Line Package Top View (8-Pin) p11 (1 COMP, 2 INPUT-,
+	// 3 INPUT+, 4 V-, 5 NC, 6 OUTPUT, 7 V+, 8 COMP 2); the entry keeps the LF351
+	// three-terminal capture (IN+ pin3, IN- pin2, OUT pin6), which is the same
+	// LM741-compatible single layout.
+	{
+		"partIds": [
+			"LM308"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 300000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// TI LM324 quad op-amp, from SLOS066AE (Aug 1975, rev Sept 2025): 6.7 Electrical
+	// Characteristics for LM324/LM324K (VCC = 15 V, VO = 1 V to 11 V, RL >= 2 kOhm, 25C):
+	// 'Large-signal differential voltage amplification AVD | MIN 25 TYP 100 | V/mV'.
+	// Used as `openLoopGain: 100000`. GBW is not in this entry: it lives in the
+	// data-registry row (B1 unity-gain bandwidth TYP 1.2 MHz, 6.10 Operating Conditions),
+	// stamped by the pass below. Pinout: Table 5-1 Pin Functions N (PDIP) p3, the
+	// standard quad order (1OUT, 1IN-, 1IN+, VCC+, 2IN+, 2IN-, 2OUT, 3OUT, 3IN-, 3IN+,
+	// VCC-, 4IN+, 4IN-, 4OUT), same A/B/C/D convention as the TL074 entry above.
+	{
+		"partIds": [
+			"LM324"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_PLUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"OUT_C_pin8"
+			],
+			[
+				"INVERTING_C_pin9"
+			],
+			[
+				"NONINVERTING_C_pin10"
+			],
+			[
+				"V_MINUS_pin11"
+			],
+			[
+				"NONINVERTING_D_pin12"
+			],
+			[
+				"INVERTING_D_pin13"
+			],
+			[
+				"OUT_D_pin14"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VCC",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"OUT_C",
+				"IN_C_MINUS",
+				"IN_C_PLUS",
+				"VEE",
+				"IN_D_PLUS",
+				"IN_D_MINUS",
+				"OUT_D"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						9,
+						8,
+						7
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						11,
+						12,
+						13
+					]
+				}
+			]
+		}
+	},
+
+	// TI uA741C single op-amp in the PDIP-8 UA741CP orderable, from SLOS094H (Nov 1970,
+	// rev Feb 2026): 5.4 Electrical Characteristics uA741C (VCC+- = +-15 V, VO = +-10 V,
+	// RL >= 2 kOhm, 25C): 'Large-signal differential voltage amplification AVD |
+	// MIN 20 TYP 200 | V/mV'. Used as `openLoopGain: 200000`. The sheet prints the
+	// orderable as UA741CP (PDIP P|8) and the device table as uA741CP; the ASCII id is
+	// the orderable spelling. No GBW row is transcribed (switching tables print only
+	// rise time, overshoot and SR). Pinout: Figure 4-2 D-or-P 8-pin Top View + Table 4-2
+	// Pin Functions p3 (1 NC, 2 IN-, 3 IN+, 4 VCC-, 5 NC, 6 OUT, 7 VCC+, 8 NC); the entry
+	// keeps the LF351 three-terminal capture (IN+ pin3, IN- pin2, OUT pin6).
+	{
+		"partIds": [
+			"UA741CP"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// TI TLC2262 dual LinCMOS op-amp, from SLOS177D (Feb 1997, rev Mar 2001): TLC2262C
+	// operating characteristics (VDD+- = +-5 V, the 10 V table closest to a 9 V pedal):
+	// 'Large-signal differential voltage amplification, RL = 50 kOhm, VO = +-4 V:
+	// MIN 80 TYP 200 V/mV'. Used as `openLoopGain: 200000`. Coordinator standing rule
+	// 2026-10-19: the bare id the sheet names in its description takes the commercial (C)
+	// grade column, disclosed here; no suffixed grade is aliased. GBW is not in this
+	// entry: it lives in the data-registry row (TYP 0.73 MHz, same table), stamped by the
+	// pass below. Pinout: D/P/PW 8-pin Top View p3, the standard dual order
+	// (1OUT, 1IN-, 1IN+, VDD-/GND, 2IN+, 2IN-, 2OUT, VDD+), same A/B convention as the
+	// LM833 entry above.
+	{
+		"partIds": [
+			"TLC2262"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// onsemi MC33174 quad op-amp, from MC33171/D Rev. 14 Jul 2025: DC table (VCC = +15 V,
+	// VEE = -15 V, RL to ground, TA = 25C) p3: 'Large Signal Voltage Gain (VO = +-10 V,
+	// RL = 10 k), AVOL MIN 50 TYP 500 V/mV'. Used as `openLoopGain: 500000`. GBW is not
+	// in this entry: it lives in the data-registry row (TYP 1.8 MHz at f = 100 kHz, AC
+	// table p4), stamped by the pass below. Pinout: PIN CONNECTIONS quad diagram p2
+	// incl. PDIP-14 (Output 1 = 1, Inputs 1, VCC, Inputs 2, Output 2, Output 3,
+	// Inputs 3, VEE, Inputs 4, Output 4), the standard quad order, same A/B/C/D
+	// convention as the TL074 entry.
+	{
+		"partIds": [
+			"MC33174"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_PLUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"OUT_C_pin8"
+			],
+			[
+				"INVERTING_C_pin9"
+			],
+			[
+				"NONINVERTING_C_pin10"
+			],
+			[
+				"V_MINUS_pin11"
+			],
+			[
+				"NONINVERTING_D_pin12"
+			],
+			[
+				"INVERTING_D_pin13"
+			],
+			[
+				"OUT_D_pin14"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VCC",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"OUT_C",
+				"IN_C_MINUS",
+				"IN_C_PLUS",
+				"VEE",
+				"IN_D_PLUS",
+				"IN_D_MINUS",
+				"OUT_D"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 500000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 500000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 500000
+					},
+					"terminals": [
+						9,
+						8,
+						7
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 500000
+					},
+					"terminals": [
+						11,
+						12,
+						13
 					]
 				}
 			]

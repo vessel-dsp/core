@@ -592,4 +592,433 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Unbinned 2SC945: the family hFE2 row prints a TYP, so no midpoint is needed.
+		partIds: ["2SC945"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 3.8411256e-14,
+				basis: "derived",
+				source:
+					"2SC945/datasheets/nec-2sc945.pdf (NEC 2SC945 databook p258, scan, read " +
+					"visually, no text layer) ELECTRICAL CHARACTERISTICS (Ta = 25C): 'VBE Base to " +
+					"Emitter Voltage, MIN 0.55 TYP 0.62 MAX 0.65 V at VCE = 6.0 V, IC = 1.0 mA'",
+				derivation:
+					"Printed VBE TYP 0.62 V at VCE = 6.0 V, IC = 1.0 mA (active region, within " +
+					"the form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.001 * exp(-0.62 / 0.025852) = 3.8411256e-14.",
+			},
+			forwardBeta: {
+				value: 200,
+				basis: "datasheet",
+				source:
+					"2SC945/datasheets/nec-2sc945.pdf (NEC 2SC945 databook p258) ELECTRICAL " +
+					"CHARACTERISTICS: 'hFE2 DC Current Gain, MIN 90 TYP 200 MAX 600 at VCE = 6.0 V, " +
+					"IC = 1.0 mA' (the hFE1 row at 0.1 mA is not the law's bias; the rank table " +
+					"splits R/Q/P/K, which stay separate entries)",
+			},
+		},
+	},
+	{
+		// Wave 4. No VBE row of any kind: the table prints ICBO/IEBO, hFE (no TYP),
+		// VCE(sat) MAX-only and no VBE(on)/VBE(sat) TYP or range, so IS has no input.
+		partIds: ["2SC2458"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 221.3594362,
+				basis: "derived",
+				source:
+					"2SC2458/datasheets/toshiba-2sc2458.pdf (Toshiba 2SC2458(L), 1996-09-02, scan, " +
+					"read visually, no text layer) p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC " +
+					"Current Gain hFE (Note), VCE = 6 V, IC = 2 mA, MIN 70 MAX 700' with 'Note: hFE " +
+					"Classification O: 70~140, Y: 120~240, GR: 200~400, BL: 350~700'",
+				derivation:
+					"Printed hFE bin 70-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(70 * 700) = 221.3594362.",
+			},
+		},
+	},
+	{
+		partIds: ["2SC2458GR", "2SC2458-GR"],
+		class: "bjt",
+		note:
+			"The hyphenated and unhyphenated spellings fold to one id (2sc2458gr); both are " +
+			"corpus-observed (boss-tr-2 uses 2SC2458GR, boss-ge-7 uses 2SC2458-GR).",
+		params: {
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"2SC2458/datasheets/toshiba-2sc2458.pdf (Toshiba 2SC2458(L), 1996-09-02, scan) p1, " +
+					"'Note: hFE Classification GR: 200~400' (VCE = 6 V, IC = 2 mA per the table row)",
+				derivation:
+					"Printed GR-rank hFE bin 200-400; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 400) = 282.8427125.",
+			},
+		},
+	},
+	{
+		// Wave 4. Toshiba mini-package selection table (single-page scan T-27-01 via a
+		// third-party host; original Toshiba publication). The hFE cell for the 2SC3378
+		// column reads 200~700 at VCE = 6 V, IC = 2 mA; the column map is anchored three
+		// ways (the 2SC2458(L) column reads VCEO 50, hFE 70~700 at VCE = 6 V, IC = 2 mA,
+		// all matching its verified datasheet). No VBE row exists anywhere in the table,
+		// so IS has no input. The GR rank the corpus uses (2SC3378GR) has no citable row:
+		// the rank footnotes cannot be mapped to this column, so those devices stay on
+		// class defaults and are reported, not filled.
+		partIds: ["2SC3378"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 374.1657387,
+				basis: "derived",
+				source:
+					"Toshiba MINI PACKAGE SERIES selection table (67C 09139 D T-27-01, third-party " +
+					"scan) 'MINI PACKAGE SERIES' table, 2SC3378 column, read visually at high " +
+					"magnification: 'hFE, VCE = 6 V, IC = 2 mA, 200~700' (no MIN/MAX/TYP split, no " +
+					"VBE row in the table)",
+				derivation:
+					"Printed hFE range 200-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 700) = 374.1657387.",
+			},
+		},
+	},
+	{
+		partIds: ["2SC732TM-BL"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.4071917e-14,
+				basis: "derived",
+				source:
+					"2SC732/datasheets/toshiba-2sc732.pdf (Toshiba 2SC732TM, 1996-09-02, scan, read " +
+					"visually, no text layer) p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Base-Emitter " +
+					"Voltage VBE, VCE = 6 V, IC = 2 mA, TYP 0.65 V' (shared row, GR precedent wave 3)",
+				derivation:
+					"Printed VBE TYP 0.65 V at VCE = 6 V, IC = 2 mA (active region, within the " +
+					"form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.65 / 0.025852) = 2.4071917e-14.",
+			},
+			forwardBeta: {
+				value: 458.2575695,
+				basis: "derived",
+				source:
+					"2SC732/datasheets/toshiba-2sc732.pdf (Toshiba 2SC732TM, 1996-09-02, scan) p1, " +
+					"'Note: hFE Classification GR: 200~400, BL: 350~600' (VCE = 6 V, IC = 2 mA per " +
+					"the table row; only these two ranks exist in this sheet)",
+				derivation:
+					"Printed BL-rank hFE bin 350-600; geometric midpoint (form 2, gains): " +
+					"sqrt(350 * 600) = 458.2575695.",
+			},
+		},
+	},
+	{
+		// Wave 4. VBE(on) is MAX-only (0.77 V at 10 mA), a limit, not a range: no IS.
+		partIds: ["BC109C"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 520,
+				basis: "datasheet",
+				source:
+					"BC109C/datasheets/farnell-bc109c.pdf (Farnell/Multicomp BC109 Series V1.0 " +
+					"08/04/06) p2, Electrical Characteristics (Ta = 25C), C Group: 'DC Current hFE, " +
+					"IC = 2 mA, VCE = 5 V, MIN 420 MAX 800'; and the original Philips BC107/108/109 " +
+					"Product Specification 1997 Sep 03 (M3D125, order 9397 750 02817) p4, same row " +
+					"and conditions with a TYP column: 'BC108C/BC109C MIN 420 TYP 520 MAX 800'",
+			},
+		},
+	},
+	{
+		// Wave 4. The onsemi BC237/D family sheet names BC237, BC237B, BC237C and BC239C
+		// only: bare BC239 has DC hFE rows nowhere in it (fT/NF/VCEO rows only), so bare
+		// BC239 is excluded (see the wave-4 report); BC239C carries the C-bin row.
+		partIds: ["BC239C"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 7.6822511e-14,
+				basis: "derived",
+				source:
+					"BC239C/datasheets/onsemi-bc237-d.pdf (onsemi BC237/D, Rev. 4 Jan 2006) p2, ON " +
+					"CHARACTERISTICS: 'Base-Emitter On Voltage VBE(on), IC = 2.0 mA, VCE = 5.0 V, " +
+					"MIN 0.55 TYP 0.62 MAX 0.7 V' (ungraded family row; C-bin table below it)",
+				derivation:
+					"Printed VBE(on) TYP 0.62 V at IC = 2.0 mA, VCE = 5.0 V (active region, within " +
+					"the form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.62 / 0.025852) = 7.6822511e-14.",
+			},
+			forwardBeta: {
+				value: 500,
+				basis: "datasheet",
+				source:
+					"BC239C/datasheets/onsemi-bc237-d.pdf (onsemi BC237/D, Rev. 4 Jan 2006) p2: 'DC " +
+					"Current Gain hFE, IC = 2.0 mA, VCE = 5.0 V, BC237C/239C MIN 380 TYP 500 MAX 800'",
+			},
+		},
+	},
+	{
+		// Wave 4. Philips original (M3D125) prints TYP hFE for the B bin and a TYP VBE for
+		// the family; the Farnell/Multicomp reprint of the same family prints MIN/MAX only.
+		partIds: ["BC107B"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 7.6822511e-14,
+				basis: "derived",
+				source:
+					"Philips Semiconductors BC107/108/109 Product Specification 1997 Sep 03 (M3D125, " +
+					"order 9397 750 02817; original-manufacturer sheet via third-party host) p4, " +
+					"CHARACTERISTICS (Tj = 25C): 'VBE base-emitter voltage, IC = 2 mA, VCE = 5 V, " +
+					"note 2, MIN 550 TYP 620 MAX 700 mV' (ungraded family row)",
+				derivation:
+					"Printed VBE TYP 0.62 V at IC = 2 mA, VCE = 5 V (active region, within the " +
+					"form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.62 / 0.025852) = 7.6822511e-14.",
+			},
+			forwardBeta: {
+				value: 290,
+				basis: "datasheet",
+				source:
+					"Philips Semiconductors BC107/108/109 Product Specification 1997 Sep 03 (M3D125) " +
+					"p4: 'hFE DC current gain, IC = 2 mA, VCE = 5 V: BC107B/BC108B/BC109B MIN 200 " +
+					"TYP 290 MAX 450'",
+			},
+		},
+	},
+	{
+		// Wave 4. NJ Semi-Conductors TO-106 sheet: VBE(on) is MAX-only (0.75 V at 100 uA),
+		// a limit, not a range: no IS. The small-signal hfe 50-1100 row is the 1 kHz
+		// figure, not the law's DC quantity.
+		partIds: ["2N5133"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 220,
+				basis: "datasheet",
+				source:
+					"2N5133/datasheets/njsemi-2n5133.pdf (NJ Semi-Conductors 2N5133, Fairchild-process " +
+					"TO-106) p1, ELECTRICAL CHARACTERISTICS (25C free air): 'DC Current Gain hFE, " +
+					"IC = 1.0 mA, VCE = 5.0 V, MIN 60 TYP 220 MAX 1000'",
+			},
+		},
+	},
+	{
+		// Wave 4. Fairchild 1997 sheet: hFE bins 50-150 at 2 mA and 25 MIN at 50 mA, no TYP
+		// column; VBE(sat) is MAX-only (0.95 V at 50 mA), high-current saturation: no IS.
+		partIds: ["2N4125"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 86.6025404,
+				basis: "derived",
+				source:
+					"2N4125/datasheets/2n4125.pdf (Fairchild Semiconductor 2N4125, 1997, PNP General " +
+					"Purpose Amplifier) p2, Electrical Characteristics (TA = 25C): 'hFE DC Current " +
+					"Gain, VCE = 1.0 V, IC = 2.0 mA, MIN 50 MAX 150' (the 50 mA row is MIN-only 25; " +
+					"pulse test; the small-signal hfe 50-200 row at 1 kHz is not DC hFE)",
+				derivation:
+					"Printed hFE bin 50-150 at VCE = 1.0 V, IC = 2.0 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 150) = 86.6025404.",
+			},
+		},
+	},
+	{
+		// Wave 4. Central 2N4123-2N4126 R1: the hFE row prints MIN/MAX only (no TYP);
+		// VBE(SAT) is MAX-only (0.95 V at 50 mA): no IS. 2N4126 is the PNP column (the
+		// header prints 2N4123/4124 NPN and 2N4125/4126 PNP); polarity is structural.
+		partIds: ["2N4126"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 207.8460969,
+				basis: "derived",
+				source:
+					"Central Semiconductor 2N4123-2N4126 R1 (12-Jan-2016, my.centralsemi.com) p1, " +
+					"ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 1.0 V, IC = 2.0 mA, 2N4126 " +
+					"MIN 120 MAX 360' (the 50 mA row is MIN-only 60; small-signal hfe at 1 kHz not used)",
+				derivation:
+					"Printed hFE bin 120-360 at VCE = 1.0 V, IC = 2.0 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(120 * 360) = 207.8460969.",
+			},
+		},
+	},
+	{
+		// Wave 4. NEC 2SA733 D10868EJ7V0DS00 (7th ed, March 2004): the hFE row prints a TYP
+		// for the family; the rank table splits R/Q/P/E. Unbinned plus the corpus-used P
+		// rank (boss-vb-2 Q10 '2SA733-P'); R/Q/E stay out (no corpus use, same sheet).
+		partIds: ["2SA733"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 3.8411256e-14,
+				basis: "derived",
+				source:
+					"NEC 2SA733 DATA SHEET Doc. No. D10868EJ7V0DS00 (7th edition, March 2004, via " +
+					"renesas.com) p1, ELECTRICAL CHARACTERISTICS (TA = 25C): 'Base to Emitter Voltage " +
+					"VBE, VCE = -6.0 V, IC = -1.0 mA, MIN -0.58 TYP -0.62 MAX -0.68 V' magnitudes (PNP)",
+				derivation:
+					"Printed VBE TYP 0.62 V at IC = 1.0 mA (active region, within the form-1 IC <= " +
+					"20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.001 * exp(-0.62 / 0.025852) = 3.8411256e-14. Polarity is structural.",
+			},
+			forwardBeta: {
+				value: 200,
+				basis: "datasheet",
+				source:
+					"NEC 2SA733 DATA SHEET D10868EJ7V0DS00 (7th ed, March 2004) p1: 'DC Current Gain " +
+					"hFE, VCE = -6.0 V, IC = -1.0 mA, MIN 90 TYP 200 MAX 600' (the hFE(2) row at " +
+					"-150 mA is high-current falloff; ranks R/Q/P/E split below)",
+			},
+		},
+	},
+	{
+		partIds: ["2SA733-P", "2SA733P"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 3.8411256e-14,
+				basis: "derived",
+				source:
+					"NEC 2SA733 DATA SHEET D10868EJ7V0DS00 (7th ed, March 2004) p1: shared VBE row " +
+					"'MIN -0.58 TYP -0.62 MAX -0.68 V at VCE = -6.0 V, IC = -1.0 mA' magnitudes (PNP; " +
+					"the two spellings fold to one id, 2SC945-P precedent)",
+				derivation:
+					"Printed VBE TYP 0.62 V at IC = 1.0 mA (form-1 gate met); IS = " +
+					"0.001 * exp(-0.62 / 0.025852) = 3.8411256e-14.",
+			},
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"NEC 2SA733 DATA SHEET D10868EJ7V0DS00 (7th ed, March 2004) p1, 'CLASSIFICATION " +
+					"OF hFE, Rank P, Range 200 to 400 (hFE Test Conditions: VCE = -6.0 V, IC = -1.0 mA)'",
+				derivation:
+					"Printed P-rank hFE bin 200-400; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 400) = 282.8427125.",
+			},
+		},
+	},
+	{
+		// Wave 4. Panasonic 2SC828/2SC828A databook p293 (third-party scan of the original
+		// page; doc identity disclosed: footer 'Panasonic', undated). The DC hFE row prints
+		// MIN/MAX only (no TYP); VBE is MAX-only (0.8 V at 10 mA), a limit: no IS.
+		// Ranks Q/R/S are printed but unused by the corpus, so only the unbinned row ships.
+		partIds: ["2SC828"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 260,
+				basis: "derived",
+				source:
+					"Panasonic 2SC828/2SC828A databook p293 (original-manufacturer page via " +
+					"third-party host) ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC Current Gain hFE*, " +
+					"VCE = 5 V, IC = 2 mA, min. 130, max. 520' with '*hFE Ranking Rank Q 130~260, " +
+					"R 180~360, S 260~520'",
+				derivation:
+					"Printed hFE range 130-520 at VCE = 5 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(130 * 520) = 260.0.",
+			},
+		},
+	},
+	{
+		// Wave 4. Toshiba 2SA1015(L) scan (1997-04-10 / 2003-03-27 reprint, same table;
+		// third-party host of the Toshiba original). No active-VBE row (only VBE(sat) MAX
+		// -1.1 V at -100 mA): IS excluded. Bare A1015 is a top-mark abbreviation no sheet
+		// prints: excluded. Unbinned plus the corpus-used Y rank (2SA1015-Y); O/GR stay
+		// out (same sheet, no corpus use).
+		partIds: ["2SA1015"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 167.3320053,
+				basis: "derived",
+				source:
+					"Toshiba 2SA1015(L) Transistor Silicon PNP Epitaxial Type (PCT process), " +
+					"2003-03-27 reprint of the 1997-04-10 original (third-party host) p1, ELECTRICAL " +
+					"CHARACTERISTICS (Ta = 25C): 'DC current gain hFE (1) (Note), VCE = -6 V, " +
+					"IC = -2 mA, 70 MIN, 400 MAX' with 'Note: hFE (1) classification O: 70~140, " +
+					"Y: 120~240, GR: 200~400'",
+				derivation:
+					"Printed hFE(1) range 70-400 at VCE = -6 V, IC = -2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(70 * 400) = 167.3320053.",
+			},
+		},
+	},
+	{
+		partIds: ["2SA1015-Y", "2SA1015Y"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 169.7056275,
+				basis: "derived",
+				source:
+					"Toshiba 2SA1015(L) 2003-03-27 p1, 'Note: hFE (1) classification Y: 120~240' " +
+					"(VCE = -6 V, IC = -2 mA per the table row; the two spellings fold to one id)",
+				derivation:
+					"Printed Y-rank hFE(1) bin 120-240; geometric midpoint (form 2, gains): " +
+					"sqrt(120 * 240) = 169.7056275.",
+			},
+		},
+	},
+	{
+		// Wave 4. Toshiba 2SC2240 2007-11-01: the VBE row prints a TYP (active region), so
+		// IS derives; ranks GR/BL split the gain. Unbinned plus the corpus-used GR rank
+		// (six GR uses); BL stays out (same sheet, no corpus use).
+		partIds: ["2SC2240"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.4071917e-14,
+				basis: "derived",
+				source:
+					"2SC2240/datasheets/toshiba-2sc2240.pdf (Toshiba 2SC2240, 2007-11-01) p2, " +
+					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Base-emitter voltage VBE, VCE = 6 V, " +
+					"IC = 2 mA, TYP 0.65 V'",
+				derivation:
+					"Printed VBE TYP 0.65 V at VCE = 6 V, IC = 2 mA (active region, within the " +
+					"form-1 IC <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.65 / 0.025852) = 2.4071917e-14.",
+			},
+			forwardBeta: {
+				value: 374.1657387,
+				basis: "derived",
+				source:
+					"2SC2240/datasheets/toshiba-2sc2240.pdf (Toshiba 2SC2240, 2007-11-01) p2: 'DC " +
+					"current gain hFE (Note), VCE = 6 V, IC = 2 mA, MIN 200 MAX 700' with 'Note: hFE " +
+					"classification GR: 200~400, BL: 350~700'",
+				derivation:
+					"Printed hFE range 200-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 700) = 374.1657387.",
+			},
+		},
+	},
+	{
+		partIds: ["2SC2240-GR", "2SC2240GR"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.4071917e-14,
+				basis: "derived",
+				source:
+					"2SC2240/datasheets/toshiba-2sc2240.pdf (Toshiba 2SC2240, 2007-11-01) p2, shared " +
+					"VBE row 'TYP 0.65 V at VCE = 6 V, IC = 2 mA' (the two spellings fold to one id)",
+				derivation:
+					"Printed VBE TYP 0.65 V at IC = 2 mA (form-1 gate met); IS = " +
+					"0.002 * exp(-0.65 / 0.025852) = 2.4071917e-14.",
+			},
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"2SC2240/datasheets/toshiba-2sc2240.pdf (Toshiba 2SC2240, 2007-11-01) p2, 'Note: " +
+					"hFE classification GR: 200~400' (VCE = 6 V, IC = 2 mA per the table row)",
+				derivation:
+					"Printed GR-rank hFE bin 200-400; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 400) = 282.8427125.",
+			},
+		},
+	},
 ]);

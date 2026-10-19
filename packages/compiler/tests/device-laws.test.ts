@@ -189,12 +189,12 @@ describe("attachDeviceLaws", () => {
 		}
 	});
 
-	it("leaves a suffixed 2SK30ATM-Y id on the class default stamp byte-for-byte", () => {
-		// The catalog covers the exact folded id `2sk30a` only: `registryLawFor`
-		// compares whole folded ids with no prefix rule, so a binned or suffixed
-		// spelling must not match. `boss-cs-2`, `boss-ds-1` and `boss-dm-2` declare
-		// exactly these spellings and stay on the class law until their packet
-		// studies land.
+	it("resolves a suffixed 2SK30ATM-Y id through the 2SK30A-Y rank alias", () => {
+		// The catalog covers the exact folded id `2sk30a` (gate-only) plus the Y/GR rank
+		// rows; `2SK30ATM-Y` is the Toshiba mini-package spelling of the Y rank and rides
+		// it as an alias (wave 4). `boss-cs-2`, `boss-ds-1` and `boss-dm-2` declare
+		// exactly these spellings. A suffixed spelling that is NOT an alias (e.g. a rank
+		// the sheet never prints) still falls through to the class default.
 		const suffixed = jfetGateLoadedDivider2SK30A.replace(
 			'PartNumber: "2SK30A"',
 			'PartNumber: "2SK30ATM-Y"',
@@ -205,8 +205,8 @@ describe("attachDeviceLaws", () => {
 		);
 		expect(q1?.outcome).toBe("law");
 		if (q1?.outcome === "law" && q1.law.kind === "fet") {
-			expect(q1.law.thresholdVolts).toBe(-2);
-			expect(q1.law.transconductance).toBe(1e-3);
+			expect(q1.law.thresholdVolts).toBe(-2.7);
+			expect(q1.law.transconductance).toBeCloseTo(2.8806584e-4, 12);
 			expect(q1.law.channelLengthModulation).toBe(0);
 			expect(q1.law.subthresholdVolts).toBe(0.07);
 			expect(q1.law.gateSaturationCurrent).toBe(1e-5);
