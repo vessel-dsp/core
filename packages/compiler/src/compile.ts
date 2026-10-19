@@ -31,7 +31,7 @@ import { link } from "./link";
 import { lower } from "./lower";
 import { readNetlist } from "./netlist";
 import { partition } from "./partition";
-import { emptyRegistry, foldPartId, registryLawFor, type PartEntry, type PartRegistry } from "./registry";
+import { emptyRegistry, foldPartId, registryEntryFor, registryLawFor, type PartEntry, type PartRegistry } from "./registry";
 import {
 	findDanglingActiveTerminals,
 	synthesizeOpampImplicitBias,
@@ -61,6 +61,7 @@ import type {
 	NodeId,
 	Program,
 	RailWithoutVoltageWarning,
+	RegistryOverrideAppliedWarning,
 	RegistryProvisionalValueWarning,
 } from "./types";
 import { findUnboundedOpamps } from "./unbounded-operating-point";
@@ -104,6 +105,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 	const netlist = readNetlist(source, {
 		inputJack: options.inputJack,
 		outputJack: options.outputJack,
+		registry: options.registry ?? emptyRegistry,
 	});
 	const lawed: LawedNetlist = attachDeviceLaws(
 		netlist,
@@ -237,6 +239,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist),
 		...findRegistryProvisionalValues(netlist, lawed, options.registry ?? emptyRegistry),
+		...findRegistryOverrideApplied(netlist, lawed, options.registry ?? emptyRegistry),
 		...findOpampLawDefaults(lawed),
 		...findOpampGainBandwidthDefaults(lawed),
 		...scaled.warnings,
@@ -475,6 +478,99 @@ const PROVISIONAL_OVERRIDE_KEYS: Readonly<
 	},
 };
 
+/**
+ * The registry value an override replaces for one parameter, or `null` when it replaces
+ * nothing: either the part has no registry entry at all, or the entry states no such
+ * parameter (a measured refinement beyond the entry, or a law the entry does not carry).
+ *
+ * Read from the entry's law fields by schema name -- law fields ARE schema names -- from a
+ * whole `law` entry or the first section of a `sections` entry (a dual op-amp's numbers live
+ * there, which is also how `registryOpampGainBandwidth` reads them). Macros and other models
+ * carry no numeric law fields for these classes, so they read as absent.
+ */
+function registryParamValue(
+	registry: PartRegistry,
+	partNumber: string | null,
+	parameter: string,
+): number | null {
+	if (partNumber === null) {
+		return null;
+	}
+	const entry = registryEntryFor(
+		registry,
+		{ partId: partNumber, evidence: "exact-part" },
+	);
+	if (entry === null) {
+		return null;
+	}
+	const law =
+		entry.model.kind === "law"
+			? entry.model.law
+			: entry.model.kind === "sections"
+				? entry.model.sections[0]?.law
+				: undefined;
+	if (law === undefined) {
+		return null;
+	}
+	const value = (law as Record<string, unknown>)[parameter];
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Devices whose stamped values came from an explicit `DeviceOverride` block rather than the
+ * registry or a class default. See `RegistryOverrideAppliedWarning`. One notice per device,
+ * naming the part, every overridden parameter with the override value and the registry value
+ * it replaced (null = "no registry entry"), and the provenance -- so a player can show
+ * "measured by ... on ...".
+ *
+ * A notice, never a refusal: the values already stamped (precedence override > legacy typed
+ * key > registry > class default). A device whose resolution is not a law (unsupported,
+ * macro, open) took no registry value and is not listed.
+ */
+function findRegistryOverrideApplied(
+	netlist: Netlist,
+	lawed: LawedNetlist,
+	registry: PartRegistry,
+): readonly RegistryOverrideAppliedWarning[] {
+	const lawedByBase = new Set(
+		lawed.resolutions
+			.filter((resolution) => resolution.outcome === "law")
+			.map((resolution) => resolution.device.replace(/#\d+$/, "")),
+	);
+	const out: RegistryOverrideAppliedWarning[] = [];
+	for (const device of netlist.devices) {
+		const override = device.deviceOverride;
+		if (override === undefined) continue;
+		if (!lawedByBase.has(device.id)) continue;
+		const partNumber = device.identity.partNumber;
+		const items = override.parameters.map((parameter) => ({
+			parameter: parameter.name,
+			overrideValue: parameter.value,
+			registryValue: registryParamValue(registry, partNumber, parameter.name),
+		}));
+		const stated = items
+			.map(
+				(item) =>
+					`${item.parameter} ${item.overrideValue}` +
+					(item.registryValue === null
+						? " (no registry value replaced)"
+						: ` (registry ${item.registryValue})`),
+			)
+			.join(", ");
+		out.push({
+			code: "registry-override-applied" as const,
+			device: device.id,
+			partNumber,
+			items,
+			provenance: override.provenance,
+			detail:
+				`${device.id}${partNumber === null ? "" : ` (${partNumber})`} applies a ` +
+				`${override.provenance.kind} override by ${override.provenance.by} on ` +
+				`${override.provenance.date}: ${stated}.`,
+		});
+	}
+	return out;
+}
 /**
  * Devices whose law runs on at least one provisional `community` registry value.
  * See `RegistryProvisionalValueWarning`. One warning per device, naming the device,

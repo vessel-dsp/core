@@ -169,6 +169,47 @@ export type DeclaredWindingImpedance = Readonly<{
 	ohms: number;
 }>;
 
+/**
+ * An explicit device-parameter override block, as declared in a component's `properties`
+ * under the `DeviceOverride` key (stage 2).
+ *
+ * A `.vdsp` NAMES the part; the registry holds its parameters. This block states measured
+ * values that replace registry values for this device (`kind: "measured"`), or the full
+ * parameter set for a part the registry does not have (`kind: "custom"`). Parameter names
+ * are the part's own class-schema names (`CLASS_PARAM_SCHEMAS`), values are plain SI numbers
+ * with one value per parameter. Parsed and validated by `readDeviceOverride` in `netlist.ts`;
+ * this type is the validated shape that `device.parameters` merging and the
+ * `registry-override-applied` notice both read.
+ */
+export type DeviceOverrideParameter = Readonly<{
+	/** A class-schema parameter name (checked against the part's class schema). */
+	readonly name: string;
+	/** The single SI number the engine uses. */
+	readonly value: number;
+}>;
+
+export type DeviceOverrideKind = "measured" | "custom";
+
+export type DeviceOverrideProvenance = Readonly<{
+	readonly kind: DeviceOverrideKind;
+	/** What was measured, or which document the numbers come from. */
+	readonly source: string;
+	/** Instrument/procedure for `measured`; why the registry lacks the part for `custom`. */
+	readonly method: string;
+	/** Sitting date, ISO YYYY-MM-DD. */
+	readonly date: string;
+	/** A named person or organisation. */
+	readonly by: string;
+	/** Optional supply, temperature, current. */
+	readonly conditions?: string;
+}>;
+
+export type DeviceOverride = Readonly<{
+	readonly provenance: DeviceOverrideProvenance;
+	/** A list (not a mapping) so a duplicate name stays detectable. */
+	readonly parameters: readonly DeviceOverrideParameter[];
+}>;
+
 export type Device = {
 	readonly id: DeviceId;
 	readonly kind: DeviceKind;
@@ -180,6 +221,15 @@ export type Device = {
 	readonly control: ControlId | null;
 	readonly identity: DeviceIdentity;
 	readonly isLed?: boolean;
+	/**
+	 * This device's explicit parameter override, as the source declared it under
+	 * `properties.DeviceOverride`, or absent where it declares none. Validated at
+	 * read time (unknown names, bad provenance and `custom` rule violations refuse
+	 * the pedal); the merged values already sit in `parameters`, so this carries
+	 * the provenance and the per-parameter record the `registry-override-applied`
+	 * notice reports.
+	 */
+	readonly deviceOverride?: DeviceOverride;
 	/**
 	 * This device's id **within its package**, when the source split the package itself.
 	 *
@@ -3138,6 +3188,54 @@ export type RegistryProvisionalValueWarning = {
 };
 
 /**
+ * A device parameter the source still types under its legacy spelling (`Aol`, `IS`, `BF`,
+ * `Vt0`, `Beta`, `GBP`, `EmissionCoefficient`, ...), which the compiler still reads while
+ * the artifacts migration to explicit `DeviceOverride` blocks is in flight. One warning per
+ * device, naming every legacy key present.
+ *
+ * **Why it is named.** The end state (stage 4) reads device parameters from no other property:
+ * a legacy key the migration drops without converting silently changes the program (or, for
+ * keys the compiler never read, silently changes nothing while looking like it did). Naming
+ * every still-read legacy key per device is the migration checklist, and the `overridden`
+ * subset says which ones an override block already supersedes. REMOVAL of legacy reading is
+ * stage 4, not this task: this warning is additive and changes no program.
+ */
+export type LegacyDeviceParameterWarning = {
+	readonly code: "legacy-device-parameter";
+	readonly device: DeviceId;
+	/** Every legacy typed device-parameter key present on the component, as authored. */
+	readonly keys: readonly string[];
+	/** The subset an explicit override block supersedes (the override value wins). */
+	readonly overridden: readonly string[];
+	readonly detail: string;
+};
+
+/**
+ * One applied explicit parameter override: the device's values that came from its
+ * `DeviceOverride` block rather than the registry or a class default. One notice per device,
+ * so a player can show "measured by ... on ..." beside the part.
+ *
+ * A notice, never a refusal: the values already stamped (precedence override > legacy typed
+ * key > registry > class default). `registryValue` is `null` when no registry value was
+ * replaced -- either the part has no entry, or the entry states no such parameter -- and
+ * `detail` says which.
+ */
+export type RegistryOverrideAppliedWarning = {
+	readonly code: "registry-override-applied";
+	readonly device: DeviceId;
+	/** The part number as the source authored it (null when the device names none). */
+	readonly partNumber: string | null;
+	/** Per overridden parameter: what the override states and what it replaced. */
+	readonly items: readonly {
+		readonly parameter: string;
+		readonly overrideValue: number;
+		readonly registryValue: number | null;
+	}[];
+	readonly provenance: DeviceOverrideProvenance;
+	readonly detail: string;
+};
+
+/**
  * Why one op-amp is named by `opamp-law-default-parameters`. `not-stated`: the part states no
  * output-swing pair, so the output runs the full supply. `stated-at-other-supply`: the part's
  * datasheet prints a pair, but at a supply other than this pedal's, and the lowering carried it
@@ -3490,6 +3588,8 @@ export type CompileWarning =
 	| FetLawDefaultWarning
 	| BjtLawDefaultWarning
 	| RegistryProvisionalValueWarning
+	| LegacyDeviceParameterWarning
+	| RegistryOverrideAppliedWarning
 	| OpampLawDefaultWarning
 	| OpampGainBandwidthDefaultWarning
 	| IcNotExecutedWarning

@@ -25,7 +25,11 @@ import {
 } from "@vessel-dsp/core";
 import { load as loadYaml } from "js-yaml";
 import { StageRefusal } from "./errors";
-import { foldToken } from "./registry";
+import { emptyRegistry, foldToken, registryEntryFor, type PartRegistry } from "./registry";
+import {
+	classParamNames,
+	requiredClassParams,
+} from "./registry-data";
 import { findBistableLatches } from "./latch-seed";
 import { speakerOnePort } from "./speaker-load";
 import {
@@ -42,7 +46,11 @@ import {
 	type Device,
 	type DeviceId,
 	type DeviceKind,
+	type DeviceOverride,
+	type DeviceOverrideParameter,
+	type DeviceOverrideProvenance,
 	GROUND,
+	type LegacyDeviceParameterWarning,
 	type Netlist,
 	type NetlistBypass,
 	type NodeId,
@@ -673,6 +681,13 @@ const parameterNameByDeviceKind: Readonly<Record<string, string>> = {
 export type ReadNetlistOptions = {
 	readonly inputJack?: string;
 	readonly outputJack?: string;
+	/**
+	 * The part registry, for stage-2 `DeviceOverride` validation only (`custom` on a part
+	 * the registry already has is an error). Absent means the empty registry -- the same
+	 * legitimate configuration the compiler runs with -- under which every part counts
+	 * as unknown and `custom` completeness is the only registry-adjacent check.
+	 */
+	readonly registry?: PartRegistry;
 };
 
 export function readNetlist(
@@ -698,6 +713,7 @@ export function readNetlist(
 			? declaredNodesFromConnectivity(document, parsed.connectivity)
 			: new Map<string, NodeId>();
 	const nodeOf = resolveNodes(document, declaredNodes);
+	const registry = options?.registry ?? emptyRegistry;
 
 	const warnings: CompileWarning[] = [];
 
@@ -1039,7 +1055,16 @@ export function readNetlist(
 					packageDeviceId: declared.id,
 					kind: deviceKind,
 					nodes: owned.map((entry) => entry.node),
-					parameters: parametersFor(component, deviceKind),
+					...applyDeviceOverride(
+						component,
+						deviceKind,
+						parametersFor(component, deviceKind),
+						{
+							warnings,
+							registry,
+							deviceId: `${component.id}.${declared.id}`,
+						},
+					),
 					// The control belongs to the package, so only the first device carries it.
 					// A ganged part states the same control on both and the owner map already
 					// keeps the first.
@@ -1057,7 +1082,11 @@ export function readNetlist(
 			id: String(component.id),
 			kind,
 			nodes,
-			parameters: parametersFor(component, kind),
+			...applyDeviceOverride(component, kind, parametersFor(component, kind), {
+				warnings,
+				registry,
+				deviceId: String(component.id),
+			}),
 			control,
 			identity: identityOf(
 				effectiveTerminals,
@@ -2543,6 +2572,455 @@ export function parseQuantity(raw: string): number {
 		);
 	}
 	return value * multiplier;
+}
+
+/**
+ * Stage 2: the explicit device-parameter override block.
+ *
+ * A `.vdsp` NAMES the part; the registry holds its parameters. A component may carry one
+ * `DeviceOverride` object in its `properties` stating measured values for this device
+ * (`kind: "measured"`, allowed on any part) or the full parameter set for a part the
+ * registry does not have (`kind: "custom"`). Parameter names are the part's OWN class-schema
+ * names (`CLASS_PARAM_SCHEMAS` for its class); values are plain SI numbers, one per parameter.
+ *
+ * Placement is a nested structured property -- not a new component field -- so no
+ * `circuit-interchange` schema version, no `Component` type, no parser/serializer and no
+ * core change was needed: nested objects round-trip through `parsePropertyValue` /
+ * `propertiesBlock` untouched. An override changes only law numbers that already flow into
+ * program blocks the way today's legacy typed keys do, so `Program`, the stamps and the
+ * consoles are untouched too.
+ *
+ * Precedence, decided under the brief: override > legacy typed key > registry > class default.
+ * Legacy reading is untouched (REMOVAL is stage 4, not this task); while it is still read,
+ * every device carrying a still-read legacy key gets the additive `legacy-device-parameter`
+ * warning, and every applied override gets the additive `registry-override-applied` notice
+ * (emitted in `compile.ts`, where the registry is in scope).
+ *
+ * Every refusal names the component, the parameter and the rule (`NetlistError` carries the
+ * component id, and `compile` turns it into an `unsupported` result at stage `netlist`).
+ */
+const DEVICE_OVERRIDE_KEY = "DeviceOverride";
+
+/** The registry classes an override block may target, by device kind. */
+type OverrideTargetClass =
+	| "bjt"
+	| "jfet"
+	| "mosfet"
+	| "diode"
+	| "zener"
+	| "led"
+	| "opamp";
+
+/**
+ * The schema class an override block on this device is checked against, or `null` when the
+ * device kind takes no registry-class parameters and an override block is an error.
+ *
+ * `diode` device kind covers three classes with the same five names: zener when the component
+ * declares itself one (`Type: Zener`, the only two corpus spellings, or the canonical
+ * `Circuit.ZenerDiode` source type), led when the component kind is `led`, else diode. Only
+ * the *required set* differs between them (a zener additionally requires `breakdownVolts`,
+ * because without it the law stamps an ordinary diode).
+ */
+function overrideTargetClass(
+	component: ComponentLike,
+	deviceKind: DeviceKind,
+): OverrideTargetClass | null {
+	switch (deviceKind) {
+		case "bjt":
+			return "bjt";
+		case "jfet":
+			return "jfet";
+		case "mosfet":
+			return "mosfet";
+		case "diode": {
+			const declaredType = propertyString(component, "Type");
+			if (
+				declaredType === "Zener" ||
+				declaredType === "zener" ||
+				component.sourceTypeName === "Circuit.ZenerDiode"
+			) {
+				return "zener";
+			}
+			if (String(component.kind) === "led") {
+				return "led";
+			}
+			return "diode";
+		}
+		case "opamp":
+			return "opamp";
+		default:
+			return null;
+	}
+}
+
+/**
+ * Legacy typed device-parameter keys this stage still reads, per device kind. Only these warn:
+ * keys the compiler never reads (`SR`, `Rout`, `Rin`, `Vsat`, a diode's `IS`/`n`, ...) change
+ * nothing when deleted and belong to the migration table, not to a compile warning.
+ */
+const LEGACY_DEVICE_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
+	bjt: ["IS", "BF", "BR", "LeakageCurrent"],
+	jfet: [
+		"Vt0",
+		"VTO",
+		"ThresholdVoltage",
+		"thresholdVolts",
+		"Beta",
+		"BETA",
+		"Transconductance",
+		"transconductance",
+	],
+	mosfet: [
+		"Vt0",
+		"VTO",
+		"ThresholdVoltage",
+		"thresholdVolts",
+		"Beta",
+		"BETA",
+		"Transconductance",
+		"transconductance",
+	],
+	diode: [
+		"ReverseBreakdownVoltage",
+		"BreakdownVoltage",
+		"ZenerVoltage",
+		"SaturationCurrent",
+		"SeriesResistance",
+		"OhmicResistance",
+		"RS",
+		"Rs",
+		"EmissionCoefficient",
+	],
+	opamp: ["Aol", "GBP"],
+};
+
+/**
+ * The engine field a legacy key feeds, for the superseded computation. A legacy key is
+ * superseded when the override supplies the same engine field -- compared on fields, not on
+ * spellings, so the compiler holds no legacy-name to schema-name translation table (that
+ * table lives only in the step-3 migration script).
+ */
+const LEGACY_KEY_ENGINE_FIELD: Readonly<Record<string, string>> = {
+	IS: "saturationCurrent",
+	BF: "beta",
+	BR: "reverseBeta",
+	LeakageCurrent: "leakageAmps",
+	Vt0: "thresholdVolts",
+	VTO: "thresholdVolts",
+	ThresholdVoltage: "thresholdVolts",
+	thresholdVolts: "thresholdVolts",
+	Beta: "transconductance",
+	BETA: "transconductance",
+	Transconductance: "transconductance",
+	transconductance: "transconductance",
+	ReverseBreakdownVoltage: "breakdownVolts",
+	BreakdownVoltage: "breakdownVolts",
+	ZenerVoltage: "breakdownVolts",
+	SaturationCurrent: "saturationCurrent",
+	SeriesResistance: "seriesResistance",
+	OhmicResistance: "seriesResistance",
+	RS: "seriesResistance",
+	Rs: "seriesResistance",
+	EmissionCoefficient: "emissionCoefficient",
+	Aol: "openLoopGain",
+	GBP: "gainBandwidthHz",
+};
+
+/**
+ * The engine field an override schema name writes. Every schema name already IS the engine
+ * field except the BJT's gain: the document-typed legacy key is `BF`, the engine field is
+ * `beta` (read by `device-laws.ts` and the provisional-value suppression), and the schema
+ * name is `forwardBeta`.
+ */
+function overrideEngineField(target: OverrideTargetClass, name: string): string {
+	if (target === "bjt" && name === "forwardBeta") {
+		return "beta";
+	}
+	return name;
+}
+
+/** A non-empty authored string, or `null` when the value is not one. */
+function nonEmptyText(value: unknown): string | null {
+	if (typeof value !== "string" || value.trim().length === 0) {
+		return null;
+	}
+	return value.trim();
+}
+
+/**
+ * Check one override value: finite, and positive (or bounded) where the parameter is
+ * physically required to be. Names the component, the parameter and the rule.
+ */
+function checkOverrideValue(
+	componentId: string,
+	target: OverrideTargetClass,
+	name: string,
+	value: unknown,
+): number {
+	const refuse = (rule: string): never => {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride parameter "${name}" ${JSON.stringify(value)} ${rule}`,
+			componentId,
+		);
+	};
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		refuse("is not a finite SI number");
+	}
+	const n = value as number;
+	switch (name) {
+		case "emissionCoefficient":
+			if (n < EMISSION_COEFFICIENT_MIN || n > EMISSION_COEFFICIENT_MAX) {
+				refuse(
+					`is not an ideality factor from ${EMISSION_COEFFICIENT_MIN} to ${EMISSION_COEFFICIENT_MAX}`,
+				);
+			}
+			return n;
+		case "leakageAmps":
+		case "breakdownVolts":
+		case "seriesResistance":
+		case "channelLengthModulation":
+		case "subthresholdVolts":
+		case "gateSaturationCurrent":
+			if (n < 0) {
+				refuse(`is negative, and a negative ${name} is not physical`);
+			}
+			return n;
+		case "thresholdVolts":
+		case "gateOnsetVolts":
+			// Sign carries the physics here (depletion negative, enhancement positive, and
+			// p-channel JFETs pinch off positive), so any finite value -- including zero --
+			// parses, exactly as the legacy `Vt0` reader accepts any quantity.
+			return n;
+		default:
+			// saturationCurrent, forwardBeta, reverseBeta, thermalVoltage, transconductance,
+			// gateScaleVolts, openLoopGain, gainBandwidthHz, volts, sourceOhms,
+			// chargePumpLossVolts: zero or negative is not a value for any of them.
+			if (!(n > 0)) {
+				refuse(`is not a positive finite number, which ${name} must be`);
+			}
+			return n;
+	}
+}
+
+/**
+ * Parse and validate the `DeviceOverride` block on this component, or return null when it
+ * declares none. Throws `NetlistError` (naming component, parameter and rule) on every
+ * malformed block: unknown kind, missing/malformed provenance, malformed parameter list,
+ * unknown name for the class, duplicate parameter, non-physical value, `custom` on a known
+ * part, or `custom` missing a required parameter. Override on a device kind that takes no
+ * registry-class parameters is an error, so a block on a resistor or an IC can never sit
+ * silently unread.
+ */
+function readDeviceOverride(
+	component: ComponentLike,
+	deviceKind: DeviceKind,
+	registry: PartRegistry,
+): { readonly override: DeviceOverride; readonly target: OverrideTargetClass } | null {
+	const raw = (component.properties as Record<string, unknown>)[DEVICE_OVERRIDE_KEY];
+	if (raw === undefined || raw === null) {
+		return null;
+	}
+	const componentId = String(component.id);
+	const target = overrideTargetClass(component, deviceKind);
+	if (target === null) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride is not supported for ${deviceKind} devices (bjt, jfet, mosfet, diode and opamp only)`,
+			componentId,
+		);
+	}
+	if (typeof raw !== "object" || Array.isArray(raw)) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride must be an object with kind, provenance and parameters, not ${JSON.stringify(raw)}`,
+			componentId,
+		);
+	}
+	const block = raw as Record<string, unknown>;
+	const kind = block.kind;
+	if (kind !== "measured" && kind !== "custom") {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.kind ${JSON.stringify(kind)} is not "measured" or "custom"`,
+			componentId,
+		);
+	}
+	const source = nonEmptyText(block.source);
+	if (source === null) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.source is missing (what was measured, or which document the numbers come from)`,
+			componentId,
+		);
+	}
+	const method = nonEmptyText(block.method);
+	if (method === null) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.method is missing (instrument/procedure for measured, why the registry lacks the part for custom)`,
+			componentId,
+		);
+	}
+	const dateRaw = nonEmptyText(block.date);
+	if (
+		dateRaw === null ||
+		!/^\d{4}-\d{2}-\d{2}$/u.test(dateRaw) ||
+		Number.isNaN(Date.parse(`${dateRaw}T00:00:00Z`))
+	) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.date ${JSON.stringify(block.date)} is not an ISO date (YYYY-MM-DD)`,
+			componentId,
+		);
+	}
+	const by = nonEmptyText(block.by);
+	if (by === null) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.by is missing (a named person or organisation)`,
+			componentId,
+		);
+	}
+	const conditions = block.conditions;
+	if (conditions !== undefined && typeof conditions !== "string") {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.conditions must be free text, not ${JSON.stringify(conditions)}`,
+			componentId,
+		);
+	}
+	const list = block.parameters;
+	if (!Array.isArray(list) || list.length === 0) {
+		throw new NetlistError(
+			`component ${componentId}: DeviceOverride.parameters must be a non-empty list of {name, value}`,
+			componentId,
+		);
+	}
+	const allowed = new Set<string>(classParamNames(target));
+	const seen = new Set<string>();
+	const parameters: DeviceOverrideParameter[] = [];
+	for (const [index, entry] of list.entries()) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+			throw new NetlistError(
+				`component ${componentId}: DeviceOverride.parameters[${index}] must be {name, value}, not ${JSON.stringify(entry)}`,
+				componentId,
+			);
+		}
+		const record = entry as Record<string, unknown>;
+		const name = record.name;
+		if (typeof name !== "string" || !allowed.has(name)) {
+			throw new NetlistError(
+				`component ${componentId}: DeviceOverride parameter ${JSON.stringify(name)} is not a ${target} parameter (accepted: ${[...allowed].join(", ")})`,
+				componentId,
+			);
+		}
+		if (seen.has(name)) {
+			throw new NetlistError(
+				`component ${componentId}: DeviceOverride parameter "${name}" is stated twice (one value per parameter)`,
+				componentId,
+			);
+		}
+		seen.add(name);
+		const value = checkOverrideValue(componentId, target, name, record.value);
+		parameters.push({ name, value });
+	}
+	if (kind === "custom") {
+		const partNumber = propertyString(component, "PartNumber");
+		if (
+			partNumber !== null &&
+			registryEntryFor(registry, { partId: partNumber, evidence: "exact-part" }) !== null
+		) {
+			throw new NetlistError(
+				`component ${componentId}: DeviceOverride kind "custom" on part "${partNumber}", which the registry already has (use kind "measured", or remove the block)`,
+				componentId,
+			);
+		}
+		const missing = requiredClassParams(target).filter(
+			(name) => !seen.has(name as string),
+		);
+		if (missing.length > 0) {
+			throw new NetlistError(
+				`component ${componentId}: DeviceOverride kind "custom" for class ${target} is missing required parameter(s): ${missing.join(", ")}`,
+				componentId,
+			);
+		}
+	}
+	const provenance: DeviceOverrideProvenance = {
+		kind,
+		source,
+		method,
+		date: dateRaw,
+		by,
+		...(conditions === undefined ? {} : { conditions }),
+	};
+	return { override: { provenance, parameters }, target };
+}
+
+type DeviceOverrideApplication = {
+	readonly parameters: Record<string, number>;
+	readonly deviceOverride: DeviceOverride | undefined;
+};
+
+/**
+ * Merge an explicit override over this device's legacy typed parameters (override wins),
+ * and emit the additive `legacy-device-parameter` warning for every legacy key still read.
+ * No override block: legacy parameters pass through bit-identically and only the warning
+ * is new.
+ */
+function applyDeviceOverride(
+	component: ComponentLike,
+	deviceKind: DeviceKind,
+	legacy: Record<string, number>,
+	context: {
+		readonly warnings: CompileWarning[];
+		readonly registry: PartRegistry;
+		readonly deviceId: string;
+	},
+): DeviceOverrideApplication {
+	const read = readDeviceOverride(component, deviceKind, context.registry);
+	const legacyKeys = (LEGACY_DEVICE_PARAM_KEYS[deviceKind] ?? []).filter(
+		(key) =>
+			(component.properties as Record<string, unknown>)[key] !== undefined,
+	);
+	if (read === null) {
+		if (legacyKeys.length > 0) {
+			const warning: LegacyDeviceParameterWarning = {
+				code: "legacy-device-parameter",
+				device: context.deviceId,
+				keys: legacyKeys,
+				overridden: [],
+				detail:
+					`${context.deviceId} still types device parameters under legacy keys (${legacyKeys.join(", ")}), ` +
+					`which the compiler still reads and the stage-4 removal will stop reading: ` +
+					`migrate them to a DeviceOverride block (measured with provenance, or custom ` +
+					`for a part the registry lacks).`,
+			};
+			context.warnings.push(warning);
+		}
+		return { parameters: legacy, deviceOverride: undefined };
+	}
+	const { override, target } = read;
+	const values: Record<string, number> = { ...legacy };
+	const overrideFields = new Set(
+		override.parameters.map((parameter) =>
+			overrideEngineField(target, parameter.name),
+		),
+	);
+	for (const parameter of override.parameters) {
+		values[overrideEngineField(target, parameter.name)] =
+			parameter.value;
+	}
+	const overridden = legacyKeys.filter((key) => {
+		const field = LEGACY_KEY_ENGINE_FIELD[key];
+		return field !== undefined && overrideFields.has(field);
+	});
+	const warning: LegacyDeviceParameterWarning = {
+		code: "legacy-device-parameter",
+		device: context.deviceId,
+		keys: legacyKeys,
+		overridden,
+		detail:
+			overridden.length > 0
+				? `${context.deviceId} applies a ${override.provenance.kind} DeviceOverride that supersedes legacy keys (${overridden.join(", ")}); the override values win. ` +
+					`Remaining legacy keys (${legacyKeys.filter((key) => !overridden.includes(key)).join(", ") || "none"}) still read as before.`
+				: `${context.deviceId} applies a ${override.provenance.kind} DeviceOverride alongside legacy keys (${legacyKeys.join(", ") || "none"}); no legacy key feeds an overridden parameter, so all legacy values still read.`,
+	};
+	if (legacyKeys.length > 0) {
+		context.warnings.push(warning);
+	}
+	return { parameters: values, deviceOverride: override };
 }
 
 function parametersFor(
