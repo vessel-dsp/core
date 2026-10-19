@@ -9,10 +9,17 @@
 // fetch in the browser. The cost is verbosity, which is the point: each value carries its
 // citation inline.
 // 
-// What lives here after wave 1 (stage 1 moved mechanically, behaviour unchanged; wave 1
-// fills the discrete classes under the four derived bases):
-// - op-amp gain-bandwidth products and output-swing pairs (11 + 2 datasheet rows; LM833 is
-//   GBW-only per the D4 swing freeze);
+// What lives here after wave 2 (stage 1 moved mechanically, behaviour unchanged; waves 1-2
+// fill the discrete classes under the four derived bases plus the manufacturer-model basis):
+// - op-amp gain-bandwidth products and output-swing pairs (15 GBW rows: the 11 stage-1 rows
+//   plus LM833 wave-1 and LF347/LF351/L272M/TL074 wave-2; AD712 is GBW-absent by verdict and
+//   LM833 stays GBW-only per the D4 swing freeze);
+// - zener reverse-breakdown rows (30 rows; forward behaviour stays class default);
+// - BJT records (10 rows: unbinned parts plus 2SC1815-Y/BL ranks; IS by form 1 from a
+//   printed Vbe range midpoint or TYP, or by manufacturer-model where published (2N2222A,
+//   2N5088); IS omitted where neither exists (2N5089, 2SC1815); BF by form 2 geomean or
+//   printed TYP; reverseBeta/leakageAmps/thermalVoltage omitted throughout
+//   for want of a citable figure);
 // - zener reverse-breakdown rows (30 rows; forward behaviour stays class default);
 // - BJT records (10 rows: unbinned parts plus 2SC1815-Y/BL ranks; IS by form 1 from a
 //   printed Vbe range midpoint or TYP, BF by form 2 geomean or printed TYP; IS omitted where

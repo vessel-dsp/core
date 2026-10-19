@@ -4,10 +4,13 @@
 // is omitted here and the stamp falls back to the class default (never a guess):
 //
 // - `saturationCurrent`: derived ONLY by form (1), IS = Ic * exp(-Vbe / Vt) with n = 1 from
-//   a printed Vbe at a stated Ic. A printed MIN-MAX VBE(sat) range becomes one Vbe by its
+//   a printed Vbe at a stated Ic, OR read directly from a manufacturer-published SPICE
+//   model (`manufacturer-model`, preferred over a derived value where one exists -- owner
+//   ruling 2026-10-19). A printed MIN-MAX VBE(sat) range becomes one Vbe by its
 //   arithmetic midpoint under form (2) ("a printed bin or range becomes one value by its
 //   midpoint"), quoted with page and conditions so anyone can recompute it. A MAX-only Vbe
-//   with no MIN is a limit, not a range, and yields no IS (2N5088/2N5089/2SC1815).
+//   with no MIN is a limit, not a range, and yields no IS (2N5089/2SC1815; 2N5088's IS is
+//   from its model, not from the MAX-only VBE(on) row).
 // - `forwardBeta`: derived by form (2) from a printed hFE bin at a stated Vce/Ic, geometric
 //   mean for gains. Bare MIN-only hFE rows are never used alone; the small-signal full-range
 //   row is preferred. Rank suffixes (2SC1815-Y/BL) are separate entries with their rank's
@@ -82,11 +85,32 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// No saturationCurrent: the sheet's only Vbe figure is MAX-only (see note), which is
-		// a limit, not a range or a typical, so no IS derivation is admitted.
+		// Saturation current from the onsemi-published datasheet-embedded SPICE model
+		// (Microsim-format NPN line, coordinator clarification 2026-10-19: a model the
+		// manufacturer prints inside its own datasheet is manufacturer-published, basis
+		// `manufacturer-model`). The sheet's only printed Vbe figure is MAX-only VBE(on)
+		// 0.8 V (a limit, not a range or typical), so no form-1 IS exists; BF stays the
+		// derived small-signal-hfe midpoint (mixing sources admitted).
 		partIds: ["2N5088"],
 		class: "bjt",
 		params: {
+			saturationCurrent: {
+				value: 5.911e-15,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer datasheet onsemi 2N5088 / MMBT5088 / 2N5089 / MMBT5089 NPN General " +
+					"Purpose Amplifier (2N5088-D; Fairchild-integration printing, opens 'Is Now Part of' " +
+					"ON Semiconductor), PDF p3 'Spice Model' block, " +
+					"https://www.onsemi.com/pdf/datasheet/2n5088-d.pdf, verbatim lines:\n" +
+					"NPN (Is=5.911f Xti=3 Eg=1.11 Vaf=62.37 Bf=1.122K Ne=1.394 Ise=5.911f Ikf=14.92m Xtb=1.5 Br=1.271 Nc=2\n" +
+					"Isc=0 Ikr=0 Rc=1.61 Cjc=4.017p Mjc=.3174 Vjc=.75 Fc=.5 Cje=4.973p Mje=.4146 Vje=.75 Tr=4.673n Tf=821.7p\n" +
+					"Itf=.35 Vtf=4 Xtf=7 Rb=10)",
+				modelFileUrl: "https://www.onsemi.com/pdf/datasheet/2n5088-d.pdf",
+				modelLine:
+					"NPN (Is=5.911f Xti=3 Eg=1.11 Vaf=62.37 Bf=1.122K Ne=1.394 Ise=5.911f Ikf=14.92m Xtb=1.5 Br=1.271 Nc=2\n" +
+					"Isc=0 Ikr=0 Rc=1.61 Cjc=4.017p Mjc=.3174 Vjc=.75 Fc=.5 Cje=4.973p Mje=.4146 Vje=.75 Tr=4.673n Tf=821.7p\n" +
+					"Itf=.35 Vtf=4 Xtf=7 Rb=10)",
+			},
 			forwardBeta: {
 				value: 700,
 				basis: "derived",
@@ -102,8 +126,11 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// The 2N5088 sheet covers the 2N5089 in the same table with separate rows (same
-		// document, same conditions). No saturationCurrent, same MAX-only Vbe reason as 2N5088.
+		// No saturationCurrent. The shared onsemi family sheet (2N5088-D) prints exactly one
+		// Spice Model block and it is the 2N5088's (Bf=1.122K); no 2N5088.lib-style file and
+		// no 2N5089-specific model exist on onsemi's site (guessed model URLs fall back to
+		// the docs landing page), and the 2N5089 Bf=1.434K line circulating in third-party
+		// compilations has no verified onsemi-hosted source. Same MAX-only Vbe reason as 2N5088.
 		partIds: ["2N5089"],
 		class: "bjt",
 		params: {
@@ -205,13 +232,30 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// Gain only. Its `IS` is deliberately NOT registered: the only printed Vbe point is a forced-beta
-		// saturation figure at IC = 150 mA (VBE(sat) 0.6-1.2 V), where series resistance dominates, so
-		// the form-1 derivation gave 1.1396115e-16, about two orders of magnitude below typical models.
-		// Owner ruling 2026-10-19: form 1 takes an ACTIVE-REGION Vbe at IC <= 20 mA only; this part has none.
-partIds: ["2N2222A"],
+		// Gain AND saturation current. The printed-Vbe derivation is deliberately NOT used:
+		// the only printed Vbe point is a forced-beta saturation figure at IC = 150 mA
+		// (VBE(sat) 0.6-1.2 V), where series resistance dominates (form 1 takes an
+		// ACTIVE-REGION Vbe at IC <= 20 mA only, owner ruling 2026-10-19). IS below is the
+		// onsemi-published PSpice model's IS, preferred over any derived value by the same
+		// ruling. Mixing sources across parameters of one part is admitted (coordinator
+		// 2026-10-19): BF stays the derived small-signal-hfe midpoint.
+		partIds: ["2N2222A"],
 		class: "bjt",
+		note:
+			"The model's BF 929.846 is a MODPEX fit, unusually high, and is NOT adopted (BF stays " +
+			"the derived 122.47); its NF 1.10496 has no schema field (the engine's bjt law carries no " +
+			"emission coefficient, n = 1 by construction), so IS is taken as printed with that caveat.",
 		params: {
+			saturationCurrent: {
+				value: 3.88184e-14,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.onsemi.com/download/models/txt/2n2222a.lib.txt " +
+					"(onsemi 2N2222A PSpice, MODPEX-generated, model generated on Feb 28, 13), card lines:\n" +
+					".MODEL Q2n2222a npn\n+IS=3.88184e-14 BF=929.846 NF=1.10496 VAF=16.5003",
+				modelFileUrl: "https://www.onsemi.com/download/models/txt/2n2222a.lib.txt",
+				modelLine: ".MODEL Q2n2222a npn\n+IS=3.88184e-14 BF=929.846 NF=1.10496 VAF=16.5003",
+			},
 			forwardBeta: {
 				// The DC hFE rows at small-signal currents are MIN-only; the only full DC range is
 				// at 150 mA (high-current falloff). The small-signal hfe bin at 1 mA, f = 1 kHz

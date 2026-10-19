@@ -25,6 +25,7 @@ import {
 } from "../src/part-catalog";
 import {
 	emptyRegistry,
+	registryEntryFor,
 	registryOpampGainBandwidth,
 	type PartEntry,
 	type PartRegistry,
@@ -259,20 +260,20 @@ describe("wave-1 record builders", () => {
 	): PartDataEntry => ({ partIds, class: "bjt", params, ...extra });
 
 	test("a sparse BJT record gap-fills the live class defaults", () => {
-		// 2N5088 states only forwardBeta: every omitted field must equal the
+		// 2N5089 states only forwardBeta: every omitted field must equal the
 		// empty-registry stamp, so a drift between the builder literals and
 		// device-laws.ts fails here rather than shipping silently.
 		const doc = derive(
 			emitterFollower,
 			'      Description: "Bucket brigade delay memory chip."',
-			'      PartNumber: 2N5088\n      Description: "Bucket brigade delay memory chip."',
+			'      PartNumber: 2N5089\n      Description: "Bucket brigade delay memory chip."',
 		);
 		const filled = stampOf(doc, "Q1", pedalPartCatalog);
 		const bare = stampOf(doc, "Q1", emptyRegistry);
 		expect(filled.kind).toBe("bjt");
 		expect(bare.kind).toBe("bjt");
 		if (filled.kind !== "bjt" || bare.kind !== "bjt") throw new Error("unreachable");
-		expect(filled.forwardBeta).toBe(700);
+		expect(filled.forwardBeta).toBe(900);
 		expect(filled.saturationCurrent).toBe(bare.saturationCurrent);
 		expect(filled.reverseBeta).toBe(bare.reverseBeta);
 		expect(filled.thermalVoltage).toBe(bare.thermalVoltage);
@@ -308,6 +309,29 @@ describe("wave-1 record builders", () => {
 		if (law.kind !== "bjt") throw new Error("unreachable");
 		expect(law.saturationCurrent).toBe(2.5150964e-15);
 		expect(law.forwardBeta).toBe(173.2050808);
+	});
+
+	test("shipped manufacturer-model saturation currents reach the stamp", () => {
+		const doc2222 = derive(
+			emitterFollower,
+			'      Description: "Bucket brigade delay memory chip."',
+			'      PartNumber: 2N2222A\n      Description: "Bucket brigade delay memory chip."',
+		);
+		const law2222 = stampOf(doc2222, "Q1", pedalPartCatalog);
+		expect(law2222.kind).toBe("bjt");
+		if (law2222.kind !== "bjt") throw new Error("unreachable");
+		expect(law2222.saturationCurrent).toBe(3.88184e-14);
+		expect(law2222.forwardBeta).toBe(122.4744871);
+		const doc5088 = derive(
+			emitterFollower,
+			'      Description: "Bucket brigade delay memory chip."',
+			'      PartNumber: 2N5088\n      Description: "Bucket brigade delay memory chip."',
+		);
+		const law5088 = stampOf(doc5088, "Q1", pedalPartCatalog);
+		expect(law5088.kind).toBe("bjt");
+		if (law5088.kind !== "bjt") throw new Error("unreachable");
+		expect(law5088.saturationCurrent).toBe(5.911e-15);
+		expect(law5088.forwardBeta).toBe(700);
 	});
 
 	test("a typed alias spelling resolves through the built entry", () => {
@@ -362,5 +386,68 @@ describe("wave-1 record builders", () => {
 	test("the LM833 gain-bandwidth row reaches the catalog lookup", () => {
 		expect(registryOpampGainBandwidth(pedalPartCatalog, "LM833")).toBe(16e6);
 		expect(findPartRegistryData("LM833")?.class).toBe("opamp");
+	});
+
+	test("the wave-2 op-amp gain-bandwidth rows reach the catalog lookup", () => {
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "LF347N")).toBe(3e6);
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "LF347")).toBe(3e6);
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "LF351")).toBe(4e6);
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "LF351N")).toBe(4e6);
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "L272M")).toBe(350e3);
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "TL074CN")).toBe(5.25e6);
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "TL074")).toBe(5.25e6);
+		expect(findPartRegistryData("LF347N")?.class).toBe("opamp");
+		expect(findPartRegistryData("L272M")?.class).toBe("opamp");
+		expect(findPartRegistryData("TL074CN")?.class).toBe("opamp");
+	});
+
+	test("the AD712 has an open-loop-gain entry and no gain-bandwidth figure", () => {
+		expect(registryOpampGainBandwidth(pedalPartCatalog, "AD712")).toBeNull();
+		const found = registryEntryFor(
+			pedalPartCatalog,
+			{ partId: "AD712", evidence: "exact-part" },
+			8,
+		);
+		const section = found?.model.kind === "sections" ? found.model.sections[0] : null;
+		expect(section?.law.kind).toBe("ideal-opamp");
+		if (section?.law.kind === "ideal-opamp") {
+			expect(section.law.openLoopGain).toBe(400000);
+		}
+	});
+
+	test("the 4016B switch entry carries its own on-resistance, not the 4066's", () => {
+		for (const id of ["4016B", "CD4016B"]) {
+			const found = registryEntryFor(
+				pedalPartCatalog,
+				{ partId: id, evidence: "exact-part" },
+				5,
+			);
+			const section = found?.model.kind === "sections" ? found.model.sections[0] : null;
+			expect(section?.law.kind).toBe("analog-switch");
+			if (section?.law.kind === "analog-switch") {
+				expect(section.law.onOhms).toBe(280);
+			}
+		}
+		const ref = registryEntryFor(
+			pedalPartCatalog,
+			{ partId: "CD4066", evidence: "exact-part" },
+			5,
+		);
+		const refSection = ref?.model.kind === "sections" ? ref.model.sections[0] : null;
+		if (refSection?.law.kind === "analog-switch") {
+			expect(refSection.law.onOhms).toBe(80);
+		} else {
+			throw new Error("CD4066 reference entry lost its analog-switch law");
+		}
+	});
+
+	test("the CT3101 clock-driver entry mirrors the MN3101 law", () => {
+		const found = registryEntryFor(
+			pedalPartCatalog,
+			{ partId: "CT3101", evidence: "exact-part" },
+			8,
+		);
+		const section = found?.model.kind === "sections" ? found.model.sections[0] : null;
+		expect(section?.law.kind).toBe("clock-driver");
 	});
 });

@@ -72,6 +72,11 @@ const MN3101_PART_IDS = new Set([
 	"upd3101",
 	"upd3101c",
 	"upd3101d",
+	// Wave 2 (JED): Cabintech CT3101. Its own datasheet ('CT3101 BBD Clock Generator',
+	// Rev 1, Aug 2023) states it 'is pin-for-pin compatible with the discontinued
+	// Panasonic MN3101' and 'can be used as a drop-in replacement for the MN3101', so it
+	// joins the MN3101 clock family -- a sourced equivalence, not an assumed alias.
+	"ct3101",
 ]);
 const MN3102_PART_IDS = new Set([
 	"mn3102",

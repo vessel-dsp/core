@@ -7064,6 +7064,663 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
+	// Wave-2 op-amp entries: sections whose open-loop gain is the sheet's own TYP AOL
+	// transcribed (the gain-bandwidth product lives in `registry-data/opamp.ts`, stamped by
+	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog
+	// entries are 1:1 by part id, so no entry splits.
+
+	// ADI AD712 dual precision BiFET op-amp, from the ADI AD712 datasheet Rev. B
+	// (SPECIFICATIONS at VS = +-15 V @ TA = +25C): OPEN-LOOP GAIN MIN 150 TYP 400 V/mV
+	// (J/A/S grades; K/B/T and C print MIN 200 TYP 400 -- TYP 400 in every grade, so the
+	// bare id carries it). Used as `openLoopGain: 400000`. The sheet's frequency row reads
+	// 'Small Signal Bandwidth 3.0 MIN 4.0 TYP MHz' with no closed-loop gain stated and never
+	// uses the term gain-bandwidth, so no GBW figure is transcribed (see
+	// `opampGainBandwidthAbsent`). Pinout: 'pinned out in a standard op amp configuration'
+	// (dual DIP-8 order, same pin-numbered role convention as the LM833 entry above).
+	{
+		"partIds": [
+			"AD712"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 400000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 400000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// TI LF347 quad JFET-input op-amp, from SLOS013C (Mar 1987, rev Mar 2016):
+	// 6.5 AVD 'Large signal differential voltage, VO = +-10 V, RL = 2 kOhm, 25C: MIN 25
+	// TYP 100 V/mV' (6.6 LF347B: MIN 50 TYP 100). Used as `openLoopGain: 100000`.
+	// LF347N is the PDIP-14 of the LF347 grade. Pinout: the sheet's own Pin Functions
+	// table (1 1OUT, 2 1IN-, 3 1IN+, 4 VCC+, 5 2IN+, 6 2IN-, 7 2OUT, 8 3OUT, 9 3IN-,
+	// 10 3IN+, 11 VCC-, 12 4IN+, 13 4IN-, 14 4OUT) -- the standard quad order.
+	{
+		"partIds": [
+			"LF347",
+			"LF347N"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_PLUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"OUT_C_pin8"
+			],
+			[
+				"INVERTING_C_pin9"
+			],
+			[
+				"NONINVERTING_C_pin10"
+			],
+			[
+				"V_MINUS_pin11"
+			],
+			[
+				"NONINVERTING_D_pin12"
+			],
+			[
+				"INVERTING_D_pin13"
+			],
+			[
+				"OUT_D_pin14"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VCC",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"OUT_C",
+				"IN_C_MINUS",
+				"IN_C_PLUS",
+				"VEE",
+				"IN_D_PLUS",
+				"IN_D_MINUS",
+				"OUT_D"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						9,
+						8,
+						7
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						11,
+						12,
+						13
+					]
+				}
+			]
+		}
+	},
+
+	// National Semiconductor LF351 single JFET-input op-amp, from DS005648 Rev. 3 (1998):
+	// AVOL 'Large Signal Voltage Gain, VS = +-15 V, TA = 25C, VO = +-10 V, RL = 2 kOhm:
+	// MIN 25 TYP 100 V/mV'. Used as `openLoopGain: 100000`. LF351N is the DIP orderable
+	// (NS Package N08E, sheet p11 'Order Number LF351M or LF351N'). Pinout: 'pin compatible
+	// with the standard LM741' (single DIP-8: IN+ pin3, IN- pin2, OUT pin6), the same
+	// three-terminal capture as the TL061 entry above.
+	{
+		"partIds": [
+			"LF351",
+			"LF351N"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// SGS-THOMSON L272 dual power op-amp, from the L272 datasheet (Jan 1995):
+	// ELECTRICAL CHARACTERISTICS (Vs = 24 V, Tamb = 25C): 'Gv | O. L. Voltage Gain |
+	// f = 100 Hz | MIN 60 TYP 70 dB' (f = 1 kHz TYP 50 dB). Used as
+	// `openLoopGain: decibelGain(70)` = 3162.2776601683795. Pinout: the sheet's PIN
+	// CONNECTIONS are diagrams only (no text pin table could be extracted), so this entry
+	// asserts NO pin order (neutral null pinout, M5218 precedent) and serves
+	// section-grouped declarations; a packet study must verify the order before pin
+	// positions are typed. One family table for L272/L272M/L272D.
+	{
+		"partIds": [
+			"L272",
+			"L272M",
+			"L272D"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 3162.2776601683795
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 3162.2776601683795
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"pinout": [
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			]
+		}
+	},
+
+	// TI TL074 quad JFET-input op-amp, from SLOS080W (Sep 1978, rev Jul 2025):
+	// 5.8 DC (VS = +-15 V, TA = 25C, VO = 0 V): 'AOL | Open-loop voltage gain | TL07xC |
+	// MIN 25 TYP 200 V/mV' (full-range row MIN-only 15; AC/BC 50/200, M 35/200, I MIN-only
+	// 25 -- the I grade is not covered). Used as `openLoopGain: 200000`. TL074CN (PDIP-N)
+	// and TL074CD (SOIC-D) are C-grade 'all other devices' for the 5.25 MHz GBW row.
+	// Pinout: the sheet's own Table 4-6 Pin Functions TL074x (1 1OUT, 2 1IN-, 3 1IN+,
+	// 4 VCC+, 5 2IN+, 6 2IN-, 7 2OUT, 8 3OUT, 9 3IN-, 10 3IN+, 11 VCC-, 12 4IN+,
+	// 13 4IN-, 14 4OUT).
+	{
+		"partIds": [
+			"TL074",
+			"TL074CN",
+			"TL074CD"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_PLUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"OUT_C_pin8"
+			],
+			[
+				"INVERTING_C_pin9"
+			],
+			[
+				"NONINVERTING_C_pin10"
+			],
+			[
+				"V_MINUS_pin11"
+			],
+			[
+				"NONINVERTING_D_pin12"
+			],
+			[
+				"INVERTING_D_pin13"
+			],
+			[
+				"OUT_D_pin14"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VCC",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"OUT_C",
+				"IN_C_MINUS",
+				"IN_C_PLUS",
+				"VEE",
+				"IN_D_PLUS",
+				"IN_D_MINUS",
+				"OUT_D"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						9,
+						8,
+						7
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						11,
+						12,
+						13
+					]
+				}
+			]
+		}
+	},
+
+	// Wave 2 (JED): TI CD4016B quad bilateral switch. Its own entry (NOT an alias of the
+	// CD4066 entry above): the 4016 is the high-Ron predecessor and the 4066 its
+	// pin-compatible low-Ron replacement (onsemi MC14066B: 'designed to be pin-for-pin
+	// compatible with the MC14016B, but has much lower ON resistance'; ST HCF4066B: 'pin
+	// for pin compatible with HCF4016B, but exhibits a much lower ON resistance').
+	// On-resistance from TI CD4016B SCHS026D Rev. E (Aug 2024), Features p1: '280 Ohm
+	// typical on-state resistance for 15 V operation' (switch matching 'within 10 Ohm typ
+	// over 15 V signal-input range'). The 4.5 table's at-rail TYP at 15 V is 200 Ohm
+	// (MAX 400; mid-supply worst-case MAX-only 850) -- the 280 headline is the over-range
+	// figure and is the transcribed value. offOhms/thresholdVolts repeat the 4066 entry
+	// (not newly cited). Only the ids the TI sheet owns: the unbuffered CD4016, HEF/HCF/MC
+	// variants are not covered (Nexperia's HEF4016B specs a different test: 115 Ohm
+	// peak-typ at 15 V, 100 uA, sharing no figure with this row).
+	{
+		"partIds": [
+			"4016B",
+			"CD4016B"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"switch_a",
+				"in",
+				"a",
+				"sig_in",
+				"inout1",
+				"1in/out",
+				"in/out"
+			],
+			[
+				"switch_b",
+				"out",
+				"b",
+				"sig_out",
+				"inout2",
+				"1out/in",
+				"out/in"
+			],
+			[
+				"control",
+				"ctrl",
+				"c",
+				"gate",
+				"ctl",
+				"1control"
+			],
+			[
+				"vcc",
+				"vdd",
+				"vplus",
+				"v+"
+			],
+			[
+				"vss",
+				"gnd",
+				"vminus",
+				"v-",
+				"ground"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "analog-switch",
+						"onOhms": 280,
+						"offOhms": 1000000000,
+						"thresholdVolts": 2
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"switch_a",
+				"switch_b",
+				"control",
+				"vcc",
+				"vss"
+			]
+		}
+	},
+
+	// Wave 2 (JED): Cabintech CT3101 BBD clock generator. Its own entry mirroring the
+	// MN3101 above (same 8-pin DIL footprint, same terminal order), NOT an unsourced alias:
+	// the CT3101's own datasheet ('CT3101 BBD Clock Generator - Datasheet', Rev 1,
+	// Aug 2023, Cabintech Global LLC, https://cabintechglobal.com/pdf/CABINTECH_CT3101.pdf)
+	// states it 'is pin-for-pin compatible with the discontinued Panasonic MN3101' and 'can
+	// be used as a drop-in replacement for the MN3101', with the pin table 1 GND, 2 CP1,
+	// 3 Vdd (-3 V to -18 V), 4 CP2, 5 OX3, 6 OX2, 7 OX1, 8 Vgg (14/15 Vdd output).
+	// No quiescentSupplyAmps: the sheet says only 'about 1/2 of MN3101' (no figure).
+	// It is a hybrid module (CD4047-based), not a monolithic second source.
+	{
+		"partIds": [
+			"CT3101"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"gnd",
+				"v-",
+				"vss",
+				"pin1",
+				"gndpin1"
+			],
+			[
+				"cp1",
+				"clk1",
+				"clock1",
+				"phi1",
+				"pin2",
+				"cp1pin2"
+			],
+			[
+				"vdd",
+				"v+",
+				"vcc",
+				"pin3",
+				"vddpin3"
+			],
+			[
+				"cp2",
+				"clk2",
+				"clock2",
+				"phi2",
+				"pin4",
+				"cp2pin4"
+			],
+			[
+				"ox3",
+				"osc3",
+				"oscctrl",
+				"pin5",
+				"ox3pin5"
+			],
+			[
+				"ox2",
+				"osc2",
+				"oscout",
+				"pin6",
+				"ox2pin6"
+			],
+			[
+				"ox1",
+				"osc1",
+				"oscin",
+				"osc",
+				"pin7",
+				"ox1pin7"
+			],
+			[
+				"vgg",
+				"vggout",
+				"pin8",
+				"vggoutpin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "clock-driver",
+						"defaultFrequency": 10000
+					},
+					"terminals": [
+						1,
+						3,
+						7,
+						2,
+						6,
+						0
+					]
+				}
+			],
+			"pinout": [
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			]
+		}
+	},
+
 	...zenerRegistryRecords.map((record) =>
 		zenerLaw(record.partIds, zenerBreakdownVoltsOf(record)),
 	),

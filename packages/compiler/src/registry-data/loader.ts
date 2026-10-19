@@ -8,8 +8,16 @@
 //
 // - a parameter missing `source` or `basis`;
 // - a `derived` basis with no derivation text;
-// - a `manufacturer-model` basis without the model file URL and the exact `.MODEL` /
-//   `.SUBCKT` line it was read from (both required, validated, and quoted in `source`);
+// - a `manufacturer-model` basis without the manufacturer model file URL and the exact
+//   model line it was read from (both required, validated, and quoted in `source`);
+//   the line is verbatim as the manufacturer printed it: a `.MODEL` / `.SUBCKT` card
+//   (with its continuation lines) from a model file, or a Microsim-style `NPN (...)`
+//   line from the manufacturer's own datasheet (clarified 2026-10-19: a model the
+//   manufacturer prints inside its datasheet is manufacturer-published);
+// - model file/line fields on any other basis;
+// - a model file URL outside the manufacturer's own hosts (third-party libraries,
+//   mirrors, forums and aggregators are not manufacturer models, even when the text
+//   they carry is manufacturer-authored);
 // - model file/line fields on any other basis;
 // - a parameter name that is not in the class schema;
 // - a duplicate part id or alias (folded, across the whole assembled set);
@@ -25,6 +33,35 @@
 import { foldPartId } from "../registry";
 import { CLASS_PARAM_SCHEMAS, classParamNames, type PartClassName } from "./schema";
 
+/**
+ * Manufacturer hosts a `manufacturer-model` file URL may live on. The file must be the
+ * manufacturer's own publication: a model text carried by a third-party library, mirror,
+ * forum or aggregator is not a manufacturer model even when the text is
+ * manufacturer-authored. Matched by domain suffix, so `www.` and asset subdomains pass.
+ */
+const MANUFACTURER_MODEL_HOSTS = [
+	"onsemi.com",
+	"vishay.com",
+	"st.com",
+	"nexperia.com",
+	"diodes.com",
+	"ti.com",
+	"analog.com",
+] as const;
+
+/** True when the URL's host belongs to one of the seven publishing manufacturers. */
+function isManufacturerModelHost(url: string): boolean {
+	let host = "";
+	try {
+		host = new URL(url).hostname.toLowerCase();
+	} catch {
+		return false;
+	}
+	return MANUFACTURER_MODEL_HOSTS.some(
+		(suffix) => host === suffix || host.endsWith(`.${suffix}`),
+	);
+}
+
 /** Where a cited value came from: printed in a datasheet, derived with the working shown,
  * or read directly from a manufacturer-published SPICE/PSpice model file. */
 export type ParamBasis = "datasheet" | "derived" | "manufacturer-model";
@@ -35,8 +72,11 @@ export type ParamBasis = "datasheet" | "derived" | "manufacturer-model";
  * the value they are quoted in `derivation` (zener typ from a min/max row) or the value is
  * the printed TYP transcribed with its row quoted in `source` (op-amp gain-bandwidth).
  * A `manufacturer-model` parameter is read directly from the manufacturer's own model
- * file: `modelFileUrl` is that file's URL and `modelLine` is the exact `.MODEL` / `.SUBCKT`
- * line the value was read from, both quoted in `source` as well.
+ * file: `modelFileUrl` is that file's URL (one of the seven publishing manufacturers'
+ * own hosts) and `modelLine` is the exact model line the value was read from, verbatim
+ * as printed -- a `.MODEL` / `.SUBCKT` card (with its continuation lines) from a model
+ * file, or a Microsim-style `NPN (...)` line from the manufacturer's own datasheet --
+ * both quoted in `source` as well.
  */
 export type CitedParam = {
 	/** The single number the engine uses. Must be finite. */
@@ -121,14 +161,14 @@ export function validateCitedParam(
 				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with a model file that is not an http(s) URL: ${param.modelFileUrl}`,
 			);
 		}
+		if (!isManufacturerModelHost(param.modelFileUrl)) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with a model file outside the manufacturer's own hosts: ${param.modelFileUrl}`,
+			);
+		}
 		if (typeof param.modelLine !== "string" || param.modelLine.length === 0) {
 			throw new Error(
 				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with no model line`,
-			);
-		}
-		if (!/^\s*\.(model|subckt)\b/iu.test(param.modelLine)) {
-			throw new Error(
-				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with a model line that is not a .MODEL / .SUBCKT line: ${param.modelLine.slice(0, 80)}`,
 			);
 		}
 		if (!param.source.includes(param.modelFileUrl)) {

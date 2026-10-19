@@ -153,10 +153,10 @@ describe("definePartData throws for the stated reason", () => {
 	});
 
 	it("refuses a manufacturer-model basis with no model file", () => {
-		const url = "https://example.com/models/fix-a.mod";
-		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const url = "https://www.onsemi.com/download/models/txt/fix-a.lib.txt";
+		const line = ".MODEL FIX-A NPN\n+IS=1e-14 BF=100";
 		const noFile = {
-			value: 1e-9,
+			value: 1e-14,
 			basis: "manufacturer-model",
 			source: `${url} ${line}`,
 			modelLine: line,
@@ -167,9 +167,9 @@ describe("definePartData throws for the stated reason", () => {
 	});
 
 	it("refuses a manufacturer-model basis with no model line", () => {
-		const url = "https://example.com/models/fix-a.mod";
+		const url = "https://www.onsemi.com/download/models/txt/fix-a.lib.txt";
 		const noLine: CitedParam = {
-			value: 1e-9,
+			value: 1e-14,
 			basis: "manufacturer-model",
 			source: url,
 			modelFileUrl: url,
@@ -179,26 +179,26 @@ describe("definePartData throws for the stated reason", () => {
 		).toThrow(/model line/);
 	});
 
-	it("refuses a manufacturer-model line that is not a .MODEL / .SUBCKT line", () => {
-		const url = "https://example.com/models/fix-a.mod";
-		const line = "FIX-A IS=1e-9 N=1.7 (not a model card)";
-		const badLine: CitedParam = {
-			value: 1e-9,
+	it("refuses a manufacturer-model file outside the manufacturer's own hosts", () => {
+		const url = "https://example-mirror.example/models/fix-a.lib.txt";
+		const line = ".MODEL FIX-A NPN\n+IS=1e-14 BF=100";
+		const mirrored: CitedParam = {
+			value: 1e-14,
 			basis: "manufacturer-model",
 			source: `${url} ${line}`,
 			modelFileUrl: url,
 			modelLine: line,
 		};
 		expect(() =>
-			definePartData([entry(["FIX-A"], { breakdownVolts: badLine })]),
-		).toThrow(/\.MODEL \/ \.SUBCKT/);
+			definePartData([entry(["FIX-A"], { breakdownVolts: mirrored })]),
+		).toThrow(/outside the manufacturer's own hosts/);
 	});
 
 	it("refuses a manufacturer-model basis whose source does not quote the file and line", () => {
-		const url = "https://example.com/models/fix-a.mod";
-		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const url = "https://www.onsemi.com/download/models/txt/fix-a.lib.txt";
+		const line = ".MODEL FIX-A NPN\n+IS=1e-14 BF=100";
 		const unquoted: CitedParam = {
-			value: 1e-9,
+			value: 1e-14,
 			basis: "manufacturer-model",
 			source: "manufacturer model, see the vendor site",
 			modelFileUrl: url,
@@ -210,8 +210,8 @@ describe("definePartData throws for the stated reason", () => {
 	});
 
 	it("refuses model file/line fields on any other basis", () => {
-		const url = "https://example.com/models/fix-a.mod";
-		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const url = "https://www.onsemi.com/download/models/txt/fix-a.lib.txt";
+		const line = ".MODEL FIX-A NPN\n+IS=1e-14 BF=100";
 		const param: CitedParam = {
 			value: 5.1,
 			basis: "datasheet",
@@ -236,18 +236,36 @@ describe("definePartData accepts honest provenance", () => {
 	});
 
 	it("loads a manufacturer-model value with its file and line quoted", () => {
-		const url = "https://example.com/models/fix-a.mod";
-		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const url = "https://www.onsemi.com/download/models/txt/fix-a.lib.txt";
+		const line = ".MODEL FIX-A NPN\n+IS=1e-14 BF=100";
 		const param: CitedParam = {
-			value: 1e-9,
+			value: 1e-14,
 			basis: "manufacturer-model",
-			source: `Manufacturer model file ${url}, card line: ${line}`,
+			source: `Manufacturer model file ${url}, card lines: ${line}`,
 			modelFileUrl: url,
 			modelLine: line,
 		};
 		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
 		expect(out).toHaveLength(1);
 		expect(validateCitedParam("FIX-A", "breakdownVolts", param)).toEqual(param);
+	});
+
+	it("loads a datasheet-embedded Microsim-style model line", () => {
+		const url = "https://www.onsemi.com/pdf/datasheet/fix-a-d.pdf";
+		const line =
+			"NPN (Is=5.911f Xti=3 Eg=1.11 Vaf=62.37 Bf=1.122K Ne=1.394 Ise=5.911f Ikf=14.92m Xtb=1.5 Br=1.271 Nc=2\n" +
+			"Isc=0 Ikr=0 Rc=1.61 Cjc=4.017p Mjc=.3174 Vjc=.75 Fc=.5 Cje=4.973p Mje=.4146 Vje=.75 Tr=4.673n Tf=821.7p\n" +
+			"Itf=.35 Vtf=4 Xtf=7 Rb=10)";
+		const param: CitedParam = {
+			value: 5.911e-15,
+			basis: "manufacturer-model",
+			source:
+				`Manufacturer datasheet FIX-A/D p3 Spice Model block, ${url}, verbatim lines: ${line}`,
+			modelFileUrl: url,
+			modelLine: line,
+		};
+		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
+		expect(out).toHaveLength(1);
 	});
 
 	it("treats two spellings folding to one id in one entry as redundant, not conflicting", () => {
@@ -324,13 +342,16 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 });
 
 describe("wave-1 fill inventory", () => {
-	it("holds exactly the stage-1 migration plus the wave-1 fill, no more", () => {
+	it("holds exactly the stage-1 migration plus the wave-1 and wave-2 fills, no more", () => {
 		// Stage 1: op-amp gain-bandwidth + swing rows, zener rows, one JFET row, regulator
 		// rails, charge-pump loss/slope. IC macros and `sections` entries stayed in code.
 		// Wave 1: one more op-amp GBW row (LM833, GBW-only per the D4 swing freeze), ten BJT
 		// rows, two more JFET rows, two MOSFET threshold rows; diode rows stay empty by
 		// verdict (all eight wave-1 diodes excluded -- MAX-only forward limits).
-		expect(opampRegistryRecords).toHaveLength(11);
+		// Wave 2: four more op-amp GBW rows (LF347, LF351, L272M, TL074; AD712 is GBW-absent
+		// by verdict) and manufacturer-model IS on two existing BJT rows (2N2222A, 2N5088);
+		// diode rows stay empty (manufacturer model files unretrievable, no two-TYP sheet).
+		expect(opampRegistryRecords).toHaveLength(15);
 		expect(zenerRegistryRecords).toHaveLength(29);
 		expect(jfetRegistryRecords).toHaveLength(3);
 		expect(regulatorRegistryRecords).toHaveLength(5);
@@ -338,7 +359,7 @@ describe("wave-1 fill inventory", () => {
 		expect(bjtRegistryRecords).toHaveLength(10);
 		expect(diodeRegistryRecords).toHaveLength(0);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(11 + 10 + 0 + 2 + 29 + 3 + 5 + 8);
+		expect(partRegistryData).toHaveLength(15 + 10 + 0 + 2 + 29 + 3 + 5 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

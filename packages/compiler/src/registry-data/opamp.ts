@@ -326,6 +326,68 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"'GBW | Gain bandwidth product | f = 100 kHz | MIN 10 TYP 16 | MHz'.",
 		},
 	},
+	{
+		// Wave 2 (JED). GBW only (D4 swing freeze stands).
+		partIds: ["LF347", "LF347N"],
+		gainBandwidthHz: {
+			value: 3e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI LF347/LF347B Quad JFET-Input " +
+				"Operational Amplifiers, SLOS013C (Mar 1987, rev Mar 2016), 6.7 Switching Characteristics " +
+				"(VCC+- = +-15 V, TA = 25C): 'B1 | Unity-gain bandwidth | TYP 3 | MHz' (no MIN/MAX; " +
+				"the AVD rows that set the sections gain are 6.5 LF347 MIN 25 TYP 100 and 6.6 LF347B " +
+				"MIN 50 TYP 100 V/mV at VO = +-10 V, RL = 2 kOhm).",
+		},
+	},
+	{
+		// Wave 2 (JED). GBW only (D4 swing freeze stands). LF351N is the DIP orderable of the
+		// same die (NS Package N08E; sheet p11 'Order Number LF351M or LF351N').
+		partIds: ["LF351", "LF351N"],
+		gainBandwidthHz: {
+			value: 4e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): National Semiconductor LF351 Wide " +
+				"Bandwidth JFET Input Operational Amplifier, DS005648 Rev. 3 (1998), AC Electrical " +
+				"Characteristics (VS = +-15 V, TA = 25C): 'GBW | Gain Bandwidth Product | TYP 4 | MHz' " +
+				"(no MIN/MAX; the AVOL row that sets the sections gain is MIN 25 TYP 100 V/mV at " +
+				"VS = +-15 V, TA = 25C, VO = +-10 V, RL = 2 kOhm). TI publishes no LF351 sheet of its " +
+				"own; National is the TI-predecessor original.",
+		},
+	},
+	{
+		// Wave 2 (JED). GBW only (D4 swing freeze stands). One family table for all three
+		// packages (Powerdip L272, Minidip L272M, SO16 L272D); the B row carries no package split.
+		partIds: ["L272", "L272M", "L272D"],
+		gainBandwidthHz: {
+			value: 350e3,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): SGS-THOMSON L272 Dual Power Operational " +
+				"Amplifiers, Jan 1995, ELECTRICAL CHARACTERISTICS (Vs = 24 V, Tamb = 25C): 'B | " +
+				"Gain-bandwidth Product | TYP 350 | kHz' (no MIN/MAX; the Gv rows that set the sections " +
+				"gain are f = 100 Hz MIN 60 TYP 70 and f = 1 kHz TYP 50 dB). It is a power amp: the gain " +
+				"is specified against frequency, and 70 dB TYP at 100 Hz is the transcribed figure.",
+		},
+	},
+	{
+		// Wave 2 (wave-1 re-open). GBW only (D4 swing freeze stands). The C-grade TYP rows cover
+		// the PDIP-N (TL074CN) and SOIC-D (TL074CD) orderables, both 'all other devices' for GBW;
+		// the I grade prints MIN-only AOL and is not covered. Bare TL074 carries the C TYP.
+		partIds: ["TL074", "TL074CN", "TL074CD"],
+		gainBandwidthHz: {
+			value: 5.25e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI TL071/TL072/TL074 JFET-Input " +
+				"Operational Amplifiers, SLOS080W (Sep 1978, rev Jul 2025), 5.9 AC (VS = +-15 V, TA = 25C): " +
+				"'GBW | Gain-bandwidth product | All other devices | TYP 5.25 | MHz' (TYP-only; NS/PS " +
+				"packages and M grades are TYP 3). The AOL row that sets the sections gain is 5.8 DC " +
+				"(VS = +-15 V, TA = 25C, VO = 0 V): TL07xC MIN 25 TYP 200 V/mV (full-range row MIN-only 15; " +
+				"AC/BC 50/200, M 35/200, I MIN-only 25).",
+		},
+	},
 ]);
 
 /** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. */
@@ -384,6 +446,15 @@ export const opampGainBandwidthAbsent: ReadonlyArray<{
 		reason: "The OP07 sheet's electrical characteristics apply to OP07C and OP07D only; the bare id has no column.",
 	},
 	{
+		partIds: ["AD712"],
+		reason:
+			"ADI AD712 Rev. B SPECIFICATIONS (VS = +-15 V @ TA = +25C): the frequency row reads 'Small " +
+			"Signal Bandwidth 3.0 MIN 4.0 TYP MHz' (J grade; 3.4/4.0 for the other grades) with no " +
+			"closed-loop gain stated and the sheet never uses the term gain-bandwidth. Mapping an " +
+			"unstated-gain small-signal bandwidth onto gainBandwidthHz is an interpretation, so no " +
+			"figure is transcribed; the sections entry carries the citable AOL TYP 400 V/mV alone.",
+	},
+	{
 		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
 		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
 	},
@@ -437,6 +508,15 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 	{
 		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "BA718", "CA1458", "CA1458E", "CA1458T"],
 		reason: "No vendored datasheet for these ids.",
+	},
+	{
+		partIds: ["AD712", "LF347", "LF347N", "LF351", "LF351N", "L272", "L272M", "L272D", "TL074", "TL074CN", "TL074CD"],
+		reason:
+			"Wave-2 fills: the sections entries carry the citable AOL TYP and the GBW rows (all but " +
+			"AD712) the product; the output-swing pair is deliberately NOT typed (owner decision D4, " +
+			"2026-10-17, upheld for this wave). Printed swing rows exist (LF347 VOM +-12/+-13.5 at " +
+			"RL = 10 kOhm; LF351 VO +-12/+-13.5; TL074 VOM rows) and are left untyped for the same " +
+			"supply-translation reason as the 2026-10-17 list.",
 	},
 	{
 		partIds: [
