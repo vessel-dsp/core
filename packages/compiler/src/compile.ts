@@ -31,7 +31,7 @@ import { link } from "./link";
 import { lower } from "./lower";
 import { readNetlist } from "./netlist";
 import { partition } from "./partition";
-import { emptyRegistry, registryLawFor, type PartRegistry } from "./registry";
+import { emptyRegistry, foldPartId, registryLawFor, type PartEntry, type PartRegistry } from "./registry";
 import {
 	findDanglingActiveTerminals,
 	synthesizeOpampImplicitBias,
@@ -61,6 +61,7 @@ import type {
 	NodeId,
 	Program,
 	RailWithoutVoltageWarning,
+	RegistryProvisionalValueWarning,
 } from "./types";
 import { findUnboundedOpamps } from "./unbounded-operating-point";
 
@@ -235,6 +236,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findRailsWithoutVoltage(netlist),
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist),
+		...findRegistryProvisionalValues(netlist, options.registry ?? emptyRegistry),
 		...findOpampLawDefaults(lawed),
 		...findOpampGainBandwidthDefaults(lawed),
 		...scaled.warnings,
@@ -404,6 +406,117 @@ function findBjtLawDefaults(netlist: Netlist): readonly BjtLawDefaultWarning[] {
 				"switch; decisive for a biased stage.",
 		},
 	];
+}
+
+/**
+ * The registry entry carrying a provisional value for an exact folded part id, or
+ * `null`. Part ids only -- never a declared type or pinout signature -- the same rung
+ * `device-laws.ts` refines discrete laws on. Entries with no `provisionalParams` can
+ * never warn and are skipped.
+ */
+function provisionalEntryFor(
+	registry: PartRegistry,
+	partNumber: string,
+): PartEntry | null {
+	const folded = foldPartId(partNumber);
+	for (const entry of registry.entries) {
+		if ((entry.provisionalParams?.length ?? 0) === 0) continue;
+		if (entry.partIds.some((id) => foldPartId(id) === folded)) return entry;
+	}
+	return null;
+}
+
+/**
+ * The document-typed parameter key that overrides a registry parameter for a device
+ * kind, or `null` when no typed spelling exists (the entry value always stamps).
+ * BJT `forwardBeta` is `beta` in the document; every other overlaid parameter shares
+ * the registry name. JFET/MOSFET gate terms have no typed spelling at all.
+ */
+const PROVISIONAL_OVERRIDE_KEYS: Readonly<
+	Record<string, Readonly<Record<string, string | null>>>
+> = {
+	bjt: {
+		saturationCurrent: "saturationCurrent",
+		forwardBeta: "beta",
+		reverseBeta: "reverseBeta",
+		thermalVoltage: "thermalVoltage",
+		leakageAmps: "leakageAmps",
+	},
+	diode: {
+		saturationCurrent: "saturationCurrent",
+		emissionCoefficient: "emissionCoefficient",
+		thermalVoltage: "thermalVoltage",
+		breakdownVolts: "breakdownVolts",
+		seriesResistance: "seriesResistance",
+	},
+	jfet: {
+		thresholdVolts: "thresholdVolts",
+		transconductance: "transconductance",
+		channelLengthModulation: null,
+		subthresholdVolts: null,
+		gateSaturationCurrent: null,
+		gateOnsetVolts: null,
+		gateScaleVolts: null,
+	},
+	mosfet: {
+		thresholdVolts: "thresholdVolts",
+		transconductance: "transconductance",
+		channelLengthModulation: null,
+		subthresholdVolts: null,
+		gateSaturationCurrent: null,
+		gateOnsetVolts: null,
+		gateScaleVolts: null,
+	},
+	opamp: {
+		openLoopGain: "openLoopGain",
+		gainBandwidthHz: "gainBandwidthHz",
+		outputSwingDropHighVolts: null,
+		outputSwingDropLowVolts: null,
+	},
+};
+
+/**
+ * Devices whose law runs on at least one provisional `community` registry value.
+ * See `RegistryProvisionalValueWarning`. One warning per device, naming the device,
+ * the part, the taken parameters and the distinct source URLs: a notice, never a
+ * refusal. A device whose document types a parameter runs on its own typed value for
+ * that parameter and is not listed for it.
+ */
+function findRegistryProvisionalValues(
+	netlist: Netlist,
+	registry: PartRegistry,
+): readonly RegistryProvisionalValueWarning[] {
+	const out: RegistryProvisionalValueWarning[] = [];
+	for (const device of netlist.devices) {
+		const partNumber = device.identity.partNumber;
+		if (partNumber === null) continue;
+		const entry = provisionalEntryFor(registry, partNumber);
+		if (entry === null) continue;
+		const overrides = PROVISIONAL_OVERRIDE_KEYS[device.kind] ?? {};
+		const taken = (entry.provisionalParams ?? []).filter((param) => {
+			const override = overrides[param.name];
+			if (override === null) return true;
+			const key = override ?? param.name;
+			return device.parameters[key] === undefined;
+		});
+		if (taken.length === 0) continue;
+		const parameters = taken.map((param) => param.name);
+		const urls = [...new Set(taken.map((param) => param.url))];
+		out.push({
+			code: "registry-provisional-value" as const,
+			device: device.id,
+			partNumber,
+			parameters,
+			urls,
+			detail:
+				`${device.id} (${partNumber}) runs on provisional community value(s) ` +
+				`${parameters.join(", ")} from ${urls.join(", ")}. A published model or ` +
+				`single-author measurement, not a datasheet, manufacturer model or owner ` +
+				`measurement; the pedal still renders, and the value stands until a better ` +
+				`source replaces it.`,
+		});
+	}
+	return out;
 }
 
 /**

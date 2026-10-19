@@ -428,7 +428,6 @@ describe("definePartData accepts honest provenance", () => {
 		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
 		expect(out).toHaveLength(1);
 	});
-
 	it("treats two spellings folding to one id in one entry as redundant, not conflicting", () => {
 		const out = definePartData([
 			entry(["RD5.6JB2", "RD5.6J B2", "RD5.6J-B2"], {
@@ -443,6 +442,150 @@ describe("definePartData accepts honest provenance", () => {
 			/derivation/,
 		);
 		expect(validateCitedParam("FIX-A", "p", cited(1))).toEqual(cited(1));
+	});
+});
+
+describe("definePartData refuses a dishonest community record", () => {
+	const community = (
+		value: number,
+		extra: Partial<CitedParam> = {},
+	): CitedParam => ({
+		value,
+		basis: "community",
+		source:
+			"Published SPICE model https://example.test/models/fix-a.lib.txt by Jane Doe, " +
+			"retrieved 2026-10-19, quote: `.MODEL FIX-A D (IS=1e-14 N=1.6)`; no datasheet, " +
+			"no manufacturer model, owner has no bench stock",
+		sourceKind: "published-spice-model",
+		url: "https://example.test/models/fix-a.lib.txt",
+		quote: ".MODEL FIX-A D (IS=1e-14 N=1.6)",
+		author: "Jane Doe",
+		retrievedDate: "2026-10-19",
+		whyNoBetterSource:
+			"no datasheet, no manufacturer model, owner has no bench stock",
+		...extra,
+	});
+
+	it("refuses a community basis with no or bad sourceKind", () => {
+		const { sourceKind: _dropped, ...noKind } = community(5.1);
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: noKind })]),
+		).toThrow(/sourceKind/);
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: community(5.1, {
+						sourceKind: "forum-post" as unknown as CitedParam["sourceKind"],
+					}),
+				}),
+			]),
+		).toThrow(/sourceKind/);
+	});
+
+	it("refuses a community basis with no or non-http URL", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: community(5.1, { url: undefined }),
+				}),
+			]),
+		).toThrow(/URL/);
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: community(5.1, {
+						url: "ftp://example.test/models/fix-a.lib.txt",
+						source: "ftp://example.test/models/fix-a.lib.txt quote: `.MODEL FIX-A D (IS=1e-14 N=1.6)`",
+					}),
+				}),
+			]),
+		).toThrow(/URL/);
+	});
+
+	it("refuses a community basis with no verbatim quote", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], { breakdownVolts: community(5.1, { quote: "  " }) }),
+			]),
+		).toThrow(/quote/);
+	});
+
+	it("refuses a community basis with an anonymous author", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], { breakdownVolts: community(5.1, { author: "" }) }),
+			]),
+		).toThrow(/author/);
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], { breakdownVolts: community(5.1, { author: "forum" }) }),
+			]),
+		).toThrow(/author/);
+	});
+
+	it("refuses a community basis with a bad retrieval date", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: community(5.1, { retrievedDate: "19-10-2026" }),
+				}),
+			]),
+		).toThrow(/date/);
+	});
+
+	it("refuses a community basis with no whyNoBetterSource", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: community(5.1, { whyNoBetterSource: "" }),
+				}),
+			]),
+		).toThrow(/whyNoBetterSource/);
+	});
+
+	it("refuses a community basis whose source quotes neither the URL nor the text", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: community(5.1, { source: "someone measured it once" }),
+				}),
+			]),
+		).toThrow(/quote/);
+	});
+
+	it("refuses community fields on any other basis", () => {
+		const param: CitedParam = {
+			value: 5.1,
+			basis: "datasheet",
+			source: "test source https://example.test/models/fix-a.lib.txt",
+			url: "https://example.test/models/fix-a.lib.txt",
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/community only/);
+	});
+
+	it("refuses a community record beside a non-community record for the SAME parameter", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], { breakdownVolts: community(5.1) }),
+				entry(["FIX-A"], { breakdownVolts: cited(5.1, "derived", "s", "d") }),
+			]),
+		).toThrow(/community/);
+		const a = definePartData([
+			entry(["FIX-A"], { breakdownVolts: community(5.1) }),
+		]);
+		const b = definePartData([
+			entry(["FIX-A"], { breakdownVolts: cited(5.1, "derived", "s", "d") }),
+		]);
+		expect(() => assemblePartData([a, b])).toThrow(/community/);
+	});
+
+	it("loads an honest community record with its full provenance", () => {
+		const param = community(5.1, { sourceKind: "published-measurement" });
+		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
+		expect(out).toHaveLength(1);
+		expect(validateCitedParam("FIX-A", "breakdownVolts", param)).toEqual(param);
 	});
 });
 

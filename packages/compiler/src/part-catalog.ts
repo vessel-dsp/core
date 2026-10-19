@@ -67,6 +67,7 @@ import {
 	opampRegistryRecords,
 	regulatorRegistryRecords,
 	zenerRegistryRecords,
+	communityProvenanceOf,
 	type CitedParam,
 	type OpampRegistryRecord,
 	type PartDataEntry,
@@ -135,11 +136,13 @@ function tubeLaw(partIds: readonly string[], law: DeviceLaw): PartEntry {
  * So a newly covered zener renders its old forward behaviour exactly and only gains a
  * reverse knee; deriving the forward law is plan step 2's work, not this entry's.
  */
-function zenerLaw(partIds: readonly string[], breakdownVolts: number): PartEntry {
+function zenerLaw(record: PartDataEntry): PartEntry {
+	const breakdownVolts = zenerBreakdownVoltsOf(record);
 	return {
-		partIds,
+		partIds: [...record.partIds],
 		declaredTypes: [],
 		terminalRoleGroups: [],
+		...provisionalArmOf(record),
 		model: {
 			kind: "law",
 			law: {
@@ -152,6 +155,19 @@ function zenerLaw(partIds: readonly string[], breakdownVolts: number): PartEntry
 			},
 		},
 	};
+}
+
+/**
+ * The `provisionalParams` arm of a law entry built from a data record: the record's
+ * `community`-basis parameters with their source URLs, or absent when the record holds
+ * none. Spread into the built entry, so an entry with no provisional value is shaped
+ * exactly as before (the field stays absent, not empty).
+ */
+function provisionalArmOf(
+	record: PartDataEntry,
+): Pick<PartEntry, "provisionalParams"> {
+	const provisional = communityProvenanceOf(record);
+	return provisional.length === 0 ? {} : { provisionalParams: provisional };
 }
 
 /**
@@ -210,6 +226,7 @@ export function bjtLawEntry(record: PartDataEntry): PartEntry {
 		partIds: entryIdsOf(record),
 		declaredTypes: [],
 		terminalRoleGroups: [],
+		...provisionalArmOf(record),
 		model: {
 			kind: "law",
 			law: {
@@ -252,6 +269,7 @@ export function diodeLawEntry(record: PartDataEntry): PartEntry {
 		partIds: entryIdsOf(record),
 		declaredTypes: [],
 		terminalRoleGroups: [],
+		...provisionalArmOf(record),
 		model: {
 			kind: "law",
 			law: {
@@ -311,6 +329,7 @@ export function fetLawEntry(
 		partIds: entryIdsOf(record),
 		declaredTypes: [],
 		terminalRoleGroups: [],
+		...provisionalArmOf(record),
 		model: {
 			kind: "law",
 			law: {
@@ -433,6 +452,7 @@ function regulatorEntry(record: PartDataEntry): PartEntry {
 		partIds: [...record.partIds],
 		declaredTypes: [],
 		terminalRoleGroups: structure.terminalRoleGroups,
+		...provisionalArmOf(record),
 		model: {
 			kind: "sections",
 			sections: [
@@ -592,6 +612,7 @@ function chargePumpEntry(record: PartDataEntry): PartEntry {
 		partIds: [...record.partIds],
 		declaredTypes: [],
 		terminalRoleGroups: skeleton.terminalRoleGroups,
+		...provisionalArmOf(record),
 		model: {
 			kind: "sections",
 			sections: [
@@ -7995,9 +8016,7 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
-	...zenerRegistryRecords.map((record) =>
-		zenerLaw(record.partIds, zenerBreakdownVoltsOf(record)),
-	),
+	...zenerRegistryRecords.map((record) => zenerLaw(record)),
 
 	// Wave-1 discrete fill: bjt, diode-forward, mosfet and jfet-channel records become
 	// law entries through the builders above -- one list per class, so the entries cannot
@@ -8011,6 +8030,25 @@ const entries: readonly PartEntry[] = [
 ];
 
 // --- Op-amp gain-bandwidth product: stamped from the data registry ------------------------------
+/**
+ * Merge a stamped row's `community`-basis parameters into the entry's provisional arm.
+ * A row whose parameters are all better-sourced adds nothing, and an entry with no
+ * provisional value keeps the field absent rather than gaining an empty one.
+ */
+function withRowProvisional(
+	entry: PartEntry,
+	row: { params: readonly (CitedParam | undefined)[]; names: readonly string[] },
+): Pick<PartEntry, "provisionalParams"> {
+	const merged = [...(entry.provisionalParams ?? [])];
+	row.params.forEach((param, index) => {
+		if (param?.basis !== "community" || typeof param.url !== "string") return;
+		const name = row.names[index] as string;
+		if (!merged.some((held) => held.name === name)) {
+			merged.push({ name, url: param.url });
+		}
+	});
+	return merged.length === 0 ? {} : { provisionalParams: merged };
+}
 //
 // The figures live in `registry-data/opamp.ts` as cited values (datasheet TYP rows, quoted).
 // This pass stamps each record's product onto the op-amp sections of exactly the ids it
@@ -8073,6 +8111,10 @@ function withDatasheetGainBandwidth(base: readonly PartEntry[]): readonly PartEn
 			out.push({
 				...entry,
 				partIds,
+				...withRowProvisional(entry, {
+					params: [row.gainBandwidthHz],
+					names: ["gainBandwidthHz"],
+				}),
 				model: {
 					...model,
 					sections: model.sections.map((section) =>
@@ -8191,6 +8233,10 @@ export function withDatasheetOutputSwing(
 			const stamped: PartEntry = {
 				...entry,
 				partIds,
+				...withRowProvisional(entry, {
+					params: [row.outputSwingDropHighVolts, row.outputSwingDropLowVolts],
+					names: ["outputSwingDropHighVolts", "outputSwingDropLowVolts"],
+				}),
 				model: {
 					...model,
 					sections: model.sections.map((section) =>

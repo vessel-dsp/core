@@ -3110,6 +3110,34 @@ export type BjtLawDefaultWarning = {
 };
 
 /**
+ * A device whose law runs on at least one provisional `community` registry value,
+ * because no datasheet, manufacturer model or owner measurement states it.
+ *
+ * **Why it is named.** A community value is a published number, not a measured fact
+ * about the part: a SPICE model fit at other currents, or one author's bench reading.
+ * The pedal still renders -- this is a notice, not a refusal -- but a reader quoting
+ * the render is entitled to know which parts of it rest on provisional values and
+ * where those values can be checked. Adding a better source for the same parameter
+ * of the same part throws until the community record is removed, so this warning can
+ * only ever name values nothing better has replaced.
+ *
+ * **What it does not claim.** Not that the value is wrong: only that it is
+ * provisional. A device whose document types the parameter runs on its own typed
+ * value instead and is not listed for that parameter.
+ */
+export type RegistryProvisionalValueWarning = {
+	readonly code: "registry-provisional-value";
+	readonly device: DeviceId;
+	/** The part number as the source authored it. */
+	readonly partNumber: string | null;
+	/** The registry parameter names this device took from community values. */
+	readonly parameters: readonly string[];
+	/** The distinct community source URLs those values were taken from. */
+	readonly urls: readonly string[];
+	readonly detail: string;
+};
+
+/**
  * Why one op-amp is named by `opamp-law-default-parameters`. `not-stated`: the part states no
  * output-swing pair, so the output runs the full supply. `stated-at-other-supply`: the part's
  * datasheet prints a pair, but at a supply other than this pedal's, and the lowering carried it
@@ -3461,6 +3489,7 @@ export type CompileWarning =
 	| RailWithoutVoltageWarning
 	| FetLawDefaultWarning
 	| BjtLawDefaultWarning
+	| RegistryProvisionalValueWarning
 	| OpampLawDefaultWarning
 	| OpampGainBandwidthDefaultWarning
 	| IcNotExecutedWarning

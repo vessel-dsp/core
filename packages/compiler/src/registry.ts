@@ -207,6 +207,23 @@ import type { FirmwareEvidence } from "./firmware-class";
 import type { TerminalProfile } from "./terminal-role";
 import type { ProxyDeclaration } from "./proxy-declaration";
 
+/**
+ * One provisional parameter an entry's law carries: the registry parameter name and
+ * the `community` source URL its value was taken from.
+ *
+ * Stamped by the `registry-data` builders (`bjtLawEntry`, `diodeLawEntry`,
+ * `fetLawEntry`, the op-amp gain-bandwidth and output-swing passes) from the record's
+ * `community`-basis parameters, so the compiler can name every device that runs on a
+ * provisional value without importing any part data. Absent or empty means the entry
+ * carries no provisional value.
+ */
+export type ProvisionalParam = {
+	/** The registry parameter name, e.g. `saturationCurrent`. */
+	readonly name: string;
+	/** The community source URL the value was taken from. */
+	readonly url: string;
+};
+
 export type PartEntry = {
 	/** Matched whole and case-folded against a device's part number. */
 	readonly partIds: readonly string[];
@@ -226,6 +243,13 @@ export type PartEntry = {
 	 * reproduce. Absent means the entry asserts it models the part.
 	 */
 	readonly proxy?: ProxyDeclaration;
+	/**
+	 * **Provisional parameters this entry's law carries.** Each names a registry
+	 * parameter whose value came from a `community` source, with that source's URL.
+	 * See `ProvisionalParam`. Absent or empty means the entry carries no provisional
+	 * value, and nothing about the entry changes: the law stamps exactly as before.
+	 */
+	readonly provisionalParams?: readonly ProvisionalParam[];
 	/**
 	 * **Whether this chip's behaviour comes from a program — typed, with positive evidence.**
 	 * Absent means `undetermined`, which is **not** a scope boundary. See `firmware-class.ts`: the

@@ -61,7 +61,10 @@ export {
 	definePartData,
 	findPartData,
 	validateCitedParam,
+	communityProvenanceOf,
 	type CitedParam,
+	type CommunityProvenance,
+	type CommunitySourceKind,
 	type ParamBasis,
 	type PartDataEntry,
 } from "./loader";

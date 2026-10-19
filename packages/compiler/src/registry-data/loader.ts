@@ -3,7 +3,9 @@
 // Every parameter is `{ value, basis, source }`: `value` is the single number the engine
 // uses, `basis` says where it came from (`datasheet`, printed as a typical or point value;
 // `derived`, with the derivation written out; `manufacturer-model`, read directly from a
-// manufacturer-published SPICE/PSpice model file), and `source` is the citation. An uncited
+// manufacturer-published SPICE/PSpice model file; `measured`, the owner's bench value;
+// `community`, a published SPICE model or published measurement by a named author where
+// no better source exists), and `source` is the citation. An uncited
 // value is not loadable -- the loader throws, at module load, on:
 //
 // - a parameter missing `source` or `basis`;
@@ -17,11 +19,18 @@
 // - a `measured` basis without the owner's bench record (instrument, conditions,
 //   sample count, date, evidence path plus sha256 -- every field required, validated,
 //   and the evidence path and sha256 quoted in `source`);
+// - a `community` basis without the provisional record (source kind, http(s) URL,
+//   verbatim quote, named author, ISO retrieval date, why-no-better-source -- every
+//   field required, validated, and the URL and quote quoted in `source`);
+// - a part id whose `community` parameter clashes with a non-community record for the
+//   SAME parameter (adding a datasheet, manufacturer model or measured value forces
+//   the community record out rather than sitting beside it);
 // - model file/line fields on any other basis;
 // - a model file URL outside the manufacturer's own hosts (third-party libraries,
 //   mirrors, forums and aggregators are not manufacturer models, even when the text
 //   they carry is manufacturer-authored);
 // - measured fields on any other basis;
+// - community fields on any other basis;
 // - model file/line fields on any other basis;
 // - a parameter name that is not in the class schema;
 // - a duplicate part id or alias (folded, across the whole assembled set);
@@ -69,9 +78,21 @@ function isManufacturerModelHost(url: string): boolean {
 }
 
 /** Where a cited value came from: printed in a datasheet, derived with the working shown,
- * read directly from a manufacturer-published SPICE/PSpice model file, or measured by the
- * owner on the bench (generic LED / diode defaults only, until a measurement JSON exists). */
-export type ParamBasis = "datasheet" | "derived" | "manufacturer-model" | "measured";
+ * read directly from a manufacturer-published SPICE/PSpice model file, measured by the
+ * owner on the bench (generic LED / diode defaults only, until a measurement JSON exists),
+ * or provisional `community` (a published model or measurement by a named author where no
+ * better source exists; the compiler names every device that runs on one). */
+export type ParamBasis =
+	| "datasheet"
+	| "derived"
+	| "manufacturer-model"
+	| "measured"
+	| "community";
+
+/** What kind of published source a `community` parameter was taken from. */
+export type CommunitySourceKind =
+	| "published-spice-model"
+	| "published-measurement";
 
 /**
  * One registry parameter: the single number the engine uses, with its provenance.
@@ -93,6 +114,20 @@ export type ParamBasis = "datasheet" | "derived" | "manufacturer-model" | "measu
  * `vesseldsp.junction-default-measurement.v1` (`perDevice` entries with `isEngine`,
  * `nEngine`, `samples`, pooled over every sample, already referred to the engine's
  * thermal voltage 0.025852 V); see `led-measurement.html` and its README.
+ * A `community` parameter is provisional (decided 2026-10-19, option B): where no
+ * datasheet, manufacturer model or owner measurement exists, a parameter may be taken
+ * from a published source found online -- a published SPICE model, or a published
+ * measurement by a named author. The record carries `sourceKind` (which of the two),
+ * `url` (the http(s) address where the source can be read), `quote` (verbatim text
+ * carrying the value), `author` (a named person or organisation, never "forum"),
+ * `retrievedDate` (the sitting date, YYYY-MM-DD), and `whyNoBetterSource` (what was
+ * searched: datasheet, manufacturer model, owner bench). An unattributed or
+ * unverifiable number is not admitted. It is provisional: adding a datasheet,
+ * manufacturer-model or measured record for the same parameter of the same part throws
+ * until the community record is removed, and the compiler names every device that runs
+ * on one (`registry-provisional-value`). An original-manufacturer datasheet hosted on
+ * a third-party site (a scan of a Mullard, Philips, Hitachi, Toshiba or Rohm sheet) is
+ * still `datasheet`, not `community`.
  */
 export type CitedParam = {
 	/** The single number the engine uses. Must be finite. */
@@ -118,6 +153,18 @@ export type CitedParam = {
 	readonly measurementEvidencePath?: string;
 	/** Required when `basis` is `measured`: lowercase hex sha256 of the measurement JSON. */
 	readonly measurementEvidenceSha256?: string;
+	/** Required when `basis` is `community`: which published kind the value was taken from. */
+	readonly sourceKind?: CommunitySourceKind;
+	/** Required when `basis` is `community`: the http(s) URL where the source can be read. */
+	readonly url?: string;
+	/** Required when `basis` is `community`: verbatim text carrying the value. */
+	readonly quote?: string;
+	/** Required when `basis` is `community`: the named person or organisation behind it. */
+	readonly author?: string;
+	/** Required when `basis` is `community`: the retrieval date, YYYY-MM-DD. */
+	readonly retrievedDate?: string;
+	/** Required when `basis` is `community`: what was searched and why no better source exists. */
+	readonly whyNoBetterSource?: string;
 };
 
 /**
@@ -149,10 +196,11 @@ export function validateCitedParam(
 		param.basis !== "datasheet" &&
 		param.basis !== "derived" &&
 		param.basis !== "manufacturer-model" &&
-		param.basis !== "measured"
+		param.basis !== "measured" &&
+		param.basis !== "community"
 	) {
 		throw new Error(
-			`${entryLabel}: parameter "${name}" has no basis: expected "datasheet", "derived", "manufacturer-model" or "measured"`,
+			`${entryLabel}: parameter "${name}" has no basis: expected "datasheet", "derived", "manufacturer-model", "measured" or "community"`,
 		);
 	}
 	if (typeof param.value !== "number" || !Number.isFinite(param.value)) {
@@ -301,12 +349,109 @@ export function validateCitedParam(
 			);
 		}
 	}
+	if (param.basis === "community") {
+		if (
+			param.sourceKind !== "published-spice-model" &&
+			param.sourceKind !== "published-measurement"
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis with no sourceKind: expected "published-spice-model" or "published-measurement"`,
+			);
+		}
+		if (
+			typeof param.url !== "string" ||
+			param.url.length === 0 ||
+			!/^https?:\/\//u.test(param.url) ||
+			/\s/u.test(param.url)
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis with no URL (http(s), no whitespace): ${String(param.url)}`,
+			);
+		}
+		if (typeof param.quote !== "string" || param.quote.trim().length === 0) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis with no verbatim quote`,
+			);
+		}
+		if (
+			typeof param.author !== "string" ||
+			param.author.trim().length === 0 ||
+			param.author.trim().toLowerCase() === "forum"
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis with no named author (a person or organisation, never "forum"): ${String(param.author)}`,
+			);
+		}
+		if (
+			typeof param.retrievedDate !== "string" ||
+			!/^\d{4}-\d{2}-\d{2}$/u.test(param.retrievedDate) ||
+			Number.isNaN(Date.parse(`${param.retrievedDate}T00:00:00Z`))
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis with no retrieval date (YYYY-MM-DD): ${String(param.retrievedDate)}`,
+			);
+		}
+		if (
+			typeof param.whyNoBetterSource !== "string" ||
+			param.whyNoBetterSource.trim().length === 0
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis with no whyNoBetterSource (what was searched)`,
+			);
+		}
+		if (!param.source.includes(param.url)) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis whose source does not quote the URL`,
+			);
+		}
+		if (!param.source.includes(param.quote.trim())) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a community basis whose source does not quote the verbatim text`,
+			);
+		}
+	} else {
+		if (
+			param.sourceKind !== undefined ||
+			param.url !== undefined ||
+			param.quote !== undefined ||
+			param.author !== undefined ||
+			param.retrievedDate !== undefined ||
+			param.whyNoBetterSource !== undefined
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" states community fields on a "${param.basis}" basis (community only)`,
+			);
+		}
+	}
 	return param;
 }
 
 /** The folded id scope of one entry: canonical ids plus aliases, in listing order. */
 function entryIds(entry: PartDataEntry): readonly string[] {
 	return [...entry.partIds, ...(entry.aliases ?? [])];
+}
+
+/**
+ * The community clash: the same parameter of one part recorded once from a provisional
+ * `community` source and once from a better source. Adding the datasheet, manufacturer
+ * model or measured record forces the community record out rather than sitting beside
+ * it, so the pair throws. Returns the clashing parameter name, or null.
+ */
+function communityClash(
+	a: PartDataEntry,
+	b: PartDataEntry,
+): string | null {
+	for (const name of Object.keys(a.params)) {
+		const pa = a.params[name];
+		const pb = b.params[name];
+		if (pa === undefined || pb === undefined) continue;
+		if (
+			(pa.basis === "community") !== (pb.basis === "community")
+		) {
+			return name;
+		}
+	}
+	return null;
 }
 
 /**
@@ -323,7 +468,7 @@ function entryIds(entry: PartDataEntry): readonly string[] {
 export function definePartData(
 	entries: readonly PartDataEntry[],
 ): readonly PartDataEntry[] {
-	const seen = new Map<string, string>();
+	const seen = new Map<string, { label: string; entry: PartDataEntry }>();
 	for (const entry of entries) {
 		const label = entry.partIds.join(",") || "(no part ids)";
 		if (!(entry.class in CLASS_PARAM_SCHEMAS)) {
@@ -354,11 +499,20 @@ export function definePartData(
 		for (const folded of foldedHere) {
 			const first = seen.get(folded);
 			if (first !== undefined) {
+				const clash = communityClash(first.entry, entry);
+				if (clash !== null) {
+					throw new Error(
+						`${label}: duplicate part id or alias (already listed on ${first.label}) -- ` +
+							`a community record for parameter "${clash}" clashes with a non-community ` +
+							`record for the same parameter (adding a datasheet, manufacturer-model or ` +
+							`measured value forces the community record out)`,
+					);
+				}
 				throw new Error(
-					`${label}: duplicate part id or alias (already listed on ${first})`,
+					`${label}: duplicate part id or alias (already listed on ${first.label})`,
 				);
 			}
-			seen.set(folded, label);
+			seen.set(folded, { label, entry });
 		}
 	}
 	return Object.freeze(entries.map((entry) => Object.freeze(entry)));
@@ -372,7 +526,7 @@ export function definePartData(
 export function assemblePartData(
 	lists: readonly (readonly PartDataEntry[])[],
 ): readonly PartDataEntry[] {
-	const seen = new Map<string, string>();
+	const seen = new Map<string, { label: string; entry: PartDataEntry }>();
 	for (const list of lists) {
 		for (const entry of list) {
 			const label = entry.partIds.join(",") || "(no part ids)";
@@ -383,11 +537,20 @@ export function assemblePartData(
 			for (const folded of foldedHere) {
 				const first = seen.get(folded);
 				if (first !== undefined) {
+					const clash = communityClash(first.entry, entry);
+					if (clash !== null) {
+						throw new Error(
+							`${label}: part id or alias collides with another entry (${first.label}) -- ` +
+								`a community record for parameter "${clash}" clashes with a non-community ` +
+								`record for the same parameter (adding a datasheet, manufacturer-model or ` +
+								`measured value forces the community record out)`,
+						);
+					}
 					throw new Error(
-						`${label}: part id or alias collides with another entry (${first})`,
+						`${label}: part id or alias collides with another entry (${first.label})`,
 					);
 				}
-				seen.set(folded, label);
+				seen.set(folded, { label, entry });
 			}
 		}
 	}
@@ -406,4 +569,35 @@ export function findPartData(
 		}
 	}
 	return null;
+}
+
+/**
+ * One provisional parameter: the registry parameter name and the community source URL
+ * the entry's value was taken from. The compiler stamps these onto `PartEntry` so a
+ * compiled device that runs on one can be named (`registry-provisional-value`) without
+ * the compiler importing any part data.
+ */
+export type CommunityProvenance = {
+	readonly name: string;
+	readonly url: string;
+};
+
+/**
+ * Every `community`-basis parameter in the record, with its source URL. Empty when the
+ * record holds none. The loader guarantees every community parameter carries a URL.
+ */
+export function communityProvenanceOf(
+	record: PartDataEntry,
+): readonly CommunityProvenance[] {
+	const out: CommunityProvenance[] = [];
+	for (const [name, param] of Object.entries(record.params)) {
+		if (param.basis !== "community") continue;
+		if (typeof param.url !== "string" || param.url.length === 0) {
+			throw new Error(
+				`${record.partIds.join(",")}: community parameter "${name}" carries no URL`,
+			);
+		}
+		out.push({ name, url: param.url });
+	}
+	return out;
 }

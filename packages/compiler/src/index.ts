@@ -20,6 +20,7 @@ export {
 	type PartEntry,
 	type PartRegistry,
 	type PartSection,
+	type ProvisionalParam,
 } from "./registry";
 export { canonicalPartId } from "./part-number";
 export { pedalPartCatalog, zenerCatalogPartIds, gateOnlyFetPartIds } from "./part-catalog";
@@ -40,10 +41,13 @@ export {
 	partRegistryData,
 	regulatorRegistryRecords,
 	validateCitedParam,
+	communityProvenanceOf,
 	zenerRegistryRecords,
 	CLASS_PARAM_SCHEMAS,
 	classParamNames,
 	type CitedParam,
+	type CommunityProvenance,
+	type CommunitySourceKind,
 	type OpampRegistryRecord,
 	type OpampSwingPrinted,
 	type ParamBasis,
