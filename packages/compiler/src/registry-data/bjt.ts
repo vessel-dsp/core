@@ -1143,4 +1143,378 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 5. Ferranti ZTX107/108/109 series (ZTX107 Series, undated image-only scan
+		// read visually, third-party host) p2, CHARACTERISTICS (at 25C ambient): the
+		// ZTX109 column prints 'Emitter-base voltage VBE, IC = 2 mA, VCE = 5 V: MIN 0.6
+		// MAX 0.7 V' (active-region Vbe, limits not TYP) and 'Static forward current
+		// transfer ratio hFE, ZTX108C/109C row: ZTX109 MIN 450 MAX 900 at IC = 2 mA,
+		// VCE = 5 V'. The VCE(sat) rows are starred TYPICAL figures and are excluded.
+		partIds: ["ZTX109C"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.4071917e-14,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Ferranti ZTX107/108/109 series " +
+					"(ZTX107 Series, undated scan) p2: 'Emitter-base voltage VBE, IC = 2 mA, VCE = 5 V: " +
+					"ZTX109 MIN 0.6 MAX 0.7 V' (no TYP printed)",
+				derivation:
+					"Printed ZTX109 VBE range 0.6-0.7 V at IC = 2 mA, VCE = 5 V (active region, " +
+					"IC within the form-1 <= 20 mA gate); arithmetic midpoint 0.65 V (form 2); " +
+					"IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): 0.002 * exp(-0.65 / 0.025852) = " +
+					"2.4071917e-14.",
+			},
+			forwardBeta: {
+				value: 636.3961031,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Ferranti ZTX107/108/109 series p2: " +
+					"'Static forward current transfer ratio hFE, IC = 2 mA, VCE = 5 V, ZTX108C/109C row: " +
+					"ZTX109 MIN 450 MAX 900' (the unbinned 109 row is 240-900; the 10 uA row is 100-300)",
+				derivation:
+					"Printed ZTX109C hFE bin 450-900 at IC = 2 mA, VCE = 5 V; geometric midpoint " +
+					"(form 2, gains): sqrt(450 * 900) = 636.3961031.",
+			},
+		},
+	},
+	{
+		// Wave 5. Own title sheet (not a 2N2222A alias): onsemi P2N2222A/D, Jan 2013
+		// Rev. 7, p2. The DC rows are MIN-only and the VBE(sat) rows are high-current,
+		// so only the small-signal bin qualifies (the shipped 2N2222A precedent, same
+		// 50-300 arithmetic on the sibling die).
+		partIds: ["P2N2222A"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 122.4744871,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): onsemi P2N2222A/D, Jan 2013 Rev. 7, " +
+					"p2, SMALL-SIGNAL CHARACTERISTICS: 'Small-Signal Current Gain hfe, IC = 1.0 mAdc, " +
+					"VCE = 10 Vdc, f = 1.0 kHz: MIN 50 MAX 300' (the DC hFE rows are MIN-only; VBE(sat) " +
+					"0.6-1.2/2.0 V at 150/500 mA is high-current and excluded)",
+				derivation:
+					"Printed P2N2222A small-signal hfe bin 50-300 at IC = 1.0 mA, VCE = 10 V, f = 1 kHz; " +
+					"geometric midpoint (form 2, gains): sqrt(50 * 300) = 122.4744871.",
+			},
+		},
+	},
+	{
+		// Wave 5. Central Semiconductor 2N6428/2N6429 R1 (10-September-2019),
+		// ELECTRICAL CHARACTERISTICS (TA = 25C) with explicit MIN/MAX columns: the
+		// 1 mA/10 mA hFE rows are MIN-only (250/500), so the only pair is the 100 uA
+		// DC bin (a legitimate low-current bin, not high-current falloff).
+		partIds: ["2N6428"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 5.6552409e-14,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
+					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'VBE(ON), VCE = 5.0 V, " +
+					"IC = 1.0 mA: 2N6428 MIN 0.56 MAX 0.66 V' (no TYP printed)",
+				derivation:
+					"Printed 2N6428 VBE(ON) range 0.56-0.66 V at IC = 1.0 mA, VCE = 5.0 V (active " +
+					"region, IC within the form-1 <= 20 mA gate); arithmetic midpoint 0.61 V (form 2); " +
+					"IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): 0.001 * exp(-0.61 / 0.025852) = " +
+					"5.6552409e-14.",
+			},
+			forwardBeta: {
+				value: 403.1128874,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
+					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 5.0 V, " +
+					"IC = 100 uA: 2N6428 MIN 250 MAX 650' (the 1 mA/10 mA rows are MIN-only 250/500)",
+				derivation:
+					"Printed 2N6428 hFE bin 250-650 at IC = 100 uA, VCE = 5.0 V; geometric midpoint " +
+					"(form 2, gains): sqrt(250 * 650) = 403.1128874.",
+			},
+		},
+	},
+	{
+		// Wave 5. Same Central sheet as 2N6428 (its higher-gain sibling column).
+		partIds: ["2N6429"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 5.6552409e-14,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
+					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'VBE(ON), VCE = 5.0 V, " +
+					"IC = 1.0 mA: 2N6429 MIN 0.56 MAX 0.66 V' (no TYP printed; shared row with 2N6428)",
+				derivation:
+					"Printed 2N6429 VBE(ON) range 0.56-0.66 V at IC = 1.0 mA, VCE = 5.0 V; arithmetic " +
+					"midpoint 0.61 V (form 2); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.001 * exp(-0.61 / 0.025852) = 5.6552409e-14.",
+			},
+			forwardBeta: {
+				value: 790.569415,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
+					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 5.0 V, " +
+					"IC = 100 uA: 2N6429 MIN 500 MAX 1250' (the 1 mA/10 mA rows are MIN-only 500)",
+				derivation:
+					"Printed 2N6429 hFE bin 500-1250 at IC = 100 uA, VCE = 5.0 V; geometric midpoint " +
+					"(form 2, gains): sqrt(500 * 1250) = 790.569415.",
+			},
+		},
+	},
+	{
+		// Wave 5. BF-only (VBE(sat) is MAX-only at -100 mA: no IS). The A1015GR marking
+		// is named by the sheet's own marking diagram ('A1015 (GR, Y) = Device Code'),
+		// so no alias is involved; the GR bin matches the registered Toshiba 2SA1015-Y
+		// arithmetic (same 200-400 at -6 V/-2 mA).
+		partIds: ["A1015GR"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): onsemi KSA1015/D, Nov 2025 Rev. 3, " +
+					"p2, ELECTRICAL CHARACTERISTICS: 'hFE1 DC Current Gain, VCE = -6 V, IC = -2 mA: " +
+					"MIN 70 MAX 400' with 'hFE CLASSIFICATION O 70~140, Y 120~240, GR 200~400' " +
+					"(marking diagram p1: 'A1015 (GR, Y) = Device Code'; VBE(sat) MAX-only -1.1 V " +
+					"at -100 mA, excluded)",
+				derivation:
+					"Printed GR hFE bin 200-400 at VCE = -6 V, IC = -2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 400) = 282.8427125. PNP polarity is structural, " +
+					"not a registry value.",
+			},
+		},
+	},
+	{
+		// Wave 5. BF-only (VBE(sat) is MAX-only at 50 mA: no IS). The DC bin at 2 mA is
+		// the law's quantity (the small-signal 120-480 row at the same bias is not used).
+		partIds: ["MPS4124"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 207.8460969,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): onsemi MPS4124/D, Apr 2007 Rev. 4, " +
+					"ON CHARACTERISTICS: 'DC Current Gain hFE, IC = 2.0 mA, VCE = 1.0 V: MIN 120 MAX 360' " +
+					"(the 50 mA row is MIN-only 60; VBE(sat) MAX-only 0.95 V at 50 mA, excluded)",
+				derivation:
+					"Printed MPS4124 hFE bin 120-360 at IC = 2.0 mA, VCE = 1.0 V; geometric midpoint " +
+					"(form 2, gains): sqrt(120 * 360) = 207.8460969.",
+			},
+		},
+	},
+	{
+		// Wave 5. A-bin of the BC546-550 family (vendored onsemi BC550/D sheet). Same
+		// family VBE row as the registered BC549C/BC550C/BC549B/BC547B/BC550 entries.
+		partIds: ["BC546A"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family sheet " +
+					"BC546/547/548/549/550) p2, ELECTRICAL CHARACTERISTICS: 'VBE(on) Base-Emitter On " +
+					"Voltage, VCE = 5 V, IC = 2 mA: MIN 580 TYP 660 MAX 700 mV'",
+				derivation:
+					"Printed family VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA (active region, IC " +
+					"within the form-1 <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 155.5634919,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
+					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800' (family DC row @ 2 mA/5 V: " +
+					"MIN 110 MAX 800)",
+				derivation:
+					"Printed A-bin hFE 110-220; geometric midpoint (form 2, gains): " +
+					"sqrt(110 * 220) = 155.5634919.",
+			},
+		},
+	},
+	{
+		// Wave 5. A-bin, same family sheet and VBE row as BC546A above.
+		partIds: ["BC548A"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family sheet " +
+					"BC546/547/548/549/550) p2, ELECTRICAL CHARACTERISTICS: 'VBE(on) Base-Emitter On " +
+					"Voltage, VCE = 5 V, IC = 2 mA: MIN 580 TYP 660 MAX 700 mV'",
+				derivation:
+					"Printed family VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA; IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 155.5634919,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
+					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800'",
+				derivation:
+					"Printed A-bin hFE 110-220; geometric midpoint (form 2, gains): " +
+					"sqrt(110 * 220) = 155.5634919.",
+			},
+		},
+	},
+	{
+		// Wave 5. B-bin, same family sheet and VBE row. BC548B.md's 'typ 290' is a
+		// workbench-runtime figure, not used: the registry derivation is the geometric
+		// 300 (BC547B/BC549B precedent, same B bin).
+		partIds: ["BC548B"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family sheet " +
+					"BC546/547/548/549/550) p2, ELECTRICAL CHARACTERISTICS: 'VBE(on) Base-Emitter On " +
+					"Voltage, VCE = 5 V, IC = 2 mA: MIN 580 TYP 660 MAX 700 mV'",
+				derivation:
+					"Printed family VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA; IS = IC * exp(-Vbe / Vt) " +
+					"with n = 1 (form 1): 0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 300,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
+					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800'",
+				derivation:
+					"Printed B-bin hFE 200-450; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 450) = 300.",
+			},
+		},
+	},
+	{
+		// Wave 5. Fairchild BC184C/D (2002-08-06, title names BC184C) via the sm0vpo
+		// mirror of the Fairchild original. DC bin at 2 mA preferred over the
+		// small-signal 240-900 row (2N3904/2SC1815 precedent).
+		partIds: ["BC184C"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 6.3312899e-14,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Fairchild BC184C/D (2002-08-06): " +
+					"'VBE(on) Base-Emitter On Voltage, VCE = 5 V, IC = 2 mA: MIN 0.55 MAX 0.7 V' " +
+					"(no TYP printed)",
+				derivation:
+					"Printed BC184C VBE(on) range 0.55-0.7 V at VCE = 5 V, IC = 2 mA (active region, " +
+					"IC within the form-1 <= 20 mA gate); arithmetic midpoint 0.625 V (form 2); " +
+					"IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): 0.002 * exp(-0.625 / 0.025852) = " +
+					"6.3312899e-14.",
+			},
+			forwardBeta: {
+				value: 447.2135955,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Fairchild BC184C/D (2002-08-06): " +
+					"'hFE DC Current Gain, VCE = 5 V, IC = 2 mA: MIN 250 MAX 800' (the 10 uA row is " +
+					"MIN-only 100, the 100 mA row MIN-only 130; small-signal hfe 240-900 not used)",
+				derivation:
+					"Printed BC184C hFE bin 250-800 at VCE = 5 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(250 * 800) = 447.2135955.",
+			},
+		},
+	},
+	{
+		// Wave 5. BF-only (VBE(on) prints a single 0.85 V figure at 1 mA: a limit, not a
+		// range or typical, so no IS). Judgement call, disclosed: the 1 mA/10 mA DC rows
+		// print MIN-only 250, so the only pair is the 100 uA DC bin (a legitimate
+		// low-current bin, not high-current falloff).
+		partIds: ["2N5210"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 346.4101615,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Fairchild 2N5210/MMBT5210 Rev. B " +
+					"2002, ON CHARACTERISTICS: 'hFE DC Current Gain, IC = 100 uA, VCE = 5.0 V: MIN 200 " +
+					"MAX 600' (the IC = 1.0/10 mA rows print MIN-only 250; VBE(on) 0.85 V at 1.0 mA is " +
+					"a single-figure limit, excluded)",
+				derivation:
+					"Printed 2N5210 hFE bin 200-600 at IC = 100 uA, VCE = 5.0 V; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 600) = 346.4101615.",
+			},
+		},
+	},
+	{
+		// Wave 5. Unbinned 2SC732 (ranks GR/BL registered wave-3; only these two ranks
+		// exist). Vendored Toshiba 2SC732TM 1996-09-02 scan p1 read visually (no text
+		// layer): hFE MIN 200 MAX 700 at 6 V/2 mA with the GR:200~400/BL:350~600 note,
+		// VBE TYP 0.65 at 6 V/2 mA. Unbinned full-range midpoint (2SC2240 precedent).
+		partIds: ["2SC732"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 2.4071917e-14,
+				basis: "derived",
+				source:
+					"2SC732/datasheets/toshiba-2sc732.pdf (Toshiba 2SC732TM, 1996-09-02, image-only scan " +
+					"read visually) p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Base-Emitter Voltage VBE, " +
+					"VCE = 6 V, IC = 2 mA: TYP 0.65 V'",
+				derivation:
+					"Printed VBE TYP 0.65 V at VCE = 6 V, IC = 2 mA (active region, IC within the " +
+					"form-1 <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.65 / 0.025852) = 2.4071917e-14 (shared row with the GR/BL ranks).",
+			},
+			forwardBeta: {
+				value: 374.1657387,
+				basis: "derived",
+				source:
+					"2SC732/datasheets/toshiba-2sc732.pdf (Toshiba 2SC732TM, 1996-09-02, scan read " +
+					"visually) p1: 'DC Current Gain hFE (Note), VCE = 6 V, IC = 2 mA: MIN 200 MAX 700' " +
+					"with 'Note: hFE Classification GR: 200~400, BL: 350~600'",
+				derivation:
+					"Printed unbinned hFE range 200-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 700) = 374.1657387.",
+			},
+		},
+	},
+	{
+		// Wave 5. IS-only via the manufacturer-published model (2N2222A/2N5088 precedent;
+		// model BF 480 is a MODPEX fit value and is NOT adopted). No datasheet hFE pair
+		// exists (rows are MIN-only), so BF gap-fills the class default. ZTX618 is a 3.5 A
+		// power device (EOL per PCN-2824) serving one DIY pedal; the row is data, not a
+		// relevance claim.
+		partIds: ["ZTX618"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 5.611e-13,
+				basis: "manufacturer-model",
+				source:
+					"Diodes Inc ZTX618 model file, " +
+					"https://www.diodes.com/spice/download/2436/ZTX618.spice.txt " +
+					"(linked from the official ZTX618 part page; Zetex v1.0, last revised 8/7/93), " +
+					"verbatim card:\n" +
+					"    .MODEL ZTX618  NPN IS =5.611E-13 NF =1.0022 BF =480 IKF=4.6 VAF=51\n" +
+					"+               ISE=1.73E-13 NE =1.4 NR =1.0002 BR =200 IKR=3 VAR=25\n" +
+					"+               ISC=7.3152E-13 NC =1.47 RB =0.032 RE =0.027 RC =0.025\n" +
+					"+               CJC=59E-12 MJC=0.2651 VJC=0.3051 CJE=216E-12\n" +
+					"+               TF =0.95E-9 TR =2.25E-9",
+				modelFileUrl: "https://www.diodes.com/spice/download/2436/ZTX618.spice.txt",
+				modelLine:
+					"    .MODEL ZTX618  NPN IS =5.611E-13 NF =1.0022 BF =480 IKF=4.6 VAF=51\n" +
+					"+               ISE=1.73E-13 NE =1.4 NR =1.0002 BR =200 IKR=3 VAR=25\n" +
+					"+               ISC=7.3152E-13 NC =1.47 RB =0.032 RE =0.027 RC =0.025\n" +
+					"+               CJC=59E-12 MJC=0.2651 VJC=0.3051 CJE=216E-12\n" +
+					"+               TF =0.95E-9 TR =2.25E-9",
+			},
+		},
+	},
 ]);

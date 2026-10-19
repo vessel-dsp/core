@@ -664,15 +664,20 @@ describe("wave-4 fill inventory", () => {
 		// TM aliases, 2SK118 + Y, 2SK184 + GR, 2SK209, 2N5458, MPF4393, J309, J202, PF5102).
 		// Part B: two community germanium BJT rows (AC128 IS+BF, OC44 BF alongside a
 		// derived IS) and four diode rows (community 1N4148 + 1N34A, DEC-sheet 1N60/1N60P).
-		expect(opampRegistryRecords).toHaveLength(21);
+		// Wave 5: three more op-amp GBW rows (OPA1678, OPA134PA, OPA604AP; TL072C and LM741CN
+		// are AOL-only by the same AD712/LM1458 verdict), 13 BJT rows (ZTX109C IS+BF,
+		// P2N2222A/A1015GR/MPS4124/BC546A/BC548A/BC548B/BC184C BF with or without IS,
+		// 2N6428/2N6429 IS+BF, 2SC732 unbinned IS+BF, ZTX618 IS-only via manufacturer
+		// model) and 4 JFET rows (2SK209-GR, 2SK208-R/Y, 2SK3557).
+		expect(opampRegistryRecords).toHaveLength(24);
 		expect(zenerRegistryRecords).toHaveLength(35);
-		expect(jfetRegistryRecords).toHaveLength(17);
+		expect(jfetRegistryRecords).toHaveLength(21);
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(bjtRegistryRecords).toHaveLength(39);
+		expect(bjtRegistryRecords).toHaveLength(52);
 		expect(diodeRegistryRecords).toHaveLength(16);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(21 + 39 + 16 + 2 + 35 + 17 + 7 + 8);
+		expect(partRegistryData).toHaveLength(24 + 52 + 16 + 2 + 35 + 21 + 7 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

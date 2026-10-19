@@ -499,6 +499,58 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"VO = +-10 V: MIN 90 TYP 110 dB' (same 110 dB as the shared sections entry).",
 		},
 	},
+	{
+		// Wave 5. GBW only (D4 swing freeze stands). Bare dual, one family table, no
+		// grades and no package split (SOIC/VSSOP/SON share the specs).
+		partIds: ["OPA1678"],
+		gainBandwidthHz: {
+			value: 16e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI OPA1677/OPA1678/OPA1679 SBOS855E " +
+				"(Jan 2017 - Dec 2022) 6.7 Electrical Characteristics (VS = +-15 V, TA = 25C, " +
+				"RL = 2 kOhm, VCM = VOUT = midsupply): 'GBW Gain-bandwidth product, G = 1: TYP 16 MHz' " +
+				"(no MIN/MAX; p1 Features: 'Wide gain bandwidth: 16 MHz (G = 1)'). The AOL row that " +
+				"sets the sections gain is on the same table: 'AOL Open-loop voltage gain, " +
+				"(V-) + 0.8 V <= VO <= (V+) - 0.8 V: MIN 106 TYP 114 dB'.",
+		},
+	},
+	{
+		// Wave 5. GBW only (D4 swing freeze stands). OPA134PA is the printed PDIP-8
+		// orderable of the single OPA134 (same die, family-wide specs with no
+		// per-orderable split; the OPA2134 dual precedent).
+		partIds: ["OPA134PA"],
+		gainBandwidthHz: {
+			value: 8e6,
+			basis: "datasheet",
+			source:
+				"OPA2134/datasheets/opa2134-ti.pdf (TI OPA134/OPA2134/OPA4134, SBOS058B, Dec 1997, " +
+				"Rev. B Nov 2024) 5.7 p7, Electrical Characteristics (TA = 25C, VS = +-15 V): 'GBW Gain " +
+				"bandwidth product: TYP 8 MHz' (MIN/MAX blank; p1 Features: 'Bandwidth: 8MHz'). The AOL " +
+				"row that sets the sections gain is on the same table: 'AOL Open-loop voltage gain, " +
+				"RL = 2 kOhm, -13.8 V <= VO <= 13.5 V: MIN 104 TYP 120 dB' (a second row at RL = 10 kOhm " +
+				"reads the same 104/120). The orderable table prints 'OPA134PA | Active | Production | " +
+				"PDIP (P) | 8'.",
+		},
+	},
+	{
+		// Wave 5. GBW only (D4 swing freeze stands). The row is printed with the G = 100
+		// measurement condition; the product is transcribed as printed (20 MHz), quoted
+		// with its condition. OPA604AP is named by the specs header ('OPA604AP, AU');
+		// the PDIP suffix follows the Burr-Brown AP convention (the addendum lists AU
+		// active; AP is the plastic-DIP orderable).
+		partIds: ["OPA604AP"],
+		gainBandwidthHz: {
+			value: 20e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI (Burr-Brown) OPA604 SBOS019A " +
+				"(Jan 1992 - Sep 2003), ELECTRICAL CHARACTERISTICS (TA = +25C, VS = +-15 V, MIN/TYP/MAX " +
+				"columns): 'FREQUENCY RESPONSE | Gain-Bandwidth Product, G = 100: TYP 20 MHz'. The AOL " +
+				"row that sets the sections gain is on the same table: 'OPEN-LOOP GAIN | Open-Loop " +
+				"Voltage Gain, VO = +-10 V, RL = 1 kOhm: MIN 80 TYP 100 dB'.",
+		},
+	},
 ]);
 
 /** Op-amp ids this catalog holds whose datasheet states no TYP gain-bandwidth figure, and why. */
@@ -525,6 +577,15 @@ export const opampGainBandwidthAbsent: ReadonlyArray<{
 			"The TL07x/TL08x GBW row splits on package and grade (TYP 3 MHz for NS/PS packages and M grades, TYP 5.25 " +
 			"for all other devices). These ids do not state, or the datasheet does not print for them, which row " +
 			"applies.",
+	},
+	{
+		partIds: ["TL072C"],
+		reason:
+			"TL072/datasheets/tl072.pdf (TI SLOS080W, Sep 1978, rev Jul 2025) 5.8 DC (VS = +-15 V, TA = 25C, " +
+			"VO = 0 V): the AOL row prints 'TL07xC MIN 25 TYP 200 V/mV', so the wave-5 sections entry carries " +
+			"openLoopGain 200000; but the GBW row splits 'All NS and PS packages; All TL07xM devices TYP 3 MHz' " +
+			"against 'All other devices TYP 5.25 MHz', and the bare TL072C id spans both (the TL072CP PDIP " +
+			"orderable takes the 5.25 row; a TL072CPS would take the 3). No single figure applies.",
 	},
 	{
 		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "MC33178", "MC33178P", "MC33178D", "BA718", "LM741CN"],
@@ -675,6 +736,17 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 			"for this wave). Printed swing rows exist (LM308 VOM +-13/+-14 at RL = 10 kOhm; UA741CP " +
 			"VOM +-10/+-14.8 at RL = 2 kOhm; TLC2262C VO 1-4 V at VDD = 5 V; MC33174 VOH/VOL rows) " +
 			"and are left untyped for the same supply-translation reason as the 2026-10-17 list.",
+	},
+	{
+		partIds: ["TL072C", "OPA1678", "OPA134PA", "OPA604AP"],
+		reason:
+			"Wave-5 fills: the sections entries carry the citable AOL TYP (TL072C 200 V/mV C-grade, " +
+			"OPA1678 114 dB, OPA134PA 120 dB, OPA604AP 100 dB) and the GBW rows (OPA1678 16 MHz, " +
+			"OPA134PA 8 MHz, OPA604AP 20 MHz at G = 100; TL072C prints no single GBW figure) the " +
+			"product; the output-swing pair is deliberately NOT typed (owner decision D4, 2026-10-17, " +
+			"upheld for this wave). Printed swing rows exist (TL072C VOM rows; OPA1678 VO (V-)+0.8 to " +
+			"(V+)-0.8; OPA134PA VO -13.8/+13.5 at RL = 2 kOhm; OPA604 output rows) and are left untyped " +
+			"for the same supply-translation reason as the 2026-10-17 list.",
 	},
 	{
 		partIds: [

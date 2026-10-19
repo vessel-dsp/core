@@ -9,29 +9,29 @@
 // fetch in the browser. The cost is verbosity, which is the point: each value carries its
 // citation inline.
 // 
-// What lives here after wave 3 (stage 1 moved mechanically, behaviour unchanged; waves 1-3
+// What lives here after wave 5 (stage 1 moved mechanically, behaviour unchanged; waves 1-5
 // fill the discrete classes under the four derived bases plus the manufacturer-model basis):
-// - op-amp gain-bandwidth products and output-swing pairs (17 GBW rows: the 11 stage-1 rows
-//   plus LM833 wave-1, LF347/LF351/L272M/TL074 wave-2, and NJM4580-family/OPA2134 wave-3;
-//   AD712 and LM1458/N are GBW-absent by verdict and LM833 stays GBW-only per the D4 swing
-//   freeze);
-// - zener reverse-breakdown rows (30 rows; forward behaviour stays class default);
-// - BJT records (19 rows: unbinned parts plus 2SC1815-Y/BL and 2SC732TM-GR/2SC945-P ranks;
+// - op-amp gain-bandwidth products and output-swing pairs (24 GBW rows: the 11 stage-1 rows
+//   plus LM833 wave-1, LF347/LF351/L272M/TL074 wave-2, NJM4580-family/OPA2134 wave-3,
+//   LM324/TLC2262/MC33174/LM833N wave-4, and OPA1678/OPA134PA/OPA604AP wave-5;
+//   AD712, LM1458/N, LM308, UA741CP, TL072C and LM741CN are GBW-absent by verdict and LM833
+//   stays GBW-only per the D4 swing freeze);
+// - zener reverse-breakdown rows (35 rows: the stage-1 rows plus 13 wave-5 nominal-voltage
+//   rows at 2.5/2.7/3.3/3.6/4.7/5.1/5.6/6.2/8.2/9.1/10/12/13 V absorbing seven stage-1
+//   derived rows at identical values; forward behaviour stays class default);
+// - BJT records (52 rows: unbinned parts plus 2SC1815-Y/BL and 2SC732TM-GR/2SC945-P ranks;
 //   IS by form 1 from a printed Vbe range midpoint or TYP, or by manufacturer-model where
-//   published (2N2222A, 2N5088); IS omitted where neither exists (2N5089, 2SC1815); BF by
+//   published (2N2222A, 2N5088, ZTX618); IS omitted where neither exists; BF by
 //   form 2 geomean or printed TYP; reverseBeta/leakageAmps/thermalVoltage omitted throughout
 //   for want of a citable figure);
-// - zener reverse-breakdown rows (30 rows; forward behaviour stays class default);
-// - BJT records (10 rows: unbinned parts plus 2SC1815-Y/BL ranks; IS by form 1 from a
-//   printed Vbe range midpoint or TYP, BF by form 2 geomean or printed TYP; IS omitted where
-//   the sheet prints a MAX-only Vbe; reverseBeta/leakageAmps/thermalVoltage omitted throughout
-//   for want of a citable figure);
-// - JFET rows (4 rows: 2SK30A gate-only, 2N5457, J201 and 2N5952 full channel by form 3);
+// - JFET rows (21 rows: 2SK30A gate-only plus full-channel rows by form 3);
 // - MOSFET rows (2 rows: BS170 and 2N7000 thresholdVolts only -- gfs is small-signal gm, not
 //   square-law Beta, and no approved form converts it);
-// - fixed-rail regulator voltages (5 records) and charge-pump loss/slope (8 records).
+// - fixed-rail regulator voltages (7 records: 5/9/18/-15/15 plus wave-5 12/3.3 V) and
+//   charge-pump loss/slope (8 records).
 // Diode records are wave-3 manufacturer-model fills (12 rows: BAT41/46/43/48, 1N5817/5819,
-// B340A, 1N4001/4002/4004/4007, 1N914); no datasheet-derived diode pair exists (form 4
+// B340A, 1N4001/4002/4004/4007, 1N914) plus wave-4 (community 1N4148/1N34A, DEC-sheet
+// 1N60/1N60P): 16 rows; no datasheet-derived diode pair exists (form 4
 // needs two printed typical points and never met).
 // Everything else -- IC macros, `sections` entries, open-loop gains, tube laws, the
 // class-default fallbacks -- stays in `part-catalog.ts` / `device-laws.ts` code.

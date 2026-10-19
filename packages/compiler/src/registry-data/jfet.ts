@@ -556,4 +556,135 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 5. GR rank (no corpus rank use beyond the backlog token; Y/BL stay out).
+		// Vendored Toshiba 2SK209 sheet (doc 2014-03-01) p1: the VGS(OFF) row is shared
+		// (no rank split) and the Note classifies IDSS (Y 1.2-3.0, GR 2.6-6.5, BL 6.0-14).
+		// 2SK209G is NOT added: no document names it (most likely a truncated marking
+		// of 2SK209-GR). |Yfs| 4.0/15 mS at 1 kHz is small-signal, not used.
+		partIds: ["2SK209-GR", "2SK209GR"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -0.85,
+				basis: "derived",
+				source:
+					"jfets/2SK209/datasheets/2sk209-toshiba.pdf (Toshiba 2SK209, start of commercial " +
+					"production 1981-06, doc 2014-03-01) p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): " +
+					"'Gate-source cut-off voltage VGS (OFF), VDS = 10 V, ID = 0.1 uA: MIN -0.2 " +
+					"MAX -1.5 V' (shared row, no rank split)",
+				derivation:
+					"Printed VGS(OFF) range -0.2..-1.5 V at VDS = 10 V, ID = 0.1 uA; arithmetic " +
+					"midpoint (form 2, volts are not gains): -(-0.2 + -1.5) / 2 = -0.85 V.",
+			},
+			transconductance: {
+				value: 6.2975779e-3,
+				basis: "derived",
+				source:
+					"jfets/2SK209/datasheets/2sk209-toshiba.pdf (Toshiba 2SK209, doc 2014-03-01) p1: " +
+					"'Drain current IDSS, VDS = 10 V, VGS = 0: MIN 1.2 MAX 14.0 mA' with 'Note: IDSS " +
+					"classification Y: 1.2~3.0 mA, GR: 2.6~6.5 mA, BL: 6.0~14 mA'",
+				derivation:
+					"Printed GR IDSS range 2.6-6.5 mA; arithmetic midpoint (form 2): (2.6 + 6.5) / 2 = " +
+					"4.55 mA. Square law (form 3) with the derived Vt0 -0.85 V: Beta = IDSS / Vt0^2 = " +
+					"4.55e-3 / 0.85^2 = 6.2975779e-3 S.",
+			},
+		},
+	},
+	{
+		// Wave 5. R rank (Toshiba 2SK208 via the Farnell-hosted Toshiba original,
+		// 3622372.pdf, doc 2014-03-01) p1: VGS(OFF) -0.4..-5.0 at 10 V/0.1 uA (shared
+		// row) with the Note classifying IDSS (R 0.30-0.75, O 0.60-1.40, Y 1.2-3.0,
+		// GR 2.6-6.5 mA). |Yfs| 1.2 mS at 1 kHz is small-signal, not used.
+		partIds: ["2SK208-R", "2SK208R"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -2.7,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK208 (Farnell 3622372.pdf, " +
+					"doc 2014-03-01) p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Gate-source cut-off " +
+					"voltage VGS (OFF), VDS = 10 V, ID = 0.1 uA: MIN -0.4 MAX -5.0 V' (shared row)",
+				derivation:
+					"Printed VGS(OFF) range -0.4..-5.0 V at VDS = 10 V, ID = 0.1 uA; arithmetic " +
+					"midpoint (form 2): -(-0.4 + -5.0) / 2 = -2.7 V.",
+			},
+			transconductance: {
+				value: 7.2016461e-5,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK208 (Farnell 3622372.pdf) " +
+					"p1: 'Drain current IDSS, VDS = 10 V, VGS = 0: MIN 0.3 MAX 6.5 mA' with 'Note: IDSS " +
+					"classification R: 0.30 to 0.75 mA, O: 0.60 to 1.40 mA, Y: 1.2 to 3.0 mA, " +
+					"GR: 2.6 to 6.5 mA'",
+				derivation:
+					"Printed R IDSS range 0.30-0.75 mA; arithmetic midpoint (form 2): (0.30 + 0.75) / " +
+					"2 = 0.525 mA. Square law (form 3) with the derived Vt0 -2.7 V: Beta = IDSS / " +
+					"Vt0^2 = 0.525e-3 / 2.7^2 = 7.2016461e-5 S.",
+			},
+		},
+	},
+	{
+		// Wave 5. Y rank on the same 2SK208 sheet (serves the 2SK208-Y backlog row).
+		partIds: ["2SK208-Y", "2SK208Y"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -2.7,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK208 (Farnell 3622372.pdf, " +
+					"doc 2014-03-01) p1: 'Gate-source cut-off voltage VGS (OFF), VDS = 10 V, ID = 0.1 uA: " +
+					"MIN -0.4 MAX -5.0 V' (shared row, same as the R-rank record)",
+				derivation:
+					"Printed VGS(OFF) range -0.4..-5.0 V; arithmetic midpoint (form 2): -2.7 V.",
+			},
+			transconductance: {
+				value: 2.8806584e-4,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK208 (Farnell 3622372.pdf) " +
+					"p1 IDSS Note: 'Y: 1.2 to 3.0 mA'",
+				derivation:
+					"Printed Y IDSS range 1.2-3.0 mA; arithmetic midpoint (form 2): (1.2 + 3.0) / 2 = " +
+					"2.1 mA. Square law (form 3) with the derived Vt0 -2.7 V: Beta = 2.1e-3 / 2.7^2 = " +
+					"2.8806584e-4 S.",
+			},
+		},
+	},
+	{
+		// Wave 5. Unbinned 2SK3557 (no corpus rank use). onsemi 2SK3557/D, Sep 2024
+		// Rev. 3: VGS(off) prints MIN/TYP/MAX (-0.3/-0.7/-1.5 at 5 V/100 uA) and IDSS
+		// MIN/MAX only (10-32 mA, rank-classified 6: 10-20 / 7: 16-32). Vt0 is the
+		// range midpoint (form 2), NOT the printed -0.7 TYP. |yfs| 24/35 mS not used.
+		partIds: ["2SK3557"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -0.9,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): onsemi 2SK3557/D, Sep 2024 Rev. 3, " +
+					"Electrical Characteristics (Ta = 25C): 'Cutoff Voltage VGS(off), VDS = 5 V, " +
+					"ID = 100 uA: MIN -0.3 TYP -0.7 MAX -1.5 V'",
+				derivation:
+					"Printed VGS(off) range -0.3..-1.5 V at VDS = 5 V, ID = 100 uA; arithmetic " +
+					"midpoint (form 2, volts are not gains): -(-0.3 + -1.5) / 2 = -0.9 V (the printed " +
+					"-0.7 TYP is not transcribed: the registry takes one value by the stated rule).",
+			},
+			transconductance: {
+				value: 2.5925926e-2,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): onsemi 2SK3557/D, Sep 2024 Rev. 3: " +
+					"'Drain Current IDSS, VDS = 5 V, VGS = 0 V: min 10 max 32 mA' (no TYP; 'classified " +
+					"by IDSS: Rank 6: 10.0-20.0, Rank 7: 16.0-32.0 mA')",
+				derivation:
+					"Printed unbinned IDSS range 10-32 mA; arithmetic midpoint (form 2): (10 + 32) / 2 = " +
+					"21 mA. Square law (form 3) with the derived Vt0 -0.9 V: Beta = 21e-3 / 0.9^2 = " +
+					"2.5925926e-2 S.",
+			},
+		},
+	},
 ]);

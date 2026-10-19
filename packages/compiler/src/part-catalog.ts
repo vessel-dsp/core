@@ -7854,6 +7854,285 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
+	// Wave-5 op-amp entries: sections whose open-loop gain is the sheet's own TYP AOL
+	// transcribed (the gain-bandwidth product lives in `registry-data/opamp.ts`, stamped by
+	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog
+	// entries are 1:1 by part id, so no entry splits. TL072C carries AOL only (no single
+	// GBW figure exists; see `opampGainBandwidthAbsent`).
+
+	// TI TL072C dual JFET-input op-amp, from SLOS080W (Sep 1978, rev Jul 2025): 5.8 DC
+	// (VS = +-15 V, TA = 25C, VO = 0 V): 'AOL | Open-loop voltage gain | TL07xC |
+	// MIN 25 TYP 200 V/mV'. Used as `openLoopGain: 200000` (bare id takes the commercial
+	// C-grade column, disclosed; no suffixed alias). Pinout: Table 4-3 Pin Functions
+	// TL072x (1 1OUT, 2 1IN-, 3 1IN+, 4 VCC-, 5 2IN+, 6 2IN-, 7 2OUT, 8 VCC+), the
+	// standard dual order, same pin-numbered role convention as the NJM4580 entry.
+	{
+		"partIds": [
+			"TL072C"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// TI OPA1678 dual audio op-amp, from SBOS855E (Jan 2017 - Dec 2022): 6.7 Electrical
+	// Characteristics (VS = +-15 V, TA = 25C, RL = 2 kOhm, VCM = VOUT = midsupply):
+	// 'AOL | Open-loop voltage gain | (V-) + 0.8 V <= VO <= (V+) - 0.8 V | MIN 106
+	// TYP 114 | dB'. Used as `openLoopGain: decibelGain(114)` = 501187.2336272725.
+	// GBW lives in the data-registry row (TYP 16 MHz at G = 1). Pinout: 5 Pin
+	// Configuration and Functions, Pin Functions OPA1678 (OUT A-1, -IN A-2, +IN A-3,
+	// V--4, +IN B-5, -IN B-6, OUT B-7, V+-8), the standard dual order.
+	{
+		"partIds": [
+			"OPA1678"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 501187.2336272725
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 501187.2336272725
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// TI (Burr-Brown) OPA134 single audio op-amp, from SBOS058B (Dec 1997, Rev. B
+	// Nov 2024): 5.7 Electrical Characteristics (TA = 25C, VS = +-15 V): 'AOL |
+	// Open-loop voltage gain | RL = 2 kOhm, -13.8 V <= VO <= 13.5 V | MIN 104
+	// TYP 120 | dB' (a second row at RL = 10 kOhm reads the same 104/120). Used as
+	// `openLoopGain: decibelGain(120)` = 1000000. GBW lives in the data-registry row
+	// (TYP 8 MHz). OPA134PA is the printed PDIP-8 orderable of the same die
+	// (orderable table: 'OPA134PA | Active | Production | PDIP (P) | 8'; family specs
+	// with no per-orderable split). Pinout: Figure 4-1 + Pin Functions OPA134
+	// (+IN-3, -IN-2, OUT-6); the entry keeps the LF351 three-terminal capture.
+	{
+		"partIds": [
+			"OPA134PA"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 1000000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// TI (Burr-Brown) OPA604 single op-amp, from SBOS019A (Jan 1992 - Sep 2003):
+	// ELECTRICAL CHARACTERISTICS (TA = +25C, VS = +-15 V, MIN/TYP/MAX columns):
+	// 'OPEN-LOOP GAIN | Open-Loop Voltage Gain, VO = +-10 V, RL = 1 kOhm: MIN 80
+	// TYP 100 dB'. Used as `openLoopGain: decibelGain(100)` = 100000. GBW lives in
+	// the data-registry row (TYP 20 MHz at G = 100, quoted with its condition).
+	// OPA604AP is named by the specs header ('OPA604AP, AU'); the PDIP suffix follows
+	// the Burr-Brown AP convention (the Package Option Addendum lists AU active).
+	// Pinout: the DIP/SOIC diagram (-In-2, +In-3, OUT-6); the LF351 three-terminal
+	// capture, same as the UA741CP entry.
+	{
+		"partIds": [
+			"OPA604AP"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
 	// Wave-2 op-amp entries: sections whose open-loop gain is the sheet's own TYP AOL
 	// transcribed (the gain-bandwidth product lives in `registry-data/opamp.ts`, stamped by
 	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog
