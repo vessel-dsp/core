@@ -205,25 +205,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// Both parameters derive from ranges (no TYP printed for either). The Vbe point is a
-		// forced-beta saturation figure (IB = IC/10) at high current -- the derivation is
-		// mechanical under forms 1+2 and the conditions are quoted here, but it is NOT a
-		// small-signal active-mode Vbe; see the wave-1 report.
-		partIds: ["2N2222A"],
+		// Gain only. Its `IS` is deliberately NOT registered: the only printed Vbe point is a forced-beta
+		// saturation figure at IC = 150 mA (VBE(sat) 0.6-1.2 V), where series resistance dominates, so
+		// the form-1 derivation gave 1.1396115e-16, about two orders of magnitude below typical models.
+		// Owner ruling 2026-10-19: form 1 takes an ACTIVE-REGION Vbe at IC <= 20 mA only; this part has none.
+partIds: ["2N2222A"],
 		class: "bjt",
 		params: {
-			saturationCurrent: {
-				value: 1.1396115e-16,
-				basis: "derived",
-				source:
-					"Fetched manufacturer sheet (no vendored copy): onsemi P2N2222A/D, Jan 2013 Rev. 7, p2, ON " +
-					"CHARACTERISTICS (Note 1: pulse test): 'Base-Emitter Saturation Voltage VBE(sat), " +
-					"IC = 150 mA, IB = 15 mA, MIN 0.6 MAX 1.2 V' (the 500 mA row is MAX-only 2.0 V)",
-				derivation:
-					"Printed VBE(sat) range 0.6-1.2 V at IC = 150 mA, IB = 15 mA; arithmetic midpoint " +
-					"0.9 V (form 2, printed range, no TYP); IS = IC * exp(-Vbe / Vt) with n = 1 " +
-					"(form 1): 0.15 * exp(-0.9 / 0.025852) = 1.1396115e-16.",
-			},
 			forwardBeta: {
 				// The DC hFE rows at small-signal currents are MIN-only; the only full DC range is
 				// at 150 mA (high-current falloff). The small-signal hfe bin at 1 mA, f = 1 kHz
