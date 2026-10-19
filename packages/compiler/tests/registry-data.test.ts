@@ -665,14 +665,14 @@ describe("wave-4 fill inventory", () => {
 		// Part B: two community germanium BJT rows (AC128 IS+BF, OC44 BF alongside a
 		// derived IS) and four diode rows (community 1N4148 + 1N34A, DEC-sheet 1N60/1N60P).
 		expect(opampRegistryRecords).toHaveLength(21);
-		expect(zenerRegistryRecords).toHaveLength(29);
+		expect(zenerRegistryRecords).toHaveLength(35);
 		expect(jfetRegistryRecords).toHaveLength(17);
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(39);
 		expect(diodeRegistryRecords).toHaveLength(16);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(21 + 39 + 16 + 2 + 29 + 17 + 7 + 8);
+		expect(partRegistryData).toHaveLength(21 + 39 + 16 + 2 + 35 + 17 + 7 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
