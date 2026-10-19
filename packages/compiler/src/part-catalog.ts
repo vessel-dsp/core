@@ -416,6 +416,18 @@ const regulatorTerminalStructures: Record<
 		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "pin2"], ["vout", "out", "output", "pin3"]],
 		terminals: [2, 1],
 	},
+	// Wave 5: 12 V and 3.3 V 78Lxx rails (LM78L12/LM78L33, TI SNVS754O). Same wiring
+	// shape as the 5 V/9 V entries, and the same latent TO-92-vs-TO-220 pin-order
+	// caveat as the 5 V entry above: no corpus packet names these rails today, so the
+	// order is asserted for parity, not verified against a packet.
+	12: {
+		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "pin2"], ["vout", "out", "output", "pin3"]],
+		terminals: [2, 1],
+	},
+	3.3: {
+		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "pin2"], ["vout", "out", "output", "pin3"]],
+		terminals: [2, 1],
+	},
 	// electro-harmonix-q-tron's U6 (PartNumber 78L18AC) is the 24V-to-+18V rail; it matches by part id on the first rung, so the role groups below are the standard in/gnd/out family spelling kept for parity with the 5V/9V entries, not a new contract.
 	18: {
 		terminalRoleGroups: [["vin", "in", "input", "pin1"], ["gnd", "ground", "pin2"], ["vout", "out", "output", "pin3"]],
@@ -3598,6 +3610,11 @@ const entries: readonly PartEntry[] = [
 	},
 
 // --- Single Op-Amps (LM741, TL071, NJM5534D) --------------------------------------------------------------------------
+// Wave 5: LM741CN rides this entry. It is the exact PDIP orderable spelling printed
+// in the TI LM741 SNOSC25D (May 1998, rev Oct 2015) Package Option Addendum:
+// 'LM741CN/NOPB | Active | Production | PDIP (P) | 8', part marking 'LM 741CN'.
+// The specs sit under the LM741C column family; open-loop gain stays the house
+// 100000 and no GBW row is quoted (see opampGainBandwidthAbsent).
 	{
 		"partIds": [
 			"LM741",
@@ -3609,7 +3626,8 @@ const entries: readonly PartEntry[] = [
 			"NJM5534",
 			"NJM5534D",
 			"NE5534",
-			"NJM5534M"
+			"NJM5534M",
+			"LM741CN"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [
@@ -3695,6 +3713,12 @@ const entries: readonly PartEntry[] = [
 
 // --- 9V Voltage Regulators: ids and rail from registry-data/regulator.ts; wiring above --------
 	regulatorEntryForVolts(9),
+
+// --- 12V Voltage Regulators (wave 5: LM78L12): ids and rail from registry-data/regulator.ts; wiring above --------
+	regulatorEntryForVolts(12),
+
+// --- 3.3V Voltage Regulators (wave 5: LM78L33): ids and rail from registry-data/regulator.ts; wiring above --------
+	regulatorEntryForVolts(3.3),
 
 // --- 18V Voltage Regulators: ids and rail from registry-data/regulator.ts; wiring above --------
 	regulatorEntryForVolts(18),

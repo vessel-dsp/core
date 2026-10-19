@@ -667,12 +667,12 @@ describe("wave-4 fill inventory", () => {
 		expect(opampRegistryRecords).toHaveLength(21);
 		expect(zenerRegistryRecords).toHaveLength(29);
 		expect(jfetRegistryRecords).toHaveLength(17);
-		expect(regulatorRegistryRecords).toHaveLength(5);
+		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(39);
 		expect(diodeRegistryRecords).toHaveLength(16);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(21 + 39 + 16 + 2 + 29 + 17 + 5 + 8);
+		expect(partRegistryData).toHaveLength(21 + 39 + 16 + 2 + 29 + 17 + 7 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
@@ -710,11 +710,11 @@ describe("wave-4 fill inventory", () => {
 		}
 	});
 
-	it("regulator rails are the five fixed rails, and only the LT1054 pump prints a loss", () => {
+	it("regulator rails are the seven fixed rails, and only the LT1054 pump prints a loss", () => {
 		const volts = regulatorRegistryRecords.map(
 			(record) => record.params["volts"]?.value,
 		);
-		expect([...volts].sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([-15, 5, 9, 15, 18]);
+		expect([...volts].sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([-15, 3.3, 5, 9, 12, 15, 18]);
 		const losses = chargePumpRegistryRecords.map(
 			(record) => record.params["chargePumpLossVolts"]?.value,
 		);

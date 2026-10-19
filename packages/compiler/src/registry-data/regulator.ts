@@ -22,7 +22,15 @@ const SUPPLY_OHMS_DERIVATION =
 
 export const regulatorRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
-		partIds: ["uPC78L05", "78L05", "7805", "78M05", "TA78L05F", "TA78L05S", "2930L05", "BA78L05", "uPC78L05T"],
+		// Wave 5: LM78L05 and L7805 ride this 5 V entry. LM78L05 is the exact spelling
+		// printed in TI LM78L SNVS754O (Jan 2000, rev Aug 2026) 5.6 'Electrical
+		// Characteristics: LM78L05 (Legacy and New Chip)' (VIN = 10 V, IO = 40 mA):
+		// 'VO Output voltage, TJ = 25C: MIN 4.8 TYP 5 MAX 5.2 V' (legacy chip; new chip
+		// 4.9/5/5.18). L7805 is the exact TYPE printed in the ST L7800 series device
+		// summary (Doc ID 2143 Rev 26, Feb 2012, Table 1: 'L7805' among L7805C/L7805AB/
+		// L7805AC). Bare L78L05 is NOT added: no ST L78L revision prints the bare stem
+		// (TYPE rows are L78L05C/AC/AB only), so suffix-folding it would be unsourced.
+		partIds: ["uPC78L05", "78L05", "7805", "78M05", "TA78L05F", "TA78L05S", "2930L05", "BA78L05", "uPC78L05T", "LM78L05", "L7805"],
 		class: "regulator",
 		params: {
 			volts: {
@@ -47,7 +55,12 @@ export const regulatorRegistryRecords: readonly PartDataEntry[] = definePartData
 			"solving the pedal's 5 V rail at 18 V.",
 	},
 	{
-		partIds: ["uPC78L09", "78L09", "7809", "78M09", "TA78L09F", "2930L09", "BA78L09", "uPC78L09T"],
+		// Wave 5: LM78L09 rides this 9 V entry. It is the exact spelling printed in TI
+		// LM78L SNVS754O (Jan 2000, rev Aug 2026) 5.8 'Electrical Characteristics:
+		// LM78L09 (Legacy Chip Only)' (VIN = 15 V, IO = 40 mA): 'VO Output voltage,
+		// TJ = 25C: MIN 8.64 TYP 9 MAX 9.36 V'. Bare L78L09 is NOT added: no ST L78L
+		// revision prints the bare stem (TYPE rows are L78L09C/AC/AB only).
+		partIds: ["uPC78L09", "78L09", "7809", "78M09", "TA78L09F", "2930L09", "BA78L09", "uPC78L09T", "LM78L09"],
 		class: "regulator",
 		params: {
 			volts: {
@@ -113,6 +126,57 @@ export const regulatorRegistryRecords: readonly PartDataEntry[] = definePartData
 			"magnitude and the lowering reverses the source's sense for an output declared `negative`); " +
 			"until that is settled, a negative regulator using this entry must declare its output " +
 			"`positive`, which is why deluxe-memory-man does. See the entry note in part-catalog.ts.",
+	},
+	{
+		// Wave 5: the 12 V rail (no 12 V entry existed). LM78L12 is the exact spelling
+		// printed in TI LM78L SNVS754O (Jan 2000, rev Aug 2026) 5.9 'Electrical
+		// Characteristics: LM78L12 (Legacy and New Chip)' (VIN = 19 V, CIN = 0.33 uF,
+		// COUT = 0.1 uF, IO = 40 mA): 'VO Output voltage, TJ = 25C: MIN 11.5 TYP 12
+		// MAX 12.5 V' (legacy chip; new chip 11.8/12/12.3). Bare L78L12 is NOT added
+		// (same unsuffixed-stem reason as L78L05/L78L09 above).
+		partIds: ["LM78L12"],
+		class: "regulator",
+		params: {
+			volts: {
+				value: 12,
+				basis: "datasheet",
+				source:
+					"TI LM78L SNVS754O (Jan 2000, rev Aug 2026) 5.9 'Electrical " +
+					"Characteristics: LM78L12 (Legacy and New Chip)' (VIN = 19 V, IO = 40 mA): " +
+					"'VO Output voltage, TJ = 25C: MIN 11.5 TYP 12 MAX 12.5 V' (new chip 11.8/12/12.3)",
+			},
+			sourceOhms: {
+				value: 1,
+				basis: "derived",
+				source: SUPPLY_OHMS_SOURCE,
+				derivation: SUPPLY_OHMS_DERIVATION,
+			},
+		},
+	},
+	{
+		// Wave 5: the 3.3 V rail (no 3.3 V entry existed). LM78L33 is the exact spelling
+		// printed in TI LM78L SNVS754O (Jan 2000, rev Aug 2026) 5.5 'Electrical
+		// Characteristics: LM78L33 (New Chip Only)' (VIN = 5.5-20 V, IO = 1-40 mA):
+		// 'VO Output voltage, TJ = 25C: MIN 3.29 TYP 3.3 MAX 3.44 V'. Bare L78L33 is
+		// NOT added (same unsuffixed-stem reason as above).
+		partIds: ["LM78L33"],
+		class: "regulator",
+		params: {
+			volts: {
+				value: 3.3,
+				basis: "datasheet",
+				source:
+					"TI LM78L SNVS754O (Jan 2000, rev Aug 2026) 5.5 'Electrical " +
+					"Characteristics: LM78L33 (New Chip Only)' (VIN = 5.5-20 V, IO = 1-40 mA): " +
+					"'VO Output voltage, TJ = 25C: MIN 3.29 TYP 3.3 MAX 3.44 V'",
+			},
+			sourceOhms: {
+				value: 1,
+				basis: "derived",
+				source: SUPPLY_OHMS_SOURCE,
+				derivation: SUPPLY_OHMS_DERIVATION,
+			},
+		},
 	},
 	{
 		partIds: ["LM340T-15"],

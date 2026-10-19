@@ -527,8 +527,8 @@ export const opampGainBandwidthAbsent: ReadonlyArray<{
 			"applies.",
 	},
 	{
-		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "MC33178", "MC33178P", "MC33178D", "BA718"],
-		reason: "No vendored datasheet.",
+		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "MC33178", "MC33178P", "MC33178D", "BA718", "LM741CN"],
+		reason: "No vendored datasheet for these ids. LM741CN (wave 5) rests on the fetched TI LM741 SNOSC25D orderable table, which prints no GBW row.",
 	},
 	{
 		partIds: ["CA1458", "CA1458E", "CA1458T"],
@@ -643,8 +643,8 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 		reason: "TI SLOS076 prints VO(PP) as a peak-to-peak figure only (20 min / 26 typ at RL = 10 kOhm, +-15 V): no per-side figure.",
 	},
 	{
-		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "BA718", "CA1458", "CA1458E", "CA1458T"],
-		reason: "No vendored datasheet for these ids.",
+		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "BA718", "CA1458", "CA1458E", "CA1458T", "LM741CN"],
+		reason: "No vendored datasheet for these ids. LM741CN (wave 5) carries the entry's house gain; the swing pair stays absent per the D4 freeze.",
 	},
 	{
 		partIds: ["AD712", "LF347", "LF347N", "LF351", "LF351N", "L272", "L272M", "L272D", "TL074", "TL074CN", "TL074CD"],
