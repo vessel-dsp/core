@@ -480,8 +480,15 @@ const PROVISIONAL_OVERRIDE_KEYS: Readonly<
 
 /**
  * The registry value an override replaces for one parameter, or `null` when it replaces
- * nothing: either the part has no registry entry at all, or the entry states no such
- * parameter (a measured refinement beyond the entry, or a law the entry does not carry).
+ * nothing: either the part has no registry entry at all, the entry states no such
+ * parameter (a measured refinement beyond the entry, or a law the entry does not carry),
+ * or the declared-device path never reads that parameter from the registry.
+ *
+ * The last case is `openLoopGain` on a declared op-amp: `device-laws.ts` takes it from the
+ * document's typed key or the class default and never consults the registry (a sections
+ * entry's figure feeds only the sections expansion, which an override cannot reach -- see
+ * `sectionDevices`). Reporting the entry's figure as "replaced" would claim a replacement
+ * that never happened; `null` with the detail prose is the honest answer.
  *
  * Read from the entry's law fields by schema name -- law fields ARE schema names -- from a
  * whole `law` entry or the first section of a `sections` entry (a dual op-amp's numbers live
@@ -494,6 +501,10 @@ function registryParamValue(
 	parameter: string,
 ): number | null {
 	if (partNumber === null) {
+		return null;
+	}
+	// See the doc comment: the declared-opamp path never reads openLoopGain from the registry.
+	if (parameter === "openLoopGain") {
 		return null;
 	}
 	const entry = registryEntryFor(

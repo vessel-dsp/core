@@ -760,6 +760,47 @@ describe("DeviceOverride", () => {
 		expect(reason).toContain('is not "measured" or "custom"');
 	});
 
+	test("refuses a schema-valid name the engine never reads from the document", () => {
+		const jfetReason = unsupportedReason(
+			threeTerminalDoc(
+				"jfet",
+				["drain", "gate", "source"],
+				["drain", "gate", "source"],
+				`      DeviceOverride:
+        kind: measured
+        source: "bench"
+        method: "DMM"
+        date: "2026-10-19"
+        by: "Override Tests"
+        parameters:
+          - name: gateSaturationCurrent
+            value: 1e-6
+`,
+			),
+		);
+		expect(jfetReason).toContain('"gateSaturationCurrent"');
+		expect(jfetReason).toContain("never from the document");
+		const opampReason = unsupportedReason(
+			threeTerminalDoc(
+				"opamp",
+				["output", "nonInverting", "inverting"],
+				["out", "plus", "minus"],
+				`      DeviceOverride:
+        kind: measured
+        source: "bench"
+        method: "DMM"
+        date: "2026-10-19"
+        by: "Override Tests"
+        parameters:
+          - name: outputSwingDropHighVolts
+            value: 1.2
+`,
+			),
+		);
+		expect(opampReason).toContain('"outputSwingDropHighVolts"');
+		expect(opampReason).toContain("never from the document");
+	});
+
 	test("routes the override class per device kind", () => {
 		// A BJT gain name is unknown on a JFET.
 		const jfet = threeTerminalDoc(
@@ -808,8 +849,7 @@ describe("DeviceOverride", () => {
 		);
 	});
 
-	test("custom zener requires breakdownVolts", () => {
-		const base = (params: string): string =>
+	test("custom zener requires breakdownVolts", () => {		const base = (params: string): string =>
 			threeTerminalDoc(
 				"diode",
 				["anode", "cathode", "end"],
@@ -839,5 +879,117 @@ ${params}
 		expect(missing.reasons[0]?.reason).toContain(
 			"missing required parameter(s): breakdownVolts",
 		);
+	});
+
+	test("refuses an override on a part the registry expands into sections", () => {
+		// A digital transistor: the registry owns the package's numbers (built-in bias
+		// resistors), so neither legacy keys nor an override can reach the section laws.
+		const sectionsRegistry: PartRegistry = {
+			entries: [
+				{
+					partIds: ["TESTDIG"],
+					declaredTypes: [],
+					terminalRoleGroups: [],
+					model: {
+						kind: "sections",
+						sections: [
+							{
+								law: {
+									kind: "bjt",
+									polarity: "npn",
+									saturationCurrent: 1e-14,
+									forwardBeta: 100,
+									reverseBeta: 1,
+									thermalVoltage: 0.025852,
+									leakageAmps: 0,
+								},
+								terminals: [0, 1, 2],
+							},
+						],
+						pinout: [null, null, null],
+					},
+				},
+			],
+		};
+		const result = compile(
+			bjtDoc(
+				`      PartNumber: "TESTDIG"
+      DeviceOverride:
+        kind: measured
+        source: "bench"
+        method: "DMM"
+        date: "2026-10-19"
+        by: "Override Tests"
+        parameters:
+          - name: saturationCurrent
+            value: 2e-14
+          - name: forwardBeta
+            value: 120
+`,
+			),
+			{ registry: sectionsRegistry },
+		);
+		expect(result.status).toBe("unsupported");
+		if (result.status !== "unsupported") return;
+		expect(result.reasons[0]?.stage).toBe("device-laws");
+		expect(result.reasons[0]?.device).toBe("Q1");
+		expect(result.reasons[0]?.reason).toContain("sections entry");
+	});
+
+	test("openLoopGain notice reports no registry value replaced", () => {
+		// The declared-opamp path takes openLoopGain from the document or the class
+		// default and never consults the registry, so even an entry stating it replaces
+		// nothing. gainBandwidthHz does consult the registry and reports it.
+		const opampRegistry: PartRegistry = {
+			entries: [
+				{
+					partIds: ["TESTOP"],
+					declaredTypes: [],
+					terminalRoleGroups: [],
+					model: {
+						kind: "law",
+						law: {
+							kind: "ideal-opamp",
+							railHigh: null,
+							railLow: null,
+							openLoopGain: 200000,
+							gainBandwidthHz: 3000000,
+						},
+					},
+				},
+			],
+		};
+		const result = compile(
+			threeTerminalDoc(
+				"opamp",
+				["output", "nonInverting", "inverting"],
+				["out", "plus", "minus"],
+				`      PartNumber: "TESTOP"
+      DeviceOverride:
+        kind: measured
+        source: "bench"
+        method: "DMM"
+        date: "2026-10-19"
+        by: "Override Tests"
+        parameters:
+          - name: openLoopGain
+            value: 250000
+          - name: gainBandwidthHz
+            value: 4000000
+`,
+			),
+			{ registry: opampRegistry },
+		);
+		expect(result.status).toBe("ok");
+		if (result.status !== "ok") return;
+		const applied = result.warnings.filter(
+			(w) => w.code === "registry-override-applied",
+		);
+		expect(applied.length).toBe(1);
+		if (applied[0]?.code !== "registry-override-applied") return;
+		expect(applied[0].items).toEqual([
+			{ parameter: "openLoopGain", overrideValue: 250000, registryValue: null },
+			{ parameter: "gainBandwidthHz", overrideValue: 4000000, registryValue: 3000000 },
+		]);
 	});
 });

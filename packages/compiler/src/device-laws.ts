@@ -813,6 +813,26 @@ function sectionDevices(
 	if (model.kind !== "sections" && model.kind !== "sections-core") {
 		return null;
 	}
+	// An explicit override cannot target one section of a package the registry expands: the
+	// section laws are the entry's numbers (a dual op-amp's two amplifiers share one part's
+	// figures), and `device.parameters` -- legacy or override -- never reach them. Accepting
+	// the block would be a silent drop, so it refuses by name instead. The way out is a
+	// source-declared `devices:` split, whose devices take the device-class law that the
+	// override does feed.
+	if (device.deviceOverride !== undefined) {
+		return [
+			[
+				device,
+				{
+					outcome: "unsupported",
+					device: device.id,
+					reason:
+						`part ${identity.partId} is expanded from a registry sections entry, whose numbers the override cannot replace: ` +
+						`declare the package's devices explicitly (a "devices:" split) to take the device-class law an override feeds, or remove the DeviceOverride block`,
+				},
+			] as const,
+		];
+	}
 	// A `sections` entry's `terminals` index into the entry's canonical pin order, not the
 	// declaration order the document happened to use. When the entry names its pins by role and
 	// that naming is a clean bijection onto the device's declared terminals, resolve each

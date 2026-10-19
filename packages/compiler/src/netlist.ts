@@ -2739,6 +2739,53 @@ function overrideEngineField(target: OverrideTargetClass, name: string): string 
 	return name;
 }
 
+/**
+ * The class parameters an override block may actually set, by target class: the subset of
+ * the class schema that the engine reads from the document.
+ *
+ * A schema name outside this set is refused even though it is a real class parameter, because
+ * accepting it would be a silent drop: `device-laws.ts` reads a JFET's gate terms
+ * (`gateSaturationCurrent`, `gateOnsetVolts`, `gateScaleVolts`), its
+ * `channelLengthModulation` and `subthresholdVolts`, and an op-amp's output-swing pair ONLY
+ * from the registry entry, never from `device.parameters`. An override value for one of those
+ * would merge, stamp nothing, and change nothing -- the wrong-answer-that-renders this file
+ * exists to prevent. Those numbers come from registry entries (stage 3 fills them), never
+ * from a per-device override; polarity and channel stay structural for the same reason.
+ */
+const OVERRIDABLE_CLASS_PARAMS: Readonly<Record<OverrideTargetClass, readonly string[]>> = {
+	bjt: [
+		"saturationCurrent",
+		"forwardBeta",
+		"reverseBeta",
+		"thermalVoltage",
+		"leakageAmps",
+	],
+	jfet: ["thresholdVolts", "transconductance"],
+	mosfet: ["thresholdVolts", "transconductance"],
+	diode: [
+		"saturationCurrent",
+		"emissionCoefficient",
+		"thermalVoltage",
+		"breakdownVolts",
+		"seriesResistance",
+	],
+	zener: [
+		"saturationCurrent",
+		"emissionCoefficient",
+		"thermalVoltage",
+		"breakdownVolts",
+		"seriesResistance",
+	],
+	led: [
+		"saturationCurrent",
+		"emissionCoefficient",
+		"thermalVoltage",
+		"breakdownVolts",
+		"seriesResistance",
+	],
+	opamp: ["openLoopGain", "gainBandwidthHz"],
+};
+
 /** A non-empty authored string, or `null` when the value is not one. */
 function nonEmptyText(value: unknown): string | null {
 	if (typeof value !== "string" || value.trim().length === 0) {
@@ -2889,6 +2936,7 @@ function readDeviceOverride(
 		);
 	}
 	const allowed = new Set<string>(classParamNames(target));
+	const overridable = new Set<string>(OVERRIDABLE_CLASS_PARAMS[target]);
 	const seen = new Set<string>();
 	const parameters: DeviceOverrideParameter[] = [];
 	for (const [index, entry] of list.entries()) {
@@ -2903,6 +2951,12 @@ function readDeviceOverride(
 		if (typeof name !== "string" || !allowed.has(name)) {
 			throw new NetlistError(
 				`component ${componentId}: DeviceOverride parameter ${JSON.stringify(name)} is not a ${target} parameter (accepted: ${[...allowed].join(", ")})`,
+				componentId,
+			);
+		}
+		if (!overridable.has(name)) {
+			throw new NetlistError(
+				`component ${componentId}: DeviceOverride parameter "${name}" is a ${target} parameter but the engine reads it only from the registry entry, never from the document, so an override cannot set it (overridable: ${[...overridable].join(", ")})`,
 				componentId,
 			);
 		}
