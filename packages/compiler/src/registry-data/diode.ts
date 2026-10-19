@@ -41,6 +41,15 @@
 // source at all (owner measurement needed). Owner follow-up: download the ST PSpice zip,
 // the Diodes Inc per-part .spice.txt files, and the onsemi MMSD4148 simulation-models ZIP
 // from the manufacturers' portals; each yields citable IS+n under `manufacturer-model`.
+//
+// MEASURED FUTURE (no entries yet): the `measured` basis in `loader.ts` is for exactly the
+// residue above -- generic LED colour defaults and the diodes with no manufacturer model
+// (1N4148, 1N914, 1N34A, 1N60P, D9E, D9K, BAT85S). Each measured IS+n will cite the committed
+// measurement JSON (schema `vesseldsp.junction-default-measurement.v1`, `perDevice`
+// `isEngine`/`nEngine` pooled over every sample at the engine VT 0.025852 V) with
+// instrument, conditions, sample count, date, repo-relative path and sha256; see
+// `led-measurement.html` and its README. The owner has not measured yet, so nothing here
+// uses `measured`.
 
 import { definePartData, type PartDataEntry } from "./loader";
 

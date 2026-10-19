@@ -14,10 +14,14 @@
 //   (with its continuation lines) from a model file, or a Microsim-style `NPN (...)`
 //   line from the manufacturer's own datasheet (clarified 2026-10-19: a model the
 //   manufacturer prints inside its datasheet is manufacturer-published);
+// - a `measured` basis without the owner's bench record (instrument, conditions,
+//   sample count, date, evidence path plus sha256 -- every field required, validated,
+//   and the evidence path and sha256 quoted in `source`);
 // - model file/line fields on any other basis;
 // - a model file URL outside the manufacturer's own hosts (third-party libraries,
 //   mirrors, forums and aggregators are not manufacturer models, even when the text
 //   they carry is manufacturer-authored);
+// - measured fields on any other basis;
 // - model file/line fields on any other basis;
 // - a parameter name that is not in the class schema;
 // - a duplicate part id or alias (folded, across the whole assembled set);
@@ -63,8 +67,9 @@ function isManufacturerModelHost(url: string): boolean {
 }
 
 /** Where a cited value came from: printed in a datasheet, derived with the working shown,
- * or read directly from a manufacturer-published SPICE/PSpice model file. */
-export type ParamBasis = "datasheet" | "derived" | "manufacturer-model";
+ * read directly from a manufacturer-published SPICE/PSpice model file, or measured by the
+ * owner on the bench (generic LED / diode defaults only, until a measurement JSON exists). */
+export type ParamBasis = "datasheet" | "derived" | "manufacturer-model" | "measured";
 
 /**
  * One registry parameter: the single number the engine uses, with its provenance.
@@ -77,6 +82,15 @@ export type ParamBasis = "datasheet" | "derived" | "manufacturer-model";
  * as printed -- a `.MODEL` / `.SUBCKT` card (with its continuation lines) from a model
  * file, or a Microsim-style `NPN (...)` line from the manufacturer's own datasheet --
  * both quoted in `source` as well.
+ * A `measured` parameter is the owner's own bench value: `measurementInstrument` names
+ * the meter, `measurementConditions` states the supply, resistors and temperature,
+ * `measurementSampleCount` counts the pooled samples, `measurementDate` is the sitting
+ * date (YYYY-MM-DD), and `measurementEvidencePath` plus `measurementEvidenceSha256`
+ * point at the committed measurement JSON (repo-relative path, sha256 of the file) --
+ * both quoted in `source` as well. The JSON schema is
+ * `vesseldsp.junction-default-measurement.v1` (`perDevice` entries with `isEngine`,
+ * `nEngine`, `samples`, pooled over every sample, already referred to the engine's
+ * thermal voltage 0.025852 V); see `led-measurement.html` and its README.
  */
 export type CitedParam = {
 	/** The single number the engine uses. Must be finite. */
@@ -90,6 +104,18 @@ export type CitedParam = {
 	readonly modelFileUrl?: string;
 	/** Required when `basis` is `manufacturer-model`: the exact `.MODEL` / `.SUBCKT` line. */
 	readonly modelLine?: string;
+	/** Required when `basis` is `measured`: the meter (make/model). */
+	readonly measurementInstrument?: string;
+	/** Required when `basis` is `measured`: supply, resistors, temperature. */
+	readonly measurementConditions?: string;
+	/** Required when `basis` is `measured`: pooled sample count (>= 1, integer). */
+	readonly measurementSampleCount?: number;
+	/** Required when `basis` is `measured`: sitting date, YYYY-MM-DD. */
+	readonly measurementDate?: string;
+	/** Required when `basis` is `measured`: repo-relative path of the measurement JSON. */
+	readonly measurementEvidencePath?: string;
+	/** Required when `basis` is `measured`: lowercase hex sha256 of the measurement JSON. */
+	readonly measurementEvidenceSha256?: string;
 };
 
 /**
@@ -120,10 +146,11 @@ export function validateCitedParam(
 	if (
 		param.basis !== "datasheet" &&
 		param.basis !== "derived" &&
-		param.basis !== "manufacturer-model"
+		param.basis !== "manufacturer-model" &&
+		param.basis !== "measured"
 	) {
 		throw new Error(
-			`${entryLabel}: parameter "${name}" has no basis: expected "datasheet", "derived" or "manufacturer-model"`,
+			`${entryLabel}: parameter "${name}" has no basis: expected "datasheet", "derived", "manufacturer-model" or "measured"`,
 		);
 	}
 	if (typeof param.value !== "number" || !Number.isFinite(param.value)) {
@@ -185,6 +212,90 @@ export function validateCitedParam(
 		if (param.modelFileUrl !== undefined || param.modelLine !== undefined) {
 			throw new Error(
 				`${entryLabel}: parameter "${name}" states a model file/line on a "${param.basis}" basis (manufacturer-model only)`,
+			);
+		}
+	}
+	if (param.basis === "measured") {
+		if (
+			typeof param.measurementInstrument !== "string" ||
+			param.measurementInstrument.length === 0
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with no instrument`,
+			);
+		}
+		if (
+			typeof param.measurementConditions !== "string" ||
+			param.measurementConditions.length === 0
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with no conditions (supply, resistors, temperature)`,
+			);
+		}
+		if (
+			typeof param.measurementSampleCount !== "number" ||
+			!Number.isInteger(param.measurementSampleCount) ||
+			param.measurementSampleCount < 1
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with no sample count (integer >= 1): ${String(param.measurementSampleCount)}`,
+			);
+		}
+		if (
+			typeof param.measurementDate !== "string" ||
+			!/^\d{4}-\d{2}-\d{2}$/u.test(param.measurementDate) ||
+			Number.isNaN(Date.parse(`${param.measurementDate}T00:00:00Z`))
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with no date (YYYY-MM-DD): ${String(param.measurementDate)}`,
+			);
+		}
+		if (
+			typeof param.measurementEvidencePath !== "string" ||
+			param.measurementEvidencePath.length === 0
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with no evidence path`,
+			);
+		}
+		if (
+			param.measurementEvidencePath.startsWith("/") ||
+			param.measurementEvidencePath.includes("..") ||
+			!param.measurementEvidencePath.endsWith(".json")
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with an evidence path that is not a repo-relative JSON path: ${param.measurementEvidencePath}`,
+			);
+		}
+		if (
+			typeof param.measurementEvidenceSha256 !== "string" ||
+			!/^[0-9a-f]{64}$/u.test(param.measurementEvidenceSha256)
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis with no evidence sha256 (64 lowercase hex): ${String(param.measurementEvidenceSha256)}`,
+			);
+		}
+		if (!param.source.includes(param.measurementEvidencePath)) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis whose source does not quote the evidence path`,
+			);
+		}
+		if (!param.source.includes(param.measurementEvidenceSha256)) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a measured basis whose source does not quote the evidence sha256`,
+			);
+		}
+	} else {
+		if (
+			param.measurementInstrument !== undefined ||
+			param.measurementConditions !== undefined ||
+			param.measurementSampleCount !== undefined ||
+			param.measurementDate !== undefined ||
+			param.measurementEvidencePath !== undefined ||
+			param.measurementEvidenceSha256 !== undefined
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" states measured fields on a "${param.basis}" basis (measured only)`,
 			);
 		}
 	}

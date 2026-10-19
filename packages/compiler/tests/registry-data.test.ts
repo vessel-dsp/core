@@ -223,6 +223,135 @@ describe("definePartData throws for the stated reason", () => {
 			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
 		).toThrow(/manufacturer-model only/);
 	});
+
+	it("refuses a measured basis with no instrument", () => {
+		const param = {
+			value: 1e-14,
+			basis: "measured",
+			source: "evidence measurements/2026-10-20-led-default.json abc123",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 4,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: "measurements/2026-10-20-led-default.json",
+			measurementEvidenceSha256: "a".repeat(64),
+		} as unknown as CitedParam;
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/instrument/);
+	});
+
+	it("refuses a measured basis with no conditions", () => {
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: "evidence measurements/2026-10-20-led-default.json " + "a".repeat(64),
+			measurementInstrument: "Test Meter",
+			measurementSampleCount: 4,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: "measurements/2026-10-20-led-default.json",
+			measurementEvidenceSha256: "a".repeat(64),
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/conditions/);
+	});
+
+	it("refuses a measured basis with a bad sample count", () => {
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: "evidence measurements/2026-10-20-led-default.json " + "a".repeat(64),
+			measurementInstrument: "Test Meter",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 0,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: "measurements/2026-10-20-led-default.json",
+			measurementEvidenceSha256: "a".repeat(64),
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/sample count/);
+	});
+
+	it("refuses a measured basis with a bad date", () => {
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: "evidence measurements/2026-10-20-led-default.json " + "a".repeat(64),
+			measurementInstrument: "Test Meter",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 4,
+			measurementDate: "20-10-2026",
+			measurementEvidencePath: "measurements/2026-10-20-led-default.json",
+			measurementEvidenceSha256: "a".repeat(64),
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/date/);
+	});
+
+	it("refuses a measured basis with a bad evidence path", () => {
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: "test source",
+			measurementInstrument: "Test Meter",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 4,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: "/abs/path.json",
+			measurementEvidenceSha256: "a".repeat(64),
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/evidence path/);
+	});
+
+	it("refuses a measured basis with a bad evidence sha256", () => {
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: "evidence measurements/2026-10-20-led-default.json nothex",
+			measurementInstrument: "Test Meter",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 4,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: "measurements/2026-10-20-led-default.json",
+			measurementEvidenceSha256: "nothex",
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/sha256/);
+	});
+
+	it("refuses a measured basis whose source does not quote the evidence", () => {
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: "owner bench, no evidence quoted",
+			measurementInstrument: "Test Meter",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 4,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: "measurements/2026-10-20-led-default.json",
+			measurementEvidenceSha256: "a".repeat(64),
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/quote the evidence/);
+	});
+
+	it("refuses measured fields on any other basis", () => {
+		const param: CitedParam = {
+			value: 5.1,
+			basis: "datasheet",
+			source: "test source measurements/2026-10-20-led-default.json " + "a".repeat(64),
+			measurementInstrument: "Test Meter",
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/measured only/);
+	});
 });
 
 describe("definePartData accepts honest provenance", () => {
@@ -266,6 +395,25 @@ describe("definePartData accepts honest provenance", () => {
 		};
 		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
 		expect(out).toHaveLength(1);
+	});
+
+	it("loads a measured value with its bench record quoted", () => {
+		const evidencePath = "measurements/2026-10-20-led-default.json";
+		const sha = "a".repeat(64);
+		const param: CitedParam = {
+			value: 1e-14,
+			basis: "measured",
+			source: `Owner bench 2026-10-20, Test Meter, 9V supply 8.2k/820R 22C, 4 samples, evidence ${evidencePath} sha256 ${sha}, schema vesseldsp.junction-default-measurement.v1 perDevice isEngine/nEngine pooled over every sample at VT 0.025852 V`,
+			measurementInstrument: "Test Meter",
+			measurementConditions: "9V supply, 8.2k/820R, 22C",
+			measurementSampleCount: 4,
+			measurementDate: "2026-10-20",
+			measurementEvidencePath: evidencePath,
+			measurementEvidenceSha256: sha,
+		};
+		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
+		expect(out).toHaveLength(1);
+		expect(validateCitedParam("FIX-A", "breakdownVolts", param)).toEqual(param);
 	});
 
 	it("treats two spellings folding to one id in one entry as redundant, not conflicting", () => {
