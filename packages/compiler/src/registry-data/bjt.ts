@@ -1021,4 +1021,126 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 4 community. Germanium PNP: Jim Hagerman's published AC128 SPICE model
+		// (paper + card). Provisional single sample: germanium varies enormously specimen
+		// to specimen, and the Holmes/Whitehead DAFx-2017 extraction of their own AC128
+		// specimen reads IS = 20.66u, BF = 229.6 (same order of IS, hotter gain) --
+		// disclosed as the corroborating one-sample. Polarity is structural (PNP).
+		partIds: ["AC128"],
+		class: "bjt",
+		note:
+			"Corroborating single-specimen extraction (Holmes/Holters/van Walstijn DAFx-2017 " +
+			"Table 1 via https://grwhitehead.github.io/germaniumbjts, Greg Whitehead): " +
+			".MODEL AC128 PNP(IS=20.66u BF=229.6 BR=14.66 ...) -- a hot specimen; germanium " +
+			"varies enormously, so every community germanium value is one sample.",
+		params: {
+			saturationCurrent: {
+				value: 17e-6,
+				basis: "community",
+				source:
+					"Jim Hagerman, 'AC128 Ge PNP Transistor SPICE Model' paper, 01/16/20, " +
+					"http://www.hagtech.com/pdf/ac128model.pdf (PDF, 4 pp, read 2026-10-19): " +
+					"'For saturation current we take Vbe and Ic values at low current. From the " +
+					"graph we get 150mV and 6mA' (6 mA * exp(-0.150/0.025852) = 18.1 uA ~= 17u); " +
+					"verbatim model card:\n" +
+					".MODEL AC128 PNP + ( + BF = 90 + IS = 17u + RE = 220m + BR = 100m + VAF = 30 + " +
+					"ISE = 190n + TF = 106n + TR = 10u + CJC = 100p + )",
+				sourceKind: "published-spice-model",
+				url: "http://www.hagtech.com/pdf/ac128model.pdf",
+				quote:
+					".MODEL AC128 PNP + ( + BF = 90 + IS = 17u + RE = 220m + BR = 100m + VAF = 30 + " +
+					"ISE = 190n + TF = 106n + TR = 10u + CJC = 100p + )",
+				author: "Jim Hagerman",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Searched Mullard Data Book 1965-66/1974-75 excerpts (short-form only: Ptot, " +
+					"VCE, ICM and small-signal hfe, no Vbe/DC-hFE), the Valvo Datenbuch 1969-70 " +
+					"reprint (URL now 404), alldatasheet/GPD/NJSEMI AC128 sheets (non-original " +
+					"manufacturers and/or 1-4 pp short-form). No original-manufacturer AC128 sheet " +
+					"with active-region Vbe + DC hFE bin is readable online. The Holmes/Whitehead " +
+					"specimen corroborates the IS order.",
+			},
+			forwardBeta: {
+				value: 90,
+				basis: "community",
+				source:
+					"Jim Hagerman, 'AC128 Ge PNP Transistor SPICE Model' paper, 01/16/20, " +
+					"http://www.hagtech.com/pdf/ac128model.pdf (read 2026-10-19): 'Straight from " +
+					"data sheet we can read typical forward gain: BF = 90'; verbatim model card:\n" +
+					".MODEL AC128 PNP + ( + BF = 90 + IS = 17u + RE = 220m + BR = 100m + VAF = 30 + " +
+					"ISE = 190n + TF = 106n + TR = 10u + CJC = 100p + )",
+				sourceKind: "published-spice-model",
+				url: "http://www.hagtech.com/pdf/ac128model.pdf",
+				quote:
+					".MODEL AC128 PNP + ( + BF = 90 + IS = 17u + RE = 220m + BR = 100m + VAF = 30 + " +
+					"ISE = 190n + TF = 106n + TR = 10u + CJC = 100p + )",
+				author: "Jim Hagerman",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Same search as the IS record: no DC hFE bin in any located " +
+					"original-manufacturer material; the card's BF = 90 is the published value " +
+					"(the Holmes/Whitehead specimen reads 229.6 -- hot specimen, disclosed).",
+			},
+		},
+	},
+	{
+		// Wave 4 mixed: IS from the original Valvo sheet (datasheet basis, third-party
+		// host per the owner rule), BF from a published single-specimen extraction
+		// (community). The Valvo VBE row is a DC bias point (HF equivalent-circuit header
+		// states the -U_CE = 6 V, I_C = 1 mA bias); the 1 kHz alpha_e = 100 (45-225) row
+		// in the same table is small-signal and excluded by rule. The headline 150 mV is
+		// transcribed with its printed spread (125-185 mV), not midpointed: 150 mV is the
+		// sheet's stated value (spread-implied IS range 0.78-7.95 uA, disclosed). The
+		// Holmes specimen IS = 1.423 uA sits inside that spread. Edition inferred from
+		// the scan family (Dioden und Transistoren 1959, title page not in the available
+		// images): disclosed. Polarity is structural (PNP).
+		partIds: ["OC44"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 3.0207e-6,
+				basis: "derived",
+				source:
+					"Valvo OC44/OC45 HF-Transistoren sheet p28 (original-manufacturer Valvo sheet, " +
+					"third-party host wp.pedalia.org, scan read visually, no text layer): " +
+					"'HF-Ersatzschaltbild fuer Emitterschaltung ... bei -U_CE = 6 V, I_C = 1 mA' " +
+					"header with '-U_BE = 150 mV (125 bis 185 mV)' (DC bias point of the HF " +
+					"equivalent circuit; OC45 sibling column reads 170 mV (145-195 mV))",
+				derivation:
+					"Printed VBE headline 150 mV at -U_CE = 6 V, I_C = 1 mA (active region, " +
+					"within the form-1 IC <= 20 mA gate; the printed spread 125-185 mV is quoted " +
+					"but the headline 150 mV is transcribed, not midpointed); IS = IC * exp(-Vbe / " +
+					"Vt) with n = 1 (form 1): 0.001 * exp(-0.150 / 0.025852) = 3.0207e-6 A " +
+					"(spread-implied IS range 0.78-7.95 uA).",
+			},
+			forwardBeta: {
+				value: 307,
+				basis: "community",
+				source:
+					"Holmes/Holters/van Walstijn DAFx-2017 Table 1 ('Comparison of Germanium Bipolar " +
+					"Junction Transistor Models for Real-Time Circuit Simulation', Proc. 20th Int. " +
+					"Conf. on Digital Audio Effects, Edinburgh, Sept. 2017) via " +
+					"https://grwhitehead.github.io/germaniumbjts (Greg Whitehead repo page, read " +
+					"2026-10-19): verbatim model card:\n" +
+					".MODEL OC44 PNP(IS=1.423u BF=307.0 BR=20.27 NF=1.022 NR=1.025 VT=25.5m VAF=8.167 " +
+					"VAR=14.84 IKF=43.82m IKR=611.7m ISE=30.54n ISC=213.5n NE=1.316 NC=1.258 RB=32.83 " +
+					"RE=968.7m RC=989.9u CEB=410p CCB=10p)",
+				sourceKind: "published-spice-model",
+				url: "https://grwhitehead.github.io/germaniumbjts",
+				quote:
+					".MODEL OC44 PNP(IS=1.423u BF=307.0 BR=20.27 NF=1.022 NR=1.025 VT=25.5m VAF=8.167 " +
+					"VAR=14.84 IKF=43.82m IKR=611.7m ISE=30.54n ISC=213.5n NE=1.316 NC=1.258 RB=32.83 " +
+					"RE=968.7m RC=989.9u CEB=410p CCB=10p)",
+				author: "B. Holmes, M. Holters, M. van Walstijn (via Greg Whitehead)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"The Valvo sheet's only gain number is the 1 kHz small-signal alpha_e = 100 " +
+					"(45-225), excluded by rule; Mullard short-form/electronics-notes give " +
+					"small-signal hfe only. No DC hFE bin exists in any located " +
+					"original-manufacturer material. The card is one specimen's extraction (its " +
+					"IS = 1.423 uA sits inside the Valvo VBE spread 0.78-7.95 uA).",
+			},
+		},
+	},
 ]);

@@ -236,7 +236,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findRailsWithoutVoltage(netlist),
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist),
-		...findRegistryProvisionalValues(netlist, options.registry ?? emptyRegistry),
+		...findRegistryProvisionalValues(netlist, lawed, options.registry ?? emptyRegistry),
 		...findOpampLawDefaults(lawed),
 		...findOpampGainBandwidthDefaults(lawed),
 		...scaled.warnings,
@@ -480,16 +480,24 @@ const PROVISIONAL_OVERRIDE_KEYS: Readonly<
  * See `RegistryProvisionalValueWarning`. One warning per device, naming the device,
  * the part, the taken parameters and the distinct source URLs: a notice, never a
  * refusal. A device whose document types a parameter runs on its own typed value for
- * that parameter and is not listed for it.
+ * that parameter and is not listed for it. A device whose resolution is not a law
+ * (unsupported, macro, open) took no registry value and is not listed.
  */
 function findRegistryProvisionalValues(
 	netlist: Netlist,
+	lawed: LawedNetlist,
 	registry: PartRegistry,
 ): readonly RegistryProvisionalValueWarning[] {
+	const lawedByBase = new Set(
+		lawed.resolutions
+			.filter((resolution) => resolution.outcome === "law")
+			.map((resolution) => resolution.device.replace(/#\d+$/, "")),
+	);
 	const out: RegistryProvisionalValueWarning[] = [];
 	for (const device of netlist.devices) {
 		const partNumber = device.identity.partNumber;
 		if (partNumber === null) continue;
+		if (!lawedByBase.has(device.id)) continue;
 		const entry = provisionalEntryFor(registry, partNumber);
 		if (entry === null) continue;
 		const overrides = PROVISIONAL_OVERRIDE_KEYS[device.kind] ?? {};

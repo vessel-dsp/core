@@ -662,15 +662,17 @@ describe("wave-4 fill inventory", () => {
 		// plus corpus-used ranks; 2SC2458/2SC828/2SC3378 IS-less, 2N5133/2N4125/2N4126/
 		// BC109C BF-only, BC239C/BC107B IS+BF) and 13 JFET rows (2N5485, 2SK30A-Y/GR plus
 		// TM aliases, 2SK118 + Y, 2SK184 + GR, 2SK209, 2N5458, MPF4393, J309, J202, PF5102).
+		// Part B: two community germanium BJT rows (AC128 IS+BF, OC44 BF alongside a
+		// derived IS) and four diode rows (community 1N4148 + 1N34A, DEC-sheet 1N60/1N60P).
 		expect(opampRegistryRecords).toHaveLength(21);
 		expect(zenerRegistryRecords).toHaveLength(29);
 		expect(jfetRegistryRecords).toHaveLength(17);
 		expect(regulatorRegistryRecords).toHaveLength(5);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(bjtRegistryRecords).toHaveLength(37);
-		expect(diodeRegistryRecords).toHaveLength(12);
+		expect(bjtRegistryRecords).toHaveLength(39);
+		expect(diodeRegistryRecords).toHaveLength(16);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(21 + 37 + 12 + 2 + 29 + 17 + 5 + 8);
+		expect(partRegistryData).toHaveLength(21 + 39 + 16 + 2 + 29 + 17 + 5 + 8);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

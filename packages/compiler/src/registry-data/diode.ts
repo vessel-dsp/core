@@ -32,6 +32,15 @@
 // the 1 mA Vf at ~95 mV; B340A N 0.775 is below unity. The loader checks shape and
 // provenance, never plausibility; the Vf table in the wave-3 report shows each model.
 
+// Wave-4 community fill (provisional `community` basis, decided 2026-10-19 option B)
+// plus the DEC-sheet 1N60/1N60P datasheet pair found during the wave-4 search.
+//
+// A `community` value is one published sample, not a measurement of the part: the
+// compiler names every device that runs on one (`registry-provisional-value`), and
+// adding a datasheet, manufacturer-model or measured record for the same parameter of
+// the same part throws until the community record is removed. An original-manufacturer
+// datasheet hosted on a third-party site is still `datasheet` (the DEC sheet below).
+
 import { definePartData, type PartDataEntry } from "./loader";
 
 const ST_BAT46_PAGE = "https://www.st.com/en/diodes-and-rectifiers/bat46.html";
@@ -553,6 +562,222 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 					"Quoted fragments (license limit, full card not copied): IS=6.2229E-9 N=1.9224",
 				modelFileUrl: "https://www.centralsemi.com/",
 				modelLine: "IS=6.2229E-9 N=1.9224",
+			},
+		},
+	},
+	{
+		// Wave 4 community. The widely distributed LTspice 1N4148 line (mfg=OnSemi) as the
+		// library publishes it. Provisional: a published library card, not a measurement of
+		// the part; the owner's bench measurement will replace it. Vf implied (with the
+		// mapped RS 0.568): 0.584 V at 1 mA, 0.694 V at 10 mA.
+		partIds: ["1N4148"],
+		class: "diode",
+		note:
+			"Cross-check deltas at 1 mA / 10 mA (stamped values, RS included): vs Central " +
+			"1N914 (IS 6.2229n, N 1.9224, class RS 1.0) +12.3 / +26.3 mV; vs Diodes Inc " +
+			"1N4148W (IS 10.4n, N 2.07, RS 51.5m, bundle reference, unregistered) +29.6 / " +
+			"+43.9 mV; vs Diodes Inc MMBD914 (IS 126n, N 2.60, RS 0.14, bundle reference, " +
+			"unregistered, SOT-23 die) +19.2 / +65.9 mV. The MMBD914 10 mA gap exceeds the " +
+			"50 mV gate; coordinator ruling 2026-10-19: MMBD914 is a different die and " +
+			"Diodes' own 1N4148W/MMBD914 disagree by 22 mV at 10 mA, so registration stands " +
+			"with every delta disclosed here.",
+		params: {
+			saturationCurrent: {
+				value: 2.52e-9,
+				basis: "community",
+				source:
+					"LTspice standard diode library 'Standard.dio' (Linear Technology Corporation, " +
+					"copyright header 2000-2012; library author Mike Engelhardt / Linear Technology, " +
+					"now Analog Devices), HTML rendering https://ltwiki.org/index.php?title=Standard.dio " +
+					"(revision 1083, read 2026-10-19). Verbatim card line:\n" +
+					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)\n" +
+					"(the identical-parameter 1N914 line sits directly above it; mfg=OnSemi marks " +
+					"the ON Semi/Fairchild data as distributed inside LTspice)",
+				sourceKind: "published-spice-model",
+				url: "https://ltwiki.org/index.php?title=Standard.dio",
+				quote:
+					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
+				author: "Linear Technology Corporation (LTspice standard diode library)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"No manufacturer model file retrievable (onsemi MMSD4148 simulation-models ZIP " +
+					"portal-gated; Diodes Inc per-part .spice.txt portal-gated); vendored datasheet " +
+					"sheets print MAX-only VF (Vishay VF MAX 1.0 V at 10 mA, single point: no form-4 " +
+					"pair). The distributed LTspice line marked mfg=OnSemi is the canonical published " +
+					"card. Deltas vs 1N914/1N4148W/MMBD914 disclosed in the entry note.",
+			},
+			emissionCoefficient: {
+				value: 1.752,
+				basis: "community",
+				source:
+					"LTspice 'Standard.dio' (Linear Technology Corporation), " +
+					"https://ltwiki.org/index.php?title=Standard.dio (read 2026-10-19). Verbatim card line:\n" +
+					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
+				sourceKind: "published-spice-model",
+				url: "https://ltwiki.org/index.php?title=Standard.dio",
+				quote:
+					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
+				author: "Linear Technology Corporation (LTspice standard diode library)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Same search as the IS record: no retrievable manufacturer model, no two-TYP " +
+					"datasheet pair; the mfg=OnSemi library card is the published source.",
+			},
+			seriesResistance: {
+				value: 0.568,
+				basis: "community",
+				source:
+					"LTspice 'Standard.dio' (Linear Technology Corporation), " +
+					"https://ltwiki.org/index.php?title=Standard.dio (read 2026-10-19). Verbatim card line:\n" +
+					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
+				sourceKind: "published-spice-model",
+				url: "https://ltwiki.org/index.php?title=Standard.dio",
+				quote:
+					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
+				author: "Linear Technology Corporation (LTspice standard diode library)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Same search as the IS record: the card's ohmic Rs is the engine's series " +
+					"resistance quantity.",
+			},
+		},
+	},
+	{
+		// Wave 4 community. Germanium point-contact card from Bordodynov's published LTspice
+		// collection (the author's own lib.zip, verified in this run). Provisional single
+		// sample. Vf implied (with the mapped RS 6.5): 0.253 V at 1 mA, 0.406 V at 10 mA.
+		// The same file carries an alternate 1N34A_ card (IS 0.2u, N 1.3, RS 7: 0.293 V at
+		// 1 mA, 0.434 V at 10 mA, deltas +40/+27 mV, inside the gate); the exact-id card is
+		// registered. No datasheet prints two typical (If,Vf) points (Central Germanium
+		// Diodes PDF: VF MAX 1.0 V at 5 mA, single point).
+		partIds: ["1N34A"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 2.6e-6,
+				basis: "community",
+				source:
+					"Bordodynov's Electronics public LTspice collection, lib.zip " +
+					"http://bordodynov.ltwiki.org/lib.zip (sha256 " +
+					"dfaae06ebeaf2a37b0a493f60067728f0f1bb80ac0f8b1f5f7a27d4250a6ea9b, " +
+					"lib/cmp/standard.dio line 137, read 2026-10-19; site greeting: 'Hello this is " +
+					"Bordodynov's Electronics web page. I made my collection of models and examples " +
+					"for LTspice publicly available.'). Verbatim card:\n" +
+					".MODEL 1N34A D(IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75 IBV=1m Type=GePunctualContact)",
+				sourceKind: "published-spice-model",
+				url: "http://bordodynov.ltwiki.org/lib.zip",
+				quote:
+					".MODEL 1N34A D(IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75 IBV=1m Type=GePunctualContact)",
+				author: "Bordodynov (Bordodynov's Electronics)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Manufacturer sheets checked and insufficient (Central Semiconductor Germanium " +
+					"Diodes PDF via DigiKey: VF MAX 1.0 V at 5 mA, single MAX point; generic " +
+					"TME-hosted sheet the same). The TI E2E forum thread quoting Germanium.LIB and " +
+					"the LTspice group 01.08.2017 post attribute the file to Bordodynov; the LTwiki " +
+					"Standard.dio HTML rendering carries the same card text (BV/IBV variant). " +
+					"Point-contact fit, BV=75 (not the TME sheet's 65 V).",
+			},
+			emissionCoefficient: {
+				value: 1.6,
+				basis: "community",
+				source:
+					"Bordodynov's Electronics lib.zip http://bordodynov.ltwiki.org/lib.zip " +
+					"(lib/cmp/standard.dio line 137, read 2026-10-19). Verbatim card:\n" +
+					".MODEL 1N34A D(IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75 IBV=1m Type=GePunctualContact)",
+				sourceKind: "published-spice-model",
+				url: "http://bordodynov.ltwiki.org/lib.zip",
+				quote:
+					".MODEL 1N34A D(IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75 IBV=1m Type=GePunctualContact)",
+				author: "Bordodynov (Bordodynov's Electronics)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Same search as the IS record: the card's N is read directly, no datasheet pair.",
+			},
+			seriesResistance: {
+				value: 6.5,
+				basis: "community",
+				source:
+					"Bordodynov's Electronics lib.zip http://bordodynov.ltwiki.org/lib.zip " +
+					"(lib/cmp/standard.dio line 137, read 2026-10-19). Verbatim card:\n" +
+					".MODEL 1N34A D(IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75 IBV=1m Type=GePunctualContact)",
+				sourceKind: "published-spice-model",
+				url: "http://bordodynov.ltwiki.org/lib.zip",
+				quote:
+					".MODEL 1N34A D(IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75 IBV=1m Type=GePunctualContact)",
+				author: "Bordodynov (Bordodynov's Electronics)",
+				retrievedDate: "2026-10-19",
+				whyNoBetterSource:
+					"Same search as the IS record: the card's ohmic RS is the engine's series " +
+					"resistance quantity.",
+			},
+		},
+	},
+	{
+		// Wave 4 datasheet (form 4), found during the community search: the DEC factory
+		// sheet prints two typical (If,Vf) points for 1N60. The Bordodynov community card
+		// for 1N60 (RS=50.0559, EG=1.11 on a type=germanium card) is NOT registered: its
+		// 50-ohm RS reads 0.96 V at 10 mA and its bandgap is silicon, so the card is
+		// corrupt as a low-current model; the datasheet derivation below replaces it.
+		partIds: ["1N60"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 3.6952e-5,
+				basis: "derived",
+				source:
+					"DEC 1N60, 1N60P GERMANIUM DIODES factory sheet (manufacturer DEC, via " +
+					"radiolocman third-party host, p1, read visually) ELECTRICAL CHARACTERISTICS, " +
+					"'VF Forward Voltage: IF = 1 mA: 1N60 TYP 0.32 MAX 0.5 V; IF = 30 mA: 1N60 TYP " +
+					"0.65 MAX 1.0 V' (the 1N60P columns read 0.24/0.5 at 1 mA and 0.65/1.0 at 200 mA)",
+				derivation:
+					"Two printed typical (If,Vf) points (form 4): (1 mA, 0.32 V) and (30 mA, 0.65 V). " +
+					"n = (0.65 - 0.32) / (Vt * ln(30)) = 0.33 / (0.025852 * 3.4012) = 3.7531; " +
+					"IS = 1e-3 / exp(0.32 / (3.7531 * 0.025852)) = 3.6952e-5 A. No RS row is " +
+					"printed, so the stamp keeps the class 1.0 ohm (Vf implied: 0.321 V at 1 mA, " +
+					"0.553 V at 10 mA).",
+			},
+			emissionCoefficient: {
+				value: 3.7531,
+				basis: "derived",
+				source:
+					"DEC 1N60, 1N60P GERMANIUM DIODES factory sheet (via radiolocman, p1): same two " +
+					"typical points, 1N60 (0.32 V at 1 mA; 0.65 V at 30 mA)",
+				derivation:
+					"n = (0.65 - 0.32) / (Vt * ln(30/1)) = 3.7531 (form 4; a fit value, disclosed -- " +
+					"the BAT43 N 4.995 precedent).",
+			},
+		},
+	},
+	{
+		// Wave 4 datasheet (form 4): the DEC sheet's 1N60P columns (0.24 V at 1 mA, 0.65 V
+		// at 200 mA, both TYP). No community card for 1N60P was found, so no provisional
+		// record competes.
+		partIds: ["1N60P"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 4.4984e-5,
+				basis: "derived",
+				source:
+					"DEC 1N60, 1N60P GERMANIUM DIODES factory sheet (manufacturer DEC, via " +
+					"radiolocman third-party host, p1, read visually) ELECTRICAL CHARACTERISTICS, " +
+					"'VF Forward Voltage: IF = 1 mA: 1N60P TYP 0.24 MAX 0.5 V; IF = 200 mA: 1N60P " +
+					"TYP 0.65 MAX 1.0 V'",
+				derivation:
+					"Two printed typical (If,Vf) points (form 4): (1 mA, 0.24 V) and (200 mA, 0.65 V). " +
+					"n = (0.65 - 0.24) / (Vt * ln(200)) = 0.41 / (0.025852 * 5.2983) = 2.9933; " +
+					"IS = 1e-3 / exp(0.24 / (2.9933 * 0.025852)) = 4.4984e-5 A. No RS row is " +
+					"printed (stamp keeps class 1.0 ohm; Vf implied: 0.241 V at 1 mA, 0.428 V at 10 mA).",
+			},
+			emissionCoefficient: {
+				value: 2.9933,
+				basis: "derived",
+				source:
+					"DEC 1N60, 1N60P GERMANIUM DIODES factory sheet (via radiolocman, p1): same two " +
+					"typical points, 1N60P (0.24 V at 1 mA; 0.65 V at 200 mA)",
+				derivation:
+					"n = (0.65 - 0.24) / (Vt * ln(200/1)) = 2.9933 (form 4; a fit value, disclosed).",
 			},
 		},
 	},
