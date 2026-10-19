@@ -755,6 +755,8 @@ const entries: readonly PartEntry[] = [
 			"NJM4558DD",
 			"NJM4558D",
 			"JRC4558D",
+			"JRC4558",
+			"JRC4558DD",
 			"NJM4558M",
 			"NJM4558E",
 			"NJM4558V",
@@ -3627,6 +3629,7 @@ const entries: readonly PartEntry[] = [
 			"NJM5534D",
 			"NE5534",
 			"NJM5534M",
+			"JRC5534",
 			"LM741CN"
 		],
 		"declaredTypes": [],

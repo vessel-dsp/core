@@ -131,7 +131,7 @@ export function defineOpampRecords(
 
 export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampRecords([
 	{
-		partIds: ["NJM4558DD", "NJM4558D", "JRC4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558"],
+		partIds: ["NJM4558DD", "NJM4558D", "JRC4558D", "JRC4558", "JRC4558DD", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558"],
 		gainBandwidthHz: {
 			value: 3e6,
 			basis: "datasheet",
@@ -143,7 +143,8 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"parts/op-amps/JRC4558D.md ('NJR/JRC version. Same datasheet specs as NJM4558'; GBP 3 M), included per " +
 				"owner decision 2026-10-15 because a Boss SD-1 specimen carries a chip marked 'JRC 4558D' and three " +
 				"corpus packets name JRC4558D. Secondary only: the 1980s JRC databook scan prints the part as NJM4558D " +
-				"under the JRC logo (p2-98).",
+				"under the JRC logo (p2-98). " +
+				"JRC and NJM are the same manufacturer's prefixes (Japan Radio Co., later New Japan Radio, Nisshinbo Micro Devices): owner ruling 2026-10-19, supported by secondary references the owner supplied (synthcube.com/jrc4558d-op-amp-hi-perf-njm, diystompboxes.com topic 15743, groupdiy.com thread 13594): a part sold as NJM4558D is often stamped JRC 4558D. Bare JRC4558 and JRC4558DD extend the JRC4558D decision of 2026-10-15; the datasheet column is the NJM4558 one. ",
 		},
 	},
 	{
@@ -302,7 +303,7 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 		},
 	},
 	{
-		partIds: ["NE5534", "NJM5534", "NJM5534D", "NJM5534M"],
+		partIds: ["NE5534", "NJM5534", "NJM5534D", "NJM5534M", "JRC5534"],
 		gainBandwidthHz: {
 			value: 10e6,
 			basis: "datasheet",
@@ -676,11 +677,11 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 	},
 	{
 		partIds: [
-			"NJM4558DD", "NJM4558D", "JRC4558D", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558",
+			"NJM4558DD", "NJM4558D", "JRC4558D", "JRC4558", "JRC4558DD", "NJM4558M", "NJM4558E", "NJM4558V", "NJM4558L", "NJM4558",
 			"RC4558", "RC4558P", "RC4558D",
 			"uPC4558C", "uPC4558G2", "uPC4558",
 			"TL071", "TL071CN", "TL071CP", "TL072", "TL072CN", "TL072IP", "TL072D", "TL072CP", "TL082", "TL082CP",
-			"NE5534", "NJM5534", "NJM5534D", "NJM5534M",
+			"NE5534", "NJM5534", "NJM5534D", "NJM5534M", "JRC5534",
 			"LM358", "LM358N", "LM358P",
 		],
 		reason:
