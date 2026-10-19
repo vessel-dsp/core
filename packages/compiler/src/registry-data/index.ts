@@ -54,6 +54,8 @@ import { chargePumpRegistryRecords } from "./charge-pump";
 export {
 	CLASS_PARAM_SCHEMAS,
 	classParamNames,
+	REQUIRED_CLASS_PARAMS,
+	requiredClassParams,
 	type PartClassName,
 } from "./schema";
 export {

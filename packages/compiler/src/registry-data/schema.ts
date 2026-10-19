@@ -92,3 +92,60 @@ export type PartClassName = keyof typeof CLASS_PARAM_SCHEMAS;
 export function classParamNames(cls: PartClassName): readonly string[] {
 	return CLASS_PARAM_SCHEMAS[cls] as readonly string[];
 }
+
+/**
+ * The parameters a `custom` override must supply for each class, in schema order.
+ *
+ * Stage 2 (explicit `DeviceOverride` block, `measured` | `custom`): a `custom` block is for a
+ * part the registry does not have, so it must state every parameter that moves behaviour --
+ * anything it omits falls back to a class default that was never measured against that part.
+ * `measured` needs no completeness (it refines known values), and an unknown name for the
+ * class is an error either way (checked against `CLASS_PARAM_SCHEMAS`).
+ *
+ * Minimal by class, and why the rest may default:
+ *
+ * - `bjt`: saturationCurrent (the Vbe knee) and forwardBeta (stage gain). reverseBeta keeps 1,
+ *   thermalVoltage is a physical constant, leakageAmps keeps 0 (silicon: no excess leakage).
+ * - `jfet` / `mosfet`: thresholdVolts (pinch-off) and transconductance (gain). Geometry and
+ *   gate refinements (channelLengthModulation, subthresholdVolts, gate terms) keep defaults.
+ * - `diode` / `led`: saturationCurrent (knee position) and emissionCoefficient (knee slope).
+ *   thermalVoltage is a constant, breakdownVolts 0 is an ordinary diode, seriesResistance
+ *   keeps its default.
+ * - `zener`: the diode pair plus breakdownVolts -- the breakdown IS the part, and without it
+ *   the law stamps an ordinary diode.
+ * - `opamp`: openLoopGain and gainBandwidthHz. The swing pair is deliberately absent: per the
+ *   D4 freeze no entry states one, and requiring it would stop every custom op-amp.
+ * - `regulator`: volts -- the rail is the part; sourceOhms keeps the supply convention.
+ * - `charge-pump`: sourceOhms and chargePumpLossVolts -- both shape the derived rail, and an
+ *   unknown pump has no safe default for either.
+ */
+export const REQUIRED_CLASS_PARAMS = {
+	bjt: ["saturationCurrent", "forwardBeta"],
+	jfet: ["thresholdVolts", "transconductance"],
+	mosfet: ["thresholdVolts", "transconductance"],
+	diode: ["saturationCurrent", "emissionCoefficient"],
+	zener: ["saturationCurrent", "emissionCoefficient", "breakdownVolts"],
+	led: ["saturationCurrent", "emissionCoefficient"],
+	opamp: ["openLoopGain", "gainBandwidthHz"],
+	regulator: ["volts"],
+	"charge-pump": ["sourceOhms", "chargePumpLossVolts"],
+} as const satisfies Record<PartClassName, readonly string[]>;
+
+/** The parameters a `custom` override must supply for a class, in schema order. */
+export function requiredClassParams(cls: PartClassName): readonly string[] {
+	return REQUIRED_CLASS_PARAMS[cls] as readonly string[];
+}
+
+// Loud at module load when a required set names a parameter its class schema does not
+// accept: the two tables must agree, and a drift between them would refuse valid customs
+// (or admit unknown names) silently.
+for (const cls of Object.keys(CLASS_PARAM_SCHEMAS) as readonly PartClassName[]) {
+	const allowed = new Set<string>(classParamNames(cls));
+	for (const name of requiredClassParams(cls)) {
+		if (!allowed.has(name)) {
+			throw new Error(
+				`REQUIRED_CLASS_PARAMS[${cls}] lists "${name}", which CLASS_PARAM_SCHEMAS[${cls}] does not accept`,
+			);
+		}
+	}
+}
