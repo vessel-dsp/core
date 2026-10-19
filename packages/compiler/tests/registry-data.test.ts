@@ -140,6 +140,89 @@ describe("definePartData throws for the stated reason", () => {
 			definePartData([entry(["FIX-A"], { breakdownVolts: cited(Number.NaN) })]),
 		).toThrow(/finite/);
 	});
+
+	it("refuses a wrong basis string", () => {
+		const param = {
+			value: 5.1,
+			basis: "spice-model",
+			source: "test source",
+		} as unknown as CitedParam;
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/basis/);
+	});
+
+	it("refuses a manufacturer-model basis with no model file", () => {
+		const url = "https://example.com/models/fix-a.mod";
+		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const noFile = {
+			value: 1e-9,
+			basis: "manufacturer-model",
+			source: `${url} ${line}`,
+			modelLine: line,
+		} as unknown as CitedParam;
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: noFile })]),
+		).toThrow(/model file/);
+	});
+
+	it("refuses a manufacturer-model basis with no model line", () => {
+		const url = "https://example.com/models/fix-a.mod";
+		const noLine: CitedParam = {
+			value: 1e-9,
+			basis: "manufacturer-model",
+			source: url,
+			modelFileUrl: url,
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: noLine })]),
+		).toThrow(/model line/);
+	});
+
+	it("refuses a manufacturer-model line that is not a .MODEL / .SUBCKT line", () => {
+		const url = "https://example.com/models/fix-a.mod";
+		const line = "FIX-A IS=1e-9 N=1.7 (not a model card)";
+		const badLine: CitedParam = {
+			value: 1e-9,
+			basis: "manufacturer-model",
+			source: `${url} ${line}`,
+			modelFileUrl: url,
+			modelLine: line,
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: badLine })]),
+		).toThrow(/\.MODEL \/ \.SUBCKT/);
+	});
+
+	it("refuses a manufacturer-model basis whose source does not quote the file and line", () => {
+		const url = "https://example.com/models/fix-a.mod";
+		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const unquoted: CitedParam = {
+			value: 1e-9,
+			basis: "manufacturer-model",
+			source: "manufacturer model, see the vendor site",
+			modelFileUrl: url,
+			modelLine: line,
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: unquoted })]),
+		).toThrow(/quote/);
+	});
+
+	it("refuses model file/line fields on any other basis", () => {
+		const url = "https://example.com/models/fix-a.mod";
+		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const param: CitedParam = {
+			value: 5.1,
+			basis: "datasheet",
+			source: `test source ${url} ${line}`,
+			modelFileUrl: url,
+			modelLine: line,
+		};
+		expect(() =>
+			definePartData([entry(["FIX-A"], { breakdownVolts: param })]),
+		).toThrow(/manufacturer-model only/);
+	});
 });
 
 describe("definePartData accepts honest provenance", () => {
@@ -150,6 +233,21 @@ describe("definePartData accepts honest provenance", () => {
 		]);
 		expect(out).toHaveLength(2);
 		expect(Object.isFrozen(out)).toBe(true);
+	});
+
+	it("loads a manufacturer-model value with its file and line quoted", () => {
+		const url = "https://example.com/models/fix-a.mod";
+		const line = ".MODEL FIX-A D(IS=1e-9 N=1.7)";
+		const param: CitedParam = {
+			value: 1e-9,
+			basis: "manufacturer-model",
+			source: `Manufacturer model file ${url}, card line: ${line}`,
+			modelFileUrl: url,
+			modelLine: line,
+		};
+		const out = definePartData([entry(["FIX-A"], { breakdownVolts: param })]);
+		expect(out).toHaveLength(1);
+		expect(validateCitedParam("FIX-A", "breakdownVolts", param)).toEqual(param);
 	});
 
 	it("treats two spellings folding to one id in one entry as redundant, not conflicting", () => {

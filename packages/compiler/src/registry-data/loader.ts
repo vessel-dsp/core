@@ -1,31 +1,42 @@
 // The data-registry loader: cited parameters in, validated entries out, loudly.
-// 
+//
 // Every parameter is `{ value, basis, source }`: `value` is the single number the engine
 // uses, `basis` says where it came from (`datasheet`, printed as a typical or point value;
-// `derived`, with the derivation written out), and `source` is the citation. An uncited
+// `derived`, with the derivation written out; `manufacturer-model`, read directly from a
+// manufacturer-published SPICE/PSpice model file), and `source` is the citation. An uncited
 // value is not loadable -- the loader throws, at module load, on:
-// 
+//
 // - a parameter missing `source` or `basis`;
 // - a `derived` basis with no derivation text;
+// - a `manufacturer-model` basis without the model file URL and the exact `.MODEL` /
+//   `.SUBCKT` line it was read from (both required, validated, and quoted in `source`);
+// - model file/line fields on any other basis;
 // - a parameter name that is not in the class schema;
 // - a duplicate part id or alias (folded, across the whole assembled set);
 // - an alias that collides with another entry (an id or another alias).
-// 
+//
 // The loader validates *shape and provenance*, never electrical plausibility: a finite
 // 0.35 V pump loss and a finite 30 V zener both load, and the stamping path keeps its own
 // loud checks (a half-stated swing pair still throws in `withDatasheetOutputSwing`).
+// A third-party model library (LTspice's standard files, Tina, a forum) is NOT a
+// manufacturer model and is not admitted: the file URL must be the manufacturer's own
+// publication (onsemi, Vishay, STMicroelectronics, Nexperia, Diodes Inc, TI, Analog Devices).
 
 import { foldPartId } from "../registry";
 import { CLASS_PARAM_SCHEMAS, classParamNames, type PartClassName } from "./schema";
 
-/** Where a cited value came from: printed in a datasheet, or derived with the working shown. */
-export type ParamBasis = "datasheet" | "derived";
+/** Where a cited value came from: printed in a datasheet, derived with the working shown,
+ * or read directly from a manufacturer-published SPICE/PSpice model file. */
+export type ParamBasis = "datasheet" | "derived" | "manufacturer-model";
 
 /**
  * One registry parameter: the single number the engine uses, with its provenance.
  * A datasheet's printed limits are never stored as fields; where they were used to derive
  * the value they are quoted in `derivation` (zener typ from a min/max row) or the value is
  * the printed TYP transcribed with its row quoted in `source` (op-amp gain-bandwidth).
+ * A `manufacturer-model` parameter is read directly from the manufacturer's own model
+ * file: `modelFileUrl` is that file's URL and `modelLine` is the exact `.MODEL` / `.SUBCKT`
+ * line the value was read from, both quoted in `source` as well.
  */
 export type CitedParam = {
 	/** The single number the engine uses. Must be finite. */
@@ -35,6 +46,10 @@ export type CitedParam = {
 	readonly source: string;
 	/** Required when `basis` is `derived`: the working, written so it can be checked. */
 	readonly derivation?: string;
+	/** Required when `basis` is `manufacturer-model`: the manufacturer model file's URL. */
+	readonly modelFileUrl?: string;
+	/** Required when `basis` is `manufacturer-model`: the exact `.MODEL` / `.SUBCKT` line. */
+	readonly modelLine?: string;
 };
 
 /**
@@ -62,9 +77,13 @@ export function validateCitedParam(
 	name: string,
 	param: CitedParam,
 ): CitedParam {
-	if (param.basis !== "datasheet" && param.basis !== "derived") {
+	if (
+		param.basis !== "datasheet" &&
+		param.basis !== "derived" &&
+		param.basis !== "manufacturer-model"
+	) {
 		throw new Error(
-			`${entryLabel}: parameter "${name}" has no basis: expected "datasheet" or "derived"`,
+			`${entryLabel}: parameter "${name}" has no basis: expected "datasheet", "derived" or "manufacturer-model"`,
 		);
 	}
 	if (typeof param.value !== "number" || !Number.isFinite(param.value)) {
@@ -84,6 +103,50 @@ export function validateCitedParam(
 		throw new Error(
 			`${entryLabel}: parameter "${name}" has a derived basis with no derivation text`,
 		);
+	}
+	if (param.basis === "manufacturer-model") {
+		if (
+			typeof param.modelFileUrl !== "string" ||
+			param.modelFileUrl.length === 0
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with no model file URL`,
+			);
+		}
+		if (
+			!/^https?:\/\//u.test(param.modelFileUrl) ||
+			/\s/u.test(param.modelFileUrl)
+		) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with a model file that is not an http(s) URL: ${param.modelFileUrl}`,
+			);
+		}
+		if (typeof param.modelLine !== "string" || param.modelLine.length === 0) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with no model line`,
+			);
+		}
+		if (!/^\s*\.(model|subckt)\b/iu.test(param.modelLine)) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis with a model line that is not a .MODEL / .SUBCKT line: ${param.modelLine.slice(0, 80)}`,
+			);
+		}
+		if (!param.source.includes(param.modelFileUrl)) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis whose source does not quote the model file URL`,
+			);
+		}
+		if (!param.source.includes(param.modelLine.trim())) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" has a manufacturer-model basis whose source does not quote the model line`,
+			);
+		}
+	} else {
+		if (param.modelFileUrl !== undefined || param.modelLine !== undefined) {
+			throw new Error(
+				`${entryLabel}: parameter "${name}" states a model file/line on a "${param.basis}" basis (manufacturer-model only)`,
+			);
+		}
 	}
 	return param;
 }
