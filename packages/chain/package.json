@@ -57,9 +57,9 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/compiler": "0.6.0",
+		"@vessel-dsp/compiler": "0.7.0",
 		"@vessel-dsp/core": "0.16.0",
-		"@vessel-dsp/runtime": "0.6.0"
+		"@vessel-dsp/runtime": "0.6.1"
 	},
 	"publishConfig": {
 		"access": "public"

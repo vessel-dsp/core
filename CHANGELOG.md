@@ -1,6 +1,82 @@
 # Changelog
 
+## compiler 0.7.0 / runtime 0.6.1 / chain 0.1.9 / player 0.2.7
+
+**The Electro-Harmonix Slap-Back Echo compiles, and its delay comes from its own clock.** Until now the document was refused at
+`IC3_SCL4013A` ("its part number \"SCL4013A\" matched no registry entry"). `SCL4013A` now rides the `CD4013AE` divider entry,
+the same flip-flop with the strict `pin<N>_<role>` terminals that the `mxr-m117r-flanger` U3 uses. The echo time is derived
+from the circuit and not declared: `deriveUjtRelaxationClock` (`bbd-clock.ts`) recognises the 2N4871 relaxation oscillator by
+connectivity, typed roles and exact part ids, and gives delay = stages / f of the ideal relaxation law, 55.0 ms and 38.2 ms for
+the two DELAY positions. The 2N4871 has a registry record (eta 0.775, the midpoint of the printed 0.70 to 0.85 range, a derived
+value; RBB 6000, the printed typical), both citing the Digitron Rev. 20120705 table. A new `ujt` registry class carries the
+contract (both parameters or none, a provisional arm, `DeviceOverride` target class `ujt` with eta bounds-checked) and
+`DeviceLaw` gains a `ujt` kind that the lowering refuses loudly. **The UJT itself is still not executed**: `Q1_UJT` keeps its
+`device-law-not-implemented` warning, because a frequency derivation is not a device execution, and the relaxation law proper
+is blocked on a hysteretic-switch stamp (`docs/spikes/2026-10-20-ujt-law.md`).
+`SAD1024A` now exits at section B when the document chains section A into it: `MacroPortRoles.cascade` names the section output,
+the next input and the final output, and applies only when the first two share one non-ground node. A document that leaves
+section B unused (the Deluxe Memory Man ties input B to ground) or gives it a node of its own resolves by `audioOut` exactly as
+before. **The Slap-Back still makes no echo as shipped.** The packet's ideal `VBIAS` source sits on the BBD input node and
+grounds the audio there (impulse echo 3.7e-5); on a scratch copy with that rail removed the echo is at 56.0 ms and 38.9 ms
+against the derived 55.0 and 38.2, so the defect is the packet's and is not changed here. No claim is made that it is playable.
+`BAT85` (Nexperia model: IS 2.076e-7, N 1.023, RS 2.326, basis manufacturer-model) and `BAT85S` (JED's part, its own entry on
+the `community` basis with three provisional values, because no source states it is the BAT85) join the diode registry.
+
+**The BJT and JFET default-parameter warnings now name only parameters that really run on a class default.**
+`bjt-law-default-parameters` never read the registry, so it named every BJT whose document typed no IS or BF, including parts
+whose record states both (the Slap-Back's 2N3904 and 2N3906). The JFET twin skipped any registered part wholesale, so `2SK30A`,
+whose record states only its gate, ran Vt0 and Beta on the class default and said nothing. Entries built from a data record now
+carry `citedParams`, and both warnings read it per parameter; a parameter the document types or the registry states for the exact
+part is not a default. The `registry-override-applied` notice uses the same test, so an override over a gap-filled field no longer
+claims it replaced a registry value. Warnings only: over the corpus no program digest or status moves. Pedal documents carrying
+the BJT warning go 74 to 51 (devices 353 to 217) and the JFET warning 19 to 23 (devices 40 to 47; `boss-ge-7`, `boss-od-1`,
+`boss-sg-1-slow-gear` and `ibanez-ts9` newly name a `2SK30A` stamp). Checked independently from the lawed netlist (stamped IS and
+BF against the class default over 374 pedal BJT devices): IS is at default on 213 and named on 213, BF on 134 and named on 134,
+none under- or over-warned; the same check on the previous code reads 351 over-warned.
+
+**What moves, as measured 2026-10-20 against the published 0.6.0** (artifacts `67fb504c7`, committed files only, via `git archive`:
+123 pedals and 23 amps). Compile level: 144 documents compile on both and all 144 emit byte-identical program text; the Slap-Back
+compiles only on this version (145 against 144) and `boss-dd-3t` is refused on both. Audio level, default controls, one two-tone
+(440 Hz at 0.25 and 1320 Hz at 0.1, 48 kHz, 2048 samples), published compiler and runtime against this tree's compiler and its
+own wasm build: all 144 are bit-identical on both consoles, 136 of them non-silent (the other 8 are silent in both arms). A
+repeat of the published arm reads 144 of 144 identical and a one-sample 1e-6 nudge of the input reads 122 (TS) and 119 (WASM) of
+145 different, so the comparator was shown to answer both ways. The same two-tone for 3 s through the WASM console (the console
+the kernel table touches) reads 144 of 144 bit-identical, 136 non-silent, with the same two controls (repeat 144 of 144, nudge 122
+of 145 different). The kernel table changes only by fingerprint (below); outputs are
+unchanged on every document that existed on 0.6.0.
+
+**The runtime changes only its kernel table.** `GeneratedKernels.cpp` was regenerated with this compiler over the 145 corpus
+programs that compile: 139 kernels from 563 scheduled blocks, against 139 from 561 in the committed table. Regenerating with the
+published 0.6.0 compiler over the same artifacts gives 138 kernels, three fewer fingerprints and two more than the committed
+table (`04ebbc7d`, `4417c5cf` and `b34a86d0` out, `795e96ff` and `cdab4ff6` in), which is artifacts having moved since the table
+was last generated and not this compiler; this compiler adds exactly one more, `83ca2d95`, the Slap-Back's. No `Program`, `Stamp`, `ProgramJson.cpp` or `Program.h` change, hence a
+patch bump; the exact compiler pin moves to 0.7.0.
+
+**Not measured:** non-default controls and switch states, oversample above 1, real-time cost (the worklet scoreboard did not run),
+a guitar take, ngspice for the UJT derivation, and whether the derived 55.0 and 38.2 ms are closer to hardware than the declared
+times were. Four documents differ by volts between the two consoles in the 2048-sample window, identically in both arms
+(`moogerfooger-mf-102`, `marshall-1959-super-lead-plexi`, `orange-rockerverb`, `boss-tw-1`); that is old behaviour, it is not
+examined here, and it means "bit-identical across versions" says nothing about whether those four are right.
+
+chain 0.1.9 and player 0.2.7 change only their exact pins, to compiler 0.7.0 and runtime 0.6.1 (and chain 0.1.9 for player).
+Evidence and the checks run: `docs/releases/2026-10-20-release-prep-0.7.0.md`.
+
 ## compiler 0.6.0 / runtime 0.6.0 / chain 0.1.9 / player 0.2.7
+
+**Correction, 2026-10-20: this entry describes less than 0.6.0 contains, and two of its four versions were never published.**
+The entry below is the content of the release-prep commit `bbef01b`. The tags `compiler-v0.6.0` and `runtime-v0.6.0` sit at
+`28dc820`, twenty commits later, so the published compiler and runtime 0.6.0 also carry the whole parameter-registry programme
+that landed in between and that no entry describes: the stage-1 data registry with cited single-value parameters, the
+`manufacturer-model`, `measured` and `community` bases (the last with a `registry-provisional-value` notice), waves 1 to 5 of
+cited BJT, JFET, diode, zener and op-amp records, the regulator and 741 aliases with new 12 V and 3.3 V rails, the JRC4558,
+JRC4558DD and JRC5534 aliases, charge-pump inverters modelled as derived negative rails, and the stage-2 `DeviceOverride` block
+(read, validated, reported; no-effect and sections-trap overrides refused). Measured 2026-10-20 against the published 0.5.0 on
+artifacts `67fb504c7`: 144 documents compile on both and 95 emit different program text (49 identical). Counting documents
+whose stamps of a kind changed: `bjt` 62, `diode` 49, `fet` 37, `ideal-opamp` 13, and one each of `dc-source`, `input-source`
+and `controlled-conductance`; the seven swing movers, `boss-sd-1` and `sunn-beta-lead` of the entry below are inside those
+counts, so the registry programme alone is a subset. **The audio effect of that step was never measured.** Chain 0.1.9 and
+player 0.2.7, named in this heading, were not tagged or published with it: npm holds chain 0.1.8 and player 0.2.6, which pin
+compiler and runtime 0.5.0 exactly. Both ship with 0.7.0.
 
 **Op-amp output swing is now a printed, conditioned, per-side pair, folded by the compiler into absolute rails.** The single
 symmetric `outputSwingDropVolts` is gone, with no alias and no migration. A registry entry now carries
