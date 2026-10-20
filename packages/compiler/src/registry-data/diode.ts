@@ -19,13 +19,15 @@
 // typical (If, Vf) points and never met). Typed aliases: none -- a `DI_` model-name
 // prefix is not an equivalence claim, and no file below states one.
 //
-// MEASURED FUTURE (no entries yet): the `measured` basis in `loader.ts` is for the
-// residue -- generic LED colour defaults and the diodes with no manufacturer model
-// (1N4148, 1N34A, 1N60P, D9E, D9K, BAT85S). Each measured IS+n will cite the
-// committed measurement JSON (schema `vesseldsp.junction-default-measurement.v1`,
-// `perDevice` `isEngine`/`nEngine` pooled over every sample at the engine VT 0.025852 V)
-// with instrument, conditions, sample count, date, repo-relative path and sha256; see
-// `led-measurement.html` and its README. The owner has not measured yet.
+// MEASURED ENTRIES (first landed 2026-10-20): the `measured` basis in `loader.ts`
+// is for the owner's bench values -- generic LED colour defaults and the diodes with
+// no manufacturer model (1N34A, 1N60P, D9E, D9K, BAT85S carry community records above;
+// 1N4148's community record was replaced by the owner's bench pair below, per the
+// owner's 2026-10-20 ruling). Each measured IS+n cites the committed measurement JSON
+// (schema `vesseldsp.junction-default-measurement.v1`, `perDevice` `isEngine`/`nEngine`
+// pooled over every sample at the engine VT 0.025852 V) with instrument, conditions,
+// sample count, date, repo-relative path and sha256; see `led-measurement.html` and
+// its README. The remaining diodes are unmeasured.
 //
 // Plausibility disclosures (transcribed as printed, not fitted): 1N5817 IS 870 uA lands
 // the 1 mA Vf at ~7 mV (a high-current fit, weak at low current); BAT43 N 4.995 lands
@@ -592,79 +594,89 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// Wave 4 community. The widely distributed LTspice 1N4148 line (mfg=OnSemi) as the
-		// library publishes it. Provisional: a published library card, not a measurement of
-		// the part; the owner's bench measurement will replace it. Vf implied (with the
-		// mapped RS 0.568): 0.584 V at 1 mA, 0.694 V at 10 mA.
+		// Owner bench 2026-10-20 (measured basis, first `measured` diode record): two
+		// 1N4148 of unrecorded maker, UNI-T UT107 DC volts, 10 mV effective count.
+		// Two anchor currents only (means of two diodes): 1.9705 mA at 0.645 V and
+		// 15.611 mA at 0.775 V. The IS+n pair holds only between those two currents;
+		// the 15.6 mA anchor sits above the bench page's 4 to 15 mA window. Two
+		// currents cannot separate n from series resistance: n 2.17 is above the
+		// published 1N4148-family models (1.75 to 2.07), and an n = 1.752 alternative
+		// (IS 1.446e-9, Rs 2.66 ohm) reproduces both anchors and reads -29/-18/-6/+4
+		// mV from this pair at 0.1/0.3/1/10 mA (pair minus alternative). No
+		// seriesResistance is stated: the fit assumed the engine's 1.0 ohm diode
+		// default, so the stamp must run at 1.0 ohm. thermalVoltage stays omitted
+		// (0.025852 default, which is what the fit used).
 		partIds: ["1N4148"],
 		class: "diode",
 		note:
-			"Cross-check deltas at 1 mA / 10 mA (stamped values, RS included): vs Central " +
-			"1N914 (IS 6.2229n, N 1.9224, class RS 1.0) +12.3 / +26.3 mV; vs Diodes Inc " +
-			"1N4148W (IS 10.4n, N 2.07, RS 51.5m, bundle reference, unregistered) +29.6 / " +
-			"+43.9 mV; vs Diodes Inc MMBD914 (IS 126n, N 2.60, RS 0.14, bundle reference, " +
-			"unregistered, SOT-23 die) +19.2 / +65.9 mV. The MMBD914 10 mA gap exceeds the " +
-			"50 mV gate; coordinator ruling 2026-10-19: MMBD914 is a different die and " +
-			"Diodes' own 1N4148W/MMBD914 disagree by 22 mV at 10 mA, so registration stands " +
-			"with every delta disclosed here.",
+			"Owner bench 2026-10-20, two samples, maker unrecorded, two currents: the " +
+			"IS+n pair (2.124272112914455e-8, 2.17468223817758) holds only between 1.97 " +
+			"and 15.6 mA, and the 15.6 mA anchor sits above the page's 4 to 15 mA window. " +
+			"Two currents cannot separate n from series resistance (n 2.17 is above the " +
+			"published 1N4148-family 1.75 to 2.07; the n = 1.752 alternative above " +
+			"reproduces both anchors). The superseded community card (LTspice " +
+			"Standard.dio IS 2.52 nA, N 1.752, RS 0.568) reads 0.4796/0.5295/0.5844/0.6938 V " +
+			"at 0.1/0.3/1/10 mA against this pair's 0.4755/0.5375/0.6059/0.7443 V; the " +
+			"bench read +29 mV at 1.97 mA and +58 mV at 15.6 mA above it. Cross-check " +
+			"deltas (reference minus this record, stamped values with RS, at 1 mA / 10 mA): " +
+			"vs Central 1N914 (IS 6.2229n, N 1.9224, class RS 1.0) -9.2 / -24.2 mV; vs " +
+			"Diodes Inc 1N4148W (IS 10.4n, N 2.07, RS 51.5m, bundle reference, " +
+			"unregistered) +8.2 / -6.6 mV; vs Diodes Inc MMBD914 (IS 126n, N 2.60, RS " +
+			"0.14, bundle reference, unregistered, SOT-23 die) -2.2 / +15.4 mV " +
+			"(coordinator ruling 2026-10-19 stands: MMBD914 is a different die).",
 		params: {
 			saturationCurrent: {
-				value: 2.52e-9,
-				basis: "community",
+				value: 2.124272112914455e-8,
+				basis: "measured",
 				source:
-					"LTspice standard diode library 'Standard.dio' (Linear Technology Corporation, " +
-					"copyright header 2000-2012; library author Mike Engelhardt / Linear Technology, " +
-					"now Analog Devices), HTML rendering https://ltwiki.org/index.php?title=Standard.dio " +
-					"(revision 1083, read 2026-10-19). Verbatim card line:\n" +
-					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)\n" +
-					"(the identical-parameter 1N914 line sits directly above it; mfg=OnSemi marks " +
-					"the ON Semi/Fairchild data as distributed inside LTspice)",
-				sourceKind: "published-spice-model",
-				url: "https://ltwiki.org/index.php?title=Standard.dio",
-				quote:
-					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
-				author: "Linear Technology Corporation (LTspice standard diode library)",
-				retrievedDate: "2026-10-19",
-				whyNoBetterSource:
-					"No manufacturer model file retrievable (onsemi MMSD4148 simulation-models ZIP " +
-					"portal-gated; Diodes Inc per-part .spice.txt portal-gated); vendored datasheet " +
-					"sheets print MAX-only VF (Vishay VF MAX 1.0 V at 10 mA, single point: no form-4 " +
-					"pair). The distributed LTspice line marked mfg=OnSemi is the canonical published " +
-					"card. Deltas vs 1N914/1N4148W/MMBD914 disclosed in the entry note.",
+					"Owner bench 2026-10-20, two 1N4148 of unrecorded maker, UNI-T UT107 " +
+					"(DC volts, effective count 10 mV: every voltage was entered to 0.01 V, " +
+					"range not recorded). USB 5 V breadboard shield measured 4.99 V; 2.2 kohm " +
+					"and 270 ohm resistors as typed, exactly nominal, probably not metered " +
+					"(kit tolerance 1 %); room 20 C. Anchors 1.9705 mA at 0.645 V and 15.611 mA " +
+					"at 0.775 V (means of two diodes); 2 samples; evidence " +
+					"packet-study/led-default/measurements/2026-10-20-led-default.json sha256 " +
+					"72abc43aa3d562351212dd6045e4bbf1914cf4e660dfe0e4288644c7f1f7b37a, schema " +
+					"vesseldsp.junction-default-measurement.v1 perDevice isEngine/nEngine pooled " +
+					"over every sample at the engine VT 0.025852 V.",
+				measurementInstrument:
+					"UNI-T UT107 (DC volts, effective count 10 mV: every voltage was entered " +
+					"to 0.01 V, range not recorded)",
+				measurementConditions:
+					"USB 5 V breadboard shield measured 4.99 V; 2.2 kohm and 270 ohm resistors " +
+					"as typed, exactly nominal, probably not metered (kit tolerance 1 %); room " +
+					"20 C; two 1N4148 of unrecorded maker; anchors 1.9705 mA at 0.645 V and " +
+					"15.611 mA at 0.775 V (means of two diodes)",
+				measurementSampleCount: 2,
+				measurementDate: "2026-10-20",
+				measurementEvidencePath:
+					"packet-study/led-default/measurements/2026-10-20-led-default.json",
+				measurementEvidenceSha256:
+					"72abc43aa3d562351212dd6045e4bbf1914cf4e660dfe0e4288644c7f1f7b37a",
 			},
 			emissionCoefficient: {
-				value: 1.752,
-				basis: "community",
+				value: 2.17468223817758,
+				basis: "measured",
 				source:
-					"LTspice 'Standard.dio' (Linear Technology Corporation), " +
-					"https://ltwiki.org/index.php?title=Standard.dio (read 2026-10-19). Verbatim card line:\n" +
-					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
-				sourceKind: "published-spice-model",
-				url: "https://ltwiki.org/index.php?title=Standard.dio",
-				quote:
-					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
-				author: "Linear Technology Corporation (LTspice standard diode library)",
-				retrievedDate: "2026-10-19",
-				whyNoBetterSource:
-					"Same search as the IS record: no retrievable manufacturer model, no two-TYP " +
-					"datasheet pair; the mfg=OnSemi library card is the published source.",
-			},
-			seriesResistance: {
-				value: 0.568,
-				basis: "community",
-				source:
-					"LTspice 'Standard.dio' (Linear Technology Corporation), " +
-					"https://ltwiki.org/index.php?title=Standard.dio (read 2026-10-19). Verbatim card line:\n" +
-					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
-				sourceKind: "published-spice-model",
-				url: "https://ltwiki.org/index.php?title=Standard.dio",
-				quote:
-					".model 1N4148 D(Is=2.52n Rs=.568 N=1.752 Cjo=4p M=.4 tt=20n Iave=200m Vpk=75 mfg=OnSemi type=silicon)",
-				author: "Linear Technology Corporation (LTspice standard diode library)",
-				retrievedDate: "2026-10-19",
-				whyNoBetterSource:
-					"Same search as the IS record: the card's ohmic Rs is the engine's series " +
-					"resistance quantity.",
+					"Owner bench 2026-10-20, same sitting and fit as the saturationCurrent " +
+					"record (one two-point fit at the engine's 1.0 ohm diode default and VT " +
+					"0.025852 V; IS depends exponentially on n, so both digits ship as fitted). " +
+					"Evidence packet-study/led-default/measurements/2026-10-20-led-default.json " +
+					"sha256 72abc43aa3d562351212dd6045e4bbf1914cf4e660dfe0e4288644c7f1f7b37a.",
+				measurementInstrument:
+					"UNI-T UT107 (DC volts, effective count 10 mV: every voltage was entered " +
+					"to 0.01 V, range not recorded)",
+				measurementConditions:
+					"USB 5 V breadboard shield measured 4.99 V; 2.2 kohm and 270 ohm resistors " +
+					"as typed, exactly nominal, probably not metered (kit tolerance 1 %); room " +
+					"20 C; two 1N4148 of unrecorded maker; anchors 1.9705 mA at 0.645 V and " +
+					"15.611 mA at 0.775 V (means of two diodes)",
+				measurementSampleCount: 2,
+				measurementDate: "2026-10-20",
+				measurementEvidencePath:
+					"packet-study/led-default/measurements/2026-10-20-led-default.json",
+				measurementEvidenceSha256:
+					"72abc43aa3d562351212dd6045e4bbf1914cf4e660dfe0e4288644c7f1f7b37a",
 			},
 		},
 	},

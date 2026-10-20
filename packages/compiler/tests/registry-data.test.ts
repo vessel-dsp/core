@@ -701,6 +701,45 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 		expect(entry.model.law.intrinsicStandoffRatio).toBe(0.775);
 		expect(entry.model.law.interbaseResistanceOhms).toBe(6000);
 	});
+
+	it("the shipped 1N4148 data is the owner's measured pair, with no community parameter", () => {
+		const record = findPartRegistryData("1N4148");
+		expect(record?.class).toBe("diode");
+		expect(record?.params["saturationCurrent"]).toEqual(
+			expect.objectContaining({ value: 2.124272112914455e-8, basis: "measured" }),
+		);
+		expect(record?.params["emissionCoefficient"]).toEqual(
+			expect.objectContaining({ value: 2.17468223817758, basis: "measured" }),
+		);
+		// The fit assumed the engine's 1.0 ohm diode default and VT 0.025852 V, so both
+		// are omitted and the stamp must gap-fill them exactly.
+		expect(record?.params["seriesResistance"]).toBeUndefined();
+		expect(record?.params["thermalVoltage"]).toBeUndefined();
+		expect((record?.note ?? "").length).toBeGreaterThan(0);
+		// Every measured parameter quotes the evidence path and sha256 in its source.
+		for (const param of Object.values(record?.params ?? {})) {
+			expect(param.source).toContain(
+				"packet-study/led-default/measurements/2026-10-20-led-default.json",
+			);
+			expect(param.source).toContain(
+				"72abc43aa3d562351212dd6045e4bbf1914cf4e660dfe0e4288644c7f1f7b37a",
+			);
+		}
+		if (record === null) throw new Error("unreachable");
+		const found = registryEntryFor(pedalPartCatalog, {
+			partId: "1N4148",
+			evidence: "exact-part",
+		});
+		if (found?.model.kind !== "law" || found.model.law.kind !== "diode") {
+			throw new Error("unreachable");
+		}
+		expect(found.model.law.saturationCurrent).toBe(2.124272112914455e-8);
+		expect(found.model.law.emissionCoefficient).toBe(2.17468223817758);
+		expect(found.model.law.seriesResistance).toBe(1);
+		expect(found.model.law.thermalVoltage).toBe(0.025852);
+		// The measured record names no provisional value.
+		expect(found.provisionalParams).toBeUndefined();
+	});
 });
 
 describe("wave-4 fill inventory", () => {
@@ -721,7 +760,8 @@ describe("wave-4 fill inventory", () => {
 		// BC109C BF-only, BC239C/BC107B IS+BF) and 13 JFET rows (2N5485, 2SK30A-Y/GR plus
 		// TM aliases, 2SK118 + Y, 2SK184 + GR, 2SK209, 2N5458, MPF4393, J309, J202, PF5102).
 		// Part B: two community germanium BJT rows (AC128 IS+BF, OC44 BF alongside a
-		// derived IS) and four diode rows (community 1N4148 + 1N34A, DEC-sheet 1N60/1N60P).
+		// derived IS) and four diode rows (community 1N34A, DEC-sheet 1N60/1N60P, and the
+		// 1N4148 community record since replaced by the owner's measured pair).
 		// Wave 5: three more op-amp GBW rows (OPA1678, OPA134PA, OPA604AP; TL072C and LM741CN
 		// are AOL-only by the same AD712/LM1458 verdict), 13 BJT rows (ZTX109C IS+BF,
 		// P2N2222A/A1015GR/MPS4124/BC546A/BC548A/BC548B/BC184C BF with or without IS,

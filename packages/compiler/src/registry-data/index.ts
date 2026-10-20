@@ -30,9 +30,11 @@
 // - fixed-rail regulator voltages (7 records: 5/9/18/-15/15 plus wave-5 12/3.3 V) and
 //   charge-pump loss/slope (8 records).
 // Diode records are wave-3 manufacturer-model fills (12 rows: BAT41/46/43/48, 1N5817/5819,
-// B340A, 1N4001/4002/4004/4007, 1N914) plus wave-4 (community 1N4148/1N34A, DEC-sheet
-// 1N60/1N60P): 16 rows; no datasheet-derived diode pair exists (form 4
-// needs two printed typical points and never met).
+// B340A, 1N4001/4002/4004/4007, 1N914) plus wave-4 (community 1N34A, DEC-sheet
+// 1N60/1N60P, and the 1N4148 community record since replaced by the owner's measured
+// pair) plus BAT85 (Nexperia model) and BAT85S (community, same card): 18 rows, one
+// measured (1N4148), two community (1N34A, BAT85S). No datasheet-derived diode pair
+// exists (form 4 needs two printed typical points and never met).
 // Everything else -- IC macros, `sections` entries, open-loop gains, tube laws, the
 // class-default fallbacks -- stays in `part-catalog.ts` / `device-laws.ts` code.
 // 
