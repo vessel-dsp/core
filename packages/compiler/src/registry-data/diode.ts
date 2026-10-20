@@ -21,7 +21,7 @@
 //
 // MEASURED FUTURE (no entries yet): the `measured` basis in `loader.ts` is for the
 // residue -- generic LED colour defaults and the diodes with no manufacturer model
-// (1N4148, 1N34A, 1N60P, D9E, D9K, BAT85S, BAT85S). Each measured IS+n will cite the
+// (1N4148, 1N34A, 1N60P, D9E, D9K, BAT85S). Each measured IS+n will cite the
 // committed measurement JSON (schema `vesseldsp.junction-default-measurement.v1`,
 // `perDevice` `isEngine`/`nEngine` pooled over every sample at the engine VT 0.025852 V)
 // with instrument, conditions, sample count, date, repo-relative path and sha256; see
@@ -53,6 +53,32 @@ const DIODES_SPICE_INDEX = "https://www.diodes.com/design/tools/spice-models";
 const DIODES_BUNDLE_CAUTION =
 	"Owner download /home/joseph/projects/VesselDSP/tmp/Schottky (.5A and Above).spice.txt " +
 	"sha256 648628e3ed53cfcda631fee8cdc3a49de0d85be99962a3e6e6fc0c3aff57d493.";
+
+const NEXPERIA_BAT85_PAGE =
+	"https://www.nexperia.com/products/diodes/schottky-diodes-and-rectifiers/schottky-diodes-and-rectifiers-if-lt-1-a/BAT85.html";
+const NEXPERIA_BAT85_FILE = "https://assets.nexperia.com/documents/spice-model/BAT85.txt";
+// The card as the owner pasted it (the Nexperia server refuses scripted downloads), with the
+// trailing blanks after each `+ ` line removed.
+const NEXPERIA_BAT85_LINE =
+	".MODEL BAT85 D\n+ IS = 2.076E-7\n+ N = 1.023\n+ BV = 33\n+ IBV = 10E-6\n+ RS = 2.326\n" +
+	"+ CJO = 1.21E-11\n+ VJ = 0.1319\n+ M = 0.2904\n+ EG = 0.69\n+ XTI = 2";
+const NEXPERIA_BAT85_CAUTION =
+	"Owner-pasted copy of the Nexperia model file saved at " +
+	"/home/joseph/projects/VesselDSP/tmp/nexperia-BAT85-spice-model-owner-paste-2026-10-20.txt " +
+	"sha256 77d17ba226543aacb38c338d9f59b675030ebb3a3447969a43edccbdc783b887 (file header " +
+	"'BAT85 / Nexperia / Schottky barrier diode, IFmax 200mA, VRmax 30V, VFmax 400mV @ IF 10mA, " +
+	"IRmax 2uA @ VR 25V', package SOD68, simulator SPICE2). The `.SUBCKT BAT85 1 2` wraps the diode " +
+	"with `R1 1 2 5.416E+7`, which the card says 'does not reflect physical devices' and is a " +
+	"reverse-mode aid; it is not mapped, nor are BV/IBV/CJO/VJ/M/EG/XTI.";
+
+const BAT85S_WHY_NO_BETTER_SOURCE =
+	"Vishay publishes no SPICE model for the BAT85S (its datasheet, document 85513 Rev. 2.2 " +
+	"07-Nov-2024, sha256 0152851a68f60cce52ba39846c00860c71ebfdf878b89a893255abc6d55ce050, lists " +
+	"3D models, marking, parametric search and order samples only) and prints MAX-only forward " +
+	"voltages (240 mV at 0.1 mA, 320 at 1, 400 at 10, 500 at 30, 800 at 100), so no two-typical " +
+	"form-4 pair exists. No document found states that the BAT85S is the Nexperia BAT85; what is " +
+	"shared is the printed limits (VR 30 V, IF 200 mA, VF max 400 mV at 10 mA, IR max 2 uA at " +
+	"25 V). Provisional on that basis, and checked only against the Vishay maxima.";
 
 export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
@@ -778,6 +804,95 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 					"typical points, 1N60P (0.24 V at 1 mA; 0.65 V at 200 mA)",
 				derivation:
 					"n = (0.65 - 0.24) / (Vt * ln(200/1)) = 2.9933 (form 4; a fit value, disclosed).",
+			},
+		},
+	},
+	{
+		// Nexperia BAT85 (ex-Philips), SOD68/DO-34, now discontinued. Vf implied by IS/N/RS:
+		// 0.227 V at 1 mA, 0.308 V at 10 mA (the card's own header prints VF max 400 mV at 10 mA).
+		partIds: ["BAT85"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 2.076e-7,
+				basis: "manufacturer-model",
+				source:
+					`Nexperia BAT85 product page ${NEXPERIA_BAT85_PAGE}, model file ${NEXPERIA_BAT85_FILE}. ` +
+					`${NEXPERIA_BAT85_CAUTION} Card:\n${NEXPERIA_BAT85_LINE}`,
+				modelFileUrl: NEXPERIA_BAT85_FILE,
+				modelLine: NEXPERIA_BAT85_LINE,
+			},
+			emissionCoefficient: {
+				value: 1.023,
+				basis: "manufacturer-model",
+				source:
+					`Nexperia BAT85 product page ${NEXPERIA_BAT85_PAGE}, model file ${NEXPERIA_BAT85_FILE}. ` +
+					`${NEXPERIA_BAT85_CAUTION} Card:\n${NEXPERIA_BAT85_LINE}`,
+				modelFileUrl: NEXPERIA_BAT85_FILE,
+				modelLine: NEXPERIA_BAT85_LINE,
+			},
+			seriesResistance: {
+				value: 2.326,
+				basis: "manufacturer-model",
+				source:
+					`Nexperia BAT85 product page ${NEXPERIA_BAT85_PAGE}, model file ${NEXPERIA_BAT85_FILE}. ` +
+					`${NEXPERIA_BAT85_CAUTION} Card:\n${NEXPERIA_BAT85_LINE}`,
+				modelFileUrl: NEXPERIA_BAT85_FILE,
+				modelLine: NEXPERIA_BAT85_LINE,
+			},
+		},
+	},
+	{
+		// JED's BAT85S (Vishay, DO-35). PROVISIONAL: the Nexperia BAT85 card is used for it.
+		// The two are not claimed equal. The card's implied values sit inside the Vishay BAT85S
+		// printed maxima at all five printed forward points (0.164 V at 0.1 mA vs max 0.240;
+		// 0.227 at 1 mA vs 0.320; 0.308 at 10 mA vs 0.400; 0.384 at 30 mA vs 0.500; 0.579 at
+		// 100 mA vs 0.800), the card's reverse current at 25 V (IS plus 25 V / R1, 0.67 uA) sits
+		// under the printed 2 uA, and its capacitance at 1 V (6.5 pF) under the printed 10 pF.
+		// That shows the card is not contradicted, nothing more. Replace with a Vishay or
+		// bench-measured record when one exists (a measured IS+n for this part would throw the
+		// community records out, per the loader).
+		partIds: ["BAT85S"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 2.076e-7,
+				basis: "community",
+				source:
+					`Nexperia BAT85 SPICE model ${NEXPERIA_BAT85_FILE} (product page ${NEXPERIA_BAT85_PAGE}), ` +
+					`applied to the Vishay BAT85S. ${NEXPERIA_BAT85_CAUTION} Verbatim line: + IS = 2.076E-7`,
+				sourceKind: "published-spice-model",
+				url: NEXPERIA_BAT85_FILE,
+				quote: "+ IS = 2.076E-7",
+				author: "Nexperia (model of its own BAT85, not of the Vishay BAT85S)",
+				retrievedDate: "2026-10-20",
+				whyNoBetterSource: BAT85S_WHY_NO_BETTER_SOURCE,
+			},
+			emissionCoefficient: {
+				value: 1.023,
+				basis: "community",
+				source:
+					`Nexperia BAT85 SPICE model ${NEXPERIA_BAT85_FILE} (product page ${NEXPERIA_BAT85_PAGE}), ` +
+					`applied to the Vishay BAT85S. ${NEXPERIA_BAT85_CAUTION} Verbatim line: + N = 1.023`,
+				sourceKind: "published-spice-model",
+				url: NEXPERIA_BAT85_FILE,
+				quote: "+ N = 1.023",
+				author: "Nexperia (model of its own BAT85, not of the Vishay BAT85S)",
+				retrievedDate: "2026-10-20",
+				whyNoBetterSource: BAT85S_WHY_NO_BETTER_SOURCE,
+			},
+			seriesResistance: {
+				value: 2.326,
+				basis: "community",
+				source:
+					`Nexperia BAT85 SPICE model ${NEXPERIA_BAT85_FILE} (product page ${NEXPERIA_BAT85_PAGE}), ` +
+					`applied to the Vishay BAT85S. ${NEXPERIA_BAT85_CAUTION} Verbatim line: + RS = 2.326`,
+				sourceKind: "published-spice-model",
+				url: NEXPERIA_BAT85_FILE,
+				quote: "+ RS = 2.326",
+				author: "Nexperia (model of its own BAT85, not of the Vishay BAT85S)",
+				retrievedDate: "2026-10-20",
+				whyNoBetterSource: BAT85S_WHY_NO_BETTER_SOURCE,
 			},
 		},
 	},

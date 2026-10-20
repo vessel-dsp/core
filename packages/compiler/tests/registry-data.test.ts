@@ -647,6 +647,43 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 		}
 	});
 
+	it("the shipped BAT85 data lands on its catalog entry, and BAT85S runs provisionally on the same card", () => {
+		const bat85 = findPartRegistryData("BAT85");
+		expect(bat85?.class).toBe("diode");
+		expect(bat85?.params["saturationCurrent"]).toEqual(
+			expect.objectContaining({ value: 2.076e-7, basis: "manufacturer-model" }),
+		);
+		expect(bat85?.params["emissionCoefficient"]).toEqual(
+			expect.objectContaining({ value: 1.023, basis: "manufacturer-model" }),
+		);
+		expect(bat85?.params["seriesResistance"]).toEqual(
+			expect.objectContaining({ value: 2.326, basis: "manufacturer-model" }),
+		);
+		const bat85s = findPartRegistryData("BAT85S");
+		for (const name of ["saturationCurrent", "emissionCoefficient", "seriesResistance"]) {
+			expect(bat85s?.params[name]).toEqual(
+				expect.objectContaining({ value: bat85?.params[name]?.value, basis: "community" }),
+			);
+		}
+		// The two are separate entries: BAT85S is not an alias of BAT85.
+		expect(bat85?.partIds).not.toContain("BAT85S");
+		for (const partId of ["BAT85", "BAT85S"]) {
+			const found = registryEntryFor(pedalPartCatalog, { partId, evidence: "exact-part" });
+			expect(found?.model.kind).toBe("law");
+		}
+		// BAT85 is the manufacturer's own card; BAT85S runs on community values and says so.
+		const provisionalNames = (partId: string) =>
+			(registryEntryFor(pedalPartCatalog, { partId, evidence: "exact-part" })?.provisionalParams ?? [])
+				.map((p) => p.name)
+				.sort();
+		expect(provisionalNames("BAT85")).toEqual([]);
+		expect(provisionalNames("BAT85S")).toEqual([
+			"emissionCoefficient",
+			"saturationCurrent",
+			"seriesResistance",
+		]);
+	});
+
 	it("the shipped 2N4871 data lands on its catalog entry", () => {
 		const record = findPartRegistryData("2N4871");
 		expect(record?.class).toBe("ujt");
@@ -696,10 +733,10 @@ describe("wave-4 fill inventory", () => {
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(52);
-		expect(diodeRegistryRecords).toHaveLength(16);
+		expect(diodeRegistryRecords).toHaveLength(18);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 52 + 16 + 2 + 35 + 21 + 7 + 8 + 1);
+		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
