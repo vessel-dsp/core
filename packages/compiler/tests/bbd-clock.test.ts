@@ -4,11 +4,13 @@ import {
 	deriveOpenOx2ClockLaw as deriveOpenOx2ClockLawWithRegistry,
 	derivePt2399DelayFromNetlist,
 	deriveM50195DelayFromNetlist,
+	deriveUjtRelaxationClock,
 	resolveClockModulationSource as resolveClockModulationSourceWithRegistry,
 	pt2399DelayFromOhms,
 } from "../src/bbd-clock";
 import { attachDeviceLaws } from "../src/device-laws";
-import { pedalPartCatalog } from "../src/part-catalog";
+import { pedalPartCatalog, ujtLawEntry } from "../src/part-catalog";
+import { definePartData, type PartDataEntry } from "../src/registry-data";
 import type { PartRegistry } from "../src/registry";
 import type { Device, DeviceKind, Netlist, NodeId } from "../src/types";
 import { GROUND } from "../src/types";
@@ -1279,5 +1281,410 @@ describe("open-OX2 clock law recognition", () => {
 				}),
 			).outcome,
 		).toBe("absent");
+	});
+});
+
+describe("UJT relaxation-oscillator clock derivation", () => {
+	// Synthetic relaxation network only: no pedal identity, no real part numbers
+	// except the divider-family spellings the recogniser matches (the same way the
+	// CD4047 tests spell real clock parts). Node numbers mirror the recognised
+	// topology, nothing else.
+	const SYN_UJT_PART = "SYN-UJT-1";
+	const ETA = 0.775;
+	const RBB = 6000;
+	const K = Math.log(1 / (1 - ETA));
+	const R_OPEN = 36000;
+	const R_CLOSED = 1 / (1 / 36000 + 1 / 82000);
+	const C = 1e-9;
+
+	const synthUjtRegistry = (eta = ETA): PartRegistry => ({
+		entries: [
+			ujtLawEntry(
+				definePartData([
+					{
+						partIds: [SYN_UJT_PART],
+						class: "ujt",
+						params: {
+							intrinsicStandoffRatio: {
+								value: eta,
+								basis: "datasheet",
+								source: "Synthetic UJT sheet p1: eta",
+							},
+							interbaseResistanceOhms: {
+								value: RBB,
+								basis: "datasheet",
+								source: "Synthetic UJT sheet p1: Rbb",
+							},
+						},
+					},
+				])[0] as PartDataEntry,
+			),
+		],
+	});
+
+	function ujtDevice(
+		id: string,
+		kind: DeviceKind,
+		nodes: readonly number[],
+		roles: readonly (string | null)[],
+		options: {
+			partNumber?: string;
+			declaredType?: string;
+			parameters?: Record<string, number>;
+			control?: string | null;
+			declaredRoles?: readonly (string | null)[];
+		} = {},
+	): Device {
+		return {
+			id,
+			kind,
+			nodes: nodes as readonly NodeId[],
+			control: options.control ?? null,
+			identity: {
+				partNumber: options.partNumber ?? null,
+				declaredType: options.declaredType ?? null,
+				terminalRoles: roles,
+				declaredTerminalRoles: options.declaredRoles ?? roles.map(() => null),
+				declaredWindings: null,
+			},
+			parameters: options.parameters ?? {},
+		};
+	}
+
+	function ujtNetlist(
+		overrides: {
+			drop?: readonly string[];
+			patch?: (devices: Device[]) => Device[];
+			extra?: readonly Device[];
+			defaultPosition?: number;
+			noSwitch?: boolean;
+			fixedPosition?: number;
+		} = {},
+	): Netlist {
+		const devices: Device[] = [
+			ujtDevice("VS", "voltage-source", [8], ["positive"]),
+			ujtDevice("Q1", "bjt", [17, 0, 19], ["emitter", "base1", "base2"], {
+				partNumber: SYN_UJT_PART,
+				declaredType: "Circuit.UnijunctionTransistor",
+			}),
+			ujtDevice("R36", "resistor", [8, 17], ["a", "b"], {
+				parameters: { ohms: R_OPEN },
+			}),
+			...(overrides.noSwitch
+				? []
+				: [
+					ujtDevice("R82", "resistor", [15, 17], ["a", "b"], {
+						parameters: { ohms: 82000 },
+					}),
+					ujtDevice("SW", "switch", [15, 38, 8], ["common", "throw0", "throw1"], {
+						control: overrides.fixedPosition === undefined ? "SYN-DELAY" : null,
+						declaredRoles: ["common", "throw", "throw"],
+						parameters: { position: overrides.fixedPosition ?? 0 },
+					}),
+				]),
+			ujtDevice("CT", "capacitor", [17, 18], ["a", "b"], {
+				parameters: { farads: C },
+			}),
+			ujtDevice("RRET", "resistor", [18, 0], ["a", "b"], {
+				parameters: { ohms: 68 },
+			}),
+			ujtDevice("CCPL", "capacitor", [18, 20], ["a", "b"], {
+				parameters: { farads: C },
+			}),
+			ujtDevice("Q2", "bjt", [8, 20, 21], ["emitter", "base", "collector"], {
+				declaredType: "Circuit.BipolarJunctionTransistor",
+			}),
+			ujtDevice("RC", "resistor", [21, 0], ["a", "b"], {
+				parameters: { ohms: 10000 },
+			}),
+			ujtDevice("RB", "resistor", [8, 20], ["a", "b"], {
+				parameters: { ohms: 4700 },
+			}),
+			ujtDevice(
+				"IC3",
+				"ic",
+				[25, 24, 21, 0, 24, 0, 0, 8, 8, 8, 8, 39, 22, 8],
+				[
+					"q1", "notq1", "clock1", "reset1", "data1", "set1", "vss",
+					"set2", "data2", "reset2", "clock2", "notq2", "q2", "vdd",
+				],
+				{ partNumber: "scl4013a" },
+			),
+			ujtDevice(
+				"U2",
+				"ic",
+				[0, 4, 24, 0, 52, 47, 8, 25, 49, 25, 50, 51, 0, 24, 52, 0],
+				[
+					"gnd", "inputa", "phi2a", "nc", "outputa", "outputacomplement",
+					"vdd", "phi1a", "vbb", "phi1b", "outputbcomplement", "outputb",
+					"nc", "phi2b", "inputb", "nc",
+				],
+				{ partNumber: "SYN-BBD-1024" },
+			),
+			...(overrides.extra ?? []),
+		].filter((d) => !(overrides.drop ?? []).includes(d.id));
+		const patched = overrides.patch ? overrides.patch(devices) : devices;
+		const nodes = [...new Set(patched.flatMap((d) => d.nodes))].sort((a, b) => a - b);
+		const controls =
+			overrides.noSwitch || overrides.fixedPosition !== undefined
+				? []
+				: [
+					{
+						id: "SYN-DELAY",
+						taper: "linear" as const,
+						defaultPosition: overrides.defaultPosition ?? 0,
+					},
+				];
+		return {
+			nodes,
+			devices: patched,
+			controls,
+			ports: { input: 1, output: 2 },
+			bypass: { declared: "none" },
+			portImpedanceOhms: { input: null, output: null },
+			portDeclaredFullScaleVolts: { input: null, output: null },
+			convergenceOptIn: false,
+		};
+	}
+
+	const bbdOf = (netlist: Netlist): Device =>
+		netlist.devices.find((d) => d.id === "U2")!;
+	const derive = (
+		netlist: Netlist,
+		registry: PartRegistry = synthUjtRegistry(),
+	) => deriveUjtRelaxationClock(bbdOf(netlist), netlist, 1024, registry);
+
+	test("derives the divided UJT clock with the switch sweeping both resistances", () => {
+		const result = derive(ujtNetlist());
+		expect(result.outcome).toBe("derived");
+		if (result.outcome !== "derived") throw new Error("unreachable");
+		expect(result.delaySeconds).toBeCloseTo(1024 * R_OPEN * C * K, 9);
+		expect(result.rOhms).toBe(R_OPEN);
+		expect(result.cFarads).toBe(C);
+		expect(result.fClockHz).toBeCloseTo(1 / (2 * R_OPEN * C * K), 6);
+		expect(result.family).toBe("unknown");
+		expect(result.stages).toBe(1024);
+		expect(result.formulaConstant).toBeCloseTo(K, 12);
+		expect(result.offsetSeconds).toBe(0);
+		expect(result.controlId).toBe("SYN-DELAY");
+		expect(result.taper).toBe("linear");
+		expect(result.ohmsAtControlMin).toBe(R_OPEN);
+		expect(result.ohmsAtControlMax).toBeCloseTo(R_CLOSED, 9);
+	});
+
+	test("the nominal delay follows the switch default position", () => {
+		const result = derive(ujtNetlist({ defaultPosition: 1 }));
+		expect(result.outcome).toBe("derived");
+		if (result.outcome !== "derived") throw new Error("unreachable");
+		expect(result.delaySeconds).toBeCloseTo(1024 * R_CLOSED * C * K, 9);
+		expect(result.rOhms).toBeCloseTo(R_CLOSED, 9);
+	});
+
+	test("without a switch the single charging resistance derives statically", () => {
+		const result = derive(ujtNetlist({ noSwitch: true }));
+		expect(result.outcome).toBe("derived");
+		if (result.outcome !== "derived") throw new Error("unreachable");
+		expect(result.delaySeconds).toBeCloseTo(1024 * R_OPEN * C * K, 9);
+		expect(result.controlId).toBeNull();
+		expect(result.ohmsAtControlMin).toBe(R_OPEN);
+		expect(result.ohmsAtControlMax).toBe(R_OPEN);
+	});
+
+	test("a fixed selector derives its stated position statically", () => {
+		const result = derive(ujtNetlist({ fixedPosition: 1 }));
+		expect(result.outcome).toBe("derived");
+		if (result.outcome !== "derived") throw new Error("unreachable");
+		expect(result.controlId).toBeNull();
+		expect(result.rOhms).toBeCloseTo(R_CLOSED, 9);
+		expect(result.delaySeconds).toBeCloseTo(1024 * R_CLOSED * C * K, 9);
+	});
+
+	test("the 4013 family spelling is an exact id, not the package", () => {
+		const patched = ujtNetlist({
+			patch: (devices) =>
+				devices.map((d) =>
+					d.id === "IC3"
+						? ujtDevice(
+							"IC3", "ic",
+							[25, 24, 21, 0, 24, 0, 0, 8, 8, 8, 8, 39, 22, 8],
+							[
+								"q1", "notq1", "clock1", "reset1", "data1", "set1", "vss",
+								"set2", "data2", "reset2", "clock2", "notq2", "q2", "vdd",
+							],
+							{ partNumber: "cd4013be" },
+						)
+						: d,
+				),
+		});
+		expect(derive(patched).outcome).toBe("derived");
+		expect(
+			derive(
+				ujtNetlist({
+					patch: (devices) =>
+						devices.map((d) =>
+							d.id === "IC3"
+								? { ...d, identity: { ...d.identity, partNumber: "ne555" } }
+								: d,
+						),
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+	});
+
+	test("reaches the public entry point past the gate diagnosis", () => {
+		const netlist = ujtNetlist();
+		const result = deriveBbdDelayFromNetlistWithRegistry(
+			bbdOf(netlist),
+			netlist,
+			1024,
+			synthUjtRegistry(),
+		);
+		expect(result.outcome).toBe("derived");
+		if (result.outcome !== "derived") throw new Error("unreachable");
+		expect(result.delaySeconds).toBeCloseTo(1024 * R_OPEN * C * K, 9);
+		expect(result.controlId).toBe("SYN-DELAY");
+	});
+
+	test("absent without exactly one UJT, or with its type unstated", () => {
+		expect(derive(ujtNetlist({ drop: ["Q1"] })).outcome).toBe("no-clock-driver");
+		expect(
+			derive(
+				ujtNetlist({
+					extra: [
+						ujtDevice("QX", "bjt", [17, 0, 19], ["emitter", "base1", "base2"], {
+							partNumber: SYN_UJT_PART,
+							declaredType: "Circuit.UnijunctionTransistor",
+						}),
+					],
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+		expect(
+			derive(
+				ujtNetlist({
+					patch: (devices) =>
+						devices.map((d) =>
+							d.id === "Q1"
+								? ujtDevice("Q1", "bjt", [17, 0, 19], ["emitter", "base1", "base2"], {
+									partNumber: SYN_UJT_PART,
+									declaredType: "Circuit.BipolarJunctionTransistor",
+								})
+								: d,
+						),
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+	});
+
+	test("absent when the UJT part has no registry law, and refused on a bad eta", () => {
+		expect(
+			derive(
+				ujtNetlist({
+					patch: (devices) =>
+						devices.map((d) =>
+							d.id === "Q1"
+								? { ...d, identity: { ...d.identity, partNumber: "SYN-UJT-9" } }
+								: d,
+						),
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+		const bad = derive(ujtNetlist(), synthUjtRegistry(1.5));
+		expect(bad.outcome).toBe("refused");
+	});
+
+	test("absent without the toggle wiring or the BBD clock landing", () => {
+		// D no longer driven by its own half's not-Q.
+		expect(
+			derive(
+				ujtNetlist({
+					patch: (devices) =>
+						devices.map((d) =>
+							d.id === "IC3"
+								? ujtDevice(
+									"IC3", "ic",
+									[25, 22, 21, 0, 24, 0, 0, 8, 8, 8, 8, 39, 22, 8],
+									[
+										"q1", "notq1", "clock1", "reset1", "data1", "set1", "vss",
+										"set2", "data2", "reset2", "clock2", "notq2", "q2", "vdd",
+									],
+									{ partNumber: "scl4013a" },
+								)
+								: d,
+						),
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+		// Q lands off the brigade clocks.
+		expect(
+			derive(
+				ujtNetlist({
+					patch: (devices) =>
+						devices.map((d) =>
+							d.id === "IC3"
+								? ujtDevice(
+									"IC3", "ic",
+									[22, 24, 21, 0, 24, 0, 0, 8, 8, 8, 8, 39, 22, 8],
+									[
+										"q1", "notq1", "clock1", "reset1", "data1", "set1", "vss",
+										"set2", "data2", "reset2", "clock2", "notq2", "q2", "vdd",
+									],
+									{ partNumber: "scl4013a" },
+								)
+								: d,
+						),
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+	});
+
+	test("absent without the buffer, the coupling, or the timing capacitor", () => {
+		expect(derive(ujtNetlist({ drop: ["Q2"] })).outcome).toBe("no-clock-driver");
+		expect(derive(ujtNetlist({ drop: ["CCPL"] })).outcome).toBe("no-clock-driver");
+		expect(derive(ujtNetlist({ drop: ["CT"] })).outcome).toBe("no-clock-driver");
+		// The collector drives elsewhere.
+		expect(
+			derive(
+				ujtNetlist({
+					patch: (devices) =>
+						devices.map((d) =>
+							d.id === "Q2"
+								? ujtDevice("Q2", "bjt", [8, 20, 99], ["emitter", "base", "collector"], {
+									declaredType: "Circuit.BipolarJunctionTransistor",
+								})
+								: d,
+						),
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+	});
+
+	test("absent when the timing node has no AC ground return", () => {
+		expect(derive(ujtNetlist({ drop: ["RRET"] })).outcome).toBe("no-clock-driver");
+	});
+
+	test("a second switch linked to the charging network is ambiguous, an unlinked one is ignored", () => {
+		expect(
+			derive(
+				ujtNetlist({
+					extra: [
+						ujtDevice("SW2", "switch", [15, 40, 41], ["common", "t0", "t1"], {
+							declaredRoles: ["common", "throw", "throw"],
+						}),
+					],
+				}),
+			).outcome,
+		).toBe("no-clock-driver");
+		expect(
+			derive(
+				ujtNetlist({
+					extra: [
+						ujtDevice("SW2", "switch", [40, 41, 42], ["common", "t0", "t1"], {
+							declaredRoles: ["common", "throw", "throw"],
+						}),
+					],
+				}),
+			).outcome,
+		).toBe("derived");
 	});
 });

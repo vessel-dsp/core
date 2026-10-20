@@ -25,6 +25,7 @@ import {
 	partRegistryData,
 	regulatorRegistryRecords,
 	requiredClassParams,
+	ujtRegistryRecords,
 	validateCitedParam,
 	zenerRegistryRecords,
 } from "../src/registry-data";
@@ -36,6 +37,7 @@ import type {
 import {
 	gateOnlyFetPartIds,
 	pedalPartCatalog,
+	ujtLawEntry,
 	withDatasheetOutputSwing,
 	zenerCatalogPartIds,
 } from "../src/part-catalog";
@@ -644,6 +646,24 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 			expect(section.law.sourceOhms).toBe(10);
 		}
 	});
+
+	it("the shipped 2N4871 data lands on its catalog entry", () => {
+		const record = findPartRegistryData("2N4871");
+		expect(record?.class).toBe("ujt");
+		expect(record?.params["intrinsicStandoffRatio"]).toEqual(
+			expect.objectContaining({ value: 0.775, basis: "derived" }),
+		);
+		expect(record?.params["interbaseResistanceOhms"]).toEqual(
+			expect.objectContaining({ value: 6000, basis: "datasheet" }),
+		);
+		if (record === null) throw new Error("unreachable");
+		const entry = ujtLawEntry(record);
+		if (entry.model.kind !== "law" || entry.model.law.kind !== "ujt") {
+			throw new Error("unreachable");
+		}
+		expect(entry.model.law.intrinsicStandoffRatio).toBe(0.775);
+		expect(entry.model.law.interbaseResistanceOhms).toBe(6000);
+	});
 });
 
 describe("wave-4 fill inventory", () => {
@@ -678,7 +698,8 @@ describe("wave-4 fill inventory", () => {
 		expect(bjtRegistryRecords).toHaveLength(52);
 		expect(diodeRegistryRecords).toHaveLength(16);
 		expect(mosfetRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(24 + 52 + 16 + 2 + 35 + 21 + 7 + 8);
+		expect(ujtRegistryRecords).toHaveLength(1);
+		expect(partRegistryData).toHaveLength(24 + 52 + 16 + 2 + 35 + 21 + 7 + 8 + 1);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

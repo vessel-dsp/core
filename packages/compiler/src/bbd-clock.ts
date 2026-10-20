@@ -26,7 +26,7 @@ import type {
 } from "./types";
 import { GROUND } from "./types";
 import type { PartRegistry } from "./registry";
-import { foldToken, registryEntryFor } from "./registry";
+import { foldToken, registryEntryFor, registryLawFor } from "./registry";
 
 export type ClockDriverFamily = "CD4047" | "MN3101" | "MN3102" | "unknown";
 
@@ -1170,6 +1170,15 @@ export function deriveBbdDelayFromNetlist(
 ): BbdClockDerivationOutcome {
 	const clockDev = findClockDriverDevice(netlist);
 	if (!clockDev) {
+		// A UJT relaxation oscillator through a divide-by-two into the brigade is a
+		// dedicated timing network with a printed formula of its own (section below),
+		// so it is tried before the generic gate-oscillator diagnosis. A mere divider
+		// spelling on the clock pins is not enough: without the UJT form this falls
+		// through to the gate branch, where the buffer transistor reads as steering.
+		const ujt = deriveUjtRelaxationClock(bbdDevice, netlist, stages, registry);
+		if (ujt.outcome === "derived" || ujt.outcome === "refused") {
+			return ujt;
+		}
 		// No dedicated CD4047/MN310x. Before reporting that nothing clocks this brigade -- which
 		// on two corpus packets is simply false -- look for a logic part on its clock pins.
 		const gate = findGateClockSource(bbdDevice, netlist);
@@ -1874,6 +1883,446 @@ export function deriveOpenOx2ClockLaw(
 		steeredBy: steerer.id,
 		rOhms,
 		cFarads,
+	};
+}
+/**
+ * Dual D-type flip-flop parts that divide a clock by two, by exact part id.
+ *
+ * A closed vocabulary matched as whole folded values, like `GATE_CLOCK_PART_IDS`
+ * above, but narrower: only the 4013 family divides, while the 14069/4011/4043
+ * members of that set oscillate or gate and must never reach the toggle check below.
+ * `scl4013a` is the Solid State Scientific spelling the corpus's UJT-clocked
+ * brigade declares; it rides the CD4013AE registry entry on core main, which this
+ * module never consults (it matches folded part ids, not aliases), so it is listed
+ * here literally.
+ */
+const UJT_DIVIDER_PART_IDS: ReadonlySet<string> = new Set([
+	"cd4013",
+	"cd4013a",
+	"cd4013ae",
+	"cd4013b",
+	"cd4013be",
+	"hef4013",
+	"hcf4013",
+	"mc14013",
+	"mc14013b",
+	"scl4013a",
+]);
+
+/** The source's own closed type for a unijunction transistor, folded for comparison. */
+const UJT_DECLARED_TYPE = "circuit.unijunctiontransistor";
+
+/**
+ * Derive a BBD delay from a UJT relaxation-oscillator clock network through a
+ * divide-by-two flip-flop.
+ *
+ * The recognised form, every condition a whole-value comparison on typed fields
+ * plus connectivity (no names, no prose, no patterns):
+ *
+ * - one `kind: bjt` device whose declared type is `Circuit.UnijunctionTransistor`
+ *   and whose part resolves to a `ujt` registry law (the eta the formula reads);
+ *   its `emitter`/`base1`/`base2` terminal roles must each resolve to exactly one
+ *   node, with base1 on ground;
+ * - the emitter charges from a supply rail through one or more two-terminal
+ *   resistors, optionally plus one switch-selected branch: a three-terminal
+ *   `kind: switch` with declared `common`/`throw`/`throw` roles whose common joins
+ *   the switched resistor, one throw sits on the rail and the other does not;
+ * - exactly one timing capacitor (under 1 uF, the MN310x bound) from the emitter
+ *   to a node that is AC ground: tied to ground through resistors totalling at
+ *   most 1% of the smallest charging resistance (the corpus form returns through
+ *   68 ohms against 25 kohm), with nothing on it but the timing capacitor,
+ *   ground-return resistors and capacitors;
+ * - a 4013-family divider (`UJT_DIVIDER_PART_IDS`) with one half toggle-wired
+ *   (`data` and `not-q` on one node) and that half's `q`/`not-q` on the BBD's own
+ *   clock nodes;
+ * - exactly one buffer transistor: a `bjt` (not itself a UJT) with its collector
+ *   on the divider's clock node, its emitter on the rail, its base coupled to the
+ *   timing capacitor's far end through exactly one capacitor, and no other active
+ *   device on the clock or base nodes (resistor biasing is allowed).
+ *
+ * The frequency is the ideal relaxation law f = 1/(R*C*ln(1/(1-eta))) with the
+ * netlist's R and C and the registry's eta; the divider halves it, so the BBD sees
+ * f/2 and delay = stages/f_UJT. The ideal law charges 0 to Vp rather than valley
+ * to Vp (VF is printed, the valley voltage is graph-only), which overstates the
+ * period by about 6% -- second order against the printed eta spread, and stated
+ * rather than corrected. A switch with a control sweeps both positions through
+ * `clockControl` (min/max resistances, the control's own taper, nominal at the
+ * default position); a switch without one, or no switch at all, derives the
+ * single selected resistance statically. Anything else about the form -- a second
+ * UJT, an unregistered UJT part, an eta outside (0, 1), an unknown charging
+ * branch, a missing or miswired divider, buffer or timing capacitor -- is
+ * `no-clock-driver`, and the caller falls through to the gate diagnosis.
+ */
+export function deriveUjtRelaxationClock(
+	bbdDevice: Device,
+	netlist: Netlist,
+	stages: number,
+	registry: PartRegistry,
+): BbdClockDerivationOutcome {
+	const clockNodes = bbdClockNodes(bbdDevice);
+	if (clockNodes.size === 0) {
+		return { outcome: "no-clock-driver" };
+	}
+	const ujts = netlist.devices.filter(
+		(device) =>
+			device.kind === "bjt" &&
+			foldToken(device.identity.declaredType ?? "") === UJT_DECLARED_TYPE,
+	);
+	if (ujts.length !== 1) {
+		return { outcome: "no-clock-driver" };
+	}
+	const ujt = ujts[0]!;
+	const emitter = terminalNodeByRole(ujt, "emitter");
+	const base1 = terminalNodeByRole(ujt, "base1");
+	const base2 = terminalNodeByRole(ujt, "base2");
+	if (
+		emitter === null ||
+		base1 === null ||
+		base2 === null ||
+		emitter === base1 ||
+		emitter === base2 ||
+		base1 === base2
+	) {
+		return { outcome: "no-clock-driver" };
+	}
+	if (base1 !== GROUND) {
+		return { outcome: "no-clock-driver" };
+	}
+	const ujtLaw = registryLawFor(registry, ujt.identity.partNumber, "ujt");
+	if (ujtLaw === null || ujtLaw.kind !== "ujt") {
+		return { outcome: "no-clock-driver" };
+	}
+	const eta = ujtLaw.intrinsicStandoffRatio;
+	if (!(eta > 0) || !(eta < 1) || !Number.isFinite(eta)) {
+		return {
+			outcome: "refused",
+			reason:
+				`${ujt.id} (${ujt.identity.partNumber ?? "unmarked UJT"}) states ` +
+				`intrinsicStandoffRatio ${eta}, outside (0, 1), so ln(1/(1-eta)) is not a frequency`,
+		};
+	}
+
+	// The rail is whatever a supply-kind device asserts: kinds, never names.
+	const railNodes = new Set<NodeId>();
+	for (const device of netlist.devices) {
+		if (device.kind !== "voltage-source" && device.kind !== "rail") {
+			continue;
+		}
+		for (const node of device.nodes) {
+			if (node !== GROUND) {
+				railNodes.add(node);
+			}
+		}
+	}
+
+	// Charging branches: two-terminal resistors with exactly one end on the emitter.
+	const charging = netlist.devices.filter(
+		(device) =>
+			device.kind === "resistor" &&
+			device.nodes.length === 2 &&
+			(device.nodes[0] === emitter) !== (device.nodes[1] === emitter) &&
+			(device.parameters.ohms ?? 0) > 0,
+	);
+	if (charging.length === 0) {
+		return { outcome: "no-clock-driver" };
+	}
+	const farEnd = (device: Device): NodeId =>
+		(device.nodes[0] === emitter ? device.nodes[1] : device.nodes[0]) as NodeId;
+
+	// Selector candidates: three-terminal switches with exactly one `common` and
+	// two `throw`s by declared role. The footswitch and every other unrelated
+	// switch in the document matches that shape, so the one that counts is the
+	// switch whose common joins a charging branch -- throws in node order (the
+	// same order `switchPoles` and both selector evaluations use: position p
+	// shorts the common to throws[p]).
+	const candidates = netlist.devices.filter((device) => {
+		if (device.kind !== "switch" || device.nodes.length !== 3) {
+			return false;
+		}
+		const declared = device.identity.declaredTerminalRoles;
+		return (
+			declared.length === 3 &&
+			declared.filter((role) => role === "common").length === 1 &&
+			declared.filter((role) => role === "throw").length === 2
+		);
+	});
+	const chargingFarEnds = new Set<NodeId>(
+		charging.map((device) =>
+			(device.nodes[0] === emitter ? device.nodes[1] : device.nodes[0]) as NodeId,
+		),
+	);
+	const linked = candidates.filter((device) => {
+		const commonIndex = device.identity.declaredTerminalRoles.findIndex(
+			(role) => role === "common",
+		);
+		return chargingFarEnds.has(device.nodes[commonIndex] as NodeId);
+	});
+	if (linked.length > 1) {
+		return { outcome: "no-clock-driver" };
+	}
+	const selector = linked[0] ?? null;
+	let commonNode: NodeId | null = null;
+	let throwNodes: readonly NodeId[] = [];
+	if (selector !== null) {
+		const declared = selector.identity.declaredTerminalRoles;
+		const commonIndex = declared.findIndex((role) => role === "common");
+		commonNode = selector.nodes[commonIndex] as NodeId;
+		throwNodes = selector.nodes.filter((_, index) => index !== commonIndex);
+		if (nodeDegree(netlist, commonNode) !== 2) {
+			return { outcome: "no-clock-driver" };
+		}
+	}
+
+	const fixed = charging.filter((device) => railNodes.has(farEnd(device)));
+	const switched = charging.filter(
+		(device) => commonNode !== null && farEnd(device) === commonNode,
+	);
+	const unknown = charging.filter(
+		(device) => !fixed.includes(device) && !switched.includes(device),
+	);
+	if (fixed.length === 0 || unknown.length > 0) {
+		return { outcome: "no-clock-driver" };
+	}
+	if (switched.length > 1) {
+		return { outcome: "no-clock-driver" };
+	}
+	let railThrow: NodeId | null = null;
+	if (selector !== null) {
+		if (switched.length !== 1) {
+			return { outcome: "no-clock-driver" };
+		}
+		const onRail = throwNodes.filter((node) => railNodes.has(node));
+		const offRail = throwNodes.filter((node) => !railNodes.has(node));
+		// Exactly one throw on the rail and the other elsewhere: a selector that
+		// chooses between two feeds is a different circuit.
+		if (onRail.length !== 1 || offRail.length !== 1) {
+			return { outcome: "no-clock-driver" };
+		}
+		if (offRail[0] === emitter || offRail[0] === (commonNode as NodeId)) {
+			return { outcome: "no-clock-driver" };
+		}
+		railThrow = onRail[0] as NodeId;
+	}
+
+	const conductance = (devices: readonly Device[]): number =>
+		devices.reduce((sum, device) => sum + 1 / (device.parameters.ohms ?? 0), 0);
+	const fixedConductance = conductance(fixed);
+	const switchedConductance = conductance(switched);
+	const resistanceAt = (position: number): number => {
+		const selected = throwNodes[position] as NodeId | undefined;
+		const extra = selected !== undefined && selected === railThrow ? switchedConductance : 0;
+		return 1 / (fixedConductance + extra);
+	};
+
+	// The timing capacitor: exactly one sub-microfarad capacitor off the emitter.
+	const timingCaps = netlist.devices.filter(
+		(device) =>
+			device.kind === "capacitor" &&
+			device.nodes.length === 2 &&
+			(device.nodes[0] === emitter) !== (device.nodes[1] === emitter) &&
+			(device.parameters.farads ?? 0) > 0 &&
+			(device.parameters.farads ?? 0) < 1e-6,
+	);
+	if (timingCaps.length !== 1) {
+		return { outcome: "no-clock-driver" };
+	}
+	const cFarads = timingCaps[0]!.parameters.farads ?? 0;
+	const capFar = farEnd(timingCaps[0]!);
+	if (capFar === GROUND || capFar === emitter) {
+		// A grounded timing capacitor takes its output off B1 instead: a second
+		// form, not implemented. (The corpus form returns through 68 ohms.)
+		return { outcome: "no-clock-driver" };
+	}
+	// AC ground: the far end returns to ground through resistors totalling at most
+	// 1% of the smallest charging resistance, and carries nothing but the timing
+	// capacitor, those returns and capacitors. The 1% is the negligibility bound:
+	// the charge current divides between R_charge and the return, so the rate
+	// error from ignoring the return is under a percent by construction.
+	const returnConductance = netlist.devices
+		.filter(
+			(device) =>
+				device.kind === "resistor" && isTwoTerminalBetween(device, capFar, GROUND),
+		)
+		.reduce((sum, device) => sum + 1 / (device.parameters.ohms ?? 0), 0);
+	const resistances = throwNodes.length > 0
+		? throwNodes.map((_, index) => resistanceAt(index))
+		: [1 / fixedConductance];
+	const minResistance = Math.min(...resistances);
+	const returnOhms = returnConductance > 0 ? 1 / returnConductance : Infinity;
+	if (!(returnOhms <= 0.01 * minResistance)) {
+		return { outcome: "no-clock-driver" };
+	}
+	const strangers = netlist.devices.filter(
+		(device) =>
+			device !== timingCaps[0]! &&
+			device.nodes.includes(capFar) &&
+			!(
+				device.kind === "resistor" ||
+				device.kind === "capacitor"
+			),
+	);
+	if (strangers.length > 0) {
+		return { outcome: "no-clock-driver" };
+	}
+
+	// The divider: a 4013-family part with one half toggle-wired onto the BBD clocks.
+	let dividerClock: NodeId | null = null;
+	for (const divider of netlist.devices) {
+		if (
+			divider.kind !== "ic" ||
+			!UJT_DIVIDER_PART_IDS.has(foldToken(divider.identity.partNumber ?? ""))
+		) {
+			continue;
+		}
+		for (const half of [1, 2]) {
+			const clock = terminalNodeByRole(divider, `clock${half}`);
+			const data = terminalNodeByRole(divider, `data${half}`);
+			const notQ = terminalNodeByRole(divider, `notq${half}`);
+			const q = terminalNodeByRole(divider, `q${half}`);
+			if (clock === null || data === null || notQ === null || q === null) {
+				continue;
+			}
+			if (clock === GROUND || data === GROUND) {
+				continue;
+			}
+			// Toggle wiring: D driven by its own half's not-Q.
+			if (data !== notQ) {
+				continue;
+			}
+			if (q === notQ || clock === q || clock === notQ) {
+				continue;
+			}
+			if (!clockNodes.has(q) || !clockNodes.has(notQ)) {
+				continue;
+			}
+			dividerClock = clock;
+			break;
+		}
+		if (dividerClock !== null) {
+			break;
+		}
+	}
+	if (dividerClock === null) {
+		return { outcome: "no-clock-driver" };
+	}
+	const clockNode: NodeId = dividerClock;
+
+	// The buffer: exactly one transistor with its collector on the divider clock,
+	// its emitter on the rail and its base coupled from the timing node. Resistor
+	// biasing on either node is allowed; anything active is a different circuit.
+	const buffers = netlist.devices.filter(
+		(device) =>
+			device.kind === "bjt" &&
+			device !== ujt &&
+			foldToken(device.identity.declaredType ?? "") !== UJT_DECLARED_TYPE &&
+			terminalNodeByRole(device, "collector") === clockNode,
+	);
+	if (buffers.length !== 1) {
+		return { outcome: "no-clock-driver" };
+	}
+	const buffer = buffers[0]!;
+	const bufferEmitter = terminalNodeByRole(buffer, "emitter");
+	const bufferBase = terminalNodeByRole(buffer, "base");
+	if (bufferEmitter === null || !railNodes.has(bufferEmitter)) {
+		return { outcome: "no-clock-driver" };
+	}
+	if (bufferBase === null || bufferBase === GROUND) {
+		return { outcome: "no-clock-driver" };
+	}
+	const coupling = netlist.devices.filter(
+		(device) =>
+			device.kind === "capacitor" && isTwoTerminalBetween(device, capFar, bufferBase),
+	);
+	if (coupling.length !== 1) {
+		return { outcome: "no-clock-driver" };
+	}
+	const activeOnClock = netlist.devices.filter(
+		(device) =>
+			device !== buffer &&
+			ACTIVE_TIMING_KINDS.has(device.kind) &&
+			device.nodes.includes(clockNode),
+	);
+	const activeOnBase = netlist.devices.filter(
+		(device) =>
+			device !== buffer &&
+			ACTIVE_TIMING_KINDS.has(device.kind) &&
+			device.nodes.includes(bufferBase),
+	);
+	if (activeOnClock.length > 0 || activeOnBase.length > 0) {
+		return { outcome: "no-clock-driver" };
+	}
+
+	const formulaConstant = Math.log(1 / (1 - eta));
+	if (!Number.isFinite(formulaConstant) || formulaConstant <= 0) {
+		return { outcome: "no-clock-driver" };
+	}
+	let controlId: ControlId | null = null;
+	let taper: TaperKind = "linear";
+	let ohmsAtControlMin = resistances[0] as number;
+	let ohmsAtControlMax = resistances[0] as number;
+	let rOhms = resistances[0] as number;
+	// `ohmsAtControlMin/Max` are position-indexed, not sorted: the resistance with
+	// the control at its minimum (position 0, first throw) and at its maximum.
+	// The runtime lerps between them by control position, so a selector whose open
+	// position is the larger resistance keeps Min > Max and still evaluates both
+	// positions exactly. Buffer sizing takes the larger of the two.
+	if (selector !== null) {
+		const control = selector.control !== null
+			? netlist.controls.find((entry) => entry.id === selector.control)
+			: undefined;
+		if (control !== undefined) {
+			controlId = control.id;
+			taper = control.taper;
+			ohmsAtControlMin = resistances[0] as number;
+			ohmsAtControlMax = resistances[throwNodes.length - 1] as number;
+			const position = Math.min(1, Math.max(0, control.defaultPosition));
+			const selected = Math.min(
+				throwNodes.length - 1,
+				Math.max(0, Math.floor(position * throwNodes.length)),
+			);
+			rOhms = resistanceAt(selected);
+		} else {
+			// A fixed selector states one position: derive it statically. Same
+			// position rule as `lower.ts` (`parameters.position ?? 1`).
+			const selected = Math.min(
+				throwNodes.length - 1,
+				Math.max(
+					0,
+					Math.floor((selector.parameters.position ?? 1) * throwNodes.length),
+				),
+			);
+			rOhms = resistanceAt(selected);
+			ohmsAtControlMin = rOhms;
+			ohmsAtControlMax = rOhms;
+		}
+	}
+	if (!(rOhms > 0) || !Number.isFinite(rOhms) || !(cFarads > 0)) {
+		return { outcome: "no-clock-driver" };
+	}
+	const fUjtHz = 1 / (rOhms * cFarads * formulaConstant);
+	const fClockHz = fUjtHz / 2;
+	const implausible = implausibleClock(fClockHz, stages);
+	if (implausible !== null) {
+		return { outcome: "refused", reason: implausible };
+	}
+	const delaySeconds = stages / fUjtHz;
+	if (!Number.isFinite(delaySeconds) || !(delaySeconds > 0)) {
+		return { outcome: "no-clock-driver" };
+	}
+	return {
+		outcome: "derived",
+		delaySeconds,
+		rOhms,
+		cFarads,
+		fClockHz,
+		family: "unknown",
+		stages,
+		formulaConstant,
+		offsetSeconds: 0,
+		controlId,
+		taper,
+		ohmsAtControlMin,
+		ohmsAtControlMax,
 	};
 }
 /**
