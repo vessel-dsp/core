@@ -45,6 +45,7 @@ import { findUnverifiedPinoutBindings } from "./unverified-pinout";
 import { findGenericTubeFits } from "./generic-tube-fit";
 import { findGroundedClockSupplies } from "./grounded-clock-supply";
 import { findNonExecutableClockDrivers } from "./non-executable-clock-drivers";
+import { parseLedIndicatorColour } from "@vessel-dsp/core";
 import { GROUND } from "./types";
 import type {
 	BjtLawDefaultWarning,
@@ -57,6 +58,7 @@ import type {
 	DeviceLaw,
 	FetLawDefaultWarning,
 	LawedNetlist,
+	LedColourUnmatchedWarning,
 	ModulationNotModelledWarning,
 	Netlist,
 	NodeId,
@@ -240,6 +242,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findRegistryProvisionalValues(netlist, lawed, options.registry ?? emptyRegistry),
+		...findLedColourUnmatched(netlist, lawed),
 		...findRegistryOverrideApplied(netlist, lawed, options.registry ?? emptyRegistry),
 		...findOpampLawDefaults(lawed),
 		...findOpampGainBandwidthDefaults(lawed),
@@ -622,6 +625,43 @@ function findRegistryOverrideApplied(
 	}
 	return out;
 }
+/**
+ * Devices whose stated `Color` is outside the closed colour vocabulary. See
+ * `LedColourUnmatchedWarning`. One warning per device, naming the device and quoting
+ * the value verbatim: the device keeps the LED class defaults, and the spelling stays
+ * the packet's problem to fix. Scoped like the provisional-value notice -- a device
+ * whose resolution is not a law took no default and is not listed.
+ */
+function findLedColourUnmatched(
+	netlist: Netlist,
+	lawed: LawedNetlist,
+): readonly LedColourUnmatchedWarning[] {
+	const lawedByBase = new Set(
+		lawed.resolutions
+			.filter((resolution) => resolution.outcome === "law")
+			.map((resolution) => resolution.device.replace(/#\d+$/, "")),
+	);
+	const out: LedColourUnmatchedWarning[] = [];
+	for (const device of netlist.devices) {
+		if (device.isLed !== true) continue;
+		const stated = device.ledColour;
+		if (stated === undefined || stated === null) continue;
+		if (parseLedIndicatorColour(stated) !== undefined) continue;
+		if (!lawedByBase.has(device.id)) continue;
+		out.push({
+			code: "led-colour-unmatched" as const,
+			device: device.id,
+			value: stated,
+			detail:
+				`${device.id} states Color "${stated}", which is outside the closed LED ` +
+				`colour vocabulary (red, yellow, green, blue, white, compared whole and ` +
+				`case-sensitively). The device keeps the LED class defaults; no colour ` +
+				`law is keyed, nothing is normalised or inferred.`,
+		});
+	}
+	return out;
+}
+
 /**
  * Devices whose law runs on at least one provisional `community` registry value.
  * See `RegistryProvisionalValueWarning`. One warning per device, naming the device,

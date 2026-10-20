@@ -222,6 +222,15 @@ export type Device = {
 	readonly identity: DeviceIdentity;
 	readonly isLed?: boolean;
 	/**
+	 * The component's stated `Color` property verbatim, on a `kind: led` device only,
+	 * or null where none is stated. Carried raw and validated where it is used
+	 * (`device-laws.ts` diode case): a closed-vocabulary word keys the measured
+	 * colour-default law, anything else keeps the class defaults and is named by the
+	 * `led-colour-unmatched` diagnostic. Never read for any other device kind, never
+	 * normalised, never inferred.
+	 */
+	readonly ledColour?: string | null;
+	/**
 	 * This device's explicit parameter override, as the source declared it under
 	 * `properties.DeviceOverride`, or absent where it declares none. Validated at
 	 * read time (unknown names, bad provenance and `custom` rule violations refuse
@@ -3245,6 +3254,21 @@ export type LegacyDeviceParameterWarning = {
 };
 
 /**
+ * A `kind: led` device whose stated `Color` is outside the closed colour vocabulary
+ * (`red`, `yellow`, `green`, `blue`, `white`, compared whole and case-sensitively).
+ * The device keeps the LED class defaults; no colour law is keyed, nothing is
+ * normalised or inferred, and the spelling stays the packet's problem to fix. One
+ * warning per device, naming the device and quoting the value verbatim.
+ */
+export type LedColourUnmatchedWarning = {
+	readonly code: "led-colour-unmatched";
+	readonly device: DeviceId;
+	/** The stated `Color` value verbatim, as authored (quotes and case included). */
+	readonly value: string;
+	readonly detail: string;
+};
+
+/**
  * One applied explicit parameter override: the device's values that came from its
  * `DeviceOverride` block rather than the registry or a class default. One notice per device,
  * so a player can show "measured by ... on ..." beside the part.
@@ -3623,6 +3647,7 @@ export type CompileWarning =
 	| BjtLawDefaultWarning
 	| RegistryProvisionalValueWarning
 	| LegacyDeviceParameterWarning
+	| LedColourUnmatchedWarning
 	| RegistryOverrideAppliedWarning
 	| OpampLawDefaultWarning
 	| OpampGainBandwidthDefaultWarning

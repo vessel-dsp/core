@@ -35,9 +35,10 @@
 // pair), BAT85 (Nexperia model) and BAT85S (community, same card): 18 rows, one
 // measured (1N4148), two community (1N34A, BAT85S). No datasheet-derived diode pair
 // exists (form 4 needs two printed typical points and never met).
-// LED colour-default records (3 rows: red keyed "RED LED"/"5mm red LED"/"LED-RED",
-// green keyed "LED-GREEN", blue keyed "3mm blue"; all measured 2026-10-20; white and
-// yellow unkeyable without a typed colour fact, values in HANDOFF-core.md).
+// LED colour-default records (5 rows: red keyed "RED LED"/"5mm red LED"/"LED-RED",
+// green keyed "LED-GREEN", blue/white/yellow reached via typed `Color` and carrying
+// the colour word as their registry id; IS and n measured 2026-10-20, VT derived,
+// two-point Rs derived).
 // Everything else -- IC macros, `sections` entries, open-loop gains, tube laws, the
 // class-default fallbacks -- stays in `part-catalog.ts` / `device-laws.ts` code.
 // 
@@ -79,7 +80,7 @@ export {
 } from "./loader";
 export { bjtRegistryRecords } from "./bjt";
 export { diodeRegistryRecords } from "./diode";
-export { ledRegistryRecords } from "./led";
+export { LED_COLOUR_RECORD_ID, ledRegistryRecords, type LedColour } from "./led";
 export { mosfetRegistryRecords } from "./mosfet";
 export {
 	defineOpampRecords,

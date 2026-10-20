@@ -18,6 +18,7 @@ import {
 	findPartData,
 	findPartRegistryData,
 	jfetRegistryRecords,
+	LED_COLOUR_RECORD_ID,
 	ledRegistryRecords,
 	mosfetRegistryRecords,
 	opampGainBandwidthAbsent,
@@ -45,6 +46,7 @@ import {
 import {
 	emptyRegistry,
 	registryEntryFor,
+	registryLawFor,
 	registryOpampSwing,
 	type PartRegistry,
 } from "../src/registry";
@@ -744,9 +746,9 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 
 	it("the shipped LED colour defaults key whole packet spellings, measured, led-lit", () => {
 		// Only IS and n are bench measurements. thermalVoltage is the VT the fit was
-		// referred to (derived engine constant); red's Rs is the 2.0 ohm class default
-		// fixed for the two-point fit (derived assumption). Blue and green Rs are
-		// fitted (measured).
+		// referred to (derived engine constant); red and yellow Rs are the 2.0 ohm
+		// class default fixed for the two-point fit (derived assumption). Blue, green
+		// and white Rs are fitted (measured).
 		const colours: ReadonlyArray<{
 			ids: readonly string[];
 			is: number;
@@ -756,7 +758,9 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 		}> = [
 			{ ids: ["RED LED", "5mm red LED", "LED-RED"], is: 1.1110898624e-14, n: 2.7587062, rs: 2, rsBasis: "derived" },
 			{ ids: ["LED-GREEN"], is: 5.275788e-17, n: 3.02001, rs: 29.7599, rsBasis: "measured" },
-			{ ids: ["3mm blue"], is: 8.668086e-34, n: 1.42282, rs: 22.229, rsBasis: "measured" },
+			{ ids: ["blue"], is: 8.668086e-34, n: 1.42282, rs: 22.229, rsBasis: "measured" },
+			{ ids: ["white"], is: 4.056687e-26, n: 1.98811, rs: 22.5033, rsBasis: "measured" },
+			{ ids: ["yellow"], is: 2.1187081810e-25, n: 1.4664285, rs: 2, rsBasis: "derived" },
 		];
 		for (const { ids, is, n, rs, rsBasis } of colours) {
 			for (const id of ids) {
@@ -795,13 +799,28 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 				expect(found.provisionalParams).toBeUndefined();
 			}
 		}
+		// The colour map keys each vocabulary colour to its record's canonical id.
+		expect(LED_COLOUR_RECORD_ID).toEqual({
+			red: "RED LED",
+			yellow: "yellow",
+			green: "LED-GREEN",
+			blue: "blue",
+			white: "white",
+		});
+		for (const [colour, id] of Object.entries(LED_COLOUR_RECORD_ID)) {
+			expect(findPartRegistryData(id)?.class).toBe("led");
+			expect(
+				registryLawFor(pedalPartCatalog, id, "diode")?.kind,
+				`${colour} colour id resolves no diode law`,
+			).toBe("diode");
+		}
 		// No assumed value keeps a measured label.
 		for (const record of ledRegistryRecords) {
 			for (const [name, param] of Object.entries(record.params)) {
 				if (param.basis === "measured") {
 					expect(["saturationCurrent", "emissionCoefficient", "seriesResistance"]).toContain(name);
 				}
-				if (name === "thermalVoltage" || (name === "seriesResistance" && param.value === 2.0 && record.partIds.includes("RED LED"))) {
+				if (name === "thermalVoltage") {
 					expect(param.basis).toBe("derived");
 				}
 			}
@@ -811,11 +830,14 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 	it("leaves bare LED and manufacturer LED part numbers on the class defaults", () => {
 		// Neither the data registry nor the diode lookup may claim a colour they cannot
 		// name: bare "LED" is colourless, SLP-135B is a real part the bench kit cannot
-		// speak for, and no packet spells white or yellow.
+		// speak for, and no packet spells white or yellow in a part id (those records
+		// carry the colour word as their id and are reached only via typed Color).
 		expect(findPartRegistryData("LED")).toBeNull();
 		expect(findPartRegistryData("SLP-135B")).toBeNull();
 		expect(findPartRegistryData("3mm white")).toBeNull();
-		expect(findPartRegistryData("yellow")).toBeNull();
+		for (const id of ["blue", "white", "yellow"]) {
+			expect(findPartRegistryData(id)?.class).toBe("led");
+		}
 	});
 });
 
@@ -844,8 +866,9 @@ describe("wave-4 fill inventory", () => {
 		// P2N2222A/A1015GR/MPS4124/BC546A/BC548A/BC548B/BC184C BF with or without IS,
 		// 2N6428/2N6429 IS+BF, 2SC732 unbinned IS+BF, ZTX618 IS-only via manufacturer
 		// model) and 4 JFET rows (2SK209-GR, 2SK208-R/Y, 2SK3557).
-		// LED work: the 1N4148 community record replaced by the owner's measured pair, and
-		// three measured LED colour rows (red, green, blue) keyed by whole packet spellings.
+		// LED work: the 1N4148 community record replaced by the owner's measured pair;
+		// five measured LED colour rows (red and green by packet spelling, blue, white and
+		// yellow by typed Color), Item 2's custom-LED full quad, and Item 1's derived VT/Rs.
 		expect(opampRegistryRecords).toHaveLength(24);
 		expect(zenerRegistryRecords).toHaveLength(35);
 		expect(jfetRegistryRecords).toHaveLength(21);
@@ -853,10 +876,10 @@ describe("wave-4 fill inventory", () => {
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(52);
 		expect(diodeRegistryRecords).toHaveLength(18);
-		expect(ledRegistryRecords).toHaveLength(3);
+		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1 + 3);
+		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1 + 5);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
