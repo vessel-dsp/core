@@ -3992,22 +3992,12 @@ const entries: readonly PartEntry[] = [
 	},
 
 // --- CMOS Dual D-Type Flip-Flops (CD4013, CD4013BE, uPD4013C) - Active frequency divider modeling! --------------------------
-//
-// SCL4013A rides this entry: `electro-harmonix-slapback-echo`'s IC3 carries that number,
-// and the sheet's 14-pin package and pin legend match the 4013 (unused second-half
-// outputs on pins 12/13, +V on 14, ground on 7), not the 16-pin 4043 the packet
-// transcribed -- the SCL prefix is the Solid State Scientific CMOS family whose SCL4043
-// entries already sit in this file. Same divider law; whether a document's bare
-// `pin1..pin14` naming binds to this entry's pinout is a separate question the entry's
-// positional matching answers (see the slapback verification report: it does not, and
-// that is reported there rather than worked around here).
 	{
 		"partIds": [
 			"CD4013",
 			"CD4013BE",
 			"uPD4013C",
-			"CD4013B",
-			"SCL4013A"
+			"CD4013B"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [],
