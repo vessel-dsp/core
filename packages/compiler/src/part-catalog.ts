@@ -61,6 +61,7 @@ import {
 	diodeRegistryRecords,
 	findPartRegistryData,
 	jfetRegistryRecords,
+	ledRegistryRecords,
 	mosfetRegistryRecords,
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
@@ -288,6 +289,53 @@ export function diodeLawEntry(record: PartDataEntry): PartEntry {
 				breakdownVolts: citedValueOf(record, "breakdownVolts") ?? 0,
 				seriesResistance: citedValueOf(record, "seriesResistance") ?? 1.0,
 				isLed: false,
+			},
+		},
+	};
+}
+
+/**
+ * An LED colour-default record's law entry. Requires the forward pair together, like
+ * `diodeLawEntry`: the only admitted LED derivation (four fitted (I, Vf) points, or two
+ * with Rs fixed) yields IS and n as one working, so a lone IS without n is a broken
+ * derivation and throws rather than shipping half a knee. Gap-fills are the LED class
+ * defaults the unregistered path stamps (`device-laws.ts` diode case with `isLed`):
+ * thermalVoltage 0.05, seriesResistance 2.0 -- every shipped LED record states both
+ * explicitly (the fits were referred to VT 0.025852 V with fitted Rs), so the gap-fill
+ * only fires for a future sparse record, and the sparse-record test pins it to the live
+ * class defaults. breakdownVolts 0 keeps the no-knee reading; isLed true marks the law.
+ */
+export function ledLawEntry(record: PartDataEntry): PartEntry {
+	if (record.class !== "led") {
+		throw new Error(
+			`${record.partIds.join(",")}: a led entry needs class "led", not "${record.class}"`,
+		);
+	}
+	const saturationCurrent = citedValueOf(record, "saturationCurrent");
+	const emissionCoefficient = citedValueOf(record, "emissionCoefficient");
+	if (saturationCurrent === undefined || emissionCoefficient === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: a led record states no forward pair ` +
+				`(saturationCurrent ${saturationCurrent === undefined ? "absent" : "present"}, ` +
+				`emissionCoefficient ${emissionCoefficient === undefined ? "absent" : "present"})`,
+		);
+	}
+	return {
+		partIds: entryIdsOf(record),
+		declaredTypes: [],
+		terminalRoleGroups: [],
+		...provisionalArmOf(record),
+		...citedArmOf(record),
+		model: {
+			kind: "law",
+			law: {
+				kind: "diode",
+				saturationCurrent,
+				emissionCoefficient,
+				thermalVoltage: citedValueOf(record, "thermalVoltage") ?? 0.05,
+				breakdownVolts: citedValueOf(record, "breakdownVolts") ?? 0,
+				seriesResistance: citedValueOf(record, "seriesResistance") ?? 2.0,
+				isLed: true,
 			},
 		},
 	};
@@ -5193,10 +5241,17 @@ const entries: readonly PartEntry[] = [
 	},
 
 // --- Light-Emitting Diodes / LED Indicators (SLP24B, SLP-24B, general LEDs) --------------------------------------------------
+// The `red-led` spelling this row carried is gone: the owner's measured red colour
+// default keys "RED LED" (same fold, "redled"), and one fold must resolve to one law.
+// This row never served the stamping path (`registryLawFor` only matches `law` models,
+// never `sections`), so nothing stamped changes for it; what it still serves is
+// `registryEntryFor` exact-part evidence queries (the custom-override guard, the
+// supply-amps reads) for LED, green-led, yellow-led and IndicatorLED. Bare "LED"
+// devices keep stamping the LED class defaults -- the colour is unknown, so no colour
+// record keys it.
 	{
 		"partIds": [
 			"LED",
-			"red-led",
 			"green-led",
 			"yellow-led",
 			"IndicatorLED"
@@ -8868,6 +8923,7 @@ const entries: readonly PartEntry[] = [
 	// and the stamp is byte-identical to the bespoke mapping this replaces.
 	...bjtRegistryRecords.map((record) => bjtLawEntry(record)),
 	...diodeRegistryRecords.map((record) => diodeLawEntry(record)),
+	...ledRegistryRecords.map((record) => ledLawEntry(record)),
 	...mosfetRegistryRecords.map((record) => fetLawEntry(record, "mosfet")),
 	...jfetRegistryRecords.map((record) => fetLawEntry(record, "jfet")),
 	...ujtRegistryRecords.map((record) => ujtLawEntry(record)),

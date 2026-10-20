@@ -32,9 +32,12 @@
 // Diode records are wave-3 manufacturer-model fills (12 rows: BAT41/46/43/48, 1N5817/5819,
 // B340A, 1N4001/4002/4004/4007, 1N914) plus wave-4 (community 1N34A, DEC-sheet
 // 1N60/1N60P, and the 1N4148 community record since replaced by the owner's measured
-// pair) plus BAT85 (Nexperia model) and BAT85S (community, same card): 18 rows, one
+// pair), BAT85 (Nexperia model) and BAT85S (community, same card): 18 rows, one
 // measured (1N4148), two community (1N34A, BAT85S). No datasheet-derived diode pair
 // exists (form 4 needs two printed typical points and never met).
+// LED colour-default records (3 rows: red keyed "RED LED"/"5mm red LED"/"LED-RED",
+// green keyed "LED-GREEN", blue keyed "3mm blue"; all measured 2026-10-20; white and
+// yellow unkeyable without a typed colour fact, values in HANDOFF-core.md).
 // Everything else -- IC macros, `sections` entries, open-loop gains, tube laws, the
 // class-default fallbacks -- stays in `part-catalog.ts` / `device-laws.ts` code.
 // 
@@ -46,6 +49,7 @@ import { assemblePartData, definePartData, findPartData } from "./loader";
 import type { PartDataEntry } from "./loader";
 import { bjtRegistryRecords } from "./bjt";
 import { diodeRegistryRecords } from "./diode";
+import { ledRegistryRecords } from "./led";
 import { mosfetRegistryRecords } from "./mosfet";
 import { opampRegistryRecords } from "./opamp";
 import { zenerRegistryRecords } from "./zener";
@@ -75,6 +79,7 @@ export {
 } from "./loader";
 export { bjtRegistryRecords } from "./bjt";
 export { diodeRegistryRecords } from "./diode";
+export { ledRegistryRecords } from "./led";
 export { mosfetRegistryRecords } from "./mosfet";
 export {
 	defineOpampRecords,
@@ -123,6 +128,7 @@ export const partRegistryData: readonly PartDataEntry[] = assemblePartData([
 	opampAsEntries,
 	bjtRegistryRecords,
 	diodeRegistryRecords,
+	ledRegistryRecords,
 	mosfetRegistryRecords,
 	zenerRegistryRecords,
 	jfetRegistryRecords,

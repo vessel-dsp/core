@@ -11,7 +11,10 @@
 //   law's numeric fields (`gateSaturationCurrent: 0` is the MOSFET's insulated gate).
 // - `diode` / `zener` / `led`: all three lower to the `diode` law; a zener adds a reverse
 //   knee (`breakdownVolts`), an LED adds `isLed`, and a Schottky is a diode with a low
-//   forward knee -- all fit these five numeric names.
+//   forward knee -- all fit these five numeric names. Silicon records omit
+//   `thermalVoltage` (the engine constant 0.025852 V, not a per-part figure); LED records
+//   state it explicitly, because the LED class default is 0.05 V and each LED fit was
+//   referred to 0.025852 V.
 // - `opamp`: the `ideal-opamp` law's numeric part facts. `openLoopGain` is listed because it
 //   is a class parameter (stage 2 must allow overriding it) even though stage 1 keeps its
 //   values in `part-catalog.ts` code; `gainBandwidthHz` and the swing pair move to data now.
@@ -115,8 +118,9 @@ export function classParamNames(cls: PartClassName): readonly string[] {
  * - `jfet` / `mosfet`: thresholdVolts (pinch-off) and transconductance (gain). Geometry and
  *   gate refinements (channelLengthModulation, subthresholdVolts, gate terms) keep defaults.
  * - `diode` / `led`: saturationCurrent (knee position) and emissionCoefficient (knee slope).
- *   thermalVoltage is a constant, breakdownVolts 0 is an ordinary diode, seriesResistance
- *   keeps its default.
+ *   Silicon leaves thermalVoltage omitted (the engine constant), breakdownVolts 0 is an
+ *   ordinary diode, seriesResistance keeps its class default (1.0 ohm diode, 2.0 ohm LED).
+ *   An LED record states the VT its fit was referred to and its fitted Rs explicitly.
  * - `zener`: the diode pair plus breakdownVolts -- the breakdown IS the part, and without it
  *   the law stamps an ordinary diode.
  * - `opamp`: openLoopGain and gainBandwidthHz. The swing pair is deliberately absent: per the

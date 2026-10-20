@@ -18,6 +18,7 @@ import {
 	findPartData,
 	findPartRegistryData,
 	jfetRegistryRecords,
+	ledRegistryRecords,
 	mosfetRegistryRecords,
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
@@ -740,6 +741,60 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 		// The measured record names no provisional value.
 		expect(found.provisionalParams).toBeUndefined();
 	});
+
+	it("the shipped LED colour defaults key whole packet spellings, measured, led-lit", () => {
+		const colours: ReadonlyArray<{
+			ids: readonly string[];
+			is: number;
+			n: number;
+			rs: number;
+		}> = [
+			{ ids: ["RED LED", "5mm red LED", "LED-RED"], is: 1.1110898624e-14, n: 2.7587062, rs: 2 },
+			{ ids: ["LED-GREEN"], is: 5.275788e-17, n: 3.02001, rs: 29.7599 },
+			{ ids: ["3mm blue"], is: 8.668086e-34, n: 1.42282, rs: 22.229 },
+		];
+		for (const { ids, is, n, rs } of colours) {
+			for (const id of ids) {
+				const record = findPartRegistryData(id);
+				expect(record?.class).toBe("led");
+				expect(record?.params["saturationCurrent"]).toEqual(
+					expect.objectContaining({ value: is, basis: "measured" }),
+				);
+				expect(record?.params["emissionCoefficient"]).toEqual(
+					expect.objectContaining({ value: n, basis: "measured" }),
+				);
+				expect(record?.params["thermalVoltage"]).toEqual(
+					expect.objectContaining({ value: 0.025852, basis: "measured" }),
+				);
+				expect(record?.params["seriesResistance"]).toEqual(
+					expect.objectContaining({ value: rs, basis: "measured" }),
+				);
+			}
+			// Every spelling of the colour resolves to one law entry stamping isLed.
+			for (const id of ids) {
+				const found = registryEntryFor(pedalPartCatalog, {
+					partId: id,
+					evidence: "exact-part",
+				});
+				if (found?.model.kind !== "law" || found.model.law.kind !== "diode") {
+					throw new Error(`${id}: no diode law entry`);
+				}
+				expect(found.model.law.saturationCurrent).toBe(is);
+				expect(found.model.law.isLed).toBe(true);
+				expect(found.provisionalParams).toBeUndefined();
+			}
+		}
+	});
+
+	it("leaves bare LED and manufacturer LED part numbers on the class defaults", () => {
+		// Neither the data registry nor the diode lookup may claim a colour they cannot
+		// name: bare "LED" is colourless, SLP-135B is a real part the bench kit cannot
+		// speak for, and no packet spells white or yellow.
+		expect(findPartRegistryData("LED")).toBeNull();
+		expect(findPartRegistryData("SLP-135B")).toBeNull();
+		expect(findPartRegistryData("3mm white")).toBeNull();
+		expect(findPartRegistryData("yellow")).toBeNull();
+	});
 });
 
 describe("wave-4 fill inventory", () => {
@@ -767,6 +822,8 @@ describe("wave-4 fill inventory", () => {
 		// P2N2222A/A1015GR/MPS4124/BC546A/BC548A/BC548B/BC184C BF with or without IS,
 		// 2N6428/2N6429 IS+BF, 2SC732 unbinned IS+BF, ZTX618 IS-only via manufacturer
 		// model) and 4 JFET rows (2SK209-GR, 2SK208-R/Y, 2SK3557).
+		// LED work: the 1N4148 community record replaced by the owner's measured pair, and
+		// three measured LED colour rows (red, green, blue) keyed by whole packet spellings.
 		expect(opampRegistryRecords).toHaveLength(24);
 		expect(zenerRegistryRecords).toHaveLength(35);
 		expect(jfetRegistryRecords).toHaveLength(21);
@@ -774,9 +831,10 @@ describe("wave-4 fill inventory", () => {
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(52);
 		expect(diodeRegistryRecords).toHaveLength(18);
+		expect(ledRegistryRecords).toHaveLength(3);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1);
+		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1 + 3);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
