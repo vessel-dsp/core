@@ -55,7 +55,9 @@ import {
 	withRecordedReads,
 } from "./registry";
 import type { FirmwareClass } from "./firmware-class";
+import { parseLedIndicatorColour } from "@vessel-dsp/core";
 import { GROUND } from "./types";
+import { LED_COLOUR_RECORD_ID } from "./registry-data/led";
 import type {
 	ComposedLineSweep,
 	Block,
@@ -2411,6 +2413,26 @@ const LAW_KIND_BY_DEVICE_KIND: Readonly<Record<string, string>> = {
 	optocoupler: "optocoupler",
 };
 
+/**
+ * A `kind: led` device's stated `Color` resolved to a registry diode law, or null.
+ * Null in every non-colour case: not an LED, no `Color` stated, the stated value
+ * outside the closed vocabulary (the caller keeps the class defaults and the
+ * `led-colour-unmatched` diagnostic names it), or the colour's record missing from
+ * this registry. A registry PartNumber law is consulted first and wins; this is the
+ * fallback, never an override.
+ */
+function registryLedColourLaw(
+	registry: PartRegistry,
+	device: Device,
+): DeviceLaw | null {
+	if (device.isLed !== true) return null;
+	const stated = device.ledColour;
+	if (stated === undefined || stated === null) return null;
+	const colour = parseLedIndicatorColour(stated);
+	if (colour === undefined) return null;
+	return registryLawFor(registry, LED_COLOUR_RECORD_ID[colour], "diode");
+}
+
 function packageDeviceParameters(
 	device: Device,
 	registry: PartRegistry,
@@ -2722,14 +2744,21 @@ function resolveDevice(
 				device.identity.partNumber,
 				"diode",
 			);
-			if (catalogued !== null) {
+			// A typed `Color` on a `kind: led` device keys the closed-vocabulary colour
+			// default, but only when no PartNumber law resolves: a registry law for the
+			// exact part always wins over colour, and the document's own typed parameters
+			// win over both (the merge below). Never inferred, never normalised.
+			const colourLaw =
+				catalogued === null ? registryLedColourLaw(registry, device) : null;
+			const base = catalogued ?? colourLaw;
+			if (base !== null) {
 				// Declared parameters win over the catalog, every one of them: the entries
 				// exist to fill absence, not to overrule a packet that states the value.
 				// A zener entry's forward parameters are avowed class defaults, so a source
 				// that types its own saturation current or series resistance keeps it, and
 				// a device the source declares as an LED stays one (`boss-ph-1r` declares
 				// 11 V where the registry's RD11EB3 row says 10.99, and keeps that too).
-				if (catalogued.kind === "diode") {
+				if (base.kind === "diode") {
 					const declared = device.parameters;
 					if (
 						declared.breakdownVolts !== undefined ||
@@ -2742,23 +2771,23 @@ function resolveDevice(
 							outcome: "law",
 							device: device.id,
 							law: {
-								...catalogued,
+								...base,
 								breakdownVolts:
-									declared.breakdownVolts ?? catalogued.breakdownVolts,
+									declared.breakdownVolts ?? base.breakdownVolts,
 								saturationCurrent:
-									declared.saturationCurrent ?? catalogued.saturationCurrent,
+									declared.saturationCurrent ?? base.saturationCurrent,
 								seriesResistance:
-									declared.seriesResistance ?? catalogued.seriesResistance,
+									declared.seriesResistance ?? base.seriesResistance,
 								emissionCoefficient:
-									declared.emissionCoefficient ?? catalogued.emissionCoefficient,
+									declared.emissionCoefficient ?? base.emissionCoefficient,
 								thermalVoltage:
-									declared.thermalVoltage ?? catalogued.thermalVoltage,
-								isLed: device.isLed === true ? true : catalogued.isLed,
+									declared.thermalVoltage ?? base.thermalVoltage,
+								isLed: device.isLed === true ? true : base.isLed,
 							},
 						};
 					}
 				}
-				return { outcome: "law", device: device.id, law: catalogued };
+				return { outcome: "law", device: device.id, law: base };
 			}
 			const isLed = device.isLed === true;
 			return {

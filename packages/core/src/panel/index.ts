@@ -19,6 +19,7 @@ export type {
 	KnobTaper,
 	KnobValue,
 	LedIndicator,
+	LedIndicatorColour,
 	LedValue,
 	Panel,
 	PanelMessage,
@@ -30,7 +31,7 @@ export type {
 	SwitchKind,
 	SwitchValue,
 } from "./types";
-export { PANEL_PROTOCOL_VERSION } from "./types";
+export { LED_INDICATOR_COLOURS, PANEL_PROTOCOL_VERSION, parseLedIndicatorColour } from "./types";
 export { extractDeviceInterface, extractPanel } from "./extract";
 export {
 	isKnobPositionOnStep,

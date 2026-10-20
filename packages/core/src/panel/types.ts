@@ -85,6 +85,31 @@ export type LedIndicator = Readonly<{
 	description?: string;
 }>;
 
+/**
+ * The closed LED indicator colour vocabulary a compiler may key measured
+ * colour-default laws by. Compared as whole values, case-sensitively: `red` is in,
+ * `Red`, `amber`, `red-green` and `"red"` (literal quote characters) are out. This is
+ * the typed fact behind a stated `Color` component property; the panel extractor keeps
+ * its own free-string colour (stated or inferred) and is untouched by it.
+ */
+export const LED_INDICATOR_COLOURS = ["red", "yellow", "green", "blue", "white"] as const;
+
+/** One closed-vocabulary LED indicator colour. */
+export type LedIndicatorColour = (typeof LED_INDICATOR_COLOURS)[number];
+
+/**
+ * The stated value when it is exactly one vocabulary word, else undefined. No
+ * normalisation, no substring or prefix matching, no inference: anything outside the
+ * vocabulary reads as unstated here, and the caller decides whether that is silent
+ * (absent) or a diagnostic (stated but unusable).
+ */
+export function parseLedIndicatorColour(value: unknown): LedIndicatorColour | undefined {
+	return typeof value === "string" &&
+		(LED_INDICATOR_COLOURS as readonly string[]).includes(value)
+		? (value as LedIndicatorColour)
+		: undefined;
+}
+
 export type DisplayKind =
 	| "lcd-character"
 	| "lcd-graphic"

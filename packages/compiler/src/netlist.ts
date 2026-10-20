@@ -1074,6 +1074,8 @@ export function readNetlist(
 						owned.map((entry) => roleByName.get(entry.name) ?? null),
 					),
 					isLed: declared.kind === "led" ? true : undefined,
+					ledColour:
+						declared.kind === "led" ? ledColourOf(component) : undefined,
 				});
 			}
 			continue;
@@ -1093,6 +1095,7 @@ export function readNetlist(
 				effectiveTerminals.map((terminal) => declaredRole(terminal)),
 			),
 			isLed: componentKind === "led" ? true : undefined,
+			ledColour: componentKind === "led" ? ledColourOf(component) : undefined,
 			program: declaredProgram(component),
 		});
 	}
@@ -2102,6 +2105,17 @@ function propertyString(component: ComponentLike, key: string): string | null {
 		return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : null;
 	}
 	return null;
+}
+
+/**
+ * A `kind: led` component's stated `Color` property verbatim (trimmed, null when absent
+ * or blank), so the diode case can key the closed-vocabulary colour-default laws. Read
+ * for `kind: led` only; never normalised, never inferred -- `Red`, `amber`, `red-green`
+ * and `"red"` all arrive here intact and are refused downstream, not repaired here. A
+ * structured property value reads its `raw` text, like every other string property.
+ */
+function ledColourOf(component: ComponentLike): string | null {
+	return propertyString(component, "Color");
 }
 
 /**

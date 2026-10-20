@@ -18,6 +18,8 @@ import {
 	findPartData,
 	findPartRegistryData,
 	jfetRegistryRecords,
+	LED_COLOUR_RECORD_ID,
+	ledRegistryRecords,
 	mosfetRegistryRecords,
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
@@ -44,6 +46,7 @@ import {
 import {
 	emptyRegistry,
 	registryEntryFor,
+	registryLawFor,
 	registryOpampSwing,
 	type PartRegistry,
 } from "../src/registry";
@@ -701,6 +704,141 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 		expect(entry.model.law.intrinsicStandoffRatio).toBe(0.775);
 		expect(entry.model.law.interbaseResistanceOhms).toBe(6000);
 	});
+
+	it("the shipped 1N4148 data is the owner's measured pair, with no community parameter", () => {
+		const record = findPartRegistryData("1N4148");
+		expect(record?.class).toBe("diode");
+		expect(record?.params["saturationCurrent"]).toEqual(
+			expect.objectContaining({ value: 2.124272112914455e-8, basis: "measured" }),
+		);
+		expect(record?.params["emissionCoefficient"]).toEqual(
+			expect.objectContaining({ value: 2.17468223817758, basis: "measured" }),
+		);
+		// The fit assumed the engine's 1.0 ohm diode default and VT 0.025852 V, so both
+		// are omitted and the stamp must gap-fill them exactly.
+		expect(record?.params["seriesResistance"]).toBeUndefined();
+		expect(record?.params["thermalVoltage"]).toBeUndefined();
+		expect((record?.note ?? "").length).toBeGreaterThan(0);
+		// Every measured parameter quotes the evidence path and sha256 in its source.
+		for (const param of Object.values(record?.params ?? {})) {
+			expect(param.source).toContain(
+				"packet-study/led-default/measurements/2026-10-20-led-default.json",
+			);
+			expect(param.source).toContain(
+				"72abc43aa3d562351212dd6045e4bbf1914cf4e660dfe0e4288644c7f1f7b37a",
+			);
+		}
+		if (record === null) throw new Error("unreachable");
+		const found = registryEntryFor(pedalPartCatalog, {
+			partId: "1N4148",
+			evidence: "exact-part",
+		});
+		if (found?.model.kind !== "law" || found.model.law.kind !== "diode") {
+			throw new Error("unreachable");
+		}
+		expect(found.model.law.saturationCurrent).toBe(2.124272112914455e-8);
+		expect(found.model.law.emissionCoefficient).toBe(2.17468223817758);
+		expect(found.model.law.seriesResistance).toBe(1);
+		expect(found.model.law.thermalVoltage).toBe(0.025852);
+		// The measured record names no provisional value.
+		expect(found.provisionalParams).toBeUndefined();
+	});
+
+	it("the shipped LED colour defaults key whole packet spellings, measured, led-lit", () => {
+		// Only IS and n are bench measurements. thermalVoltage is the VT the fit was
+		// referred to (derived engine constant); red and yellow Rs are the 2.0 ohm
+		// class default fixed for the two-point fit (derived assumption). Blue, green
+		// and white Rs are fitted (measured).
+		const colours: ReadonlyArray<{
+			ids: readonly string[];
+			is: number;
+			n: number;
+			rs: number;
+			rsBasis: "measured" | "derived";
+		}> = [
+			{ ids: ["RED LED", "5mm red LED", "LED-RED"], is: 1.1110898624e-14, n: 2.7587062, rs: 2, rsBasis: "derived" },
+			{ ids: ["LED-GREEN"], is: 5.275788e-17, n: 3.02001, rs: 29.7599, rsBasis: "measured" },
+			{ ids: ["blue"], is: 8.668086e-34, n: 1.42282, rs: 22.229, rsBasis: "measured" },
+			{ ids: ["white"], is: 4.056687e-26, n: 1.98811, rs: 22.5033, rsBasis: "measured" },
+			{ ids: ["yellow"], is: 2.1187081810e-25, n: 1.4664285, rs: 2, rsBasis: "derived" },
+		];
+		for (const { ids, is, n, rs, rsBasis } of colours) {
+			for (const id of ids) {
+				const record = findPartRegistryData(id);
+				expect(record?.class).toBe("led");
+				expect(record?.params["saturationCurrent"]).toEqual(
+					expect.objectContaining({ value: is, basis: "measured" }),
+				);
+				expect(record?.params["emissionCoefficient"]).toEqual(
+					expect.objectContaining({ value: n, basis: "measured" }),
+				);
+				const vt = record?.params["thermalVoltage"];
+				expect(vt).toEqual(
+					expect.objectContaining({ value: 0.025852, basis: "derived" }),
+				);
+				expect(typeof vt?.derivation === "string" && vt.derivation.length).toBeGreaterThan(0);
+				const series = record?.params["seriesResistance"];
+				expect(series).toEqual(
+					expect.objectContaining({ value: rs, basis: rsBasis }),
+				);
+				if (rsBasis === "derived") {
+					expect(typeof series?.derivation === "string" && series.derivation.length).toBeGreaterThan(0);
+				}
+			}
+			// Every spelling of the colour resolves to one law entry stamping isLed.
+			for (const id of ids) {
+				const found = registryEntryFor(pedalPartCatalog, {
+					partId: id,
+					evidence: "exact-part",
+				});
+				if (found?.model.kind !== "law" || found.model.law.kind !== "diode") {
+					throw new Error(`${id}: no diode law entry`);
+				}
+				expect(found.model.law.saturationCurrent).toBe(is);
+				expect(found.model.law.isLed).toBe(true);
+				expect(found.provisionalParams).toBeUndefined();
+			}
+		}
+		// The colour map keys each vocabulary colour to its record's canonical id.
+		expect(LED_COLOUR_RECORD_ID).toEqual({
+			red: "RED LED",
+			yellow: "yellow",
+			green: "LED-GREEN",
+			blue: "blue",
+			white: "white",
+		});
+		for (const [colour, id] of Object.entries(LED_COLOUR_RECORD_ID)) {
+			expect(findPartRegistryData(id)?.class).toBe("led");
+			expect(
+				registryLawFor(pedalPartCatalog, id, "diode")?.kind,
+				`${colour} colour id resolves no diode law`,
+			).toBe("diode");
+		}
+		// No assumed value keeps a measured label.
+		for (const record of ledRegistryRecords) {
+			for (const [name, param] of Object.entries(record.params)) {
+				if (param.basis === "measured") {
+					expect(["saturationCurrent", "emissionCoefficient", "seriesResistance"]).toContain(name);
+				}
+				if (name === "thermalVoltage") {
+					expect(param.basis).toBe("derived");
+				}
+			}
+		}
+	});
+
+	it("leaves bare LED and manufacturer LED part numbers on the class defaults", () => {
+		// Neither the data registry nor the diode lookup may claim a colour they cannot
+		// name: bare "LED" is colourless, SLP-135B is a real part the bench kit cannot
+		// speak for, and no packet spells white or yellow in a part id (those records
+		// carry the colour word as their id and are reached only via typed Color).
+		expect(findPartRegistryData("LED")).toBeNull();
+		expect(findPartRegistryData("SLP-135B")).toBeNull();
+		expect(findPartRegistryData("3mm white")).toBeNull();
+		for (const id of ["blue", "white", "yellow"]) {
+			expect(findPartRegistryData(id)?.class).toBe("led");
+		}
+	});
 });
 
 describe("wave-4 fill inventory", () => {
@@ -721,12 +859,16 @@ describe("wave-4 fill inventory", () => {
 		// BC109C BF-only, BC239C/BC107B IS+BF) and 13 JFET rows (2N5485, 2SK30A-Y/GR plus
 		// TM aliases, 2SK118 + Y, 2SK184 + GR, 2SK209, 2N5458, MPF4393, J309, J202, PF5102).
 		// Part B: two community germanium BJT rows (AC128 IS+BF, OC44 BF alongside a
-		// derived IS) and four diode rows (community 1N4148 + 1N34A, DEC-sheet 1N60/1N60P).
+		// derived IS) and four diode rows (community 1N34A, DEC-sheet 1N60/1N60P, and the
+		// 1N4148 community record since replaced by the owner's measured pair).
 		// Wave 5: three more op-amp GBW rows (OPA1678, OPA134PA, OPA604AP; TL072C and LM741CN
 		// are AOL-only by the same AD712/LM1458 verdict), 13 BJT rows (ZTX109C IS+BF,
 		// P2N2222A/A1015GR/MPS4124/BC546A/BC548A/BC548B/BC184C BF with or without IS,
 		// 2N6428/2N6429 IS+BF, 2SC732 unbinned IS+BF, ZTX618 IS-only via manufacturer
 		// model) and 4 JFET rows (2SK209-GR, 2SK208-R/Y, 2SK3557).
+		// LED work: the 1N4148 community record replaced by the owner's measured pair;
+		// five measured LED colour rows (red and green by packet spelling, blue, white and
+		// yellow by typed Color), Item 2's custom-LED full quad, and Item 1's derived VT/Rs.
 		expect(opampRegistryRecords).toHaveLength(24);
 		expect(zenerRegistryRecords).toHaveLength(35);
 		expect(jfetRegistryRecords).toHaveLength(21);
@@ -734,9 +876,10 @@ describe("wave-4 fill inventory", () => {
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(52);
 		expect(diodeRegistryRecords).toHaveLength(18);
+		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1);
+		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1 + 5);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
@@ -841,6 +984,15 @@ describe("class schemas hold the backlog's parts", () => {
 		expect(classParamNames("charge-pump")).toHaveLength(2);
 		expect(classParamNames("ujt")).toEqual(["intrinsicStandoffRatio", "interbaseResistanceOhms"]);
 		expect(requiredClassParams("ujt")).toEqual(["intrinsicStandoffRatio", "interbaseResistanceOhms"]);
+		// An (IS, n) measured at the engine VT mis-stamps when VT falls back to the 0.05
+		// class default, and an Rs left at 2.0 ohm repeats the inflated-n failure: a
+		// custom LED override must state the full quad.
+		expect(requiredClassParams("led")).toEqual([
+			"saturationCurrent",
+			"emissionCoefficient",
+			"thermalVoltage",
+			"seriesResistance",
+		]);
 	});
 });
 

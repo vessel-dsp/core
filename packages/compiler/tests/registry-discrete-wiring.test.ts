@@ -21,6 +21,7 @@ import {
 	bjtLawEntry,
 	diodeLawEntry,
 	fetLawEntry,
+	ledLawEntry,
 	pedalPartCatalog,
 	ujtLawEntry,
 } from "../src/part-catalog";
@@ -372,6 +373,52 @@ describe("wave-1 record builders", () => {
 		expect(law914.saturationCurrent).toBe(6.2229e-9);
 		expect(law914.emissionCoefficient).toBe(1.9224);
 		expect(law914.seriesResistance).toBe(1.0);
+	});
+
+	test("a sparse LED record gap-fills the live LED class defaults", () => {
+		// An LED record stating only the forward pair: every omitted field must equal
+		// the empty-registry LED stamp (VT 0.05, Rs 2.0, no knee, isLed), so a drift
+		// between the builder literals and device-laws.ts fails here rather than
+		// shipping silently. The shipped LED records state every field explicitly.
+		const entry = ledLawEntry({
+			partIds: ["SYNTH-LED-1"],
+			class: "led",
+			params: {
+				saturationCurrent: { value: 1e-14, basis: "datasheet", source: "s" },
+				emissionCoefficient: { value: 2.0, basis: "datasheet", source: "s" },
+			},
+		});
+		if (entry.model.kind !== "law" || entry.model.law.kind !== "diode") {
+			throw new Error("unreachable");
+		}
+		expect(entry.model.law.saturationCurrent).toBe(1e-14);
+		expect(entry.model.law.emissionCoefficient).toBe(2.0);
+		expect(entry.model.law.thermalVoltage).toBe(0.05);
+		expect(entry.model.law.seriesResistance).toBe(2.0);
+		expect(entry.model.law.breakdownVolts).toBe(0);
+		expect(entry.model.law.isLed).toBe(true);
+	});
+
+	test("ledLawEntry refuses the wrong class and half pairs", () => {
+		expect(() =>
+			ledLawEntry({
+				partIds: ["X"],
+				class: "diode",
+				params: {
+					saturationCurrent: { value: 1e-9, basis: "datasheet", source: "s" },
+					emissionCoefficient: { value: 1.6, basis: "datasheet", source: "s" },
+				},
+			}),
+		).toThrow(/class/);
+		expect(() =>
+			ledLawEntry({
+				partIds: ["Y"],
+				class: "led",
+				params: {
+					saturationCurrent: { value: 1e-9, basis: "datasheet", source: "s" },
+				},
+			}),
+		).toThrow(/forward pair/);
 	});
 
 	test("a typed alias spelling resolves through the built entry", () => {
