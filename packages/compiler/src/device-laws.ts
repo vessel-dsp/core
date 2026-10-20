@@ -3301,6 +3301,15 @@ const springReverbTanks: Readonly<
  * documents and deliberately leaves unfiled). Every remaining mismatch sits on `kind: ic`, where
  * naming any class is exactly what that kind is for. Adding a class here on speculation would be
  * vocabulary against unexercised data.
+ *
+ * A UJT relaxation-oscillator law was attempted on branch `indiejoseph/ujt-law` (2026-10-20):
+ * bar split at eta, emitter diode into the tap, conductivity modulation as a VCCS, plus a
+ * clamp diode for saturation. It oscillates at the right period while it runs, but the
+ * firing-point crossing is a Newton lottery (about one stalled peak in 70 cycles, then the
+ * hold poisons the run permanently) in the reference runtime, and ngspice timestep-collapses
+ * at the same instant -- see the branch report. The minimal addition is a hysteretic switch
+ * stamp (once-per-sample evaluation, no Newton involvement), which no existing stamp is.
+ * Until that exists this entry stays: opening is honest, stamping a BJT is not.
  */
 const unimplementedDeviceLaws: ReadonlySet<string> = new Set([
 	"circuit.unijunctiontransistor",

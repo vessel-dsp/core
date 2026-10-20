@@ -24,6 +24,7 @@ import {
 	opampRegistryRecords,
 	partRegistryData,
 	regulatorRegistryRecords,
+	requiredClassParams,
 	validateCitedParam,
 	zenerRegistryRecords,
 } from "../src/registry-data";
@@ -775,11 +776,13 @@ describe("class schemas hold the backlog's parts", () => {
 
 	it("accepts exactly the engine's parameter names, no more", () => {
 		expect(Object.keys(CLASS_PARAM_SCHEMAS).sort()).toEqual(
-			["bjt", "charge-pump", "diode", "jfet", "led", "mosfet", "opamp", "regulator", "zener"].sort(),
+			["bjt", "charge-pump", "diode", "jfet", "led", "mosfet", "opamp", "regulator", "ujt", "zener"].sort(),
 		);
 		expect(classParamNames("bjt")).toHaveLength(5);
 		expect(classParamNames("regulator")).toHaveLength(2);
 		expect(classParamNames("charge-pump")).toHaveLength(2);
+		expect(classParamNames("ujt")).toEqual(["intrinsicStandoffRatio", "interbaseResistanceOhms"]);
+		expect(requiredClassParams("ujt")).toEqual(["intrinsicStandoffRatio", "interbaseResistanceOhms"]);
 	});
 });
 

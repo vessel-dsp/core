@@ -2609,7 +2609,8 @@ type OverrideTargetClass =
 	| "diode"
 	| "zener"
 	| "led"
-	| "opamp";
+	| "opamp"
+	| "ujt";
 
 /**
  * The schema class an override block on this device is checked against, or `null` when the
@@ -2627,6 +2628,14 @@ function overrideTargetClass(
 ): OverrideTargetClass | null {
 	switch (deviceKind) {
 		case "bjt":
+			// A unijunction transistor is `kind: bjt` with the source's own stated
+			// type, and its override names the UJT class parameters, not the BJT's:
+			// stamping IS/BF onto a relaxation element would model a different device.
+			if (
+				component.sourceTypeName === "Circuit.UnijunctionTransistor"
+			) {
+				return "ujt";
+			}
 			return "bjt";
 		case "jfet":
 			return "jfet";
@@ -2784,6 +2793,7 @@ const OVERRIDABLE_CLASS_PARAMS: Readonly<Record<OverrideTargetClass, readonly st
 		"seriesResistance",
 	],
 	opamp: ["openLoopGain", "gainBandwidthHz"],
+	ujt: ["intrinsicStandoffRatio", "interbaseResistanceOhms"],
 };
 
 /** A non-empty authored string, or `null` when the value is not one. */
@@ -2838,6 +2848,13 @@ function checkOverrideValue(
 			// p-channel JFETs pinch off positive), so any finite value -- including zero --
 			// parses, exactly as the legacy `Vt0` reader accepts any quantity.
 			return n;
+		case "intrinsicStandoffRatio":
+			// The tap fraction of the interbase bar: strictly inside (0, 1), since eta
+			// is a divider share. 0 shorts RB1, 1 opens RB2, and either inverts the tap.
+			if (!(n > 0) || !(n < 1)) {
+				refuse(`is not a standoff ratio strictly between 0 and 1`);
+			}
+			return n;
 		default:
 			// saturationCurrent, forwardBeta, reverseBeta, thermalVoltage, transconductance,
 			// gateScaleVolts, openLoopGain, gainBandwidthHz, volts, sourceOhms,
@@ -2871,7 +2888,7 @@ function readDeviceOverride(
 	const target = overrideTargetClass(component, deviceKind);
 	if (target === null) {
 		throw new NetlistError(
-			`component ${componentId}: DeviceOverride is not supported for ${deviceKind} devices (bjt, jfet, mosfet, diode and opamp only)`,
+			`component ${componentId}: DeviceOverride is not supported for ${deviceKind} devices (bjt, jfet, mosfet, diode, opamp and ujt only)`,
 			componentId,
 		);
 	}

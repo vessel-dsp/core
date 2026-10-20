@@ -99,6 +99,12 @@ const NEWTON_BY_LAW_KIND: Readonly<
 	// from the solved VDD rail, so its rows move with the solution inside one sample.
 	"clock-driver": true,
 	optocoupler: true,
+	// A UJT carries a junction diode (the emitter into the tap), so its law
+	// curves wherever that diode conducts. The bar is linear; the switching snap
+	// has no lowering yet (it needs a hysteretic switch stamp), and until it
+	// exists this law is unproducible -- the entry below only satisfies the
+	// exhaustiveness the table's header demands.
+	ujt: true,
 };
 
 function lawNeedsNewton(law: DeviceLaw): boolean {

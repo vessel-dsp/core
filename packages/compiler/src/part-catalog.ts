@@ -66,6 +66,7 @@ import {
 	opampOutputSwingAbsent,
 	opampRegistryRecords,
 	regulatorRegistryRecords,
+	ujtRegistryRecords,
 	zenerRegistryRecords,
 	communityProvenanceOf,
 	type CitedParam,
@@ -356,6 +357,43 @@ export function fetLawEntry(
 				gateScaleVolts:
 					citedValueOf(record, "gateScaleVolts") ??
 					channelDefaults.gateScaleVolts,
+			},
+		},
+	};
+}
+
+/**
+ * A unijunction-transistor record's law entry. Requires the tap fraction and the bar
+ * together: eta without Rbb cannot place the peak point and Rbb without eta cannot
+ * split the bar, so a half record throws rather than shipping half a device. The
+ * emitter diode and the snap are law structure, never entry fields.
+ */
+export function ujtLawEntry(record: PartDataEntry): PartEntry {
+	if (record.class !== "ujt") {
+		throw new Error(
+			`${record.partIds.join(",")}: a ujt entry needs class "ujt", not "${record.class}"`,
+		);
+	}
+	const intrinsicStandoffRatio = citedValueOf(record, "intrinsicStandoffRatio");
+	const interbaseResistanceOhms = citedValueOf(record, "interbaseResistanceOhms");
+	if (intrinsicStandoffRatio === undefined || interbaseResistanceOhms === undefined) {
+		throw new Error(
+			`${record.partIds.join(",")}: a ujt record states no tap and bar ` +
+				`(intrinsicStandoffRatio ${intrinsicStandoffRatio === undefined ? "absent" : "present"}, ` +
+				`interbaseResistanceOhms ${interbaseResistanceOhms === undefined ? "absent" : "present"})`,
+		);
+	}
+	return {
+		partIds: entryIdsOf(record),
+		declaredTypes: [],
+		terminalRoleGroups: [],
+		...provisionalArmOf(record),
+		model: {
+			kind: "law",
+			law: {
+				kind: "ujt",
+				intrinsicStandoffRatio,
+				interbaseResistanceOhms,
 			},
 		},
 	};
@@ -3954,12 +3992,22 @@ const entries: readonly PartEntry[] = [
 	},
 
 // --- CMOS Dual D-Type Flip-Flops (CD4013, CD4013BE, uPD4013C) - Active frequency divider modeling! --------------------------
+//
+// SCL4013A rides this entry: `electro-harmonix-slapback-echo`'s IC3 carries that number,
+// and the sheet's 14-pin package and pin legend match the 4013 (unused second-half
+// outputs on pins 12/13, +V on 14, ground on 7), not the 16-pin 4043 the packet
+// transcribed -- the SCL prefix is the Solid State Scientific CMOS family whose SCL4043
+// entries already sit in this file. Same divider law; whether a document's bare
+// `pin1..pin14` naming binds to this entry's pinout is a separate question the entry's
+// positional matching answers (see the slapback verification report: it does not, and
+// that is reported there rather than worked around here).
 	{
 		"partIds": [
 			"CD4013",
 			"CD4013BE",
 			"uPD4013C",
-			"CD4013B"
+			"CD4013B",
+			"SCL4013A"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [],
@@ -8810,6 +8858,7 @@ const entries: readonly PartEntry[] = [
 	...diodeRegistryRecords.map((record) => diodeLawEntry(record)),
 	...mosfetRegistryRecords.map((record) => fetLawEntry(record, "mosfet")),
 	...jfetRegistryRecords.map((record) => fetLawEntry(record, "jfet")),
+	...ujtRegistryRecords.map((record) => ujtLawEntry(record)),
 ];
 
 // --- Op-amp gain-bandwidth product: stamped from the data registry ------------------------------

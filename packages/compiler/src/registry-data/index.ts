@@ -48,6 +48,7 @@ import { mosfetRegistryRecords } from "./mosfet";
 import { opampRegistryRecords } from "./opamp";
 import { zenerRegistryRecords } from "./zener";
 import { jfetRegistryRecords } from "./jfet";
+import { ujtRegistryRecords } from "./ujt";
 import { regulatorRegistryRecords } from "./regulator";
 import { chargePumpRegistryRecords } from "./charge-pump";
 
@@ -83,6 +84,7 @@ export {
 } from "./opamp";
 export { zenerRegistryRecords } from "./zener";
 export { jfetRegistryRecords } from "./jfet";
+export { ujtRegistryRecords } from "./ujt";
 export { regulatorRegistryRecords } from "./regulator";
 export { chargePumpRegistryRecords } from "./charge-pump";
 
@@ -124,6 +126,7 @@ export const partRegistryData: readonly PartDataEntry[] = assemblePartData([
 	jfetRegistryRecords,
 	regulatorRegistryRecords,
 	chargePumpRegistryRecords,
+	ujtRegistryRecords,
 ]);
 
 /** Find a stage-1 data entry by exact folded part id or alias. */

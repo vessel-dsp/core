@@ -424,6 +424,22 @@ export function lowerRegion(
 				});
 				break;
 			}
+			case "ujt": {
+				// No lowering yet: the bar-plus-diode statics stamp and converge, but the
+				// conductivity modulation that makes the emitter relax has no
+				// Newton-stable expression in the existing stamps (a VCCS loop crosses
+				// its firing-point singularity as a lottery -- about one stalled peak
+				// in 70 cycles, then the hold poisons the run -- and ngspice agrees).
+				// It needs a hysteretic switch stamp (once-per-sample evaluation, no
+				// Newton involvement), which is a runtime addition, not a lowering
+				// choice. Refusing loudly rather than stamping a BJT or a static
+				// clamp: both render, and both misrepresent the device. Unreachable
+				// until a registry record or override produces this law.
+				throw new LoweringError(
+					`ujt ${device.id} has a law but no stamp to lower it to: the relaxation snap needs a hysteretic switch stamp the program does not have (see the branch report)`,
+					device.id,
+				);
+			}
 			case "triode": {
 				// A tube's terminal names are its own vocabulary -- grid, cathode, plate,
 				// and `anode` for the plate -- so it cannot borrow `bjtTerminals`, whose

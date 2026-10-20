@@ -1212,6 +1212,29 @@ export type DeviceLaw =
 			readonly pullDownOhms: number;
 			readonly floatOhms: number;
 			readonly sensitivity: number;
+	  }
+	| {
+			/**
+			 * Unijunction transistor: an interbase bar (B2 to B1) with the emitter
+			 * diode tapped at a fraction `eta` of the bar, plus conductivity
+			 * modulation that makes the emitter see negative resistance once fired.
+			 *
+			 * The bar split and the tap are the part's facts (this law). The snap
+			 * itself has no lowering yet: it needs a hysteretic switch stamp
+			 * (once-per-sample evaluation, no Newton involvement), so until that
+			 * stamp exists no device resolves to this law and `lower.ts` refuses
+			 * one that does. The shape is kept so the registry contract, the
+			 * override vocabulary and the builder below have a law to target.
+			 */
+			readonly kind: "ujt";
+			/**
+			 * Intrinsic standoff ratio eta, dimensionless, strictly between 0 and 1:
+			 * the fraction of the interbase voltage that appears at the tap with the
+			 * emitter open. RB1 = eta * Rbb, RB2 = (1 - eta) * Rbb.
+			 */
+			readonly intrinsicStandoffRatio: number;
+			/** Interbase resistance Rbb in ohms, B1 to B2 with the emitter open. */
+			readonly interbaseResistanceOhms: number;
 	  };
 
 /** A region the compiler does not solve. Exists only when the registry fills it. */

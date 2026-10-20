@@ -20,6 +20,11 @@
 // - `charge-pump`: a switched-capacitor inverter section plus the entry-level loss term the
 //   `pumpDerivation` reads. `volts` is deliberately NOT a parameter: the rail is derived per
 //   circuit from the input node, and the `volts: 0` in each entry is an unused placeholder.
+// - `ujt`: the unijunction transistor's own two facts -- the tap fraction (intrinsic
+//   standoff ratio eta) and the bar resistance (interbase resistance Rbb). The emitter
+//   junction is a silicon diode by construction (law constants, like the JFET gate's
+//   stated silicon-junction current) and the conductivity modulation is the lowering's
+//   business (it needs a hysteretic switch stamp, so neither is a per-part parameter).
 // 
 // Structural (non-numeric) law fields -- `polarity`, `channel`, the swing `translation` and
 // printed condition, rails, pinouts -- stay in code at stage 1: a cited value is a number,
@@ -83,6 +88,7 @@ export const CLASS_PARAM_SCHEMAS = {
 	],
 	regulator: ["volts", "sourceOhms"],
 	"charge-pump": ["sourceOhms", "chargePumpLossVolts"],
+	ujt: ["intrinsicStandoffRatio", "interbaseResistanceOhms"],
 } as const;
 
 /** The closed set of part classes the registry holds parameters for. */
@@ -118,6 +124,8 @@ export function classParamNames(cls: PartClassName): readonly string[] {
  * - `regulator`: volts -- the rail is the part; sourceOhms keeps the supply convention.
  * - `charge-pump`: sourceOhms and chargePumpLossVolts -- both shape the derived rail, and an
  *   unknown pump has no safe default for either.
+ * - `ujt`: intrinsicStandoffRatio and interbaseResistanceOhms -- the tap fraction and the
+ *   bar are the whole part model (emitter diode and modulation are law structure).
  */
 export const REQUIRED_CLASS_PARAMS = {
 	bjt: ["saturationCurrent", "forwardBeta"],
@@ -129,6 +137,7 @@ export const REQUIRED_CLASS_PARAMS = {
 	opamp: ["openLoopGain", "gainBandwidthHz"],
 	regulator: ["volts"],
 	"charge-pump": ["sourceOhms", "chargePumpLossVolts"],
+	ujt: ["intrinsicStandoffRatio", "interbaseResistanceOhms"],
 } as const satisfies Record<PartClassName, readonly string[]>;
 
 /** The parameters a `custom` override must supply for a class, in schema order. */

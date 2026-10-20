@@ -22,15 +22,17 @@ import {
 	diodeLawEntry,
 	fetLawEntry,
 	pedalPartCatalog,
+	ujtLawEntry,
 } from "../src/part-catalog";
 import {
 	emptyRegistry,
 	registryEntryFor,
+	registryLawFor,
 	registryOpampGainBandwidth,
 	type PartEntry,
 	type PartRegistry,
 } from "../src/registry";
-import { findPartRegistryData } from "../src/registry-data";
+import { definePartData, findPartRegistryData } from "../src/registry-data";
 import type { DeviceLaw } from "../src/types";
 import type { PartDataEntry } from "../src/registry-data/loader";
 
@@ -487,5 +489,130 @@ describe("wave-1 record builders", () => {
 		);
 		const section = found?.model.kind === "sections" ? found.model.sections[0] : null;
 		expect(section?.law.kind).toBe("clock-driver");
+	});
+});
+
+describe("ujt registry wiring", () => {
+	// Synthetic records only: no pedal identity, no real part numbers.
+	const synthUjt = definePartData([
+		{
+			partIds: ["SYNTH-UJT-1"],
+			aliases: ["SYNTH-UJT-1A"],
+			class: "ujt",
+			params: {
+				intrinsicStandoffRatio: {
+					value: 0.63,
+					basis: "datasheet",
+					source: "Synthetic UJT sheet p1: eta 0.63",
+				},
+				interbaseResistanceOhms: {
+					value: 4700,
+					basis: "datasheet",
+					source: "Synthetic UJT sheet p1: Rbb 4.7k",
+				},
+			},
+		},
+	])[0] as PartDataEntry;
+
+	test("a two-parameter record becomes a ujt law entry over both spellings", () => {
+		const entry = ujtLawEntry(synthUjt);
+		expect(entry.model.kind).toBe("law");
+		if (entry.model.kind !== "law") throw new Error("unreachable");
+		expect(entry.model.law.kind).toBe("ujt");
+		if (entry.model.law.kind !== "ujt") throw new Error("unreachable");
+		expect(entry.model.law.intrinsicStandoffRatio).toBe(0.63);
+		expect(entry.model.law.interbaseResistanceOhms).toBe(4700);
+		expect(entry.provisionalParams).toBeUndefined();
+		const registry: PartRegistry = { entries: [entry] };
+		for (const id of ["SYNTH-UJT-1", "synth-ujt-1a"]) {
+			const law = registryLawFor(registry, id, "ujt");
+			expect(law?.kind).toBe("ujt");
+		}
+		// Another law kind never matches a ujt entry.
+		expect(registryLawFor(registry, "SYNTH-UJT-1", "bjt")).toBeNull();
+	});
+
+	test("a half record throws rather than shipping half a device", () => {
+		const etaOnly = definePartData([
+			{
+				partIds: ["SYNTH-UJT-HALF"],
+				class: "ujt",
+				params: {
+					intrinsicStandoffRatio: {
+						value: 0.6,
+						basis: "datasheet",
+						source: "Synthetic UJT sheet p1: eta 0.6",
+					},
+				},
+			},
+		])[0] as PartDataEntry;
+		expect(() => ujtLawEntry(etaOnly)).toThrow();
+		const empty = definePartData([
+			{
+				partIds: ["SYNTH-UJT-EMPTY"],
+				class: "ujt",
+				params: {},
+			},
+		])[0] as PartDataEntry;
+		expect(() => ujtLawEntry(empty)).toThrow();
+	});
+
+	test("a wrong-class record throws", () => {
+		const bjt = definePartData([
+			{
+				partIds: ["SYNTH-NPN-X"],
+				class: "bjt",
+				params: {
+					saturationCurrent: {
+						value: 1e-14,
+						basis: "datasheet",
+						source: "Synthetic BJT sheet p1: IS 1e-14",
+					},
+					forwardBeta: {
+						value: 100,
+						basis: "datasheet",
+						source: "Synthetic BJT sheet p1: BF 100",
+					},
+				},
+			},
+		])[0] as PartDataEntry;
+		expect(() => ujtLawEntry(bjt)).toThrow();
+	});
+
+	test("a community-basis ujt parameter rides the provisional arm", () => {
+		const url = "https://example.invalid/ujt-model";
+		const quote = "SYNTH-UJT-2 eta 0.61";
+		const community = definePartData([
+			{
+				partIds: ["SYNTH-UJT-2"],
+				class: "ujt",
+				params: {
+					intrinsicStandoffRatio: {
+						value: 0.61,
+						basis: "community",
+						source: `A published model at ${url} quoting "${quote}"`,
+						sourceKind: "published-spice-model",
+						url,
+						quote,
+						author: "Synthetic Author",
+						retrievedDate: "2026-10-20",
+						whyNoBetterSource: "No datasheet, model or measurement exists for this synthetic part.",
+					},
+					interbaseResistanceOhms: {
+						value: 5100,
+						basis: "datasheet",
+						source: "Synthetic UJT sheet p1: Rbb 5.1k",
+					},
+				},
+			},
+		])[0] as PartDataEntry;
+		const entry = ujtLawEntry(community);
+		expect(entry.provisionalParams).toEqual([
+			{ name: "intrinsicStandoffRatio", url },
+		]);
+		if (entry.model.kind !== "law" || entry.model.law.kind !== "ujt") {
+			throw new Error("unreachable");
+		}
+		expect(entry.model.law.intrinsicStandoffRatio).toBe(0.61);
 	});
 });
