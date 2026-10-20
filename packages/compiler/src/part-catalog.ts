@@ -5801,6 +5801,11 @@ const entries: readonly PartEntry[] = [
 	// positions fail `pinoutMatches`, so this needs its own entry rather than an alias added to the
 	// existing one. "CD4013AE" is not registered elsewhere, so no collision.
 	//
+	// `SCL4013A` (Solid State Scientific, the part `electro-harmonix-slapback-echo`'s `IC3` is printed as on the
+	// factory sheet: a 14-pin 7+7 package with the 4013 pin legend, second-half outputs 12/13 NC) rides this
+	// entry rather than the first CD4013 one because that packet declares the same `pin<N>_<role>` names
+	// as `mxr-m117r-flanger`'s `U3`, in strict pin order 1..14.
+	//
 	// Verified directly against the document: `U3`'s 14 terminals are declared in strict ascending
 	// pin order (`pin1_q1` through `pin14_vdd`), matching the standard CD4013 pinout, and the
 	// component's own `Description` corroborates the same reading pin-by-pin ("pins 4 RESET1, 6 SET1,
@@ -5809,7 +5814,8 @@ const entries: readonly PartEntry[] = [
 	// existing CD4013 entry already assumes for the same law.
 	{
 		"partIds": [
-			"CD4013AE"
+			"CD4013AE",
+			"SCL4013A"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [],
