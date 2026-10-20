@@ -55,6 +55,7 @@ import {
 	withRecordedReads,
 } from "./registry";
 import type { FirmwareClass } from "./firmware-class";
+import { GROUND } from "./types";
 import type {
 	ComposedLineSweep,
 	Block,
@@ -1071,6 +1072,39 @@ function barePinPosition(
 }
 
 /**
+ * The terminal the audio leaves a chained two-section part at, or `null` when the part is not
+ * chained in this document.
+ *
+ * Chained means one thing: the first section's output and the second section's input are the same
+ * non-ground node, which is connectivity, not a name. All three terminals must resolve to exactly
+ * one role each, so a document that names the sections differently, or ties the second section's
+ * input to ground (the Deluxe Memory Man uses only section A), falls through to the single-section
+ * port unchanged.
+ */
+function cascadedAudioOut(
+	device: Device,
+	macro: MacroPartModel,
+	sectionAudioOut: number | null,
+): number | null {
+	const cascade = macro.ports.cascade;
+	if (cascade === undefined || sectionAudioOut === null) {
+		return null;
+	}
+	const roles = device.identity.terminalRoles;
+	const sectionOut = terminalWithRole(roles, cascade.sectionOut);
+	const nextIn = terminalWithRole(roles, cascade.nextIn);
+	const finalOut = terminalWithRole(roles, cascade.finalOut);
+	if (sectionOut === null || nextIn === null || finalOut === null || sectionOut !== sectionAudioOut) {
+		return null;
+	}
+	const joint = device.nodes[sectionOut];
+	if (joint === undefined || joint === GROUND || device.nodes[nextIn] !== joint) {
+		return null;
+	}
+	return finalOut;
+}
+
+/**
  * Thin wrapper that brackets the real resolution so every registry entry consulted while computing
  * this macro's parameters is recorded against the macro's device id. **No behaviour change** -- the
  * wrapper only opens and closes the recording.
@@ -1102,9 +1136,10 @@ function resolveMacroInner(
 	const audioIn =
 		terminalWithRole(roles, macro.ports.audioIn) ??
 		barePinPosition(macro, roles, "audioIn");
-	const audioOut =
+	const sectionAudioOut =
 		terminalWithRole(roles, macro.ports.audioOut) ??
 		barePinPosition(macro, roles, "audioOut");
+	const audioOut = cascadedAudioOut(device, macro, sectionAudioOut) ?? sectionAudioOut;
 	// A second output, only for a part that declares one and a device that names it. Absent is
 	// the ordinary case and stays a one-output macro: unlike the ports above, failing to find
 	// this is not a refusal, because most parts genuinely have one output.

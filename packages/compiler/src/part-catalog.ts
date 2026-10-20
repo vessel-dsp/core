@@ -2046,7 +2046,21 @@ const entries: readonly PartEntry[] = [
 						"clock",
 						"phi1",
 						"phi1a"
-					]
+					],
+					// The two 512-stage sections chain when the document ties the first's output to the
+					// second's input (the EH-4700 does: pins 5 and 15 share one node). The 1024 stages
+					// are then read at the second section's output, pin 12.
+					"cascade": {
+						"sectionOut": [
+							"outputa"
+						],
+						"nextIn": [
+							"inputb"
+						],
+						"finalOut": [
+							"outputb"
+						]
+					}
 				},
 				"barePinPositions": {
 					"audioIn": 1,

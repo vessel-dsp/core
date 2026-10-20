@@ -99,6 +99,24 @@ export type MacroPortRoles = {
 	 */
 	readonly audioOut2?: readonly string[];
 	/**
+	 * A part made of two sections that a circuit may chain, and where the audio leaves when it
+	 * does. `sectionOut` is the first section's output, `nextIn` the second section's input and
+	 * `finalOut` the second section's output, each as aliases of a terminal role.
+	 *
+	 * Applies only when the document wires `sectionOut` and `nextIn` to the **same node**: that
+	 * connectivity is the circuit saying the sections are in series, so the delay the part
+	 * contributes (all of its stages) is read at `finalOut`, not at the half-way tap `audioOut`
+	 * names. A document that leaves the second section unused (its input on ground, or not named)
+	 * is not chained and resolves by `audioOut` exactly as before.
+	 *
+	 * Absent for every part that has one section, and nothing about those changes.
+	 */
+	readonly cascade?: {
+		readonly sectionOut: readonly string[];
+		readonly nextIn: readonly string[];
+		readonly finalOut: readonly string[];
+	};
+	/**
 	 * Aliases for the terminal whose network derives the `parameter` port, if the part has one.
 	 *
 	 * Optional in effect rather than in type: an empty list means the part has none. Unlike the

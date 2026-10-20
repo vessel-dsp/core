@@ -1688,3 +1688,38 @@ describe("UJT relaxation-oscillator clock derivation", () => {
 		).toBe("derived");
 	});
 });
+
+describe("a two-section bucket brigade exits at the section the circuit chains it to", () => {
+	// SAD1024A pin order: 1 gnd, 2 input A, 3 phi2 A, 4 nc, 5 output A, 6 output A complement,
+	// 7 vdd, 8 phi1 A, 9 vbb, 10 phi1 B, 11 output B complement, 12 output B, 13 nc, 14 phi2 B,
+	// 15 input B, 16 nc. Index = pin - 1.
+	const ROLES = [
+		"gnd", "inputa", "phi2a", "nc", "outputa", "outputacomplement", "vdd", "phi1a",
+		"vbb", "phi1b", "outputbcomplement", "outputb", "nc", "phi2b", "inputb", "nc",
+	];
+	const OUTPUT_A = 4;
+	const OUTPUT_B = 11;
+
+	function audioOutIndex(inputBNode: number): number | null {
+		const nodes = [0, 4, 24, 0, 52, 47, 8, 25, 49, 25, 50, 51, 0, 24, inputBNode, 0];
+		const bbd = makeDevice("IC2", "ic", nodes, ROLES, "SAD1024A", null, { delaySeconds: 0.055 });
+		const lawed = attachDeviceLaws(makeNetlist([bbd]), pedalPartCatalog);
+		const resolution = lawed.resolutions.find((r) => r.device === "IC2");
+		if (resolution?.outcome !== "macro") {
+			throw new Error(`expected a macro, got ${resolution?.outcome}`);
+		}
+		return resolution.macro.portTerminals[1] ?? null;
+	}
+
+	test("output A and input B on one node: the audio leaves at output B", () => {
+		expect(audioOutIndex(52)).toBe(OUTPUT_B);
+	});
+
+	test("input B on ground (section A only, as the Deluxe Memory Man wires it): output A", () => {
+		expect(audioOutIndex(0)).toBe(OUTPUT_A);
+	});
+
+	test("input B on a node of its own, not output A's: output A", () => {
+		expect(audioOutIndex(77)).toBe(OUTPUT_A);
+	});
+});
