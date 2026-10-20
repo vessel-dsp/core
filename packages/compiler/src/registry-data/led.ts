@@ -1,4 +1,6 @@
-// LED colour-default registry data: owner bench 2026-10-20 (measured basis).
+// LED colour-default registry data: owner bench 2026-10-20 (measured IS and n;
+// derived VT and, for the two-point colours, derived Rs -- assumed fit constants,
+// never measurements).
 //
 // Keying (whole folded part ids packets already use; no format or typed-field change):
 // - red: "RED LED" (marshall-blues-breaker LED1, 9 V power indicator through 470 ohm),
@@ -56,6 +58,16 @@ const RED_CONDITIONS =
 	"(2 per size, one kit, maker not recorded); anchors 1.435 mA at 1.8275 V and 11.07 mA " +
 	"at 1.9925 V (pooled means)";
 
+// Assumed fit constants, never measurements (derived basis): the thermal voltage the
+// IS and n were referred to, and the series resistance fixed for a two-point fit.
+const VT_DERIVATION =
+	"The engine constant 0.025852 V the IS and n fit was referred to: IS and n " +
+	"reproduce the bench Vf only at this value (the LED class default is 0.05 V). " +
+	"Assumed, not measured.";
+const TWO_POINT_RS_DERIVATION =
+	"Fixed at the 2.0 ohm LED class default for the two-point fit, so the stamp must " +
+	"run at 2.0 ohm. Assumed, not measured.";
+
 export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		// Red indicator default: first-session two-point pair, Rs fixed at the 2.0 ohm
@@ -109,31 +121,21 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 			thermalVoltage: {
 				value: 0.025852,
-				basis: "measured",
+				basis: "derived",
 				source:
 					"The VT the red fit was referred to (the LED class default is 0.05, with " +
 					"which the engine does not reproduce these Vf). Evidence " +
 					`${EVIDENCE_FIRST_PATH} sha256 ${EVIDENCE_FIRST_SHA256}.`,
-				measurementInstrument: LED_INSTRUMENT,
-				measurementConditions: RED_CONDITIONS,
-				measurementSampleCount: 4,
-				measurementDate: "2026-10-20",
-				measurementEvidencePath: EVIDENCE_FIRST_PATH,
-				measurementEvidenceSha256: EVIDENCE_FIRST_SHA256,
+				derivation: VT_DERIVATION,
 			},
 			seriesResistance: {
 				value: 2.0,
-				basis: "measured",
+				basis: "derived",
 				source:
 					"The Rs the red fit assumed (the 2.0 ohm LED class default, fixed for the " +
 					"two-point fit, so the stamp must run at 2.0 ohm). Evidence " +
 					`${EVIDENCE_FIRST_PATH} sha256 ${EVIDENCE_FIRST_SHA256}.`,
-				measurementInstrument: LED_INSTRUMENT,
-				measurementConditions: RED_CONDITIONS,
-				measurementSampleCount: 4,
-				measurementDate: "2026-10-20",
-				measurementEvidencePath: EVIDENCE_FIRST_PATH,
-				measurementEvidenceSha256: EVIDENCE_FIRST_SHA256,
+				derivation: TWO_POINT_RS_DERIVATION,
 			},
 		},
 	},
@@ -185,16 +187,11 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 			thermalVoltage: {
 				value: 0.025852,
-				basis: "measured",
+				basis: "derived",
 				source:
 					"The VT the green fit was referred to (the LED class default is 0.05, with " +
 					"which the engine does not reproduce these Vf). " + FOUR_POINT_SOURCE_TAIL,
-				measurementInstrument: LED_INSTRUMENT,
-				measurementConditions: FOUR_POINT_CONDITIONS,
-				measurementSampleCount: 6,
-				measurementDate: "2026-10-20",
-				measurementEvidencePath: EVIDENCE_FIRST_PATH,
-				measurementEvidenceSha256: EVIDENCE_FIRST_SHA256,
+				derivation: VT_DERIVATION,
 			},
 			seriesResistance: {
 				value: 29.7599,
@@ -264,16 +261,11 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 			thermalVoltage: {
 				value: 0.025852,
-				basis: "measured",
+				basis: "derived",
 				source:
 					"The VT the blue fit was referred to (the LED class default is 0.05, with " +
 					"which the engine does not reproduce these Vf). " + FOUR_POINT_SOURCE_TAIL,
-				measurementInstrument: LED_INSTRUMENT,
-				measurementConditions: FOUR_POINT_CONDITIONS,
-				measurementSampleCount: 6,
-				measurementDate: "2026-10-20",
-				measurementEvidencePath: EVIDENCE_FIRST_PATH,
-				measurementEvidenceSha256: EVIDENCE_FIRST_SHA256,
+				derivation: VT_DERIVATION,
 			},
 			seriesResistance: {
 				value: 22.229,

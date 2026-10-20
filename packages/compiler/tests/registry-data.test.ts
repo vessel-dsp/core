@@ -743,17 +743,22 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 	});
 
 	it("the shipped LED colour defaults key whole packet spellings, measured, led-lit", () => {
+		// Only IS and n are bench measurements. thermalVoltage is the VT the fit was
+		// referred to (derived engine constant); red's Rs is the 2.0 ohm class default
+		// fixed for the two-point fit (derived assumption). Blue and green Rs are
+		// fitted (measured).
 		const colours: ReadonlyArray<{
 			ids: readonly string[];
 			is: number;
 			n: number;
 			rs: number;
+			rsBasis: "measured" | "derived";
 		}> = [
-			{ ids: ["RED LED", "5mm red LED", "LED-RED"], is: 1.1110898624e-14, n: 2.7587062, rs: 2 },
-			{ ids: ["LED-GREEN"], is: 5.275788e-17, n: 3.02001, rs: 29.7599 },
-			{ ids: ["3mm blue"], is: 8.668086e-34, n: 1.42282, rs: 22.229 },
+			{ ids: ["RED LED", "5mm red LED", "LED-RED"], is: 1.1110898624e-14, n: 2.7587062, rs: 2, rsBasis: "derived" },
+			{ ids: ["LED-GREEN"], is: 5.275788e-17, n: 3.02001, rs: 29.7599, rsBasis: "measured" },
+			{ ids: ["3mm blue"], is: 8.668086e-34, n: 1.42282, rs: 22.229, rsBasis: "measured" },
 		];
-		for (const { ids, is, n, rs } of colours) {
+		for (const { ids, is, n, rs, rsBasis } of colours) {
 			for (const id of ids) {
 				const record = findPartRegistryData(id);
 				expect(record?.class).toBe("led");
@@ -763,12 +768,18 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 				expect(record?.params["emissionCoefficient"]).toEqual(
 					expect.objectContaining({ value: n, basis: "measured" }),
 				);
-				expect(record?.params["thermalVoltage"]).toEqual(
-					expect.objectContaining({ value: 0.025852, basis: "measured" }),
+				const vt = record?.params["thermalVoltage"];
+				expect(vt).toEqual(
+					expect.objectContaining({ value: 0.025852, basis: "derived" }),
 				);
-				expect(record?.params["seriesResistance"]).toEqual(
-					expect.objectContaining({ value: rs, basis: "measured" }),
+				expect(typeof vt?.derivation === "string" && vt.derivation.length).toBeGreaterThan(0);
+				const series = record?.params["seriesResistance"];
+				expect(series).toEqual(
+					expect.objectContaining({ value: rs, basis: rsBasis }),
 				);
+				if (rsBasis === "derived") {
+					expect(typeof series?.derivation === "string" && series.derivation.length).toBeGreaterThan(0);
+				}
 			}
 			// Every spelling of the colour resolves to one law entry stamping isLed.
 			for (const id of ids) {
@@ -782,6 +793,17 @@ describe("a registry parameter reaches the stamp through the loader in a synthet
 				expect(found.model.law.saturationCurrent).toBe(is);
 				expect(found.model.law.isLed).toBe(true);
 				expect(found.provisionalParams).toBeUndefined();
+			}
+		}
+		// No assumed value keeps a measured label.
+		for (const record of ledRegistryRecords) {
+			for (const [name, param] of Object.entries(record.params)) {
+				if (param.basis === "measured") {
+					expect(["saturationCurrent", "emissionCoefficient", "seriesResistance"]).toContain(name);
+				}
+				if (name === "thermalVoltage" || (name === "seriesResistance" && param.value === 2.0 && record.partIds.includes("RED LED"))) {
+					expect(param.basis).toBe("derived");
+				}
 			}
 		}
 	});
