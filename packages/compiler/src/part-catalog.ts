@@ -206,6 +206,11 @@ function citedValueOf(record: PartDataEntry, name: string): number | undefined {
 	return param === undefined ? undefined : param.value;
 }
 
+/** The `citedParams` arm of a law entry built from a record: the parameters it states. */
+function citedArmOf(record: PartDataEntry): Pick<PartEntry, "citedParams"> {
+	return { citedParams: Object.keys(record.params) };
+}
+
 /** The entry's id list: canonical ids plus typed alias spellings, in listing order. */
 function entryIdsOf(record: PartDataEntry): readonly string[] {
 	return [...record.partIds, ...(record.aliases ?? [])];
@@ -228,6 +233,7 @@ export function bjtLawEntry(record: PartDataEntry): PartEntry {
 		declaredTypes: [],
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
+		...citedArmOf(record),
 		model: {
 			kind: "law",
 			law: {
@@ -271,6 +277,7 @@ export function diodeLawEntry(record: PartDataEntry): PartEntry {
 		declaredTypes: [],
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
+		...citedArmOf(record),
 		model: {
 			kind: "law",
 			law: {
@@ -331,6 +338,7 @@ export function fetLawEntry(
 		declaredTypes: [],
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
+		...citedArmOf(record),
 		model: {
 			kind: "law",
 			law: {

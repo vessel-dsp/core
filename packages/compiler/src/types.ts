@@ -3152,6 +3152,10 @@ export type RailWithoutVoltageWarning = {
  * **What it does not claim.** Not that the source is wrong: a packet may leave a JFET untyped on
  * purpose, because the datasheet prints only grade limits (the 2N5952 case). The claim is only
  * that the stamped values came from the consumer, not the source.
+ *
+ * **Per parameter, and registry-aware**, as `BjtLawDefaultWarning`: a registered part whose
+ * record states only its gate (`2SK30A`) still runs Vt0 and Beta on the class default and is
+ * named for them; one whose record states them is not.
  */
 export type FetLawDefaultWarning = {
 	readonly code: "fet-law-default-parameters";
@@ -3174,6 +3178,13 @@ export type FetLawDefaultWarning = {
  * **What it does not claim.** Not that the source is wrong: most corpus BJTs predate any
  * typed parameter, and a packet may leave one untyped because its datasheet prints only a
  * beta bin. The claim is only that the stamped values came from the consumer, not the source.
+ *
+ * **Per parameter, and registry-aware.** A device is named only for a parameter that really
+ * runs on the class default: one the document does not type and the registry record for its
+ * exact part does not state (`PartEntry.citedParams`). A record that states BF alone leaves
+ * IS on the default and is named for IS alone; a record that states both is not named.
+ * Before this, a registered part was named whatever its record held, so a count of these
+ * warnings overstated how many pedals run on defaults.
  */
 export type BjtLawDefaultWarning = {
 	readonly code: "bjt-law-default-parameters";

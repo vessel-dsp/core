@@ -5,6 +5,7 @@ import {
 	readNetlist,
 	type PartRegistry,
 } from "../../packages/compiler/src/index";
+import { bjtLawEntry } from "../../packages/compiler/src/part-catalog";
 import {
 	parseInterchangeYaml,
 	serializeInterchangeYaml,
@@ -353,6 +354,31 @@ describe("DeviceOverride", () => {
 			registry: DIY_BJT_REGISTRY,
 		});
 		expect(result.status).toBe("ok");
+	});
+
+	test("an override over a parameter the record never stated replaces no registry value", () => {
+		// The record states BF only; its IS is the class default gap-filled by value, which the
+		// notice must not report as a registry value the override replaced.
+		const registry: PartRegistry = {
+			entries: [
+				bjtLawEntry({
+					partIds: ["2N3904"],
+					class: "bjt",
+					params: {
+						forwardBeta: { value: 100, basis: "datasheet", source: "synthetic record" },
+					},
+				}),
+			],
+		};
+		const result = compile(bjtDoc(MEASURED_OVERRIDE), { registry });
+		expect(result.status).toBe("ok");
+		if (result.status !== "ok") return;
+		const notice = result.warnings.find((w) => w.code === "registry-override-applied");
+		if (notice?.code !== "registry-override-applied") throw new Error("expected a notice");
+		expect(notice.items).toEqual([
+			{ parameter: "saturationCurrent", overrideValue: 5e-14, registryValue: null },
+			{ parameter: "forwardBeta", overrideValue: 150, registryValue: 100 },
+		]);
 	});
 
 	test("measured override over a known part applies and is reported", () => {

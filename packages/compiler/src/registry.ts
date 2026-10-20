@@ -269,6 +269,20 @@ export type PartEntry = {
 	 */
 	readonly provisionalParams?: readonly ProvisionalParam[];
 	/**
+	 * **The registry parameters the source record states, by schema name.** The wave-1
+	 * builders gap-fill every law field a record leaves out with the class default the
+	 * unregistered path stamps, so the law alone cannot say which numbers a source supplied:
+	 * `2SC1815` states `forwardBeta` only and its `saturationCurrent` is the bjt class
+	 * default, repeated by value. This names the ones a source did state, so a warning about
+	 * defaults can tell a registered value from a gap-fill.
+	 *
+	 * Absent means the entry's author stated the whole law (a hand-built entry, a fixture),
+	 * and every field counts as stated. Present, it is exhaustive: a name not listed is a
+	 * gap-fill. Provisional (`community`) parameters are listed, since they are stated; the
+	 * provisional warning names them separately.
+	 */
+	readonly citedParams?: readonly string[];
+	/**
 	 * **Whether this chip's behaviour comes from a program — typed, with positive evidence.**
 	 * Absent means `undetermined`, which is **not** a scope boundary. See `firmware-class.ts`: the
 	 * compiler's current operative test reads the packet's *record* rather than the chip, so a

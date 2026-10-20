@@ -31,7 +31,7 @@ import { link } from "./link";
 import { lower } from "./lower";
 import { readNetlist } from "./netlist";
 import { partition } from "./partition";
-import { emptyRegistry, foldPartId, registryEntryFor, registryLawFor, type PartEntry, type PartRegistry } from "./registry";
+import { emptyRegistry, foldPartId, registryEntryFor, type PartEntry, type PartRegistry } from "./registry";
 import {
 	findDanglingActiveTerminals,
 	synthesizeOpampImplicitBias,
@@ -54,6 +54,7 @@ import type {
 	CompileResult,
 	DeclaredDelayWarning,
 	DeviceId,
+	DeviceLaw,
 	FetLawDefaultWarning,
 	LawedNetlist,
 	ModulationNotModelledWarning,
@@ -237,7 +238,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 			...findUnmodelledModulation(program),
 		...findRailsWithoutVoltage(netlist),
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
-		...findBjtLawDefaults(netlist),
+		...findBjtLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findRegistryProvisionalValues(netlist, lawed, options.registry ?? emptyRegistry),
 		...findRegistryOverrideApplied(netlist, lawed, options.registry ?? emptyRegistry),
 		...findOpampLawDefaults(lawed),
@@ -342,29 +343,54 @@ function findRailsWithoutVoltage(netlist: Netlist): readonly RailWithoutVoltageW
 	});
 }
 
+/**
+ * Whether the registry supplies a parameter for a part: an entry of that law kind matches
+ * the exact folded part id (the rung `device-laws.ts` refines on) and its record states the
+ * parameter rather than gap-filling it. See `PartEntry.citedParams`. A device that falls
+ * through here runs that parameter on the class default.
+ */
+function registryStates(
+	registry: PartRegistry,
+	partNumber: string | null,
+	lawKind: DeviceLaw["kind"],
+	parameter: string,
+): boolean {
+	if (partNumber === null) return false;
+	const folded = foldPartId(partNumber);
+	for (const entry of registry.entries) {
+		if (!entry.partIds.some((id) => foldPartId(id) === folded)) continue;
+		if (entry.model.kind !== "law" || entry.model.law.kind !== lawKind) continue;
+		return entry.citedParams === undefined || entry.citedParams.includes(parameter);
+	}
+	return false;
+}
+
 /** JFETs stamped with the fet law's own defaults. See `FetLawDefaultWarning`. */
 function findFetLawDefaults(
 	netlist: Netlist,
 	registry: PartRegistry,
 ): readonly FetLawDefaultWarning[] {
+	// A parameter the document types, or the registry states for the exact part, does not
+	// run on the class default. A registered part whose record states neither Vt0 nor Beta
+	// (`2SK30A` states only its gate) still does, and is named for exactly those.
+	const missingOf = (device: Netlist["devices"][number]) =>
+		[
+			device.parameters.thresholdVolts === undefined &&
+			!registryStates(registry, device.identity.partNumber, "fet", "thresholdVolts")
+				? "Vt0"
+				: null,
+			device.parameters.transconductance === undefined &&
+			!registryStates(registry, device.identity.partNumber, "fet", "transconductance")
+				? "Beta"
+				: null,
+		].filter((name) => name !== null);
 	const defaulted = netlist.devices.filter(
-		(device) =>
-			device.kind === "jfet" &&
-			(device.parameters.thresholdVolts === undefined ||
-				device.parameters.transconductance === undefined) &&
-			// A registered part runs on its catalog entry, not the class default --
-			// naming it here would claim the opposite. Exact part id only, the same
-			// rung `device-laws.ts` refines on.
-			registryLawFor(registry, device.identity.partNumber, "fet") === null,
+		(device) => device.kind === "jfet" && missingOf(device).length > 0,
 	);
 	if (defaulted.length === 0) return [];
 	const listed = defaulted.map((device) => {
-		const missing = [
-			device.parameters.thresholdVolts === undefined ? "Vt0" : null,
-			device.parameters.transconductance === undefined ? "Beta" : null,
-		].filter((name) => name !== null);
 		const part = device.identity.partNumber;
-		return `${device.id}${part === null ? "" : ` (${part})`} without ${missing.join("/")}`;
+		return `${device.id}${part === null ? "" : ` (${part})`} without ${missingOf(device).join("/")}`;
 	});
 	return [
 		{
@@ -381,21 +407,31 @@ function findFetLawDefaults(
 }
 
 /** BJTs stamped with the bjt law's own defaults. See `BjtLawDefaultWarning`. */
-function findBjtLawDefaults(netlist: Netlist): readonly BjtLawDefaultWarning[] {
+function findBjtLawDefaults(
+	netlist: Netlist,
+	registry: PartRegistry,
+): readonly BjtLawDefaultWarning[] {
+	// The same test as the JFET finder: a parameter the document types or the registry
+	// states for the exact part is not a default. A record that states only BF (nineteen
+	// do) leaves IS on the class default, and is named for IS alone.
+	const missingOf = (device: Netlist["devices"][number]) =>
+		[
+			device.parameters.saturationCurrent === undefined &&
+			!registryStates(registry, device.identity.partNumber, "bjt", "saturationCurrent")
+				? "IS"
+				: null,
+			device.parameters.beta === undefined &&
+			!registryStates(registry, device.identity.partNumber, "bjt", "forwardBeta")
+				? "BF"
+				: null,
+		].filter((name) => name !== null);
 	const defaulted = netlist.devices.filter(
-		(device) =>
-			device.kind === "bjt" &&
-			(device.parameters.saturationCurrent === undefined ||
-				device.parameters.beta === undefined),
+		(device) => device.kind === "bjt" && missingOf(device).length > 0,
 	);
 	if (defaulted.length === 0) return [];
 	const listed = defaulted.map((device) => {
-		const missing = [
-			device.parameters.saturationCurrent === undefined ? "IS" : null,
-			device.parameters.beta === undefined ? "BF" : null,
-		].filter((name) => name !== null);
 		const part = device.identity.partNumber;
-		return `${device.id}${part === null ? "" : ` (${part})`} without ${missing.join("/")}`;
+		return `${device.id}${part === null ? "" : ` (${part})`} without ${missingOf(device).join("/")}`;
 	});
 	return [
 		{
@@ -512,6 +548,10 @@ function registryParamValue(
 		{ partId: partNumber, evidence: "exact-part" },
 	);
 	if (entry === null) {
+		return null;
+	}
+	// A parameter the record does not state is a gap-fill, not a registry value.
+	if (entry.citedParams !== undefined && !entry.citedParams.includes(parameter)) {
 		return null;
 	}
 	const law =
