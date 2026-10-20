@@ -121,6 +121,9 @@ export function classParamNames(cls: PartClassName): readonly string[] {
  *   Silicon leaves thermalVoltage omitted (the engine constant), breakdownVolts 0 is an
  *   ordinary diode, seriesResistance keeps its class default (1.0 ohm diode, 2.0 ohm LED).
  *   An LED record states the VT its fit was referred to and its fitted Rs explicitly.
+ *   A `custom` LED override must state the full quad: an (IS, n) measured at the engine
+ *   VT silently mis-stamps when VT falls back to the 0.05 class default, and an Rs left
+ *   at 2.0 ohm repeats the inflated-n failure the four-point fits exposed.
  * - `zener`: the diode pair plus breakdownVolts -- the breakdown IS the part, and without it
  *   the law stamps an ordinary diode.
  * - `opamp`: openLoopGain and gainBandwidthHz. The swing pair is deliberately absent: per the
@@ -137,7 +140,7 @@ export const REQUIRED_CLASS_PARAMS = {
 	mosfet: ["thresholdVolts", "transconductance"],
 	diode: ["saturationCurrent", "emissionCoefficient"],
 	zener: ["saturationCurrent", "emissionCoefficient", "breakdownVolts"],
-	led: ["saturationCurrent", "emissionCoefficient"],
+	led: ["saturationCurrent", "emissionCoefficient", "thermalVoltage", "seriesResistance"],
 	opamp: ["openLoopGain", "gainBandwidthHz"],
 	regulator: ["volts"],
 	"charge-pump": ["sourceOhms", "chargePumpLossVolts"],

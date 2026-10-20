@@ -961,6 +961,15 @@ describe("class schemas hold the backlog's parts", () => {
 		expect(classParamNames("charge-pump")).toHaveLength(2);
 		expect(classParamNames("ujt")).toEqual(["intrinsicStandoffRatio", "interbaseResistanceOhms"]);
 		expect(requiredClassParams("ujt")).toEqual(["intrinsicStandoffRatio", "interbaseResistanceOhms"]);
+		// An (IS, n) measured at the engine VT mis-stamps when VT falls back to the 0.05
+		// class default, and an Rs left at 2.0 ohm repeats the inflated-n failure: a
+		// custom LED override must state the full quad.
+		expect(requiredClassParams("led")).toEqual([
+			"saturationCurrent",
+			"emissionCoefficient",
+			"thermalVoltage",
+			"seriesResistance",
+		]);
 	});
 });
 
