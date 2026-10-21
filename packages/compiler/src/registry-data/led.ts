@@ -88,7 +88,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["RED LED", "5mm red LED", "LED-RED"],
 		class: "led",
 		note:
-			"Owner bench 2026-10-20, 4 samples, maker unrecorded, two currents: the pair " +
+			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 samples, maker unrecorded, two currents: the pair " +
 			"(1.1110898624e-14, 2.7587062 at Rs 2.0 ohm) holds only about 1.4 to 11 mA. " +
 			"The marshall-blues-breaker RED LED indicator runs about 15 mA (9 V through " +
 			"470 ohm), above the window: an extrapolated use. n 2.76 is above a junction " +
@@ -102,7 +102,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 1.1110898624e-14,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20, same sitting and fit as the emissionCoefficient " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), same sitting and fit as the emissionCoefficient " +
 					"record (one two-point fit at the 2.0 ohm LED class default and VT 0.025852 V; " +
 					"IS depends exponentially on n, so both digits ship as fitted). Valid about " +
 					"1.4 to 11 mA only; unverified outside the anchors. Evidence " +
@@ -118,7 +118,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 2.7587062,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20, red two-point pair (n 2.76 may carry inflated-n " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), red two-point pair (n 2.76 may carry inflated-n " +
 					"structure; Rs fixed at 2.0 ohm). Valid about 1.4 to 11 mA only. Evidence " +
 					`${EVIDENCE_FIRST_PATH} sha256 ${EVIDENCE_FIRST_SHA256}.`,
 				measurementInstrument: LED_INSTRUMENT,
@@ -158,7 +158,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["LED-GREEN"],
 		class: "led",
 		note:
-			"Owner bench 2026-10-20, 4 + 2 samples (A/B four identified LEDs, C/D one " +
+			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 + 2 samples (A/B four identified LEDs, C/D one " +
 			"unidentified LED per size from the same bags), maker unrecorded. Four-point " +
 			"effective values (5.275788e-17, 3.02001, 29.7599 ohm); residuals (model minus " +
 			"measured) -9.2 mV " +
@@ -171,7 +171,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 5.275788e-17,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 green four-point fit (V = a + n VT ln I + I Rs over " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) green four-point fit (V = a + n VT ln I + I Rs over " +
 					"C 0.13 mA, A 1.1 mA, B 8 mA, D 13 mA; IS depends exponentially on n, so " +
 					"all three digits ship as fitted). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
@@ -185,7 +185,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 3.02001,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 green four-point fit (n 3.02 is an effective value " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) green four-point fit (n 3.02 is an effective value " +
 					"over 0.13 to 13 mA with a stated 32 mV misfit). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
 				measurementConditions: FOUR_POINT_CONDITIONS,
@@ -206,7 +206,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 29.7599,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 green four-point fit (Rs 29.76 ohm is why the " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) green four-point fit (Rs 29.76 ohm is why the " +
 					"first-session n read 8.0; the stamp must run at the fitted Rs, not the " +
 					"2.0 ohm class default). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
@@ -230,7 +230,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["blue"],
 		class: "led",
 		note:
-			"Owner bench 2026-10-20, 4 + 2 samples (A/B four identified LEDs, C/D one " +
+			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 + 2 samples (A/B four identified LEDs, C/D one " +
 			"unidentified LED per size from the same bags), maker unrecorded. Four-point " +
 			"effective values (8.668086e-34, 1.42282, 22.2290 ohm); residuals (model minus " +
 			"measured) +6.4 mV at 1 mA, -8.3 at 8 mA, -2.5 at 0.13 mA, +4.4 at 13 mA: " +
@@ -246,7 +246,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 8.668086e-34,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 blue four-point fit (V = a + n VT ln I + I Rs over " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) blue four-point fit (V = a + n VT ln I + I Rs over " +
 					"C 0.13 mA, A 1.1 mA, B 8 mA, D 13 mA; IS depends exponentially on n, so " +
 					"all three digits ship as fitted). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
@@ -260,7 +260,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 1.42282,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 blue four-point fit (effective value over 0.13 to " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) blue four-point fit (effective value over 0.13 to " +
 					"13 mA). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
 				measurementConditions: FOUR_POINT_CONDITIONS,
@@ -281,7 +281,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 22.229,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 blue four-point fit (Rs 22.229 ohm is why the " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) blue four-point fit (Rs 22.229 ohm is why the " +
 					"first-session n read 4.4; the stamp must run at the fitted Rs, not the " +
 					"2.0 ohm class default). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
@@ -304,7 +304,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["white"],
 		class: "led",
 		note:
-			"Owner bench 2026-10-20, 4 + 2 samples (A/B four identified LEDs, C/D one " +
+			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 + 2 samples (A/B four identified LEDs, C/D one " +
 			"unidentified LED per size from the same bags), maker unrecorded. Four-point " +
 			"effective values (4.056687e-26, 1.98811, 22.5033 ohm); residuals (model minus " +
 			"measured) +13.9 mV at 1 mA, -18.1 at 8 mA, -5.4 at 0.13 mA, +9.6 at 13 mA: " +
@@ -322,7 +322,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 4.056687e-26,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 white four-point fit (V = a + n VT ln I + I Rs over " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) white four-point fit (V = a + n VT ln I + I Rs over " +
 					"C 0.13 mA, A 1.1 mA, B 8 mA, D 13 mA; IS depends exponentially on n, so " +
 					"all three digits ship as fitted). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
@@ -336,7 +336,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 1.98811,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 white four-point fit (effective value over 0.12 to " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) white four-point fit (effective value over 0.12 to " +
 					"13 mA). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
 				measurementConditions: FOUR_POINT_CONDITIONS,
@@ -357,7 +357,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 22.5033,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 white four-point fit (Rs 22.5033 ohm is why the " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) white four-point fit (Rs 22.5033 ohm is why the " +
 					"first-session n read 5.2; the stamp must run at the fitted Rs, not the " +
 					"2.0 ohm class default). " + FOUR_POINT_SOURCE_TAIL,
 				measurementInstrument: LED_INSTRUMENT,
@@ -378,7 +378,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["yellow"],
 		class: "led",
 		note:
-			"Owner bench 2026-10-20, 4 samples, maker unrecorded, two currents: the pair " +
+			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 samples, maker unrecorded, two currents: the pair " +
 			"(2.1187081810e-25, 1.4664285 at Rs 2.0 ohm) holds only about 1.4 to 11 mA. " +
 			"n 1.47 needs no series resistance, so the two-point form is consistent at the " +
 			"anchors; unverified outside them all the same.",
@@ -387,7 +387,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 2.1187081810e-25,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20, same sitting and fit as the emissionCoefficient " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), same sitting and fit as the emissionCoefficient " +
 					"record (one two-point fit at the 2.0 ohm LED class default and VT 0.025852 V; " +
 					"IS depends exponentially on n, so both digits ship as fitted). Valid about " +
 					"1.4 to 11 mA only; unverified outside the anchors. Evidence " +
@@ -407,7 +407,7 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 1.4664285,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20 yellow two-point pair (n 1.47 needs no series " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) yellow two-point pair (n 1.47 needs no series " +
 					"resistance; Rs fixed at 2.0 ohm). Valid about 1.4 to 11 mA only. Evidence " +
 					`${EVIDENCE_FIRST_PATH} sha256 ${EVIDENCE_FIRST_SHA256}.`,
 				measurementInstrument: LED_INSTRUMENT,

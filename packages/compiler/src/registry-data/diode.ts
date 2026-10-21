@@ -609,7 +609,8 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["1N4148"],
 		class: "diode",
 		note:
-			"Owner bench 2026-10-20, two samples, maker unrecorded, two currents: the " +
+			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), two " +
+			"samples, maker unrecorded, two currents: the " +
 			"IS+n pair (2.124272112914455e-8, 2.17468223817758) holds only between 1.97 " +
 			"and 15.6 mA, and the 15.6 mA anchor sits above the page's 4 to 15 mA window. " +
 			"Two currents cannot separate n from series resistance (n 2.17 is above the " +
@@ -629,7 +630,8 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 2.124272112914455e-8,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20, two 1N4148 of unrecorded maker, UNI-T UT107 " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), two " +
+					"1N4148 of unrecorded maker, UNI-T UT107 " +
 					"(DC volts, effective count 10 mV: every voltage was entered to 0.01 V, " +
 					"range not recorded). USB 5 V breadboard shield measured 4.99 V; 2.2 kohm " +
 					"and 270 ohm resistors as typed, exactly nominal, probably not metered " +
@@ -658,7 +660,8 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 				value: 2.17468223817758,
 				basis: "measured",
 				source:
-					"Owner bench 2026-10-20, same sitting and fit as the saturationCurrent " +
+					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), same " +
+					"sitting and fit as the saturationCurrent " +
 					"record (one two-point fit at the engine's 1.0 ohm diode default and VT " +
 					"0.025852 V; IS depends exponentially on n, so both digits ship as fitted). " +
 					"Evidence packet-study/led-default/measurements/2026-10-20-led-default.json " +
