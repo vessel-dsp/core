@@ -1,20 +1,20 @@
-# Release prep: compiler 0.8.0 (and the exact re-pins it forces), 2026-10-21
+# Release prep: core 0.17.0 / compiler 0.8.0 / runtime 0.6.2 / chain 0.1.10 / player 0.2.8 (2026-10-22)
 
-**Status: DRAFTED, NOT RUN.** Written on 2026-10-21 when the owner asked to publish the bench-measured diode records. The
-session that drafted it lost its shell before any check could run, so nothing below is measured for this release yet, no
-version is bumped, no tag exists, and the only edits on the tree are the two registry files (author credit in the `source`
-and `note` strings of the measured records) and this document. Every row of the checklist is still owed. Do not tag from this
-state.
+**Status: PREPARED, NOT PUSHED, NOT TAGGED.** Prepared 2026-10-22 on branch `indiejoseph/release-0.8.0` at the prep commit
+(see report). Built and verified in a fresh clone at `/home/joseph/projects/VesselDSP/tmp/release-0.8.0/clone`; evidence
+under `/home/joseph/projects/VesselDSP/tmp/release-0.8.0/` (never under `/tmp`). Every figure below was measured for this
+release; nothing is carried over. Do not tag from any other state. Publication order is core, compiler, runtime, chain,
+player (`publish.yml` has no dependencies-published gate for the compiler, so the compiler must not go before core).
 
-## What ships (proposed; the owner may change the versions before any tag)
+## What ships (prepared; the owner may change the versions before any tag)
 
 | package | from | to | why |
 |---|---|---|---|
-| compiler | 0.7.0 | 0.8.0 | the measured 1N4148 pair replaces the community record; measured LED colour defaults (red, yellow, green, blue, white) with typed `Color`; a `custom` LED override must state the full quad; assumed fit constants relabelled `derived`; `led-colour-unmatched` diagnostic. Minor because `Color` is a new typed vocabulary the compiler reads from a document |
-| runtime | 0.6.1 | 0.6.2 | exact compiler pin and the regenerated `GeneratedKernels.cpp` only; `Program`, `Stamp`, `ProgramJson.cpp` and `Program.h` untouched (to be confirmed by `git diff compiler-v0.7.0 -- packages/runtime/src/cpp`) |
+| core (`@vessel-dsp/core`) | 0.16.0 | 0.17.0 | new export `LED_INDICATOR_COLOURS` (minor) and the s-curve/taper change already on main; published 0.16.0 lacks both, and the compiler imports the new export, so core is published first |
+| compiler | 0.7.0 | 0.8.0 | the measured 1N4148 pair and LED colour records, typed `Color`, `led-colour-unmatched`, full-quad `custom` LED override; exact pin on core 0.17.0 |
+| runtime | 0.6.1 | 0.6.2 | exact compiler pin, the regenerated `GeneratedKernels.cpp`, and the sparse-refinement fix `1073c4f` (`Engine.cpp` + `reference-runtime.ts` only; no `Program`/`Stamp`/`ProgramJson.cpp`/`Program.h` change, confirmed) |
 | chain | 0.1.9 | 0.1.10 | exact re-pin |
 | player | 0.2.7 | 0.2.8 | exact re-pin |
-| core (`@vessel-dsp/core`) | 0.16.0 | **check first** | `d428a28` added `LED_INDICATOR_COLOURS` to `@vessel-dsp/core`. If npm's 0.16.0 predates that commit, core must be bumped and published BEFORE the compiler, or the published compiler imports a symbol the published core does not export |
 
 Unreleased on core `main` since `compiler-v0.7.0` (all of `adf0792`, the `indiejoseph/led-registry` merge): `d9f2d5c`,
 `7b60412`, `f8cd567`, `ab26251`, `d428a28`. Nothing else is queued.
@@ -61,15 +61,42 @@ defaults with the warning. Workbench evidence: `packet-study/led-default/WASM-CH
 The runtime changes only its exact pin and the regenerated kernel table; chain and player change only their exact pins.
 ```
 
-## Checklist (the 0.7.0 sequence, `docs/releases/2026-10-20-release-prep-0.7.0.md`; every row owed)
+## Checklist (the 0.7.0 sequence, `docs/releases/2026-10-20-release-prep-0.7.0.md`; every row measured 2026-10-22)
 
-1. `npm view @vessel-dsp/core version` and `git log -1 --format=%h -- packages/core/src` against the `v0.16.0` tag: decide the core bump above.
-2. Fresh clone of core `main` (worktrees nest; do not prepare in the main checkout). `bun install --frozen-lockfile`, root `bun run build` (after `bun run --cwd packages/runtime build:wasm`, emsdk on PATH).
-3. Confirm no runtime C++ or `Program` change: `git diff compiler-v0.7.0..HEAD --stat -- packages/runtime/src/cpp packages/runtime/src/program*`.
-4. Regenerate `GeneratedKernels.cpp` with this compiler over the artifacts corpus (`export-programs-release-compiler.ts`, `generate-kernels.ts`), rebuild wasm, record fingerprints in and out against the committed table.
-5. Corpus A/B against the published 0.7.0 / 0.6.1 installed from npm into an empty directory: program text and 2048-sample two-tone audio on both consoles, with the repeat and nudge controls; expect exactly the diode-stamp movers above and name any other.
-6. Bump the versions, exact pins, `tests/package.test.ts` release metadata, move the entry to `CHANGELOG.md`; `bun test` (compiler 652 pass on the branch at `adf0792`), `bun run typecheck`.
-7. Commit the prep, ff-merge to `main`, push, confirm `git rev-parse HEAD == origin/main`.
-8. Tags one at a time, `gh run watch`, `npm view` poll between each, in the order core (if bumped), compiler, runtime, chain, player.
-9. Empty-dir install of the four, `npm ls --all`, render the corpus through the published wasm and compare hashes with the local build.
-10. Workbench: pin bump, `bun run build:v2-worklet`, `bun run generate:catalogs` from a `git archive` of the artifacts commit, `bun run report:hardware-ratchet` (the SD-1 lane's diode ablation in `packet-study/boss-sd-1-et521-5108/specimen-profile/` should be rerun on the measured 1N4148 record), changelog, commit.
+1. npm holds core 0.16.0, compiler 0.7.0, runtime 0.6.1, chain 0.1.9, player 0.2.7. `git log v0.16.0..HEAD -- packages/core/src`
+   lists `d428a28` (`LED_INDICATOR_COLOURS`, imported by the new compiler) and `bb5b6aa` (s-curve/taper): published 0.16.0
+   lacks both, so core 0.17.0 goes first. `publish.yml` tag patterns `v*`, `compiler-v*`, `runtime-v*`, `chain-v*`,
+   `player-v*` confirmed; only chain, runtime and player have a dependencies-published gate (compiler has none, which is
+   why the order matters). PASS.
+2. Fresh clone of `indiejoseph/release-0.8.0` at `1073c4f` under `tmp/release-0.8.0/clone` (the worktree nests inside the
+   main checkout and would resolve stale `node_modules`/`dist`). `bun install --frozen-lockfile` passes; `build:wasm`
+   (emcc 6.0.4) then root `bun run build` passes, `dist entrypoints ok`. A bare `@vessel-dsp/compiler` import from outside
+   the clone resolves to bun's install cache (published code): all measuring scripts run from inside the clone. PASS.
+3. `git diff compiler-v0.7.0..HEAD --stat -- packages/runtime/src` is `Engine.cpp` + `reference-runtime.ts` only: no
+   `Program`/`Stamp`/`ProgramJson.cpp`/`Program.h` change. Patch release justified. PASS.
+4. Exported 145 programs with the new compiler over artifacts `892d3b9cd` (committed files only; the live checkout's two
+   untracked Maestro paths excluded) and regenerated: 139 kernels from 559 blocks (committed table 139 from 563).
+   One fingerprint out (`0x5a687ace`), one in (`0x5f19ae34`), both `boss-aw-2`: the packet was re-traced between `67fb504c7`
+   and `892d3b9cd`, so the old entry was dead and the new schedule ran on the interpreter. No compiler-attributable kernel
+   churn (`boss-aw-2` program text is byte-identical between old and new compilers over the same corpus). WASM outputs are
+   bit-identical with and without the regenerated table over the whole corpus (145 of 145). PASS.
+5. Corpus A/B, published 0.7.0/0.6.1 from npm in an empty dir vs the new tree: 145 compile on both, `boss-dd-3t` refused
+   on both. Program text: 106 identical, 39 differ, all diode-stamps-only (13 on the 1N4148 record, 22 on red, 2 on blue
+   Rs-fit, 2 mixed; 21 further LED carriers keep class defaults and do not move). Audio: every unchanged program renders
+   bit-identical on both consoles except `boss-aw-2` (TS 2.74e-2, WASM 2.51e-2 at a 0.27 peak: the `1073c4f` repivot at 1x);
+   4 movers are program-only with identical audio; the rest move 1e-14 to volts, largest `boss-tw-1`, Guvnor, `jan-ray`.
+   No unexplained mover. Positive control A-vs-repeat identical 145/145 both consoles; negative control B-vs-perturb moves
+   122 TS / 118 WASM (8 silent in both). Pre-existing TS-vs-WASM gaps (`mf-102`, 1959, rockerverb, `tw-1`) unchanged in kind. PASS (controls
+   in the report).
+6. Versions and exact pins bumped (core 0.17.0, compiler 0.8.0, runtime 0.6.2, chain 0.1.10, player 0.2.8), `bun.lock`
+   refreshed, `tests/package.test.ts` release metadata and `CHANGELOG.md` heading moved to
+   `## core 0.17.0 / compiler 0.8.0 / runtime 0.6.2 / chain 0.1.10 / player 0.2.8`. Checks (fresh clone): see report.
+7. Commit the prep on `indiejoseph/release-0.8.0`. **No ff-merge, no push: phase 2 (coordinator) owns push and tags.**
+8. Tags one at a time in publication order (core, compiler, runtime, chain, player), `gh run watch` + `npm view` poll
+   between each. **Phase 2, not this prep.**
+9. Empty-dir install of the five, `npm ls`, render the corpus through the published wasm and compare hashes with the local
+   build. **Phase 2, after the tags.**
+10. Workbench: pin bump, `bun run build:v2-worklet`, `bun run generate:catalogs` from a `git archive` of the artifacts
+    commit, `bun run report:hardware-ratchet`, changelog, commit. **Not this repo, not this prep.**
+
+`scripts/next-bundle-proof.ts` is stale (reads a removed blog file): not run, as in the 0.7.0 prep.

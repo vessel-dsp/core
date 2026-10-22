@@ -875,15 +875,15 @@ describe("release metadata", () => {
 		const controlUiDistIndex = await readControlUiDistIndexJs();
 		const controlUiDistTypes = await readControlUiDistIndexDts();
 
-		expect(core.version).toBe("0.16.0");
+		expect(core.version).toBe("0.17.0");
 		expect(stompbox.version).toBe("0.6.17");
 		expect(controlUi.version).toBe("0.6.15");
 		expect(visualEffects.version).toBe("0.6.15");
 		expect(amp.version).toBe("0.6.15");
 		expect(cabinet.version).toBe("0.6.15");
-		expect(VERSION).toBe("0.16.0");
-		expect(distIndex).toContain('export const VERSION = "0.16.0";');
-		expect(distTypes).toContain('export declare const VERSION = "0.16.0";');
+		expect(VERSION).toBe("0.17.0");
+		expect(distIndex).toContain('export const VERSION = "0.17.0";');
+		expect(distTypes).toContain('export declare const VERSION = "0.17.0";');
 		expect(distTypes).toContain("DeviceInterfaceAudioBinding");
 		expect(stompboxDistIndex).toContain("createStompboxDrillLayoutFromVdsp");
 		expect(stompboxDistIndex).toContain(
@@ -930,7 +930,7 @@ describe("release metadata", () => {
 		expect(controlUiDistTypes).toContain("ControlUiThemeProvider");
 		expect(controlUiDistTypes).toContain("createControlUiState");
 		expect(changelog).toStartWith(
-			"# Changelog\n\n## compiler 0.7.0 / runtime 0.6.1 / chain 0.1.9 / player 0.2.7\n\n",
+			"# Changelog\n\n## core 0.17.0 / compiler 0.8.0 / runtime 0.6.2 / chain 0.1.10 / player 0.2.8\n\n",
 		);
 		expect(changelog).toContain("## compiler 0.5.0 / runtime 0.5.0 / chain 0.1.8 / player 0.2.6");
 		expect(changelog).toContain("## runtime 0.4.1 / chain 0.1.7 / player 0.2.5");

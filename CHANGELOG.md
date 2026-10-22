@@ -1,5 +1,62 @@
 # Changelog
 
+## core 0.17.0 / compiler 0.8.0 / runtime 0.6.2 / chain 0.1.10 / player 0.2.8
+
+**The registry's first bench-measured records, measured by Joseph Cheng (the project owner) on 2026-10-20.** The 1N4148's
+community card (LTspice Standard.dio IS 2.52 nA, N 1.752, RS 0.568) is replaced by the owner's two-point pair
+(IS 2.124272112914455e-8, n 2.17468223817758 at the engine's 1.0 ohm default and VT 0.025852 V; anchors 1.9705 mA at 0.645 V
+and 15.611 mA at 0.775 V, means of two diodes, UNI-T UT107, 10 mV count). The pair holds only between those two currents and
+cannot separate n from series resistance; the record says so. Five LED colour defaults (red, yellow, green, blue, white) carry
+measured IS and n (blue, white and green from a four-point fit with a fitted series resistance of 22 to 30 ohm; red and
+yellow from a two-point pair valid about 1.4 to 11 mA) with the thermal voltage they were referred to stated as `derived`; a
+`kind: led` device reaches them by whole part id (`RED LED`, `5mm red LED`, `LED-RED`, `LED-GREEN`) or by the new typed `Color`
+(closed vocabulary red, yellow, green, blue, white, compared as a whole value; `LED_INDICATOR_COLOURS` in `@vessel-dsp/core`;
+an out-of-vocabulary colour keeps the class defaults and raises `led-colour-unmatched`). A `custom` LED override must now state
+the full quad (IS, n, VT, Rs). Green misses the fit's 20 mV limit by 12 mV and the record discloses it. No manufacturer model
+exists for an indicator green or yellow LED; the published white and blue models sit 60 to 700 mV from the kit.
+
+**Core also takes a minor for `LED_INDICATOR_COLOURS`, the typed colour vocabulary the new compiler reads from a document.**
+`bb5b6aa` executes the s-curve taper as Alpha W(4B) on both consoles and refuses an unknown taper instead of reading it as
+linear. Over the release corpus neither changes a compile status nor a program byte: the only program-text movers are the
+39 diode-stamp packets below.
+
+**What moves, as measured 2026-10-22 against the published 0.7.0 / 0.6.1** (artifacts `892d3b9cd`, committed files only,
+123 pedals and 23 amps; program text plus 2048-sample two-tone 440 Hz at 0.25 plus 1320 Hz at 0.1 at default controls on both
+consoles, published packages against this tree's compiler and its rebuilt wasm): 145 documents compile on both arms and
+`boss-dd-3t` is refused on both, so no compile-status mover. 39 programs move, every one in diode stamps only: 13 on the
+1N4148 record (9 on the pair alone, 4 together with an LED record), 24 on the keyed or typed red record alone, 2 on a blue
+Rs-fit record alone (keeley-compressor-plus, fulltone-ocd-v1.4); the four mixed packets are `bk-butler-tube-driver`
+(pair plus red plus the green Rs-fit), `dod-preamp-250` (pair plus blue), `ibanez-ts9-reissue` and
+`marshall-blues-breaker` (pair plus red).
+21 further packets carry an LED that keeps the class defaults (out-of-vocabulary or unmatched colour, e.g. `boss-bf-3` and
+`boss-ph-3` with `Color: red-green`) and do not move. Audio level: every packet whose program is unchanged renders
+bit-identical on both consoles except `boss-aw-2` (below), so the default path is unchanged except where the records or the
+solver say otherwise. Of the 39, four move program-only with bit-identical audio on both consoles (indicator LEDs outside the
+audio path: `boss-bf-2`, `boss-hm-2`, `electro-harmonix-deluxe-memory-man`, `mxr-dyna-comp`); the rest move from 1e-14
+iteration-path rounding up to volts, largest `boss-tw-1` (3.90 TS, 3.35 WASM against a 3.4 peak: the red record moves its
+startup convergence, as in the workbench study, where settled audio agrees to 2.8e-5; the pre-existing TS-against-WASM gap on
+`boss-tw-1` is unchanged in kind), `marshall-guvnor-drivemaster` (0.322 on both: plain diodes with part number `LED-RED` now
+clip as red LEDs), `vemuram-jan-ray` (0.0662), `marshall-blues-breaker` (0.0594), `earthquaker-devices-plumes` (0.0363).
+The TS-against-WASM console gaps on `moogerfooger-mf-102`, `marshall-1959-super-lead-plexi`, `orange-rockerverb` and `boss-tw-1`
+are identical in kind on both arms: pre-existing packet state, not a regression. `boss-ph-1r` keeps console parity in this
+harness.
+
+**The runtime adopts a bar-clean candidate past the marginal line on both consoles (`1073c4f`).** A shipped sparse order that
+replays the operating-point matrix within tolerance but worse than tolerance/10 (1e-4) now loses to a candidate an order of
+magnitude cleaner without consulting the 1.1x fill-cost ceiling. Over this corpus exactly one block sits in that band,
+`boss-aw-2` at 1x, and it converges 0 held at about 3 iterations where the published runtime held 157 of 1200 samples at up
+to 1024 peak iterations: its audio moves with a byte-identical program (TS 2.74e-2, WASM 2.51e-2 against a 0.27 peak).
+No other same-program packet moves on either console, which is the measured basis for the default-path claim above. The
+regenerated kernel table has 139 kernels from 559 scheduled blocks; against the committed table one fingerprint goes
+(`0x5a687ace`) and one comes (`0x5f19ae34`), both `boss-aw-2`: the packet was re-traced between the `67fb504c7` snapshot the
+committed table was generated from and this corpus, so the old entry was dead and the new schedule ran on the interpreter.
+Outputs are bit-identical with and without the regenerated table over the whole corpus on the WASM console. The runtime
+changes nothing else: exact compiler pin only, no `Program`, `Stamp`, `ProgramJson.cpp` or `Program.h` change (`Engine.cpp`
+plus `reference-runtime.ts` only).
+
+The chain changes only its exact pins (compiler 0.8.0, core 0.17.0, runtime 0.6.2) and the player only its exact pins
+(chain 0.1.10, compiler 0.8.0, core 0.17.0, runtime 0.6.2).
+
 ## compiler 0.7.0 / runtime 0.6.1 / chain 0.1.9 / player 0.2.7
 
 **The Electro-Harmonix Slap-Back Echo compiles, and its delay comes from its own clock.** Until now the document was refused at
