@@ -6,7 +6,10 @@
 // - `shouldRefinePivotOrder`: the settle refinement predicate, table-driven
 //   with the measured corpus numbers (`boss-sd-1` adopts; `boss-mt-2` is
 //   cost-blocked; `boss-hm-2` ties and keeps shipped; `marshall-jcm800`'s
-//   candidate never reaches the bar).
+//   candidate never reaches the bar) plus abstract marginal-zone cases: a
+//   shipped order validating by less than an order of magnitude adopts a
+//   bar-clean candidate despite fill growth, while just below the
+//   marginal line the cost ceiling still refuses.
 // - `runSparseSchedule`'s pivot floor: a collapsed pivot trips; a healthy
 //   one does not; an all-zero gather trips rather than dividing silently.
 //   (A relative guard was tried here and reverted: magnitude cannot separate
@@ -141,6 +144,50 @@ describe("shouldRefinePivotOrder", () => {
 				shippedSlots: 400,
 				candidateOps: 789,
 				candidateSlots: 400,
+			}),
+		).toBe(false);
+	});
+	it("adopts a marginally-validating shipped order despite fill growth", () => {
+		// Past the marginal line (tolerance / 10 = 1e-4) the shipped order
+		// validates by less than an order of magnitude, so correctness waives
+		// the cost ceiling: magnitudes from the 2026-10 corpus sweep, where
+		// the only block in this band with a bar-clean candidate never
+		// converged on its shipped order. No packet or block identity is
+		// asserted -- only the zone behaviour.
+		expect(
+			shouldRefinePivotOrder({
+				shippedDisagreement: 9.6e-4,
+				candidateDisagreement: 3.8e-13,
+				shippedOps: 2163,
+				shippedSlots: 774,
+				candidateOps: 2628,
+				candidateSlots: 855,
+			}),
+		).toBe(true);
+	});
+	it("still refuses fill growth just below the marginal line", () => {
+		// Same shape as above but the shipped order validates by more than an
+		// order of magnitude: the ceiling still guards good orders.
+		expect(
+			shouldRefinePivotOrder({
+				shippedDisagreement: 9.0e-5,
+				candidateDisagreement: 3.8e-13,
+				shippedOps: 2163,
+				shippedSlots: 774,
+				candidateOps: 2628,
+				candidateSlots: 855,
+			}),
+		).toBe(false);
+	});
+	it("holds the marginal line itself: at exactly tolerance / 10 the ceiling applies", () => {
+		expect(
+			shouldRefinePivotOrder({
+				shippedDisagreement: 1e-4,
+				candidateDisagreement: 3.8e-13,
+				shippedOps: 2163,
+				shippedSlots: 774,
+				candidateOps: 2628,
+				candidateSlots: 855,
 			}),
 		).toBe(false);
 	});

@@ -335,6 +335,12 @@ constexpr double NUMERIC_REPIVOT_TAU = 1e-3;
 constexpr double SCHEDULE_REFINEMENT_BAR = 1e-9;
 constexpr double SCHEDULE_REFINEMENT_RATIO = 10.0;
 constexpr double SCHEDULE_REFINEMENT_MAX_COST_GROWTH = 1.1;
+// Marginal-validation line: a shipped order replaying worse than this
+// validates by less than an order of magnitude, so the bar-clean candidate is
+// adopted for correctness without consulting fill cost. Same value and same
+// predicate as `ReferenceRuntime` -- keep the two identical.
+constexpr double SCHEDULE_MARGINAL_DISAGREEMENT =
+    SCHEDULE_VALIDATION_TOL / SCHEDULE_REFINEMENT_RATIO;
 
 inline bool shouldRefinePivotOrder(
     double shippedDisagreement,
@@ -350,8 +356,9 @@ inline bool shouldRefinePivotOrder(
     return shippedDisagreement > SCHEDULE_REFINEMENT_BAR &&
         candidateDisagreement <= SCHEDULE_REFINEMENT_BAR &&
         candidateDisagreement < shippedDisagreement / SCHEDULE_REFINEMENT_RATIO &&
-        candidateOps <= SCHEDULE_REFINEMENT_MAX_COST_GROWTH * shippedOps &&
-        candidateSlots <= SCHEDULE_REFINEMENT_MAX_COST_GROWTH * shippedSlots;
+        (shippedDisagreement > SCHEDULE_MARGINAL_DISAGREEMENT ||
+            (candidateOps <= SCHEDULE_REFINEMENT_MAX_COST_GROWTH * shippedOps &&
+                candidateSlots <= SCHEDULE_REFINEMENT_MAX_COST_GROWTH * shippedSlots));
 }
 constexpr uint64_t HISTORY_KEY_BASE = 8192ULL;
 constexpr double NEWTON_RELATIVE_TOLERANCE = 1e-3;
@@ -2016,7 +2023,9 @@ void Engine::settlePivotOrders() {
             // The shipped order validates. Replace it only on a refinement:
             // the candidate reaches the audio-agreement bar while the shipped
             // order does not, by an order of magnitude, without meaningful
-            // fill cost. Same predicate as `ReferenceRuntime`'s
+            // fill cost -- unless the shipped order is past the marginal line
+            // and validates by less than an order of magnitude, in which case
+            // correctness waives the cost. Same predicate as `ReferenceRuntime`'s
             // `shouldRefinePivotOrder` -- ties keep shipped.
             if (candidate.has_value() && shouldRefinePivotOrder(
                     disagreement, candidateDisagreement,

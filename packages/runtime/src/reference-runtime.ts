@@ -3543,7 +3543,9 @@ export class ReferenceRuntime {
  * A validating shipped order is still replaced when the value-aware candidate
  * reaches the audio-agreement bar (1e-9) an order of magnitude more cleanly
  * without meaningful fill cost -- the refinement in `SCHEDULE_REFINEMENT_BAR`.
- * Bar-clean ties keep shipped even when the audios differ: the
+ * Past the marginal line the shipped order validates by less than an order of
+ * magnitude, so the bar-clean candidate is adopted for correctness without
+ * consulting fill cost. Bar-clean ties keep shipped even when the audios differ: the
  * operating-point replay cannot adjudicate audio-time divergence (`boss-os-2`
  * replays 3.4e-10 shipped vs 2.5e-13 candidate while the audios differ 1000x),
  * so the rule only moves past the bar it can measure, never on a tie.
@@ -3703,11 +3705,14 @@ export class ReferenceRuntime {
 						Math.max(Math.sqrt(candidateDenseSquares), 1e-9)
 					: Infinity;
 			}
-			if (disagreement <= SCHEDULE_VALIDATION_TOL) {
+		if (disagreement <= SCHEDULE_VALIDATION_TOL) {
 				// The shipped order validates. Replace it only on a refinement:
 				// the candidate reaches the audio-agreement bar while the
 				// shipped order does not, by an order of magnitude, without
-				// meaningful fill cost (see `shouldRefinePivotOrder`). Ties
+				// meaningful fill cost -- unless the shipped order is past the
+				// marginal line and validates by less than an order of
+				// magnitude, in which case correctness waives the cost
+				// (see `shouldRefinePivotOrder`). Ties
 				// keep shipped, so adoption never churns a schedule for noise
 				// -- measured, `boss-hm-2`, `boss-ch-1` and `boss-od-3` tie
 				// and keep shipped while `boss-sd-1` crosses (1.8e-9 to
@@ -8702,8 +8707,27 @@ const SCHEDULE_REFINEMENT_RATIO = 10;
  * for no audio gain; `mxr-phase-90`: +30% ops for an audio *regression*)
  * fails the cost criterion it was meant to serve, so the rule refuses it and
  * keeps shipped. Measured adopters sit far below: `boss-sd-1` +6.5% ops.
+ *
+ * The ceiling only guards good orders: past `SCHEDULE_MARGINAL_DISAGREEMENT`
+ * below, a validating shipped order is near the failure line, so a bar-clean
+ * candidate an order of magnitude cleaner is adopted for correctness without
+ * consulting fill cost.
  */
 const SCHEDULE_REFINEMENT_MAX_COST_GROWTH = 1.1;
+/**
+ * Marginal-validation line: a shipped order replaying the operating-point
+ * matrix worse than this validates by less than an order of magnitude
+ * (`SCHEDULE_VALIDATION_TOL / SCHEDULE_REFINEMENT_RATIO`), so it is near the
+ * failure line rather than cleanly good. Meeting it waives the fill-growth
+ * ceiling above: the ceiling exists to stop churn among good orders, not to
+ * keep a near-failing one. Corpus-wide, the only block ever seen in this band
+ * with a bar-clean candidate never converged at 1x on its shipped order while
+ * the adopted candidate converges like dense; the next-worst validating
+ * replays have no bar-clean candidate, and every other cost-refused candidate
+ * sits orders below the line.
+ */
+const SCHEDULE_MARGINAL_DISAGREEMENT =
+	SCHEDULE_VALIDATION_TOL / SCHEDULE_REFINEMENT_RATIO;
 
 // A **residual check on the schedule's answer was implemented, measured and removed.** The
 // reasoning that motivated it was that a static order might produce a bad answer where a
@@ -8744,8 +8768,11 @@ const SCHEDULE_CONSECUTIVE_FALLBACK_LIMIT = 64;
  *
  * Adopt only when the shipped order is above the audio-agreement bar while
  * the candidate reaches it, by an order of magnitude, without meaningful
- * fill cost. The shipped-side floor matters as much as the candidate-side
- * bar: without it, bar-clean ties with a 1000x replay gap (`trainwreck`,
+ * fill cost -- unless the shipped order is past the marginal-validation line
+ * (`SCHEDULE_MARGINAL_DISAGREEMENT`), in which case it validates by less than
+ * an order of magnitude and the bar-clean candidate is adopted for
+ * correctness without consulting fill cost. The shipped-side floor matters
+ * as much as the candidate-side bar: without it, bar-clean ties with a 1000x replay gap (`trainwreck`,
  * `fender-5e3`, `vox-ac15`) churn schedules -- and lose their generated
  * kernels on the C++ console -- for zero audio gain, and `hiwatt-dr103`
  * adopts on one console but not the other from libm-level matrix noise.
@@ -8775,10 +8802,15 @@ export function shouldRefinePivotOrder(input: {
 		input.candidateDisagreement <= SCHEDULE_REFINEMENT_BAR &&
 		input.candidateDisagreement <
 			input.shippedDisagreement / SCHEDULE_REFINEMENT_RATIO &&
-		input.candidateOps <=
-			SCHEDULE_REFINEMENT_MAX_COST_GROWTH * input.shippedOps &&
-		input.candidateSlots <=
-			SCHEDULE_REFINEMENT_MAX_COST_GROWTH * input.shippedSlots
+		// A shipped order past the marginal line validates by less than an
+		// order of magnitude: the replay is near the failure line, so adopt
+		// the clean candidate for correctness without consulting fill cost.
+		// Below the line the ceiling still stops churn among good orders.
+		(input.shippedDisagreement > SCHEDULE_MARGINAL_DISAGREEMENT ||
+			(input.candidateOps <=
+				SCHEDULE_REFINEMENT_MAX_COST_GROWTH * input.shippedOps &&
+				input.candidateSlots <=
+					SCHEDULE_REFINEMENT_MAX_COST_GROWTH * input.shippedSlots))
 	);
 }
 
