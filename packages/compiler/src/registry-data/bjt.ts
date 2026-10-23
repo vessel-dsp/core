@@ -622,10 +622,43 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	},
 	{
 		// Wave 4. No VBE row of any kind: the table prints ICBO/IEBO, hFE (no TYP),
-		// VCE(sat) MAX-only and no VBE(on)/VBE(sat) TYP or range, so IS has no input.
+		// VCE(sat) MAX-only and no VBE(on)/VBE(sat) TYP or range, so IS has no
+		// datasheet input. Wave 2 (transistor-records wave 2, 2026-10-23) adds IS
+		// from the Intusoft QSC2458 card in the third-party KiCad-Spice-Library
+		// collection (community basis, provisional per the owner decision); BF stays
+		// datasheet-derived above and no other card field is used.
 		partIds: ["2SC2458"],
 		class: "bjt",
 		params: {
+			saturationCurrent: {
+				value: 15.2e-15,
+				basis: "community",
+				source:
+					"KiCad-Spice-Library third-party collection, BJTN.LIB " +
+					"(Intusoft-authored cards; file header 'Copyright Intusoft 1988-1997 / " +
+					"All Rights Reserved') " +
+					"https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB " +
+					"(read 2026-10-23): the QSC2458 card (line 1161) value and its own " +
+					"descriptive comment (line 1164), verbatim:\n" +
+					"IS=15.2F\n* Toshiba 50 Volt  .15 Amp  400 MHz  SiNPN  Transistor  11-17-1993. " +
+					"The card's BF = 260 is not taken (BF already comes from the Toshiba " +
+					"datasheet in this record); no other card field is used.",
+				sourceKind: "published-spice-model",
+				url: "https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB",
+				quote:
+					"IS=15.2F\n* Toshiba 50 Volt  .15 Amp  400 MHz  SiNPN  Transistor  11-17-1993",
+				author: "Intusoft",
+				retrievedDate: "2026-10-23",
+				whyNoBetterSource:
+					"The Toshiba 2SC2458(L) 1996-09-02 datasheet prints no VBE row " +
+					"(wave-1 note row 1: VCE(sat) is MAX-only, so IS has no input); " +
+					"Toshiba's own LTspice bundle carries neither 2SC2458 nor 2SC2459 " +
+					"and its models are encrypted with a no-reverse-engineering term, " +
+					"so they cannot be read or quoted. This third-party collection " +
+					"hosts the only published card for the part, taken here under " +
+					"the 2026-10-23 owner decision as a provisional community value, " +
+					"not a manufacturer value.",
+			},
 			forwardBeta: {
 				value: 221.3594362,
 				basis: "derived",
@@ -647,6 +680,36 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			"The hyphenated and unhyphenated spellings fold to one id (2sc2458gr); both are " +
 			"corpus-observed (boss-tr-2 uses 2SC2458GR, boss-ge-7 uses 2SC2458-GR).",
 		params: {
+			saturationCurrent: {
+				value: 15.2e-15,
+				basis: "community",
+				source:
+					"KiCad-Spice-Library third-party collection, BJTN.LIB " +
+					"(Intusoft-authored cards; file header 'Copyright Intusoft 1988-1997 / " +
+					"All Rights Reserved') " +
+					"https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB " +
+					"(read 2026-10-23): the QSC2458 card (line 1161) value and its own " +
+					"descriptive comment (line 1164), verbatim:\n" +
+					"IS=15.2F\n* Toshiba 50 Volt  .15 Amp  400 MHz  SiNPN  Transistor  11-17-1993. " +
+					"The card's BF = 260 is not taken (BF already comes from the Toshiba " +
+					"datasheet in this record); no other card field is used. The GR rank " +
+					"shares the unbinned die's card: the card names no rank.",
+				sourceKind: "published-spice-model",
+				url: "https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB",
+				quote:
+					"IS=15.2F\n* Toshiba 50 Volt  .15 Amp  400 MHz  SiNPN  Transistor  11-17-1993",
+				author: "Intusoft",
+				retrievedDate: "2026-10-23",
+				whyNoBetterSource:
+					"The Toshiba 2SC2458(L) 1996-09-02 datasheet prints no VBE row " +
+					"(wave-1 note row 1: VCE(sat) is MAX-only, so IS has no input); " +
+					"Toshiba's own LTspice bundle carries neither 2SC2458 nor 2SC2459 " +
+					"and its models are encrypted with a no-reverse-engineering term, " +
+					"so they cannot be read or quoted. This third-party collection " +
+					"hosts the only published card for the part, taken here under " +
+					"the 2026-10-23 owner decision as a provisional community value, " +
+					"not a manufacturer value.",
+			},
 			forwardBeta: {
 				value: 282.8427125,
 				basis: "derived",
