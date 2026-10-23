@@ -444,6 +444,23 @@ export type NetlistBypass =
 			readonly engagedPosition?: string | number;
 	  };
 
+/**
+ * A panel-declared effect-status LED resolved to its device terminals.
+ *
+ * Read in stage 1 from `deviceInterface.controls` entries whose typed `role` is
+ * `effect-status` and typed `kind` is `led`, matched to the device by exact id only —
+ * never by name or description text — and only when that device is a diode. The latch
+ * detector reads this as engaged-side evidence where connectivity cannot derive one:
+ * a CHECK LED is lit when the pedal is engaged, so the transistor whose collector
+ * carries the LED's cathode (lit when that collector is LOW) is ON when engaged.
+ */
+export type EffectStatusLed = {
+	/** The panel control id, exactly the LED component/device id. */
+	readonly id: string;
+	readonly anode: NodeId;
+	readonly cathode: NodeId;
+};
+
 export type Netlist = {
 	readonly nodes: readonly NodeId[];
 	readonly devices: readonly Device[];
@@ -478,6 +495,13 @@ export type Netlist = {
 	 * `shouldEliminate`, never the linear / zero-port guard.
 	 */
 	readonly convergenceOptIn: boolean;
+	/**
+	 * Panel-declared effect-status LEDs resolved to device terminals, or absent where
+	 * the document declares none that resolve. Read by the latch detector; see
+	 * `EffectStatusLed`. Absent (rather than empty) where unresolvable, so documents
+	 * without one keep the netlist they had before this field existed.
+	 */
+	readonly effectStatusLeds?: readonly EffectStatusLed[];
 	readonly warnings?: readonly CompileWarning[];
 };
 
@@ -3710,6 +3734,7 @@ export type CompileWarning =
 	| DeclaredDelayWarning
 	| ControlPositionDisagreesWarning
 	| BypassEngagedDisagreesWarning
+	| LatchEngagedDisagreesWarning
 	| ModulationNotModelledWarning
 	| ConverterScaleNotModelledWarning;
 
@@ -3789,6 +3814,23 @@ export type ControlPositionDisagreesWarning = {
  */
 export type BypassEngagedDisagreesWarning = {
 	readonly code: "bypass-engaged-disagrees";
+	readonly device: DeviceId | null;
+	readonly detail: string;
+};
+
+/**
+ * A bistable latch whose connectivity-derived engaged side contradicts the
+ * effect-status LED.
+ *
+ * The connectivity answer stands — the LED is the weaker evidence — and the
+ * contradiction is named rather than silently kept: either the filed LED branch or
+ * the gating derivation misreads the sheet, and both are product defects (a pedal
+ * whose CHECK light disagrees with its rendered state, or the reverse). `device` is
+ * the LED; the detail names the latch transistors, the LED, its polarity, and the
+ * member each side selects.
+ */
+export type LatchEngagedDisagreesWarning = {
+	readonly code: "latch-engaged-disagrees";
 	readonly device: DeviceId | null;
 	readonly detail: string;
 };

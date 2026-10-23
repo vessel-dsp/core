@@ -30,7 +30,7 @@ import {
 	classParamNames,
 	requiredClassParams,
 } from "./registry-data";
-import { findBistableLatches } from "./latch-seed";
+import { findBistableLatches, findLatchLedDisagreements, ledTerminalNode } from "./latch-seed";
 import { speakerOnePort } from "./speaker-load";
 import {
 	type CompileWarning,
@@ -49,6 +49,7 @@ import {
 	type DeviceOverride,
 	type DeviceOverrideParameter,
 	type DeviceOverrideProvenance,
+	type EffectStatusLed,
 	GROUND,
 	type LegacyDeviceParameterWarning,
 	type Netlist,
@@ -1480,7 +1481,8 @@ export function readNetlist(
 			  }
 			: { declared: "none" };
 
-	return {
+	const effectStatusLeds = effectStatusLedsOf(document, devices);
+	const netlist: Netlist = {
 		nodes,
 		devices,
 		controls,
@@ -1493,8 +1495,72 @@ export function readNetlist(
 			ports,
 		),
 		convergenceOptIn: convergenceOptInDeclared(source),
+		...(effectStatusLeds.length > 0 ? { effectStatusLeds } : {}),
 		warnings,
 	};
+	// A latch where connectivity and the effect-status LED name different engaged
+	// sides keeps the connectivity answer and says so: either the filed LED branch
+	// or the gating derivation misreads the sheet. `warnings` is shared by reference
+	// with the netlist above, so pushing here still lands on the returned object.
+	for (const disagreement of findLatchLedDisagreements(netlist)) {
+		warnings.push({
+			code: "latch-engaged-disagrees",
+			device: disagreement.ledId,
+			detail:
+				`Bistable latch ${disagreement.onWhenEngagedTransistorId}: connectivity holds ` +
+				`${disagreement.onWhenEngagedTransistorId} ON when engaged, but effect-status LED ` +
+				`${disagreement.ledId} (${disagreement.ledPolarity}, lit when engaged) indicates ` +
+				`${disagreement.ledOnTransistorId} instead. The connectivity answer stands; one of ` +
+				`the two reads misstates the sheet.`,
+		});
+	}
+	return netlist;
+}
+
+/**
+ * Panel-declared effect-status LEDs resolved to device terminals, for the latch
+ * detector's engaged-side evidence.
+ *
+ * Three whole-value comparisons, in order: the panel record's typed `role` is
+ * `effect-status`, its typed `kind` is `led`, and its `id` is exactly a device id —
+ * the component id as named in the panel record. Never a read of the control's
+ * label, the component's name, or any description text. The device must be a diode
+ * (every `led` component lowers to one) with typed `anode`/`cathode` terminals;
+ * anything else resolves nothing rather than guessing a polarity.
+ */
+function effectStatusLedsOf(
+	document: ParsedDocument,
+	devices: readonly Device[],
+): EffectStatusLed[] {
+	const out: EffectStatusLed[] = [];
+	for (const control of document.deviceInterface?.controls ?? []) {
+		if (roleFor(control) !== "effect-status") {
+			continue;
+		}
+		if (panelKindFor(control) !== "led") {
+			continue;
+		}
+		const id =
+			control !== null && typeof control === "object"
+				? (control as { id?: unknown }).id
+				: undefined;
+		if (typeof id !== "string" || id.length === 0) {
+			continue;
+		}
+		const device = devices.find(
+			(candidate) => candidate.id === id && candidate.kind === "diode",
+		);
+		if (device === undefined) {
+			continue;
+		}
+		const anode = ledTerminalNode(device, "anode");
+		const cathode = ledTerminalNode(device, "cathode");
+		if (anode === null || cathode === null) {
+			continue;
+		}
+		out.push({ id, anode, cathode });
+	}
+	return out;
 }
 
 /**
@@ -4959,6 +5025,15 @@ function roleFor(control: unknown): string | null {
 	const value =
 		control !== null && typeof control === "object"
 			? (control as { role?: unknown }).role
+			: undefined;
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+/** A control's declared panel kind, verbatim, or `null`. Compared whole, like the role. */
+function panelKindFor(control: unknown): string | null {
+	const value =
+		control !== null && typeof control === "object"
+			? (control as { kind?: unknown }).kind
 			: undefined;
 	return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }

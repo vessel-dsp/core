@@ -12,7 +12,14 @@ export { stampNodes } from "./dangling-active-terminal";
 export { perSample, type PerSample } from "./denomination";
 export { SILICON_FORWARD_BETA, SILICON_SATURATION_CURRENT, THERMAL_VOLTAGE } from "./device-laws";
 export type { FirmwareClass } from "./firmware-class";
-export { findBistableLatches, type BistableLatch } from "./latch-seed";
+export {
+	findBistableLatches,
+	findLatchLedDisagreements,
+	type BistableLatch,
+	type LatchLedDisagreement,
+	type LatchSideProvenance,
+	type LedLatchPolarity,
+} from "./latch-seed";
 export { stampInSourceNodes } from "./lower";
 export {
 	OPEN_RULES,

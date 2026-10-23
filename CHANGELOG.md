@@ -15,6 +15,18 @@ and dry (−0.31 dB) at 0. The 19 fallback latches keep byte-identical programs 
 id); `ibanez-ts9-reissue` still renders overdrive at its default. No stamp, program, runtime or wasm change — the swap
 is stamp content only, evaluated by the existing `position >= 0.5 ? onOhms : offOhms` rule.
 
+**A fallback latch whose CHECK LED sits on a latch collector now takes its engaged side from that LED.** 72 corpus
+documents declare a panel element with role `effect-status`; where the derivation above refuses and the LED's cathode
+sits on a latch collector directly or through one resistor (lit when that collector is LOW), the transistor is ON when
+engaged, and where its anode sits directly on one (lit when HIGH), the other member is. One program moves:
+`boss-dm-3` (LED `D11` cathode directly on `Q10`'s collector) now seeds `Q10`'s base and steers from that side; its two
+settled states exchange exactly against the previous build. `boss-lm-2` and `boss-ph-1r` LEDs agree with the fallback
+side they already seeded, so their programs are byte-identical. Where connectivity and the LED disagree, connectivity
+stands and a new `latch-engaged-disagrees` diagnostic names both — it fires on no corpus packet. `boss-aw-2` (no typed
+bypass, no `effect-status` record) stays on the fallback seed exactly as before. Covered by `latch-seed.test.ts`
+(synthetic polarity, LED polarity/conflict/precedence cases, and two `.vdsp` fixtures proving the document-to-program
+path) with a stamp-swap mutation check that fails without the fix.
+
 **An op-amp whose supply terminal sits on a zener-clamped node now swings between that zener's voltage and ground, and an
 op-amp whose supply terminal sits on a node nothing states a voltage for is named instead of silent.** `opampRails()` read a
 supply pin's voltage only from declared rails, voltage sources, registry regulators and charge-pump outputs; a pin on any

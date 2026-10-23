@@ -105,9 +105,217 @@ export type BistableLatch = {
 	readonly sideProvenance: LatchSideProvenance;
 };
 
-export function findBistableLatches(
-	netlist: Pick<Netlist, "devices"> & { readonly controls?: readonly import("./types").Control[] },
-): readonly BistableLatch[] {
+/**
+ * How an effect-status LED sits on a latch collector, or in other words which way
+ * round it lights. `cathode-direct` / `cathode-1R` light when the collector is LOW
+ * (transistor ON); `anode-direct` lights when it is HIGH (transistor OFF). An anode
+ * one resistor away is deliberately not evidence: that is the shape a shared supply
+ * node makes with the collector load resistors (measured on both `boss-bd-2` builds
+ * and `boss-ds-2`, whose LED anodes sit a resistor from *both* collectors), not a
+ * steering branch.
+ */
+export type LedLatchPolarity = "cathode-direct" | "cathode-1R" | "anode-direct";
+
+/**
+ * A latch where connectivity and the effect-status LED name different engaged sides.
+ * The connectivity answer stands; this is the record the `latch-engaged-disagrees`
+ * diagnostic reports.
+ */
+export type LatchLedDisagreement = {
+	readonly onWhenEngagedTransistorId: string;
+	readonly ledOnTransistorId: string;
+	readonly ledId: string;
+	readonly ledPolarity: LedLatchPolarity;
+};
+
+type LatchNetlist = Pick<Netlist, "devices" | "effectStatusLeds"> & {
+	readonly controls?: readonly import("./types").Control[];
+};
+
+export function findBistableLatches(netlist: LatchNetlist): readonly BistableLatch[] {
+	const rails = detectorRails(netlist);
+	const pairs = candidatePairs(netlist, rails);
+
+	const latches: BistableLatch[] = [];
+	for (const pair of pairs) {
+		const assessed = assessLatchSides(netlist, rails, pair.a, pair.b);
+
+		const bypassControls = (netlist.controls ?? []).filter(
+			(c) => c.role === "bypass",
+		);
+		let controlId: string | null =
+			bypassControls.length === 1 ? (bypassControls[0]?.id ?? null) : null;
+
+		if (controlId === null) {
+			for (const dev of netlist.devices) {
+				if (dev.kind === "switch" && dev.control !== null) {
+					controlId = dev.control;
+					break;
+				}
+			}
+		}
+
+		latches.push({
+			controlId,
+			onWhenEngagedBase: assessed.onMember.base,
+			offWhenEngagedBase: assessed.offMember.base,
+			emitter: pair.a.emitter,
+			onWhenEngagedCollector: assessed.onMember.collector,
+			offWhenEngagedCollector: assessed.offMember.collector,
+			onWhenEngagedTransistorId: assessed.onMember.id,
+			offWhenEngagedTransistorId: assessed.offMember.id,
+			sideProvenance: assessed.sideProvenance,
+		});
+	}
+	return latches;
+}
+
+/**
+ * Latches where the connectivity derivation and the effect-status LED disagree about
+ * the engaged side. The detector keeps the connectivity answer; this names the
+ * conflict for the diagnostic, one item per latch.
+ */
+export function findLatchLedDisagreements(
+	netlist: LatchNetlist,
+): readonly LatchLedDisagreement[] {
+	const rails = detectorRails(netlist);
+	const out: LatchLedDisagreement[] = [];
+	for (const pair of candidatePairs(netlist, rails)) {
+		const assessed = assessLatchSides(netlist, rails, pair.a, pair.b);
+		if (
+			assessed.sideProvenance === "connectivity" &&
+			assessed.ledVote !== null &&
+			assessed.ledVote.member.id !== assessed.onMember.id
+		) {
+			out.push({
+				onWhenEngagedTransistorId: assessed.onMember.id,
+				ledOnTransistorId: assessed.ledVote.member.id,
+				ledId: assessed.ledVote.ledId,
+				ledPolarity: assessed.ledVote.polarity,
+			});
+		}
+	}
+	return out;
+}
+
+type LedVote = {
+	readonly member: Transistor;
+	readonly ledId: string;
+	readonly polarity: LedLatchPolarity;
+};
+
+type SideAssessment = {
+	readonly onMember: Transistor;
+	readonly offMember: Transistor;
+	readonly sideProvenance: LatchSideProvenance;
+	readonly ledVote: LedVote | null;
+};
+
+/**
+ * Which side is ON when engaged. Precedence is derivation order, not confidence
+ * blending: connectivity first, then the effect-status LED, then the floor.
+ *
+ * - **Connectivity.** The member whose collector gates the effect path is OFF when
+ *   engaged, so the ON side is the other member.
+ * - **Effect-status LED.** A CHECK LED is lit when the pedal is engaged, so the
+ *   member the LED indicates is the ON side — but only where connectivity refused.
+ *   Where both speak and they disagree, connectivity stands and
+ *   `findLatchLedDisagreements` reports it; that path never reaches a silent choice.
+ * - **Fallback.** The pre-fix assignment (lower base id) exactly, so fallback
+ *   programs stay byte-identical; the provenance admits the name is a stable choice
+ *   rather than a derived fact.
+ */
+function assessLatchSides(
+	netlist: LatchNetlist,
+	rails: ReadonlySet<NodeId>,
+	a: Transistor,
+	b: Transistor,
+): SideAssessment {
+	const effectGateBaseNode = effectGatingBase(netlist, rails, a, b);
+	const ledVote = ledIndicatedOnMember(netlist, a, b);
+	if (effectGateBaseNode !== null) {
+		const offMember = effectGateBaseNode === a.base ? a : b;
+		const onMember = effectGateBaseNode === a.base ? b : a;
+		return { onMember, offMember, sideProvenance: "connectivity", ledVote };
+	}
+	if (ledVote !== null) {
+		const onMember = ledVote.member;
+		const offMember = ledVote.member.id === a.id ? b : a;
+		return { onMember, offMember, sideProvenance: "effect-status-led", ledVote };
+	}
+	const fallbackBase = Math.min(a.base, b.base) as NodeId;
+	const onMember = fallbackBase === a.base ? a : b;
+	const offMember = fallbackBase === a.base ? b : a;
+	return { onMember, offMember, sideProvenance: "fallback", ledVote };
+}
+
+/**
+ * The latch member an effect-status LED indicates as ON when engaged, or `null`.
+ *
+ * One unanimous vote wins: every LED whose terminal sits on a latch collector names
+ * the member lit in the effect state (cathode on a collector: lit when LOW, so that
+ * member; anode directly on a collector: lit when HIGH, so the other member), and
+ * conflicting or absent votes are no evidence rather than a tie-break. Matching is
+ * by the panel record's exact component id (already resolved to terminals by stage 1)
+ * and the typed `led` kind it carried — never by name or description text.
+ */
+function ledIndicatedOnMember(
+	netlist: LatchNetlist,
+	a: Transistor,
+	b: Transistor,
+): LedVote | null {
+	const leds = netlist.effectStatusLeds ?? [];
+	const votes: LedVote[] = [];
+	for (const led of leds) {
+		for (const member of [a, b] as const) {
+			const cathode = cathodeRelation(netlist, led.cathode, member.collector);
+			if (cathode !== null) {
+				votes.push({
+					member,
+					ledId: led.id,
+					polarity: cathode === "direct" ? "cathode-direct" : "cathode-1R",
+				});
+			} else if (led.anode === member.collector) {
+				const other = member.id === a.id ? b : a;
+				votes.push({ member: other, ledId: led.id, polarity: "anode-direct" });
+			}
+		}
+	}
+	if (votes.length === 0) {
+		return null;
+	}
+	const first = votes[0] as LedVote;
+	if (votes.every((vote) => vote.member.id === first.member.id)) {
+		return first;
+	}
+	return null;
+}
+
+/**
+ * How an LED cathode reaches a latch collector: `direct` on the node, the id of the
+ * single resistor joining them, or `null`. Resistors only — a shared supply node is
+ * not a branch, and neither is anything else.
+ */
+function cathodeRelation(
+	netlist: Pick<Netlist, "devices">,
+	cathode: NodeId,
+	collector: NodeId,
+): "direct" | string | null {
+	if (cathode === collector) {
+		return "direct";
+	}
+	const link = netlist.devices.find(
+		(device) =>
+			device.kind === "resistor" &&
+			device.nodes.length === 2 &&
+			((device.nodes[0] === cathode && device.nodes[1] === collector) ||
+				(device.nodes[0] === collector && device.nodes[1] === cathode)),
+	);
+	return link === undefined ? null : String(link.id);
+}
+
+/** This detector's rail set: ground plus every asserted supply node. */
+function detectorRails(netlist: Pick<Netlist, "devices">): Set<NodeId> {
 	const rails = new Set<NodeId>([0]);
 	for (const device of netlist.devices) {
 		if (device.kind === "voltage-source" || device.kind === "rail") {
@@ -116,7 +324,18 @@ export function findBistableLatches(
 			}
 		}
 	}
+	return rails;
+}
 
+/**
+ * Candidate cross-coupled pairs: the four structural requirements (a direct resistor
+ * each way, a shared emitter, no rails on collectors or bases, exclusivity), without
+ * any side assignment.
+ */
+function candidatePairs(
+	netlist: Pick<Netlist, "devices">,
+	rails: ReadonlySet<NodeId>,
+): readonly { readonly a: Transistor; readonly b: Transistor }[] {
 	const transistors = netlist.devices.flatMap((device) => {
 		if (device.kind !== "bjt") {
 			return [];
@@ -172,61 +391,36 @@ export function findBistableLatches(
 			appearances.set(member.id, (appearances.get(member.id) ?? 0) + 1);
 		}
 	}
+	return pairs.filter((pair) =>
+		[pair.a, pair.b].every((m) => (appearances.get(m.id) ?? 0) <= 1),
+	);
+}
 
-	const latches: BistableLatch[] = [];
-	for (const pair of pairs) {
-		if (
-			[pair.a, pair.b].some((m) => (appearances.get(m.id) ?? 0) > 1)
-		) {
-			continue;
-		}
-		// The member whose collector gates the effect path is OFF when engaged, so the
-		// seeded side is the other member. When nothing derives the side, the fallback
-		// keeps the pre-fix assignment (lower base id) exactly, so fallback programs
-		// stay byte-identical; see the `BistableLatch` provenance note.
-		const effectGateBaseNode = effectGatingBase(netlist, rails, pair.a, pair.b);
-		let onMember: Transistor;
-		let offMember: Transistor;
-		let sideProvenance: LatchSideProvenance;
-		if (effectGateBaseNode !== null) {
-			offMember = effectGateBaseNode === pair.a.base ? pair.a : pair.b;
-			onMember = effectGateBaseNode === pair.a.base ? pair.b : pair.a;
-			sideProvenance = "connectivity";
-		} else {
-			const fallbackBase = Math.min(pair.a.base, pair.b.base) as NodeId;
-			onMember = fallbackBase === pair.a.base ? pair.a : pair.b;
-			offMember = fallbackBase === pair.a.base ? pair.b : pair.a;
-			sideProvenance = "fallback";
-		}
-
-		const bypassControls = (netlist.controls ?? []).filter(
-			(c) => c.role === "bypass",
-		);
-		let controlId: string | null =
-			bypassControls.length === 1 ? (bypassControls[0]?.id ?? null) : null;
-
-		if (controlId === null) {
-			for (const dev of netlist.devices) {
-				if (dev.kind === "switch" && dev.control !== null) {
-					controlId = dev.control;
-					break;
-				}
-			}
-		}
-
-		latches.push({
-			controlId,
-			onWhenEngagedBase: onMember.base,
-			offWhenEngagedBase: offMember.base,
-			emitter: pair.a.emitter,
-			onWhenEngagedCollector: onMember.collector,
-			offWhenEngagedCollector: offMember.collector,
-			onWhenEngagedTransistorId: onMember.id,
-			offWhenEngagedTransistorId: offMember.id,
-			sideProvenance,
-		});
+/**
+ * An LED's anode or cathode node by role token, or `null` when the role is absent or
+ * repeated. Reads the folded name token first and the declared role second: both are
+ * typed terminal statements, and either may carry the `anode`/`cathode` word the
+ * source filed.
+ */
+export function ledTerminalNode(
+	device: Device,
+	role: "anode" | "cathode",
+): NodeId | null {
+	const named = device.identity.terminalRoles.flatMap((candidate, index) =>
+		candidate === role ? [index] : [],
+	);
+	if (named.length === 1) {
+		const node = device.nodes[named[0] as number];
+		return node === undefined ? null : node;
 	}
-	return latches;
+	const declared = device.identity.declaredTerminalRoles.flatMap(
+		(candidate, index) => (candidate === role ? [index] : []),
+	);
+	if (declared.length === 1) {
+		const node = device.nodes[declared[0] as number];
+		return node === undefined ? null : node;
+	}
+	return null;
 }
 
 export function findLatchSeeds(

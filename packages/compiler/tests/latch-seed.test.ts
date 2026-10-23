@@ -1,9 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { compile } from "../src/compile";
-import { flipFlopEngagedPolarity } from "../src/fixtures/circuits";
-import { findBistableLatches, findLatchSeeds } from "../src/latch-seed";
+import {
+	flipFlopEngagedPolarity,
+	flipFlopLedDisagrees,
+	flipFlopLedSeed,
+} from "../src/fixtures/circuits";
+import {
+	findBistableLatches,
+	findLatchLedDisagreements,
+	findLatchSeeds,
+} from "../src/latch-seed";
 import { readNetlist } from "../src/netlist";
-import type { Device, DeviceKind, Netlist, NodeId } from "../src/types";
+import type { Device, DeviceKind, EffectStatusLed, Netlist, NodeId } from "../src/types";
 
 // Built as netlist literals rather than `.vdsp` fixtures: `findLatchSeeds` is a pure
 // function over the stage-1 netlist, so this exercises the rule itself instead of the
@@ -47,7 +55,11 @@ const bjt = (id: string, collector: number, base: number, emitter: number) =>
 const resistor = (id: string, a: number, b: number) =>
 	device(id, "resistor", [a, b], ["a", "b"]);
 
-function netlist(devices: readonly Device[], controls: Netlist["controls"] = []): Netlist {
+function netlist(
+	devices: readonly Device[],
+	controls: Netlist["controls"] = [],
+	effectStatusLeds: readonly EffectStatusLed[] = [],
+): Netlist {
 	const nodes = [...new Set(devices.flatMap((d) => d.nodes))].sort(
 		(a, b) => a - b,
 	);
@@ -60,9 +72,15 @@ function netlist(devices: readonly Device[], controls: Netlist["controls"] = [])
 		portImpedanceOhms: { input: null, output: null },
 		portDeclaredFullScaleVolts: { input: null, output: null },
 		convergenceOptIn: false,
+		effectStatusLeds,
 	};
 }
 
+const led = (id: string, anode: number, cathode: number): EffectStatusLed => ({
+	id,
+	anode: anode as NodeId,
+	cathode: cathode as NodeId,
+});
 
 /** Two transistors, emitters shared, each collector to the other's base. */
 const crossCoupled = [
@@ -248,6 +266,116 @@ describe("findLatchSeeds", () => {
 	});
 });
 
+describe("effect-status LED evidence", () => {
+	// The `crossCoupled` pair gates no switch, so connectivity refuses and the LED is
+	// the only evidence. The fallback would seed base 11 (`QA`); every case below
+	// moves the seed or the provenance away from that, or asserts why it may not.
+	test("seeds the member whose collector carries the LED cathode", () => {
+		const latches = findBistableLatches(netlist(crossCoupled, [], [led("LED1", 30, 20)]));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+		expect(findLatchSeeds(netlist(crossCoupled, [], [led("LED1", 30, 20)]))[0]?.node).toBe(21);
+	});
+
+	test("seeds through the one resistor between cathode and collector", () => {
+		const devices = [...crossCoupled, resistor("R_LED", 31, 20)];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 30, 31)]));
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+
+	test("an anode directly on a collector selects the other member", () => {
+		// Lit when that collector is HIGH, so the member ON when engaged is the other one.
+		const latches = findBistableLatches(netlist(crossCoupled, [], [led("LED1", 20, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QA");
+	});
+
+	test("conflicting LEDs are no evidence", () => {
+		const latches = findBistableLatches(
+			netlist(crossCoupled, [], [led("LEDA", 30, 10), led("LEDB", 30, 20)]),
+		);
+		expect(latches[0]?.sideProvenance).toBe("fallback");
+		expect(findLatchSeeds(netlist(crossCoupled, [], [led("LEDA", 30, 10), led("LEDB", 30, 20)]))[0]?.node).toBe(11);
+	});
+
+	test("an anode a resistor away is not evidence", () => {
+		// That is the shape a shared supply node makes with the collector loads, not a
+		// steering branch: the anode here sits a resistor from `QA`'s collector and the
+		// cathode touches nothing, so the side must stay the fallback's.
+		const devices = [...crossCoupled, resistor("R_SUP", 31, 10)];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 31, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("fallback");
+	});
+
+	test("connectivity wins over a conflicting LED and names both", () => {
+		const switched = [
+			bjt("QA", 10, 21, 0),
+			bjt("QB", 20, 11, 0),
+			resistor("Rcross1", 10, 11),
+			resistor("Rcross2", 20, 21),
+			device("V1", "voltage-source", [30, 0], ["positive", "negative"]),
+			resistor("RloadA", 30, 10),
+			resistor("RloadB", 30, 20),
+			resistor("RgateA", 10, 12),
+			resistor("RgateB", 20, 22),
+			device("SWA", "jfet", [13, 12, 14], ["drain", "gate", "source"]),
+			device("SWB", "jfet", [23, 22, 24], ["drain", "gate", "source"]),
+			{
+				...device("VR1", "potentiometer", [13, 40, 41], [
+					"lug1",
+					"wiper",
+					"lug3",
+				]),
+				control: "Tone",
+			},
+			resistor("Rdry", 23, 50),
+		];
+		// Connectivity holds `QB` (the LED's cathode sits on `QA`, the gating member).
+		const withLed = netlist(switched, [], [led("LED1", 30, 10)]);
+		const latches = findBistableLatches(withLed);
+		expect(latches[0]?.sideProvenance).toBe("connectivity");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+		expect(findLatchLedDisagreements(withLed)).toEqual([
+			{
+				onWhenEngagedTransistorId: "QB",
+				ledOnTransistorId: "QA",
+				ledId: "LED1",
+				ledPolarity: "cathode-direct",
+			},
+		]);
+	});
+
+	test("an agreeing LED raises no disagreement", () => {
+		const switched = [
+			bjt("QA", 10, 21, 0),
+			bjt("QB", 20, 11, 0),
+			resistor("Rcross1", 10, 11),
+			resistor("Rcross2", 20, 21),
+			device("V1", "voltage-source", [30, 0], ["positive", "negative"]),
+			resistor("RloadA", 30, 10),
+			resistor("RloadB", 30, 20),
+			resistor("RgateA", 10, 12),
+			resistor("RgateB", 20, 22),
+			device("SWA", "jfet", [13, 12, 14], ["drain", "gate", "source"]),
+			device("SWB", "jfet", [23, 22, 24], ["drain", "gate", "source"]),
+			{
+				...device("VR1", "potentiometer", [13, 40, 41], [
+					"lug1",
+					"wiper",
+					"lug3",
+				]),
+				control: "Tone",
+			},
+			resistor("Rdry", 23, 50),
+		];
+		const withLed = netlist(switched, [], [led("LED1", 30, 20)]);
+		expect(findBistableLatches(withLed)[0]?.sideProvenance).toBe("connectivity");
+		expect(findLatchLedDisagreements(withLed)).toEqual([]);
+	});
+});
+
 describe("engaged polarity end to end", () => {
 	// The synthetic fixture with a derived latch, compiled: at control >= 0.5 the
 	// holding a collector low forces that transistor ON through the cross-coupling,
@@ -295,5 +423,41 @@ describe("engaged polarity end to end", () => {
 		const bypassed = steering.find((stamp) => stamp.offOhms === 100);
 		expect(engaged?.node).toBe(latch.onWhenEngagedCollector);
 		expect(bypassed?.node).toBe(latch.offWhenEngagedCollector);
+	});
+
+	test("an effect-status LED resolves a fallback latch through the document", () => {
+		// `flipFlopLedSeed` gates no control-bound path, so connectivity refuses; the
+		// CHECK LED's cathode sits directly on `Q_FF2`'s collector, which the reader
+		// resolves from the typed `effect-status` / `led` panel record by exact id.
+		const result = compile(flipFlopLedSeed);
+		if (result.status !== "ok") {
+			throw new Error(`LED seed fixture did not compile: ${JSON.stringify(result.reasons)}`);
+		}
+		const latches = findBistableLatches(readNetlist(flipFlopLedSeed));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("Q_FF2");
+		expect(findLatchSeeds(readNetlist(flipFlopLedSeed)).map((seed) => seed.node)).toEqual([24]);
+		expect(
+			(result.warnings ?? []).map((warning) => warning.code),
+		).not.toContain("latch-engaged-disagrees");
+	});
+
+	test("a conflicting LED keeps connectivity and warns through the document", () => {
+		const result = compile(flipFlopLedDisagrees);
+		if (result.status !== "ok") {
+			throw new Error(`LED disagree fixture did not compile: ${JSON.stringify(result.reasons)}`);
+		}
+		const latches = findBistableLatches(readNetlist(flipFlopLedDisagrees));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("connectivity");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("Q_FF2");
+		const diagnostics = (result.warnings ?? []).filter(
+			(warning) => warning.code === "latch-engaged-disagrees",
+		);
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]?.detail).toContain("Q_FF2");
+		expect(diagnostics[0]?.detail).toContain("Q_FF1");
+		expect(diagnostics[0]?.detail).toContain("D_LED");
 	});
 });

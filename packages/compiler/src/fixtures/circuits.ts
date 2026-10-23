@@ -14476,6 +14476,123 @@ ${jacks}${
 }`;
 
 /**
+ * Flip-flop nobody can read out (no control in either gated path, so the side
+ * falls back) with a CHECK LED whose cathode sits directly on `Q_FF2`'s collector.
+ * The LED resolves the side the derivation cannot: provenance `effect-status-led`,
+ * `Q_FF2` ON when engaged, seed on base 24 rather than the fallback's 23.
+ */
+export const flipFlopLedSeed = `${header("Flip-Flop LED Seed Fixture")}audio:
+  input: JIN
+  output: JOUT
+  bypass:
+    switch: SW1
+    engagedPosition: 0
+deviceInterface:
+  controls:
+    - id: Bypass
+      label: BYPASS
+      kind: footswitch
+      role: bypass
+    - id: D_LED
+      label: CHECK
+      kind: led
+      role: effect-status
+components:
+${jacks}${
+	supply9(9) +
+		resistor("R_C1", 9, 21, "10k") +
+		resistor("R_C2", 9, 22, "10k") +
+		bjt("Q_FF1", 21, 23, 0) +
+		bjt("Q_FF2", 22, 24, 0) +
+		resistor("R_X1", 21, 24, "47k") +
+		resistor("R_X2", 22, 23, "47k") +
+		momentaryToGround("SW1", 30) +
+		capacitor("C_SW", 30, 23, "1u") +
+		resistor("R_G1", 21, 25, "1meg") +
+		resistor("R_G2", 22, 26, "1meg") +
+		jfet("Q_GATE_FX", 1, 25, 10) +
+		jfet("Q_GATE_DRY", 11, 26, 2) +
+		part(
+			"D_LED",
+			"led",
+			"Circuit.LED",
+			[
+				["anode", "anode", 9],
+				["cathode", "cathode", 22],
+			],
+			{ Color: "red" },
+		) +
+		bypassCore(10, 11)
+}`;
+
+/**
+ * `flipFlopEngagedPolarity` with a CHECK LED whose cathode sits directly on the
+ * *gating* member's collector (`Q_FF1`): connectivity holds `Q_FF2` ON when engaged
+ * while the LED indicates `Q_FF1`. The detector keeps the connectivity answer and
+ * raises `latch-engaged-disagrees` naming both — never a silent choice.
+ */
+export const flipFlopLedDisagrees = `${header("Flip-Flop LED Disagrees Fixture")}audio:
+  input: JIN
+  output: JOUT
+  bypass:
+    switch: SW1
+    engagedPosition: 0
+deviceInterface:
+  controls:
+    - id: Bypass
+      label: BYPASS
+      kind: footswitch
+      role: bypass
+    - id: Drive
+      label: DRIVE
+      kind: knob
+      role: drive
+    - id: D_LED
+      label: CHECK
+      kind: led
+      role: effect-status
+components:
+${jacks}${
+	supply9(9) +
+		resistor("R_C1", 9, 21, "10k") +
+		resistor("R_C2", 9, 22, "10k") +
+		bjt("Q_FF1", 21, 23, 0) +
+		bjt("Q_FF2", 22, 24, 0) +
+		resistor("R_X1", 21, 24, "47k") +
+		resistor("R_X2", 22, 23, "47k") +
+		momentaryToGround("SW1", 30) +
+		capacitor("C_SW", 30, 23, "1u") +
+		resistor("R_G1", 21, 25, "1meg") +
+		resistor("R_G2", 22, 26, "1meg") +
+		jfet("Q_GATE_FX", 1, 25, 10) +
+		jfet("Q_GATE_DRY", 11, 26, 2) +
+		resistor("R_FX1", 1, 41, "1k") +
+		part(
+			"VR_FX",
+			"potentiometer",
+			"Circuit.Potentiometer",
+			[
+				["end1", "end", 41],
+				["wiper", "wiper", 40],
+				["end2", "end", 0],
+			],
+			{ Resistance: "10k", ControlId: "Drive" },
+		) +
+		resistor("R_WIPER", 40, 2, "100k") +
+		part(
+			"D_LED",
+			"led",
+			"Circuit.LED",
+			[
+				["anode", "anode", 9],
+				["cathode", "cathode", 21],
+			],
+			{ Color: "red" },
+		) +
+		bypassCore(10, 11)
+}`;
+
+/**
  * The same JFET gates driven by two BJTs that are **not** cross-coupled (an inverter chain), so
  * the latch detector finds nothing and the `buffered` verdict rests on the JFET-plus-BJTs
  * heuristic alone. Pinned so that replacing the heuristic shows up as this fixture moving.
