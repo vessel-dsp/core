@@ -788,4 +788,65 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). Toshiba 2SK880 (2014-03-01): IDSS and
+		// VGS(off) print MIN/MAX only (no TYP); same rows as the 2SK184/2SK209 sheets
+		// (IDSS 1.2-14.0 mA, VGS(off) -0.2..-1.5 V, ranks Y/GR/BL). Unbinned plus the
+		// corpus-dominant GR rank (2SK880GR/2SK880-GR); Y/BL stay out (same sheet,
+		// no corpus use). |Yfs| 4.0/15 mS at 1 kHz is small-signal, not used.
+		partIds: ["2SK880"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -0.85,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK880 (2014-03-01) p1, " +
+					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Gate-source cut-off voltage VGS (OFF), " +
+					"VDS = 10 V, ID = 0.1 uA, MIN -0.2 MAX -1.5 V' with 'Note: IDSS classification " +
+					"Y: 1.2~3.0 mA, GR: 2.6~6.5 mA, BL: 6.0~14 mA'",
+				derivation:
+					"Printed VGS(OFF) range -0.2..-1.5 V; arithmetic midpoint (form 2): " +
+					"-(0.2 + 1.5) / 2 = -0.85 V.",
+			},
+			transconductance: {
+				value: 1.0519031e-2,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK880 (2014-03-01) p1: " +
+					"'Drain current IDSS (Note), VDS = 10 V, VGS = 0, MIN 1.2 MAX 14.0 mA'",
+				derivation:
+					"Printed IDSS range 1.2-14.0 mA; arithmetic midpoint (form 2): (1.2 + 14.0) / 2 " +
+					"= 7.6 mA. Square law (form 3): Beta = 7.6e-3 / 0.85^2 = 1.0519031e-2 S.",
+			},
+		},
+	},
+	{
+		partIds: ["2SK880GR", "2SK880-GR"],
+		class: "jfet",
+		note:
+			"The hyphenated and unhyphenated spellings fold to one id (2sk880gr); both are " +
+			"corpus-observed.",
+		params: {
+			thresholdVolts: {
+				value: -0.85,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK880 (2014-03-01) p1, " +
+					"shared VGS(OFF) row '-0.2 to -1.5 V' (see the 2SK880 entry)",
+				derivation:
+					"Printed VGS(OFF) range -0.2..-1.5 V; arithmetic midpoint (form 2): -0.85 V.",
+			},
+			transconductance: {
+				value: 6.2975779e-3,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK880 (2014-03-01) p1, " +
+					"'Note: IDSS classification GR: 2.6~6.5 mA (VDS = 10 V, VGS = 0 V)'",
+				derivation:
+					"Printed GR-rank IDSS range 2.6-6.5 mA; arithmetic midpoint (form 2): " +
+					"4.55 mA. Square law (form 3): Beta = 4.55e-3 / 0.85^2 = 6.2975779e-3 S.",
+			},
+		},
+	},
 ]);
