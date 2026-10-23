@@ -312,10 +312,10 @@ export function lowerRegion(
 				// latch sets (boss-dm-3) never reach this branch.
 				const latchNodes = new Set<NodeId>();
 				for (const latch of latches) {
-					latchNodes.add(latch.engagedCollector);
-					latchNodes.add(latch.bypassedCollector);
-					latchNodes.add(latch.engagedBase);
-					latchNodes.add(latch.bypassedBase);
+					latchNodes.add(latch.onWhenEngagedCollector);
+					latchNodes.add(latch.offWhenEngagedCollector);
+					latchNodes.add(latch.onWhenEngagedBase);
+					latchNodes.add(latch.offWhenEngagedBase);
 				}
 				if (
 					device.nodes.length > 2 &&
@@ -1272,20 +1272,28 @@ export function lowerRegion(
 		regionNodes.has(seed.node),
 	);
 
-	// Complementary collector-steering switch stamps for bistable flip-flops:
-	// When control is engaged (>= 0.5): engagedCollector is pulled to emitter (100 ohm),
-	// forcing engagedCollector low (0 V), putting bypassed transistor into cutoff (bypassedCollector high).
-	// When control is bypassed (< 0.5): bypassedCollector is pulled to emitter (100 ohm),
-	// forcing bypassedCollector low (0 V), putting engaged transistor into cutoff (engagedCollector high).
+	// Complementary collector-steering switch stamps for bistable flip-flops.
+	//
+	// Polarity, measured 2026-10-23: the member whose collector gates the effect FET
+	// (`offWhenEngaged`) sits HIGH (off) when the pedal is engaged, so the effect FET's
+	// gate sits high and the effect conducts; the other member (`onWhenEngaged`) sits
+	// LOW (on). A collector held LOW forces its own transistor ON through the
+	// cross-coupling (the opposite base follows the held collector down, the opposite
+	// collector rises, the held transistor's base rises), so at control >= 0.5
+	// (engaged) the `onWhenEngaged` collector is pulled to the emitter (100 ohm) and
+	// at < 0.5 the `offWhenEngaged` collector is. The pre-fix code pulled the
+	// effect-gating collector low at engaged instead, which turns the effect FET OFF:
+	// `boss-sd-1` at bypass control 1 rendered dry (−0.73 dB, THD 0.02 %, effect FET
+	// off) and at 0 rendered the effect (+5.3 dB, THD 11.8 %).
 	for (const latch of latches) {
 		if (
 			latch.controlId !== null &&
-			regionNodes.has(latch.engagedCollector) &&
-			regionNodes.has(latch.bypassedCollector)
+			regionNodes.has(latch.onWhenEngagedCollector) &&
+			regionNodes.has(latch.offWhenEngagedCollector)
 		) {
 			stamps.push({
 				kind: "switch",
-				a: latch.engagedCollector,
+				a: latch.onWhenEngagedCollector,
 				b: latch.emitter,
 				control: latch.controlId,
 				onOhms: 100,
@@ -1293,7 +1301,7 @@ export function lowerRegion(
 			});
 			stamps.push({
 				kind: "switch",
-				a: latch.bypassedCollector,
+				a: latch.offWhenEngagedCollector,
 				b: latch.emitter,
 				control: latch.controlId,
 				onOhms: 1e8,

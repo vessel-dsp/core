@@ -169,10 +169,10 @@ export function partition(lawed: LawedNetlist): Partitioning {
 			.filter(
 				(latch) =>
 					latch.controlId !== null &&
-					(group.includes(latch.engagedTransistorId) ||
-						group.includes(latch.bypassedTransistorId) ||
-						nodes.includes(latch.engagedBase) ||
-						nodes.includes(latch.bypassedBase)),
+					(group.includes(latch.onWhenEngagedTransistorId) ||
+						group.includes(latch.offWhenEngagedTransistorId) ||
+						nodes.includes(latch.onWhenEngagedBase) ||
+						nodes.includes(latch.offWhenEngagedBase)),
 			)
 			.map((latch) => latch.controlId as string);
 		const controls = [

@@ -57,25 +57,52 @@ const LATCH_SEED_VOLTS = 0.65;
  *    ambiguous, and an ambiguous latch is not seeded. Guessing which pair is the real one
  *    from a tie-break would put the pedal in a state chosen by node numbering.
  *
- * **Which side, with a floor.** `engagedBase` derives the side that engages the effect from
- * connectivity, and when it cannot, this falls back to the lower base node id — deterministic,
- * meaningless, and still a *physical* state rather than the midpoint. The fallback is the
- * floor, not the intent: a latch nobody can read out is better left latched somewhere than
- * left halfway.
+ * **Which side, with a floor.** `effectGatingBase` finds the member whose collector
+ * gates the effect FET — and that member is **off** when the pedal is engaged, so the
+ * names are written from the other member: `onWhenEngaged` is ON (collector low) at
+ * control >= 0.5 and `offWhenEngaged` is OFF (collector high, effect FET gate high,
+ * effect conducting). When neither connectivity nor (see Row 2) the effect-status LED
+ * can read the side out, this falls back to the lower base node id — deterministic,
+ * meaningless, and still a *physical* state rather than the midpoint. The fallback keeps
+ * exactly the member the pre-fix code seeded (its `engaged` was the lower base id), so
+ * fallback programs do not move; only its provenance (`fallback`) admits the name is a
+ * stable choice rather than a derived fact.
  *
  * What this still does not give is **toggling**. The seed decides where the circuit powers up;
  * it is not an input the control plane can move, so a footswitch cannot change it. That needs
  * the latched-state operator with a state entry — see the runtime plan's S4 initial-state item.
  */
+/**
+ * A cross-coupled pair's two sides, named for the transistor that is ON when the
+ * pedal is engaged.
+ *
+ * Physics, measured on `boss-sd-1`/`boss-ce-2`/`boss-dm-2` (2026-10-23): the member
+ * `effectGatingBase` finds — the one whose collector reaches the effect FET's gate
+ * through DC edges — must be OFF (collector high) when engaged, because a collector
+ * pulled LOW (transistor ON) drags that FET's gate low through the steering diode and
+ * turns the effect OFF. Seeding that member's base at 0.65 V rendered bypass
+ * (`boss-sd-1` at bypass control 1: −0.73 dB, THD 0.02 %, effect FET off, CHECK LED
+ * dark), and the steering stamps held the same wrong side. So `onWhenEngaged` is the
+ * *other* member from what the old `engaged` named: ON (collector low) at engaged,
+ * seeded at `LATCH_SEED_VOLTS`, its collector pulled to the emitter at control >= 0.5.
+ */
+export type LatchSideProvenance = "connectivity" | "effect-status-led" | "fallback";
+
 export type BistableLatch = {
 	readonly controlId: string | null;
-	readonly engagedBase: NodeId;
-	readonly bypassedBase: NodeId;
+	readonly onWhenEngagedBase: NodeId;
+	readonly offWhenEngagedBase: NodeId;
 	readonly emitter: NodeId;
-	readonly engagedCollector: NodeId;
-	readonly bypassedCollector: NodeId;
-	readonly engagedTransistorId: string;
-	readonly bypassedTransistorId: string;
+	readonly onWhenEngagedCollector: NodeId;
+	readonly offWhenEngagedCollector: NodeId;
+	readonly onWhenEngagedTransistorId: string;
+	readonly offWhenEngagedTransistorId: string;
+	/**
+	 * How the engaged side was chosen. `connectivity` and `effect-status-led` are
+	 * evidence; `fallback` is the legacy stable choice (lower base id, the exact node
+	 * the pre-fix code seeded) and carries no engaged-side claim.
+	 */
+	readonly sideProvenance: LatchSideProvenance;
 };
 
 export function findBistableLatches(
@@ -153,14 +180,24 @@ export function findBistableLatches(
 		) {
 			continue;
 		}
-		// Prefer the side that engages the effect. Falling back to the lower base id keeps a
-		// latch this cannot read out of the unphysical midpoint, which is the seed's floor.
-		const engagedBaseNode =
-			engagedBase(netlist, rails, pair.a, pair.b) ??
-			(Math.min(pair.a.base, pair.b.base) as NodeId);
-
-		const engaged = engagedBaseNode === pair.a.base ? pair.a : pair.b;
-		const bypassed = engagedBaseNode === pair.a.base ? pair.b : pair.a;
+		// The member whose collector gates the effect path is OFF when engaged, so the
+		// seeded side is the other member. When nothing derives the side, the fallback
+		// keeps the pre-fix assignment (lower base id) exactly, so fallback programs
+		// stay byte-identical; see the `BistableLatch` provenance note.
+		const effectGateBaseNode = effectGatingBase(netlist, rails, pair.a, pair.b);
+		let onMember: Transistor;
+		let offMember: Transistor;
+		let sideProvenance: LatchSideProvenance;
+		if (effectGateBaseNode !== null) {
+			offMember = effectGateBaseNode === pair.a.base ? pair.a : pair.b;
+			onMember = effectGateBaseNode === pair.a.base ? pair.b : pair.a;
+			sideProvenance = "connectivity";
+		} else {
+			const fallbackBase = Math.min(pair.a.base, pair.b.base) as NodeId;
+			onMember = fallbackBase === pair.a.base ? pair.a : pair.b;
+			offMember = fallbackBase === pair.a.base ? pair.b : pair.a;
+			sideProvenance = "fallback";
+		}
 
 		const bypassControls = (netlist.controls ?? []).filter(
 			(c) => c.role === "bypass",
@@ -179,13 +216,14 @@ export function findBistableLatches(
 
 		latches.push({
 			controlId,
-			engagedBase: engaged.base,
-			bypassedBase: bypassed.base,
+			onWhenEngagedBase: onMember.base,
+			offWhenEngagedBase: offMember.base,
 			emitter: pair.a.emitter,
-			engagedCollector: engaged.collector,
-			bypassedCollector: bypassed.collector,
-			engagedTransistorId: engaged.id,
-			bypassedTransistorId: bypassed.id,
+			onWhenEngagedCollector: onMember.collector,
+			offWhenEngagedCollector: offMember.collector,
+			onWhenEngagedTransistorId: onMember.id,
+			offWhenEngagedTransistorId: offMember.id,
+			sideProvenance,
 		});
 	}
 	return latches;
@@ -198,11 +236,11 @@ export function findLatchSeeds(
 	const seeds: OperatingPointSeed[] = [];
 	const seeded = new Set<NodeId>();
 	for (const latch of latches) {
-		if (seeded.has(latch.engagedBase)) {
+		if (seeded.has(latch.onWhenEngagedBase)) {
 			continue;
 		}
-		seeded.add(latch.engagedBase);
-		seeds.push({ node: latch.engagedBase, volts: LATCH_SEED_VOLTS });
+		seeded.add(latch.onWhenEngagedBase);
+		seeds.push({ node: latch.onWhenEngagedBase, volts: LATCH_SEED_VOLTS });
 	}
 	return seeds;
 }
@@ -217,8 +255,17 @@ type Transistor = {
 type Edge = { readonly a: NodeId; readonly b: NodeId; readonly id: string };
 
 /**
- * Which member of the pair is high when the pedal is **engaged**, or `null` when that is not
+ * Which member's collector gates the effect FET's gate, or `null` when that is not
  * derivable from connectivity.
+ *
+ * This is the rule the old spine's `discrete-bypass-latch.ts` paid for, with the
+ * polarity corrected: the member found here is **off** when the pedal is engaged, not
+ * on. A collector pulled LOW (transistor ON) pulls the FET gate it steers low through
+ * the steering diode and turns that FET OFF — so the transistor whose collector
+ * carries the effect path must sit HIGH (off) for the effect to conduct, and the seed
+ * and the steering stamps belong to the *other* member. The pre-fix code seeded and
+ * steered this member instead, which is why the three derived latches in the corpus
+ * (`boss-sd-1`, `boss-ce-2`, `boss-dm-2`) rendered bypass at engaged control.
  *
  * Ported from the old spine's `discrete-bypass-latch.ts`, whose rule this repository already
  * paid for: a latch's side is a control fact, and the two questions that decide it are which
@@ -238,7 +285,7 @@ type Edge = { readonly a: NodeId; readonly b: NodeId; readonly id: string };
  *
  * Both floods are blocked by rails, the same exclusion the rest of this file makes.
  */
-function engagedBase(
+function effectGatingBase(
 	netlist: Pick<Netlist, "devices">,
 	rails: ReadonlySet<NodeId>,
 	a: Transistor,
@@ -300,12 +347,12 @@ function engagedBase(
 			return controlNodes.some((node) => reached.has(node));
 		});
 
-	const engagedA = reachesAControl(gatedA);
-	const engagedB = reachesAControl(gatedB);
-	if (engagedA === engagedB) {
+	const gatingA = reachesAControl(gatedA);
+	const gatingB = reachesAControl(gatedB);
+	if (gatingA === gatingB) {
 		return null;
 	}
-	return engagedA ? a.base : b.base;
+	return gatingA ? a.base : b.base;
 }
 
 /** Undirected two-terminal edges of the given kinds; a pot contributes one per terminal pair. */

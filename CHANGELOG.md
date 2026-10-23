@@ -2,6 +2,19 @@
 
 ## Unreleased: compiler (minor; runtime republishes with the new compiler pin)
 
+**Bypass control sense was inverted on the three pedals with a connectivity-derived bypass latch: they now engage at
+control 1.** The latch detector named the transistor whose collector gates the effect FET as the engaged side, but that
+transistor must be OFF (collector high, FET gate high) for the effect to conduct — a collector pulled LOW drags the FET
+gate low through the steering diode and turns the effect OFF. Both the operating-point seed and the complementary
+collector-steering stamps backed the wrong side, so `boss-sd-1` at bypass control 1 rendered dry (−0.73 dB, THD 0.02 %,
+effect FET off) and at 0 rendered the effect (+5.3 dB, THD 11.8 %). The pair is renamed to the transistor that is ON when
+engaged (`onWhenEngaged` / `offWhenEngaged`, collectors and ids to match): the seed and the engaged stamp now back the
+other member. Measured post-fix (TS runtime 0.6.3, 1 kHz 0.1 V, knobs 0.5): `boss-sd-1` at 1 renders overdrive (+5.29 dB,
+THD 11.75 %, effect FET on) and at 0 renders dry (−0.73 dB, THD 0.02 %); `boss-ce-2` renders the −4.80 dB chorus mix at 1
+and dry (−0.31 dB) at 0. The 19 fallback latches keep byte-identical programs (the fallback still seeds the lower base
+id); `ibanez-ts9-reissue` still renders overdrive at its default. No stamp, program, runtime or wasm change — the swap
+is stamp content only, evaluated by the existing `position >= 0.5 ? onOhms : offOhms` rule.
+
 **An op-amp whose supply terminal sits on a zener-clamped node now swings between that zener's voltage and ground, and an
 op-amp whose supply terminal sits on a node nothing states a voltage for is named instead of silent.** `opampRails()` read a
 supply pin's voltage only from declared rails, voltage sources, registry regulators and charge-pump outputs; a pin on any

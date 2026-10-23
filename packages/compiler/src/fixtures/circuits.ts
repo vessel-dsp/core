@@ -14419,6 +14419,63 @@ export const flipFlopBypassLatched = bypassFixture(
 );
 
 /**
+ * Flip-flop with a control in exactly one gated path, so the engaged side derives
+ * from connectivity rather than the fallback: `Q_FF1`'s collector steers the effect
+ * FET (`Q_GATE_FX`), whose drain reaches the `Drive` pot one resistor away, while
+ * `Q_FF2`'s dry FET (`Q_GATE_DRY`) reaches nothing any control varies. The latch is
+ * therefore `connectivity`-provenance with `Q_FF1` off when engaged and `Q_FF2` on,
+ * which is what the polarity test in `latch-seed.test.ts` asserts through the seed
+ * and the steering stamps of a compiled program. The `Drive` wiper is loaded by
+ * `R_WIPER` because a floating wiper is a structural refusal, not a test detail.
+ */
+export const flipFlopEngagedPolarity = `${header("Flip-Flop Engaged Polarity Fixture")}audio:
+  input: JIN
+  output: JOUT
+  bypass:
+    switch: SW1
+    engagedPosition: 0
+deviceInterface:
+  controls:
+    - id: Bypass
+      label: BYPASS
+      kind: footswitch
+      role: bypass
+    - id: Drive
+      label: DRIVE
+      kind: knob
+      role: drive
+components:
+${jacks}${
+	supply9(9) +
+		resistor("R_C1", 9, 21, "10k") +
+		resistor("R_C2", 9, 22, "10k") +
+		bjt("Q_FF1", 21, 23, 0) +
+		bjt("Q_FF2", 22, 24, 0) +
+		resistor("R_X1", 21, 24, "47k") +
+		resistor("R_X2", 22, 23, "47k") +
+		momentaryToGround("SW1", 30) +
+		capacitor("C_SW", 30, 23, "1u") +
+		resistor("R_G1", 21, 25, "1meg") +
+		resistor("R_G2", 22, 26, "1meg") +
+		jfet("Q_GATE_FX", 1, 25, 10) +
+		jfet("Q_GATE_DRY", 11, 26, 2) +
+		resistor("R_FX1", 1, 41, "1k") +
+		part(
+			"VR_FX",
+			"potentiometer",
+			"Circuit.Potentiometer",
+			[
+				["end1", "end", 41],
+				["wiper", "wiper", 40],
+				["end2", "end", 0],
+			],
+			{ Resistance: "10k", ControlId: "Drive" },
+		) +
+		resistor("R_WIPER", 40, 2, "100k") +
+		bypassCore(10, 11)
+}`;
+
+/**
  * The same JFET gates driven by two BJTs that are **not** cross-coupled (an inverter chain), so
  * the latch detector finds nothing and the `buffered` verdict rests on the JFET-plus-BJTs
  * heuristic alone. Pinned so that replacing the heuristic shows up as this fixture moving.
