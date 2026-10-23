@@ -353,6 +353,43 @@ const namedInputRoles: ReadonlySet<string> = new Set([
 	"invertingb",
 ]);
 
+/** Each supply terminal a device declares, with the side it powers and the node it sits on. */
+function declaredSupplyPins(
+	device: Device,
+): readonly { readonly side: "high" | "low"; readonly node: NodeId }[] {
+	const roles = device.identity.terminalRoles;
+	const statesItsInputs = roles.some(
+		(role) => role !== null && namedInputRoles.has(role),
+	);
+	const pins: { side: "high" | "low"; node: NodeId }[] = [];
+	roles.forEach((role, index) => {
+		if (role === null) {
+			return;
+		}
+		const side =
+			unambiguousSupplyRoles.get(role) ??
+			(statesItsInputs ? supplyRolesNeedingNamedInputs.get(role) : undefined);
+		const node = device.nodes[index];
+		if (side === undefined || node === undefined) {
+			return;
+		}
+		pins.push({ side, node });
+	});
+	return pins;
+}
+
+/**
+ * The supply terminals this op-amp declares on a node whose voltage the document does not state.
+ * For each, `opampRails` leaves the circuit-wide fallback in place and `opamp-supply-undeclared`
+ * names it.
+ */
+function opampSupplyUnresolved(
+	device: Device,
+	nodeToVoltage: ReadonlyMap<NodeId, number>,
+): readonly { readonly side: "high" | "low"; readonly node: NodeId }[] {
+	return declaredSupplyPins(device).filter((pin) => !nodeToVoltage.has(pin.node));
+}
+
 /**
  * The rails this op-amp is powered by: its own supply terminals when it declares any, else the
  * circuit's supply set.
@@ -377,33 +414,19 @@ function opampRails(
 	rails: { readonly high: number | null; readonly low: number | null },
 	nodeToVoltage: ReadonlyMap<NodeId, number>,
 ): { readonly high: number | null; readonly low: number | null } {
-	const roles = device.identity.terminalRoles;
-	const statesItsInputs = roles.some(
-		(role) => role !== null && namedInputRoles.has(role),
-	);
 	let high = rails.high;
 	let low = rails.low;
-	roles.forEach((role, index) => {
-		if (role === null) {
-			return;
-		}
-		const side =
-			unambiguousSupplyRoles.get(role) ??
-			(statesItsInputs ? supplyRolesNeedingNamedInputs.get(role) : undefined);
-		if (side === undefined) {
-			return;
-		}
-		const node = device.nodes[index];
-		const volts = node === undefined ? undefined : nodeToVoltage.get(node);
+	for (const pin of declaredSupplyPins(device)) {
+		const volts = nodeToVoltage.get(pin.node);
 		if (volts === undefined) {
-			return;
+			continue;
 		}
-		if (side === "high") {
+		if (pin.side === "high") {
 			high = volts;
 		} else {
 			low = volts;
 		}
-	});
+	}
 	// **A rail pair must be ordered, or it is not a pair.** `railHigh <= railLow` is not a
 	// narrow clamp, it is a contradiction: the op-amp's linear region has negative width and
 	// its output is pinned wherever the limiter happens to land. Reading a device's own supply
@@ -563,6 +586,83 @@ function quiescentSupplyDraw(
 	];
 }
 
+/**
+ * The nodes a zener clamps to ground, each with the voltage the zener holds it at.
+ *
+ * A node fed through a resistor and clamped by a zener to ground is a regulated rail whose voltage the
+ * document never writes down: the part number and the circuit say it. Without this, an op-amp whose
+ * supply terminal sits on that node reads no voltage there and falls back to the circuit-wide supply,
+ * so a 5.1 V LFO inside a 9 V pedal swings 9 V (`boss-aw-2`'s IC5, supply on a node held by `D9`).
+ *
+ * **Typed evidence only.** The zener is a `diode` whose breakdown voltage is stated -- by the document's
+ * own typed parameter, else by the registry entry for the exact part number, never inferred from the
+ * part-number string -- and whose `anode` and `cathode` are declared roles, the anode on a node
+ * the map already holds at 0 V. **The document keeps the last word:** a cathode node the map already
+ * has a voltage for (a declared rail, a source, a regulator, a pump output) is left alone. **A clamp
+ * needs headroom:** some declared voltage must exceed the breakdown, or the zener never conducts.
+ * **Exactly one zener per node:** two on one node is a question this does not answer, so it derives
+ * nothing for it. The node needs a second device on it, which is the feed.
+ *
+ * The result is the zener's *nominal* breakdown, not its operating point: the solve still decides
+ * the actual voltage, and the two differ by the zener's knee and the load. It feeds only the op-amp
+ * rails and the quiescent-supply draw, which is all `nodeToVoltage` is read for here, and it does not
+ * join the circuit-wide supply set.
+ *
+ * **One measured basis.** Compiled before and after over the 158 tracked corpus documents (artifacts
+ * `f0eddc61b`, `pedalPartCatalog`): **one** program differs, `boss-aw-2`, whose two IC5 op-amp stamps go
+ * from railHigh 9 to 5.235 (the registry's typical for `RD5.1EB3`, the B3 bin of 5.12 to 5.35 V; the part
+ * name's "5.1" is not the value). No other stamp field of any packet moves, 157 programs are byte-identical,
+ * and a packet that already states its zener node's voltage (`boss-ph-1r` on a port) is untouched.
+ */
+function zenerRailDerivations(
+	netlist: Netlist,
+	registry: PartRegistry,
+	nodeToVoltage: ReadonlyMap<NodeId, number>,
+	devicesTouchingNode: ReadonlyMap<NodeId, number>,
+): ReadonlyMap<NodeId, number> {
+	const headroom = Math.max(0, ...nodeToVoltage.values());
+	const found = new Map<NodeId, number[]>();
+	for (const device of netlist.devices) {
+		if (device.kind !== "diode" || device.isLed === true) {
+			continue;
+		}
+		const catalogued = registryLawFor(registry, device.identity.partNumber, "diode");
+		const volts =
+			device.parameters.breakdownVolts ??
+			(catalogued !== null && catalogued.kind === "diode"
+				? catalogued.breakdownVolts
+				: undefined);
+		if (volts === undefined || !Number.isFinite(volts) || !(volts > 0)) {
+			continue;
+		}
+		const roles = device.identity.terminalRoles;
+		const anode = terminalWithRole(roles, ["anode"]);
+		const cathode = terminalWithRole(roles, ["cathode"]);
+		if (anode === null || cathode === null || anode === cathode) {
+			continue;
+		}
+		const anodeNode = device.nodes[anode];
+		const cathodeNode = device.nodes[cathode];
+		if (anodeNode === undefined || cathodeNode === undefined || cathodeNode === 0) {
+			continue;
+		}
+		if (nodeToVoltage.get(anodeNode) !== 0 || nodeToVoltage.has(cathodeNode)) {
+			continue;
+		}
+		if ((devicesTouchingNode.get(cathodeNode) ?? 0) < 2 || !(headroom > volts)) {
+			continue;
+		}
+		found.set(cathodeNode, [...(found.get(cathodeNode) ?? []), volts]);
+	}
+	const derived = new Map<NodeId, number>();
+	for (const [node, list] of found) {
+		if (list.length === 1) {
+			derived.set(node, list[0] as number);
+		}
+	}
+	return derived;
+}
+
 export function attachDeviceLaws(
 	netlist: Netlist,
 	registry: PartRegistry,
@@ -594,6 +694,16 @@ export function attachDeviceLaws(
 		if (!nodeToVoltage.has(derivation.outputNode)) {
 			nodeToVoltage.set(derivation.outputNode, derivation.volts);
 		}
+	}
+	// A zener-clamped node states a voltage the document never writes down. Derived after the pumps,
+	// so no pump ever reads one, and kept out of `regulated`, so the circuit-wide supply set is unmoved.
+	for (const [node, volts] of zenerRailDerivations(
+		netlist,
+		registry,
+		nodeToVoltage,
+		devicesTouchingNode,
+	)) {
+		nodeToVoltage.set(node, volts);
 	}
 	const rails = supplyRails(netlist, regulated);
 	const supply = supplyNodes(netlist);
@@ -952,6 +1062,7 @@ function sectionDevices(
 				? opampOutputSwingOf(section.law, identity.partId)
 				: null;
 		const sectionSwung = railsAfterSwing(opampRails(device, rails, nodeToVoltage), sectionSwing);
+		const sectionUnresolved = opampSupplyUnresolved(device, nodeToVoltage);
 		const railHigh = sectionSwung.rails.high;
 		const railLow = sectionSwung.rails.low;
 
@@ -982,6 +1093,7 @@ function sectionDevices(
 									outputSwingPrinted: sectionSwing.printed,
 								}),
 						...(sectionSwung.carried === null ? {} : { outputSwingCarried: sectionSwung.carried }),
+						...(sectionUnresolved.length === 0 ? {} : { supplyUnresolved: sectionUnresolved }),
 						// The part's datasheet product, when the entry states one. Absent stays
 						// absent: it lowers to a `null` stamp, which the compile names.
 						...(section.law.gainBandwidthHz === undefined
@@ -2871,6 +2983,7 @@ function resolveDevice(
 			);
 			const railHigh = declaredSwung.rails.high;
 			const railLow = declaredSwung.rails.low;
+			const declaredUnresolved = opampSupplyUnresolved(device, nodeToVoltage);
 
 			// The gain-bandwidth product: the packet's own typed `GBP` first, else the datasheet figure
 			// of the exact part id, else none. Never a class number -- `null` lowers to a stamp the
@@ -2896,6 +3009,7 @@ function resolveDevice(
 								outputSwingPrinted: declaredSwing.printed,
 							}),
 					...(declaredSwung.carried === null ? {} : { outputSwingCarried: declaredSwung.carried }),
+					...(declaredUnresolved.length === 0 ? {} : { supplyUnresolved: declaredUnresolved }),
 					...(gainBandwidthHz === null ? {} : { gainBandwidthHz }),
 				},
 			};

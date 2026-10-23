@@ -50,6 +50,8 @@ import { GROUND } from "./types";
 import type {
 	BjtLawDefaultWarning,
 	OpampGainBandwidthDefaultWarning,
+	OpampSupplyUndeclaredItem,
+	OpampSupplyUndeclaredWarning,
 	OpampLawDefaultItem,
 	OpampLawDefaultWarning,
 	CompileResult,
@@ -246,6 +248,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findRegistryOverrideApplied(netlist, lawed, options.registry ?? emptyRegistry),
 		...findOpampLawDefaults(lawed),
 		...findOpampGainBandwidthDefaults(lawed),
+		...findOpampSupplyUndeclared(lawed),
 		...scaled.warnings,
 		],
 	};
@@ -836,6 +839,52 @@ function findOpampGainBandwidthDefaults(
 				`${total} op-amp section(s) run on the consoles' class-default 1 MHz gain-bandwidth ` +
 				`product because no source states one: ${listed.join("; ")}. A stage of gain G rolls off ` +
 				"at GBP / G, so a wrong product moves the high-frequency droop of a high-gain stage.",
+		},
+	];
+}
+
+/**
+ * Op-amps with a declared supply terminal on a node whose voltage the document does not state.
+ * See `OpampSupplyUndeclaredWarning`.
+ *
+ * Read from the lowered ideal-op-amp laws, where `attachDeviceLaws` recorded the terminals it could
+ * not resolve; a package split into sections repeats the list on every section, so the items are
+ * deduplicated by parent device, side and node.
+ */
+function findOpampSupplyUndeclared(
+	lawed: LawedNetlist,
+): readonly OpampSupplyUndeclaredWarning[] {
+	const byId = new Map(lawed.netlist.devices.map((device) => [device.id, device]));
+	const seen = new Set<string>();
+	const items: OpampSupplyUndeclaredItem[] = [];
+	for (const resolution of lawed.resolutions) {
+		if (resolution.outcome !== "law" || resolution.law.kind !== "ideal-opamp") continue;
+		const id = resolution.device.replace(/#\d+$/, "");
+		for (const pin of resolution.law.supplyUnresolved ?? []) {
+			const key = `${id}\n${pin.side}\n${pin.node}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			items.push({ device: id as DeviceId, side: pin.side, node: pin.node });
+		}
+	}
+	if (items.length === 0) return [];
+	const label = (id: string) => {
+		const part = byId.get(id)?.identity.partNumber ?? null;
+		return `${id}${part === null ? "" : ` (${part})`}`;
+	};
+	const devices = [...new Set(items.map((item) => item.device))];
+	return [
+		{
+			code: "opamp-supply-undeclared" as const,
+			device: null,
+			devices,
+			items,
+			detail:
+				`${devices.length} op-amp(s) declare a supply terminal on a node no rail, source, regulator, ` +
+				`charge pump or zener states a voltage for, so that side runs on the circuit-wide supply: ` +
+				`${items.map((item) => `${label(item.device)} ${item.side === "high" ? "positive" : "negative"} supply on node ${item.node}`).join("; ")}. ` +
+				"Harmless where the node is a plain tap of that supply; decisive for a comparator, an LFO or a clipper " +
+				"powered from a divided or regulated node, which swings the whole supply instead of its own.",
 		},
 	];
 }

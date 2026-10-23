@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased: compiler (minor; runtime republishes with the new compiler pin)
+
+**An op-amp whose supply terminal sits on a zener-clamped node now swings between that zener's voltage and ground, and an
+op-amp whose supply terminal sits on a node nothing states a voltage for is named instead of silent.** `opampRails()` read a
+supply pin's voltage only from declared rails, voltage sources, registry regulators and charge-pump outputs; a pin on any
+other node fell back to the circuit-wide supply (9 V on a 9 V pedal) with no diagnostic, so `boss-aw-2`'s IC5 (a 5.1 V zener
+node, R38 + D9 `RD5.1EB3` + the pin) swung 0 to 9 V. The compile now derives one voltage for such a node from typed evidence
+only: exactly one diode with a breakdown voltage (the document's `BreakdownVoltage`, else the registry's law for the exact
+part), declared `anode` and `cathode` roles, anode on a 0 V node, cathode on the supply node, at least two devices on it, and
+some declared voltage above the breakdown. A voltage the document states on the node keeps the last word; two zeners, a
+reversed zener, a diode with no breakdown, or no headroom derive nothing. A node whose supply terminal still states nothing
+raises `opamp-supply-undeclared` (devices, node and side per item). No stamp field, wasm or runtime source changes.
+
+**What moves, as measured 2026-10-22** (158 tracked artifacts documents at `f0eddc61b`, `pedalPartCatalog`, compile only, against
+the published 0.8.0): 155 compile and 3 are refused on both arms. One program differs, `boss-aw-2`: IC5A and IC5B go from
+railHigh 9 to 5.235 (the registry's typical for `RD5.1EB3`, the B3 bin of 5.12 to 5.35 V), railLow 0, no other stamp field
+moves. 157 programs are byte-identical. `opamp-supply-undeclared` fires on 15 documents (49 device-and-side items), not on
+`boss-aw-2`: `boss-bf-2`, `boss-ds-1`, `boss-ph-3`, `boss-sp-1-spectrum`, `electro-harmonix-bad-stone`,
+`electro-harmonix-holy-grail`, `fulltone-ocd-v1.4`, `keeley-compressor-plus`, `marshall-blues-breaker`,
+`moogerfooger-mf-102`, `mxr-distortion-plus`, `pro-co-rat-2-v4b-op07cp`, `pro-co-rat`, `runoffgroove-tremulus-lune`,
+`tape-echo`. The warning names where the fallback is in force; whether the fallback is close to the real rail at each of those
+nodes was not examined, so it is not a count of defects. Covered by
+`packages/compiler/tests/zener-supply-rail.test.ts` (nine tests, three positive and six negative controls).
+
 ## compiler 0.8.1 / runtime 0.6.3 / chain 0.1.11 / player 0.2.9
 
 **Transistor-record fill: wave-1 datasheet-derived gain and channel records, plus two provisional

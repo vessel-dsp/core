@@ -1103,6 +1103,16 @@ export type DeviceLaw =
 			 * `opamp-gain-bandwidth-default` warning names.
 			 */
 			readonly gainBandwidthHz?: number;
+			/**
+			 * Set by the lowering, only on a lowered law, and only when it applies: each supply terminal
+			 * this op-amp declares on a node that no rail, source, regulator, charge pump or zener states
+			 * a voltage for. The rails above are then the circuit-wide supply for that side, not the
+			 * node's own voltage. Read by `opamp-supply-undeclared`.
+			 */
+			readonly supplyUnresolved?: readonly {
+				readonly side: "high" | "low";
+				readonly node: NodeId;
+			}[];
 	  }
 	| {
 			readonly kind: "logic-divider";
@@ -3363,6 +3373,42 @@ export type OpampGainBandwidthDefaultWarning = {
 	readonly detail: string;
 };
 
+/** One supply terminal of one op-amp that `opamp-supply-undeclared` names. */
+export type OpampSupplyUndeclaredItem = {
+	readonly device: DeviceId;
+	readonly side: "high" | "low";
+	readonly node: NodeId;
+};
+
+/**
+ * Op-amps with a declared supply terminal on a node whose voltage nothing in the document states:
+ * no rail, source, registered regulator, charge pump, or zener clamped to ground. Such an op-amp is
+ * given the circuit-wide supply for that side (the widest pair in the document), which is the
+ * right answer only when the node is a plain tap of that supply.
+ *
+ * **Why it is named.** The fallback is silent and renders: an op-amp powered from a divided or
+ * regulated node (a zener-fed LFO inside a 9 V pedal) swings 9 V instead of the few volts it has,
+ * and a comparator or oscillator on it can latch instead of running. `boss-aw-2` rendered as a
+ * flat high-pass with its LFO latched for exactly this reason, with no diagnostic beside it.
+ *
+ * **What it does not claim.** Not that the source is wrong, and not that the fallback is wrong for a
+ * stage that never nears the rails. One warning per document, with one item per device and side.
+ *
+ * **One measured basis.** Over the 158 tracked corpus documents (artifacts `f0eddc61b`, `pedalPartCatalog`),
+ * after zener-clamped nodes are read: **15** documents carry it, **49** device-and-side items; `boss-aw-2`'s
+ * IC5 is not one of them. 46 of the 49 items are `high`-side supply pins and 3 are `low`-side pins
+ * (`moogerfooger-mf-102`, `mxr-distortion-plus`); what each node is, and whether the fallback is close to the
+ * real rail there, was not examined, so the count is the census of where the fallback is in force and not a
+ * count of defects.
+ */
+export type OpampSupplyUndeclaredWarning = {
+	readonly code: "opamp-supply-undeclared";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	readonly items: readonly OpampSupplyUndeclaredItem[];
+	readonly detail: string;
+};
+
 export type ElectricallyIsolatedIcWarning = {
 	readonly code: "electrically-isolated-ic";
 	readonly device: DeviceId;
@@ -3651,6 +3697,7 @@ export type CompileWarning =
 	| RegistryOverrideAppliedWarning
 	| OpampLawDefaultWarning
 	| OpampGainBandwidthDefaultWarning
+	| OpampSupplyUndeclaredWarning
 	| IcNotExecutedWarning
 	| OutputPortUnreachableWarning
 	| InterfaceOrSourceOnlyWarning
