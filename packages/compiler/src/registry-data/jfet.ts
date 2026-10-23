@@ -23,7 +23,12 @@ import { definePartData, type PartDataEntry } from "./loader";
 
 export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
+		// Wave 6 (transistor-records wave 1). Bare mini-package spelling: the Toshiba
+		// 2SK30ATM sheet (1997-04-10) is the TM title with the same IDSS/VGS(OFF)
+		// table and rank note as the 2SK30A sheet, so the unbinned mini is the same
+		// die in the mini package -- an alias on the gate-only unbinned entry.
 		partIds: ["2SK30A"],
+		aliases: ["2SK30ATM"],
 		class: "jfet",
 		params: {
 			gateSaturationCurrent: {
@@ -684,6 +689,42 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 					"Printed unbinned IDSS range 10-32 mA; arithmetic midpoint (form 2): (10 + 32) / 2 = " +
 					"21 mA. Square law (form 3) with the derived Vt0 -0.9 V: Beta = 21e-3 / 0.9^2 = " +
 					"2.5925926e-2 S.",
+			},
+		},
+	},
+	{
+		// Wave 6 (transistor-records wave 1). O rank (2SC1815-Y/BL precedent: a rank
+		// is a different gain, so its own entry). The Toshiba 2SK30ATM sheet
+		// (1997-04-10, scan, read visually, no text layer) prints the same table as
+		// the 2SK30A sheet: IDSS 0.3-6.5 mA (no TYP), VGS(OFF) -0.4..-5.0 V at
+		// VDS = 10 V, ID = 0.1 uA, with Note 'IDSS Classification R: 0.30~0.75,
+		// O: 0.60~1.40, Y: 1.20~3.00, GR: 2.60~6.50' (same ranks as the registered
+		// Y/GR entries). |Yfs| 1.2 mS at 1 kHz is small-signal, not used.
+		partIds: ["2SK30A-O"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -2.7,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK30ATM (1997-04-10, " +
+					"scan p1, read visually, no text layer) ELECTRICAL CHARACTERISTICS (Ta = 25C): " +
+					"'Gate-Source Cut-off Voltage VGS(OFF), VDS = 10 V, ID = 0.1 uA, MIN -0.4 MAX -5.0 V' " +
+					"(shared row, no rank split; same table as the 2SK30A sheet behind the Y/GR entries)",
+				derivation:
+					"Printed VGS(OFF) range -0.4..-5.0 V at VDS = 10 V, ID = 0.1 uA; arithmetic " +
+					"midpoint (form 2, volts are not gains): -(0.4 + 5.0) / 2 = -2.7 V.",
+			},
+			transconductance: {
+				value: 1.3717421e-4,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK30ATM (1997-04-10, " +
+					"scan p1) 'Note: IDSS Classification O: 0.60~1.40 mA (VDS = 10 V, VGS = 0 V)'",
+				derivation:
+					"Printed O-rank IDSS range 0.60-1.40 mA; arithmetic midpoint (form 2): " +
+					"(0.60 + 1.40) / 2 = 1.0 mA. Square law (form 3) with the derived Vt0 -2.7 V: " +
+					"Beta = 1.0e-3 / 2.7^2 = 1.3717421e-4 S.",
 			},
 		},
 	},
