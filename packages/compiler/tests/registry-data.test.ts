@@ -866,20 +866,25 @@ describe("wave-4 fill inventory", () => {
 		// P2N2222A/A1015GR/MPS4124/BC546A/BC548A/BC548B/BC184C BF with or without IS,
 		// 2N6428/2N6429 IS+BF, 2SC732 unbinned IS+BF, ZTX618 IS-only via manufacturer
 		// model) and 4 JFET rows (2SK209-GR, 2SK208-R/Y, 2SK3557).
+		// Transistor-records wave 1 (2026-10-23): 10 more BJT rows, all BF-only for
+		// want of a citable Vbe (2SC3324, 2SA1048, 2SC2459 and 2SC4116 unbinned plus
+		// their corpus-used GR ranks, the SOT-23 MMBT5089 pair entry, KTC3198-BL) and
+		// 6 more JFET rows (2SK30A-O channel, 2SK879 + Y, 2SK880 + GR, Vt0-only J113;
+		// the bare 2SK30ATM spelling rides as an alias on the gate-only entry).
 		// LED work: the 1N4148 community record replaced by the owner's measured pair;
 		// five measured LED colour rows (red and green by packet spelling, blue, white and
 		// yellow by typed Color), Item 2's custom-LED full quad, and Item 1's derived VT/Rs.
 		expect(opampRegistryRecords).toHaveLength(24);
 		expect(zenerRegistryRecords).toHaveLength(35);
-		expect(jfetRegistryRecords).toHaveLength(21);
+		expect(jfetRegistryRecords).toHaveLength(27);
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(bjtRegistryRecords).toHaveLength(52);
+		expect(bjtRegistryRecords).toHaveLength(62);
 		expect(diodeRegistryRecords).toHaveLength(18);
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 52 + 18 + 2 + 35 + 21 + 7 + 8 + 1 + 5);
+		expect(partRegistryData).toHaveLength(24 + 62 + 18 + 2 + 35 + 27 + 7 + 8 + 1 + 5);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
@@ -938,7 +943,7 @@ describe("wave-4 fill inventory", () => {
 		);
 		expect(zenerFolded.size).toBeGreaterThan(30);
 		expect(new Set([...zenerCatalogPartIds])).toEqual(zenerFolded);
-		expect(new Set([...gateOnlyFetPartIds])).toEqual(new Set(["2sk30a"]));
+		expect(new Set([...gateOnlyFetPartIds])).toEqual(new Set(["2sk30a", "2sk30atm"]));
 	});
 });
 

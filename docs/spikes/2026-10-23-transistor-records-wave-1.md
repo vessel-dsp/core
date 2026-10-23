@@ -83,10 +83,11 @@ manufacturer, not the Toshiba original).
   release-metadata + 2 inventory). All 6 non-inventory failures reproduce on
   unchanged main (throwaway clone at 682c864): missing `wasm/v2_dsp.cjs` build
   artifact and the release pin; unrelated to this change. The 2 inventory
-  failures (`wave-4 fill inventory` count/membership assertions) are the
-  intended consequence of adding rows: that test asserts exact pre-wave-6
-  membership and its update belongs to whoever owns the test (not edited here,
-  per constraints).
+  failures (`wave-4 fill inventory` count/membership assertions) were the
+  intended consequence of adding rows and were updated in the follow-up commit
+  `test(registry): inventory counts and gate-only set after transistor-records
+  wave 1`, which sets BJT 62 / JFET 27 and the gate-only set to
+  `{"2sk30a", "2sk30atm"}`.
 - `registry-data` loader validates every record at module load: all 10 new
   entries load (per-commit LOAD-OK checks); BJT rows 52 -> 62, JFET rows
   21 -> 27.
