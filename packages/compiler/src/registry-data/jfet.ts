@@ -728,4 +728,64 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). Toshiba 2SK879 (2007-11-01): IDSS and
+		// VGS(off) print MIN/MAX only (no TYP). Unbinned plus the corpus-used Y rank
+		// (2SK879-Y/2SK879Y); R/O/GR stay out (same sheet, no corpus use). |Yfs|
+		// 1.2 mS at 1 kHz is small-signal, not the square-law Beta, and is not used.
+		partIds: ["2SK879"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -2.7,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK879 (2007-11-01) p1, " +
+					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Gate-source cut-off voltage VGS (OFF), " +
+					"VDS = 10 V, ID = 0.1 uA, MIN -0.4 MAX -5.0 V' with 'Note: IDSS classification " +
+					"R: 0.30~0.75 mA, O: 0.60~1.40 mA, Y: 1.2~3.0 mA, GR: 2.6~6.5 mA'",
+				derivation:
+					"Printed VGS(OFF) range -0.4..-5.0 V; arithmetic midpoint (form 2): -2.7 V.",
+			},
+			transconductance: {
+				value: 4.6639232e-4,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK879 (2007-11-01) p1: " +
+					"'Drain current IDSS (Note), VDS = 10 V, VGS = 0, MIN 0.3 MAX 6.5 mA'",
+				derivation:
+					"Printed IDSS range 0.3-6.5 mA; arithmetic midpoint (form 2): (0.3 + 6.5) / 2 = " +
+					"3.4 mA. Square law (form 3): Beta = 3.4e-3 / 2.7^2 = 4.6639232e-4 S.",
+			},
+		},
+	},
+	{
+		partIds: ["2SK879Y", "2SK879-Y"],
+		class: "jfet",
+		note:
+			"The hyphenated and unhyphenated spellings fold to one id (2sk879y); both are " +
+			"corpus-observed.",
+		params: {
+			thresholdVolts: {
+				value: -2.7,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK879 (2007-11-01) p1, " +
+					"shared VGS(OFF) row '-0.4 to -5.0 V' (see the 2SK879 entry)",
+				derivation:
+					"Printed VGS(OFF) range -0.4..-5.0 V; arithmetic midpoint (form 2): -2.7 V.",
+			},
+			transconductance: {
+				value: 2.8806584e-4,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK879 (2007-11-01) p1, " +
+					"'Note: IDSS classification Y: 1.2~3.0 mA (VDS = 10 V, VGS = 0 V)'",
+				derivation:
+					"Printed Y-rank IDSS range 1.2-3.0 mA; arithmetic midpoint (form 2): " +
+					"(1.2 + 3.0) / 2 = 2.1 mA. Square law (form 3): Beta = 2.1e-3 / 2.7^2 = " +
+					"2.8806584e-4 S.",
+			},
+		},
+	},
 ]);
