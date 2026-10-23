@@ -1717,4 +1717,32 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). KEC KTC3198 Revision No: 3 (2013-07-08):
+		// hFE(1) 70-700 at VCE = 6 V, IC = 2 mA with Note 'hFE(1) Classification O: 70~140,
+		// Y: 120~240, GR: 200~400, BL: 300~700'. VBE(sat) is MAX-only 1.0 V at 100 mA,
+		// a limit: no IS. hFE(2) TYP 100 at 150 mA is high-current, not the law's bias.
+		// Corpus uses the BL rank only, so the BL entry ships alone (the 2SC732TM-GR
+		// precedent: rank without unbinned where the corpus names no bare part).
+		partIds: ["KTC3198-BL", "KTC3198BL"],
+		class: "bjt",
+		note:
+			"The unhyphenated spelling is not corpus-observed; it folds to the same id " +
+			"(ktc3198bl) and names the same BL rank, so it rides along (2SC1815-BL precedent).",
+		params: {
+			forwardBeta: {
+				value: 458.2575695,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): KEC KTC3198, Revision No: 3 " +
+					"(2013-07-08), ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC Current Gain hFE(1) " +
+					"(Note), VCE = 6 V, IC = 2 mA, MIN 70 TYP - MAX 700' with 'Note: hFE(1) " +
+					"Classification O: 70~140, Y: 120~240, GR: 200~400, BL: 300~700' (the VBE(sat) " +
+					"row is MAX-only 1.0 V at 100 mA and yields nothing)",
+				derivation:
+					"Printed BL-rank hFE(1) bin 300-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(300 * 700) = 458.2575695.",
+			},
+		},
+	},
 ]);
