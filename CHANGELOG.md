@@ -1,5 +1,72 @@
 # Changelog
 
+## compiler 0.8.1 / runtime 0.6.3 / chain 0.1.11 / player 0.2.9
+
+**Transistor-record fill: wave-1 datasheet-derived gain and channel records, plus two provisional
+`community` saturation currents taken by owner decision.** Wave 1 adds geometric-midpoint forward
+Beta for 2SC3324 (unbinned and GR, 374.1657387 / 282.8427125), 2SA1048 (unbinned and GR,
+167.3320053 / 282.8427125), 2SC2459 (unbinned and GR, same pair), and 2SC4116 (unbinned and GR,
+same pair), MMBT5089 (one entry covering both orderings, 692.820323) and KTC3198-BL (458.2575695),
+each cited to its printed manufacturer hFE row; JFET channel records for 2SK30A-O (Vt0 -2.7,
+Beta 1.3717421e-4), 2SK879 (unbinned and Y) and 2SK880 (unbinned and GR), a Vt0-only J113
+(-1.75, Beta stays class default and says so), and the bare 2SK30ATM spelling as an alias on the
+gate-only entry (gate IS 1e-14 instead of the 1e-5 class default). Wave 2 adds IS 15.2e-15 for
+2SC2458 (unbinned and GR) and IS 10.1e-15 for 2SC2459 (unbinned and GR). Those two IS values are
+provisional `community` values, not manufacturer values: they come from the Intusoft-authored
+QSC2458/QSC2459 cards in a third-party SPICE card collection, taken under the owner's 2026-10-23
+decision ("we have no other option"), because neither Toshiba datasheet prints a VBE row and
+Toshiba's own model bundle is encrypted with a no-reverse-engineering term. The compiler reports
+them as `registry-provisional-value` for `saturationCurrent` only, and only when the document
+does not type its own value.
+
+**What moves, as measured 2026-10-23 against the published 0.8.0 / 0.6.2** (artifacts `418c5c50`,
+committed files only, 123 pedals and 23 amps; program text plus 2048-sample two-tone 440 Hz at
+0.25 plus 1320 Hz at 0.1 at default controls on both consoles, published packages against this
+tree's compiler and its rebuilt wasm): 145 documents compile on both arms and `boss-dd-3t` is
+refused on both, so no compile-status mover. 21 programs move, every change in bjt/fet stamps
+only: 2SC2458-family IS on `boss-aw-2`, both `boss-bd-2` builds, `boss-ce-5`, `boss-dd-3a`,
+`boss-dd-5`, `boss-ds-2`, `boss-md-2`, `boss-mt-2`, `boss-od-3`, `boss-os-2` and `boss-tr-2`;
+2SC2459GR IS plus BF on both `boss-bd-2` builds; 2SA1048-family BF on `boss-aw-2`, `boss-md-2`,
+`boss-od-3`, `boss-tr-2` and `boss-ds-2`; 2SC3324GR BF on `boss-bf-3` and `boss-dd-3b`;
+2SC4116GR BF on `boss-bf-3` and `boss-ph-3`; MMBT5089L BF on `mxr-carbon-copy`; KTC3198-BL BF on
+`ibanez-ts9-reissue`; 2SK879Y channel on `boss-bf-3`, `boss-dd-3b` and `boss-rv-5`; 2SK880GR
+channel on `boss-bf-3`, `boss-dd-3b`, `boss-dd-5` and `boss-ph-3`; unbinned 2SK880 channel on
+`boss-hr-2`; J113 Vt0 on `dod-fx59-thrashmaster`; the bare-2SK30ATM gate fix on `boss-ds-1`.
+Packets that name one of these parts only in prose or evidence roles (`ibanez-pql`'s 2SC2458GR
+support context, `boss-oc-3` and `boss-st-2`'s service-note/DSP-mute mentions) do not move, and
+neither do packets on already-shipped spellings (`boss-ch-1`, `boss-ge-7`, `boss-tw-1` and the
+rest on 2SK30ATM-Y/TM-GR or bare 2SK30A). Audio level: every packet whose program is unchanged
+renders bit-identical on both consoles (124 of 124), so there is no same-program mover. Of the
+21, five move program-only with bit-identical audio on both consoles (silent or out-of-path
+indicators and switches: `boss-bf-3`, `boss-hr-2`, `boss-dd-3a`, `boss-ph-3`,
+`boss-rv-5`); the rest move from 1e-9 up to volts, largest `mxr-carbon-copy` (0.104 on both
+against a 1.2 peak: MMBT5089L BF 100 to 692.8), `ibanez-ts9-reissue` (0.0156 on both:
+KTC3198-BL BF 100 to 458.3), `boss-bd-2-blues-driver-keeley-mod` (9.33e-3),
+`boss-bd-2-blues-driver` (7.55e-3), `boss-md-2` (5.79e-3) and `boss-dd-5` (4.96e-3). The
+TS-against-WASM console gaps on `moogerfooger-mf-102`, `marshall-1959-super-lead-plexi`,
+`orange-rockerverb` and `boss-tw-1` are identical in kind on both arms: pre-existing packet
+state, not a regression.
+
+**The runtime changes only its exact pin and the regenerated kernel table.** `GeneratedKernels.cpp`
+regenerated with this compiler over the 145 corpus programs: 139 kernels from 559 scheduled
+blocks, the same counts as the committed table. One fingerprint goes (`0x5f19ae34`) and one
+comes (`0x711f403d`), both `boss-aw-2`: the packet was re-traced between the `892d3b9cd` and
+`418c5c50` corpora, and exporting the old corpus with this compiler reproduces the old
+fingerprint, so the churn is the re-trace and none of it is compiler-attributable. Outputs are
+bit-identical with and without the regenerated table over the whole corpus on the WASM console
+(145 of 145). No `Program`, `Stamp`, `ProgramJson.cpp` or `Program.h` change
+(`git diff compiler-v0.8.0..HEAD -- packages/runtime/src` is empty), hence a patch bump; the
+exact compiler pin moves to 0.8.1.
+
+**Not measured:** non-default controls and switch states, oversample above 1, real-time cost (the
+browser proofs ran, the worklet scoreboard did not), a guitar take, ngspice for any new record,
+whether any change is closer to hardware, the 12 `examples/` documents (excluded from the corpus
+as in 0.8.0), and a 3 s window (2048-sample only, plus the with/without-table comparison at
+2048 WASM-only).
+
+The chain changes only its exact pins (compiler 0.8.1, core 0.17.0, runtime 0.6.3) and the player
+only its exact pins (chain 0.1.11, compiler 0.8.1, core 0.17.0, runtime 0.6.3).
+
 ## core 0.17.0 / compiler 0.8.0 / runtime 0.6.2 / chain 0.1.10 / player 0.2.8
 
 **The registry's first bench-measured records, measured by Joseph Cheng (the project owner) on 2026-10-20.** The 1N4148's

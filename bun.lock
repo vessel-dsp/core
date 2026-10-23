@@ -38,7 +38,7 @@
     },
     "packages/chain": {
       "name": "@vessel-dsp/chain",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "dependencies": {
         "@vessel-dsp/compiler": "0.2.0",
         "@vessel-dsp/core": "0.16.0",
@@ -47,7 +47,7 @@
     },
     "packages/compiler": {
       "name": "@vessel-dsp/compiler",
-      "version": "0.8.0",
+      "version": "0.8.1",
       "dependencies": {
         "@vessel-dsp/core": "0.16.0",
         "js-yaml": "^4.1.0",
@@ -85,7 +85,7 @@
     },
     "packages/player": {
       "name": "@vessel-dsp/player",
-      "version": "0.2.8",
+      "version": "0.2.9",
       "dependencies": {
         "@vessel-dsp/chain": "0.1.1",
         "@vessel-dsp/compiler": "0.2.0",
@@ -95,7 +95,7 @@
     },
     "packages/runtime": {
       "name": "@vessel-dsp/runtime",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "dependencies": {
         "@vessel-dsp/compiler": "0.2.0",
       },
