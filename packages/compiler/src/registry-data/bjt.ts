@@ -1645,4 +1645,47 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). Toshiba 2SC4116 (2007-11-01): hFE
+		// 70-700 at VCE = 6 V, IC = 2 mA with Note 'hFE classification O (O): 70~140,
+		// Y (Y): 120~240, GR (G): 200~400, BL (L): 350~700, ( ) marking symbol'.
+		// No VBE row (only VCE(sat) TYP 0.1/MAX 0.25 V at 100 mA), so IS has no input.
+		// Complementary to 2SA1586. Unbinned plus the corpus-used GR rank; O/Y/BL
+		// stay out (same sheet, no corpus use).
+		partIds: ["2SC4116"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 221.3594362,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SC4116 (2007-11-01) p1, " +
+					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC current gain hFE (Note), VCE = 6 V, " +
+					"IC = 2 mA, MIN 70 MAX 700' (the VCE(sat) row is TYP/MAX-only at 100 mA and " +
+					"yields nothing)",
+				derivation:
+					"Printed hFE range 70-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(70 * 700) = 221.3594362.",
+			},
+		},
+	},
+	{
+		partIds: ["2SC4116GR", "2SC4116-GR"],
+		class: "bjt",
+		note:
+			"The hyphenated and unhyphenated spellings fold to one id (2sc4116gr); both are " +
+			"corpus-observed (the 2SC2458GR precedent; the corpus 2SC4116_GR folds the same).",
+		params: {
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SC4116 (2007-11-01) p1, " +
+					"'Note: hFE classification GR (G): 200~400' (VCE = 6 V, IC = 2 mA per the table row)",
+				derivation:
+					"Printed GR-rank hFE bin 200-400; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 400) = 282.8427125.",
+			},
+		},
+	},
 ]);
