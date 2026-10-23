@@ -849,4 +849,30 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). Vt0-only: the onsemi sheet prints a
+		// full VGS(off) bin but IDSS is MIN-only (2.0 mA, no MAX/TYP), so Beta has no
+		// form-3 input and stays on the class default. The Vishay Siliconix J111/J112/
+		// J113 sheet prints the same MIN-only IDSS row, corroborating (no better
+		// source). Gate terms stay class defaults (reverse IGSS only, never forward).
+		partIds: ["J113"],
+		class: "jfet",
+		note:
+			"Beta (transconductance) is not refined: IDSS prints MIN-only on every located " +
+			"manufacturer sheet, so the channel runs the class-default Beta with a sourced Vt0.",
+		params: {
+			thresholdVolts: {
+				value: -1.75,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): onsemi MMBFJ113/D, Mar 2023 Rev. 5, " +
+					"p2, ELECTRICAL CHARACTERISTICS (TJ = 25C): 'Gate-Source Cut-Off Voltage VGS(off), " +
+					"VDS = 5 V, ID = 1.0 mA: J113 MIN -0.5 MAX -3.0 V' (no TYP; the IDSS row on the same " +
+					"table is MIN-only 2.0 mA with no MAX)",
+				derivation:
+					"Printed J113 VGS(off) range -0.5..-3.0 V; arithmetic midpoint (form 2, volts " +
+					"are not gains): -(0.5 + 3.0) / 2 = -1.75 V.",
+			},
+		},
+	},
 ]);

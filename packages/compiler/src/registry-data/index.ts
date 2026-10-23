@@ -9,8 +9,9 @@
 // fetch in the browser. The cost is verbosity, which is the point: each value carries its
 // citation inline.
 // 
-// What lives here after wave 5 (stage 1 moved mechanically, behaviour unchanged; waves 1-5
-// fill the discrete classes under the four derived bases plus the manufacturer-model basis):
+// What lives here after wave 5 plus the wave-6 transistor-records wave-1 fill (stage 1
+// moved mechanically, behaviour unchanged; waves 1-5 fill the discrete classes under the
+// four derived bases plus the manufacturer-model basis, wave 6 adds the next BJT/JFET rows):
 // - op-amp gain-bandwidth products and output-swing pairs (24 GBW rows: the 11 stage-1 rows
 //   plus LM833 wave-1, LF347/LF351/L272M/TL074 wave-2, NJM4580-family/OPA2134 wave-3,
 //   LM324/TLC2262/MC33174/LM833N wave-4, and OPA1678/OPA134PA/OPA604AP wave-5;
@@ -19,12 +20,15 @@
 // - zener reverse-breakdown rows (35 rows: the stage-1 rows plus 13 wave-5 nominal-voltage
 //   rows at 2.5/2.7/3.3/3.6/4.7/5.1/5.6/6.2/8.2/9.1/10/12/13 V absorbing seven stage-1
 //   derived rows at identical values; forward behaviour stays class default);
-// - BJT records (52 rows: unbinned parts plus 2SC1815-Y/BL and 2SC732TM-GR/2SC945-P ranks;
+// - BJT records (62 rows: unbinned parts plus 2SC1815-Y/BL, 2SC732TM-GR/2SC945-P and
+//   wave-6 2SC3324-GR/2SC2459-GR/2SC4116-GR/2SA1048-GR/KTC3198-BL ranks, and the SOT-23
+//   MMBT5089 pair;
 //   IS by form 1 from a printed Vbe range midpoint or TYP, or by manufacturer-model where
 //   published (2N2222A, 2N5088, ZTX618); IS omitted where neither exists; BF by
 //   form 2 geomean or printed TYP; reverseBeta/leakageAmps/thermalVoltage omitted throughout
 //   for want of a citable figure);
-// - JFET rows (21 rows: 2SK30A gate-only plus full-channel rows by form 3);
+// - JFET rows (27 rows: 2SK30A gate-only plus full-channel rows by form 3, including
+//   wave-6 2SK30A-O, 2SK879/Y, 2SK880/GR and Vt0-only J113);
 // - MOSFET rows (2 rows: BS170 and 2N7000 thresholdVolts only -- gfs is small-signal gm, not
 //   square-law Beta, and no approved form converts it);
 // - fixed-rail regulator voltages (7 records: 5/9/18/-15/15 plus wave-5 12/3.3 V) and
