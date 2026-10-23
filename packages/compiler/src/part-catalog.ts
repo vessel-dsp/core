@@ -5337,9 +5337,10 @@ const entries: readonly PartEntry[] = [
 	// `runoffgroove-tremulus-lune`'s packet cites a real VTL5C2 datasheet current-resistance curve
 	// (R@1mA=5.5k, R@10mA=800, R@40mA=200, dark>=1M) that this row's placeholder bounds
 	// (ldrMinOhms=100, ldrMaxOhms=10M with the generic exp(-1000*amps) law) put 56.7% of the way to
-	// fully dark at a genuinely-lit 0.567 mA. None of the other parts here carry a cited curve, so
-	// this row is untouched -- moving them to chase the one part that has evidence is the mistake
-	// this repo calls a seventeenth spelling table.
+	// fully dark at a genuinely-lit 0.567 mA. The `P873G35` spellings split out the same way
+	// below (a third-party measured power-law fit, provisional). None of the other parts here
+	// carry a cited curve, so this row is untouched -- moving them to chase the parts that have
+	// evidence is the mistake this repo calls a seventeenth spelling table.
 	{
 		"partIds": [
 			"PC817",
@@ -5347,10 +5348,7 @@ const entries: readonly PartEntry[] = [
 			"VTL5C1",
 			"VTL3C3",
 			"VTL5C3",
-			"VTL5C4",
-			"P873G35-380",
-			"P873G35",
-			"P873G35380"
+			"VTL5C4"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [
@@ -5389,6 +5387,97 @@ const entries: readonly PartEntry[] = [
 						"ledTransconductance": 0.001,
 						"ldrMinOhms": 100,
 						"ldrMaxOhms": 10000000
+					},
+					"terminals": [
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"pinout": [
+				"led_anode",
+				"led_cathode",
+				"ldr_a",
+				"ldr_b"
+			]
+		}
+	},
+
+// --- P873G35 / P873G35-380 (measured power-law cell; unblocks boss-aw-2) -------------------------------------------------------------
+	//
+	// Own entry, split out of the PC817/MOC3021 row above the way `VTL5C2` already was:
+	// `boss-aw-2` files the part as `P873G35-38`, which exact folded equality does not
+	// match to any existing id, so the device fell to the optocoupler class default and
+	// sat at megohms through the lamp's whole 0.02-0.5 mA sweep. `P873G35-38` joins this
+	// entry's `partIds` by the 2026-10-23 owner decision (the service note's `-38` reads
+	// as the `-380` grade). The law is a least-squares power-law fit over 0.3-20 mA to
+	// the geometric mean of 18 measured P873-G35-380 units in a 2005 hobbyist table
+	// (electro-music.org topic 27276, 22 C; max residual x1.14), NOT a manufacturer
+	// curve; the Hamamatsu sheets available list neither `-380` nor `-38` with a
+	// resistance-vs-current curve. `ohms = 105.6 * amps^-0.4360` (amps in A; 2.14 kohm
+	// at 1 mA), clamped to `[ldrMinOhms, ldrMaxOhms]`. The LED figures and both clamps
+	// keep the generic row's values exactly (1.6 V, 1e-3, 100 ohm, 1e7). The fit is
+	// third-party evidence, so both law parameters ride `provisionalParams` and compile
+	// raises `registry-provisional-value` for devices that run on them -- the same
+	// mechanism the `2SC2458`/`2SC2459` community saturation currents use.
+	{
+		"partIds": [
+			"P873G35",
+			"P873G35-380",
+			"P873G35380",
+			"P873G35-38"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"ledanode",
+				"anode",
+				"led_anode",
+				"pin1"
+			],
+			[
+				"ledcathode",
+				"cathode",
+				"led_cathode",
+				"pin2"
+			],
+			[
+				"ldra",
+				"a",
+				"ldr_a",
+				"pin3"
+			],
+			[
+				"ldrb",
+				"b",
+				"ldr_b",
+				"pin4"
+			]
+		],
+		"provisionalParams": [
+			{
+				"name": "ldrPowerLawCoefficientOhms",
+				"url": "https://electro-music.org/forum/topic-27276.html"
+			},
+			{
+				"name": "ldrPowerLawExponent",
+				"url": "https://electro-music.org/forum/topic-27276.html"
+			}
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "optocoupler",
+						"ledThresholdVolts": 1.6,
+						"ledTransconductance": 0.001,
+						"ldrMinOhms": 100,
+						"ldrMaxOhms": 10000000,
+						"ldrPowerLawCoefficientOhms": 105.6,
+						"ldrPowerLawExponent": -0.436
 					},
 					"terminals": [
 						0,
