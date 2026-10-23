@@ -1688,4 +1688,33 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). The SOT-23 2N5089 in both its ordering
+		// codes: onsemi's MMBT5088LT1/D sheet (Oct 2026 Rev. 8) titles MMBT5089L and
+		// the older family sheet titles MMBT5089; both print the same DC hFE bin
+		// (400-1200 at 100 uA, VCE = 5 V), so one entry covers both spellings (both
+		// corpus-observed: MMBT5089L in mxr-carbon-copy, bare MMBT5089 elsewhere).
+		// The 1 mA/10 mA DC rows are MIN-only; VBE(sat)/VBE(on) is MAX-only 0.8 V at
+		// 10 mA, a limit: no IS. The small-signal 450-1800 row at 1 mA is not the
+		// law's DC quantity (the 2N6428 100 uA-bin precedent).
+		partIds: ["MMBT5089L", "MMBT5089"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 692.820323,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheets (no vendored copy): onsemi MMBT5088LT1/D, Oct 2026 " +
+					"Rev. 8, p2, ELECTRICAL CHARACTERISTICS: 'DC Current Gain hFE, IC = 100 uAdc, " +
+					"VCE = 5.0 Vdc: MMBT5089L MIN 400 MAX 1200'; and onsemi MMBT5089/D, Oct-2017 Rev. 1 " +
+					"(family sheet 2N5088/MMBT5088/2N5089/MMBT5089), p2: 'DC Current Gain hFE, " +
+					"IC = 100 uA, VCE = 5.0 V: 5089 MIN 400 MAX 1200' (the 1.0/10 mA DC rows are " +
+					"MIN-only; VBE(sat)/VBE(on) is MAX-only 0.8 V at 10 mA)",
+				derivation:
+					"Printed MMBT5089 DC hFE bin 400-1200 at IC = 100 uA, VCE = 5.0 V (a legitimate " +
+					"low-current DC bin, not high-current falloff); geometric midpoint (form 2, " +
+					"gains): sqrt(400 * 1200) = 692.820323.",
+			},
+		},
+	},
 ]);
