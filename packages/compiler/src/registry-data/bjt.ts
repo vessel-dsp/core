@@ -1603,4 +1603,46 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 6 (transistor-records wave 1). Toshiba 2SC2459 (2003-03-27): hFE
+		// 200-700 at VCE = 6 V, IC = 2 mA with Note 'hFE classification GR: 200~400,
+		// BL: 350~700'. Complementary to 2SA1049 (whose sheet prints the same bins).
+		// No VBE row (only VCE(sat) MAX 0.3 V at 10 mA), so IS has no input.
+		// Unbinned plus the corpus-used GR rank; BL stays out (same sheet, no corpus use).
+		partIds: ["2SC2459"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 374.1657387,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SC2459 (2003-03-27) p1, " +
+					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC current gain hFE (Note), VCE = 6 V, " +
+					"IC = 2 mA, MIN 200 MAX 700' (the VCE(sat) row is MAX-only 0.3 V at 10 mA and " +
+					"yields nothing)",
+				derivation:
+					"Printed hFE range 200-700 at VCE = 6 V, IC = 2 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(200 * 700) = 374.1657387.",
+			},
+		},
+	},
+	{
+		partIds: ["2SC2459GR", "2SC2459-GR"],
+		class: "bjt",
+		note:
+			"The hyphenated spelling is not corpus-observed; it folds to the same id " +
+			"(2sc2459gr) and names the same GR rank, so it rides along (2SC1815-BL precedent).",
+		params: {
+			forwardBeta: {
+				value: 282.8427125,
+				basis: "derived",
+				source:
+					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SC2459 (2003-03-27) p1, " +
+					"'Note: hFE classification GR: 200~400' (VCE = 6 V, IC = 2 mA per the table row)",
+				derivation:
+					"Printed GR-rank hFE bin 200-400; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 400) = 282.8427125.",
+			},
+		},
+	},
 ]);
