@@ -1670,11 +1670,44 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Wave 6 (transistor-records wave 1). Toshiba 2SC2459 (2003-03-27): hFE
 		// 200-700 at VCE = 6 V, IC = 2 mA with Note 'hFE classification GR: 200~400,
 		// BL: 350~700'. Complementary to 2SA1049 (whose sheet prints the same bins).
-		// No VBE row (only VCE(sat) MAX 0.3 V at 10 mA), so IS has no input.
+		// No VBE row (only VCE(sat) MAX 0.3 V at 10 mA), so IS has no datasheet
+		// input. Wave 2 (transistor-records wave 2, 2026-10-23) adds IS from the
+		// Intusoft QSC2459 card in the third-party KiCad-Spice-Library collection
+		// (community basis, provisional per the owner decision); BF stays
+		// datasheet-derived above and no other card field is used.
 		// Unbinned plus the corpus-used GR rank; BL stays out (same sheet, no corpus use).
 		partIds: ["2SC2459"],
 		class: "bjt",
 		params: {
+			saturationCurrent: {
+				value: 10.1e-15,
+				basis: "community",
+				source:
+					"KiCad-Spice-Library third-party collection, BJTN.LIB " +
+					"(Intusoft-authored cards; file header 'Copyright Intusoft 1988-1997 / " +
+					"All Rights Reserved') " +
+					"https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB " +
+					"(read 2026-10-23): the QSC2459 card (line 1168) value and its own " +
+					"descriptive comment (line 1171), verbatim:\n" +
+					"IS=10.1F\n* Toshiba 120 Volt  .1 Amp  100 MHz  SiNPN  Transistor  11-17-1993. " +
+					"The card's BF = 390 is not taken (BF already comes from the Toshiba " +
+					"datasheet in this record); no other card field is used.",
+				sourceKind: "published-spice-model",
+				url: "https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB",
+				quote:
+					"IS=10.1F\n* Toshiba 120 Volt  .1 Amp  100 MHz  SiNPN  Transistor  11-17-1993",
+				author: "Intusoft",
+				retrievedDate: "2026-10-23",
+				whyNoBetterSource:
+					"The Toshiba 2SC2459 (2003-03-27) datasheet prints no VBE row " +
+					"(wave-1 note row 10: VCE(sat) is MAX-only 0.3 V, so IS has no " +
+					"input); Toshiba's own LTspice bundle carries neither 2SC2458 " +
+					"nor 2SC2459 and its models are encrypted with a " +
+					"no-reverse-engineering term, so they cannot be read or quoted. " +
+					"This third-party collection hosts the only published card for " +
+					"the part, taken here under the 2026-10-23 owner decision as a " +
+					"provisional community value, not a manufacturer value.",
+			},
 			forwardBeta: {
 				value: 374.1657387,
 				basis: "derived",
@@ -1696,6 +1729,36 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			"The hyphenated spelling is not corpus-observed; it folds to the same id " +
 			"(2sc2459gr) and names the same GR rank, so it rides along (2SC1815-BL precedent).",
 		params: {
+			saturationCurrent: {
+				value: 10.1e-15,
+				basis: "community",
+				source:
+					"KiCad-Spice-Library third-party collection, BJTN.LIB " +
+					"(Intusoft-authored cards; file header 'Copyright Intusoft 1988-1997 / " +
+					"All Rights Reserved') " +
+					"https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB " +
+					"(read 2026-10-23): the QSC2459 card (line 1168) value and its own " +
+					"descriptive comment (line 1171), verbatim:\n" +
+					"IS=10.1F\n* Toshiba 120 Volt  .1 Amp  100 MHz  SiNPN  Transistor  11-17-1993. " +
+					"The card's BF = 390 is not taken (BF already comes from the Toshiba " +
+					"datasheet in this record); no other card field is used. The GR rank " +
+					"shares the unbinned die's card: the card names no rank.",
+				sourceKind: "published-spice-model",
+				url: "https://raw.githubusercontent.com/kicad-spice-library/KiCad-Spice-Library/bb50ca6f03308666ac1decdc10449534cb60d45a/Models/Transistor/BJT/BJTN.LIB",
+				quote:
+					"IS=10.1F\n* Toshiba 120 Volt  .1 Amp  100 MHz  SiNPN  Transistor  11-17-1993",
+				author: "Intusoft",
+				retrievedDate: "2026-10-23",
+				whyNoBetterSource:
+					"The Toshiba 2SC2459 (2003-03-27) datasheet prints no VBE row " +
+					"(wave-1 note row 10: VCE(sat) is MAX-only 0.3 V, so IS has no " +
+					"input); Toshiba's own LTspice bundle carries neither 2SC2458 " +
+					"nor 2SC2459 and its models are encrypted with a " +
+					"no-reverse-engineering term, so they cannot be read or quoted. " +
+					"This third-party collection hosts the only published card for " +
+					"the part, taken here under the 2026-10-23 owner decision as a " +
+					"provisional community value, not a manufacturer value.",
+			},
 			forwardBeta: {
 				value: 282.8427125,
 				basis: "derived",
