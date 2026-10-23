@@ -17,25 +17,28 @@ n = 1 throughout). Nothing is fitted, tuned, or carried across parts.
 
 | # | Part | Verdict | Parameter written | Source (document, lines, fragment) | Why no better source |
 |---|---|---|---|---|---|
-| 1 | 2SC2458 (unbinned + GR) | ADD IS | IS = 15.2e-15, `community` | KiCad-Spice-Library BJTN.LIB at commit `bb50ca6f` (see hash note below), QSC2458 card line 1161, comment line 1164: `IS=15.2F` / `* Toshiba 50 Volt  .15 Amp  400 MHz  SiNPN  Transistor  11-17-1993` | Toshiba 2SC2458(L) 1996-09-02 prints no VBE row (wave-1 note row 1: VCE(sat) MAX-only). Toshiba's own LTspice bundle carries neither part and is encrypted with a no-reverse-engineering term (brief-sourced, UNVERIFIED firsthand: the archive was never extracted or read here). Owner decision 2026-10-23 accepts provisional `community` IS |
+| 1 | 2SC2458 (unbinned + GR) | ADD IS | IS = 15.2e-15, `community` | KiCad-Spice-Library BJTN.LIB at commit `bb50ca6f` (see hash note below), QSC2458 card line 1161, comment line 1164: `IS=15.2F` / `* Toshiba 50 Volt  .15 Amp  400 MHz  SiNPN  Transistor  11-17-1993` | Toshiba 2SC2458(L) 1996-09-02 prints no VBE row (wave-1 note row 1: VCE(sat) MAX-only). Toshiba's own LTspice bundle carries neither part and is encrypted with a no-reverse-engineering term (the worker did not open the archive; the coordinator listed `Toshiba-LTspice-20260220.zip`, sha256 `3da5630b42dad3f4e38b7227e2c3447e9128b26d787051bab18d97021b7911e5`, on 2026-10-23: no 2SC2458/2SC2459 entry, and the `.mod` files read "LTspice Encrypted File ... not to reverse engineer its contents"). Owner decision 2026-10-23 accepts provisional `community` IS |
 | 2 | 2SC2459 (unbinned + GR) | ADD IS | IS = 10.1e-15, `community` | Same file and commit, QSC2459 card line 1168, comment line 1171: `IS=10.1F` / `* Toshiba 120 Volt  .1 Amp  100 MHz  SiNPN  Transistor  11-17-1993` | Toshiba 2SC2459 2003-03-27 prints no VBE row (wave-1 note row 10: VCE(sat) MAX-only 0.3 V). Same bundle situation and same owner decision as above |
 
 BF is untouched everywhere: 221.3594362 (2SC2458), 282.8427125 (2SC2458GR,
 2SC2459GR), 374.1657387 (2SC2459), all still `derived` from the Toshiba
 sheets. The cards' BF (260 / 390) and every other card field are not taken.
 
-## Source provenance and the commit-hash correction
+## Source provenance and the commit hash
 
-The brief's raw URL pinned commit `a8688952bcaab19f567bc4db237b60bde03eef310`.
-That hash resolves to nothing: it 404s as a `raw.githubusercontent.com`
-URL, 404s as a `github.com/.../commit/...` page, and matches no commit in
-the repo. The GitHub API (`commits?path=Models/Transistor/BJT/BJTN.LIB`)
-lists exactly one commit ever touching the file:
-`bb50ca6f03308666ac1decdc10449534cb60d45a` ("first commit", 2019-04-20).
-The file fetched at that commit is byte-identical to master (92287 bytes,
-`cmp` clean), and its content matches the brief's description exactly
-(about 92 KB, both cards verbatim, comments verbatim). The records cite the
-working `bb50ca6f` raw URL, not the dead hash. Card neighbourhood (1-based):
+The brief pinned commit `a8688952bcaab19f567bc4db237b60bde03ef310` (the owner's
+link; a 2025-05-19 merge of PR #48). The worker first reported that hash as
+dead; that was a transcription error (`...bde03eef310`, an extra `e`), not a
+property of the repo. The coordinator re-checked on 2026-10-23: the correct
+hash serves `BJTN.LIB` from `raw.githubusercontent.com` (HTTP 200) and the
+file is byte-identical to the one at `bb50ca6f` (sha256
+`2c85b6bbf3a7dcb9403d646a1c120714fdc7bce5c8287c8e537012a1cf3ef6c2`).
+The GitHub API (`commits?path=Models/Transistor/BJT/BJTN.LIB`) lists exactly
+one commit ever touching the file:
+`bb50ca6f03308666ac1decdc10449534cb60d45a` ("first commit", 2019-04-20),
+the commit that introduced it. The records cite that raw URL because the
+file's content has not changed since; the owner's pinned commit is equivalent.
+Card neighbourhood (1-based, 92287 bytes):
 
 - line 1160 `*SRC=2SC2458;QSC2458;BJTs NPN;Amplifier;50 V .15A`, line 1161
   `.MODEL QSC2458 NPN (IS=15.2F NF=1 BF=260 ...`, line 1164
@@ -145,7 +148,6 @@ their datasheets, per the brief; not re-verified here, no change made).
 ## Sources fetched (all into `tmp/wave2/`, deleted at the end)
 
 BJTN.LIB at `bb50ca6f` (92287 bytes, byte-identical to master) plus the
-GitHub API commit listing that locates the file's sole commit; the
-preamble-hash 404 headers. Nothing extracted from the Toshiba LTspice
+GitHub API commit listing that locates the file's sole commit. Nothing extracted from the Toshiba LTspice
 archive (never downloaded here). `python3 -I` used for all arithmetic;
 nothing was run from inside `tmp/wave2/`.
