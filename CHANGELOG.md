@@ -2,6 +2,17 @@
 
 ## Unreleased: compiler (minor; runtime republishes with the new compiler pin)
 
+**Pedals with a connectivity-derived bypass latch now load engaged.** Since the latch-polarity fix, control ≥ 0.5
+holds the effect on — but the three pedals whose bypass footswitch steers a connectivity-derived bistable latch
+(`boss-sd-1`, `boss-ce-2`, `boss-dm-2`) still rested that control at 0, so every default render played dry. A typed
+`role: bypass` control steered by a connectivity-derived latch now defaults to 1: the pedal is presented engaged, and
+only the connectivity derivation reads which latch member gates the effect path, so it is the only evidence this rest
+position claims. A footswitch's declared rest position is not an engaged-state fact and does not hold the default at 0;
+a declared engaged 1 still rests here by the existing override, and momentary/latch-toggle contacts still rest released.
+The three movers change by exactly their bypass control's `defaultPosition` (0 → 1) with no warning-code changes; no other
+corpus program moves, including the LED-derived (`boss-dm-3`, `boss-lm-2`, `boss-ph-1r`) and the 16 fallback latches,
+whose bypass controls keep their existing defaults. Compiler only: no runtime, program, stamp, or wasm change.
+
 **Optocoupler cells can now carry a measured resistance table instead of a single power-law fit.** New optional
 law/stamp fields `ldrTableCurrentAmps`/`ldrTableOhms` (strictly increasing positive currents, positive resistances, at
 least 2 points, both present or both absent) flow from the catalog entry through lowering into the program and both

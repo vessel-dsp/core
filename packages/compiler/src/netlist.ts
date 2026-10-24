@@ -1404,11 +1404,44 @@ export function readNetlist(
 		devices,
 		controls,
 	});
+	// A bypass control a connectivity-derived latch steers rests engaged. A pedal
+	// is presented engaged, and the connectivity derivation is what reads the effect
+	// path -- the member whose collector gates the effect FET -- so since the
+	// steering stamps learned that side, the compiler knows which control position
+	// that is: control >= 0.5 holds the effect on, and the default render must sit
+	// there. A footswitch's declared rest position is not an engaged-state fact -- it
+	// states where the contact ships, not which latch side the product shows -- so a
+	// declared 0 the override above honored (a maintained contact agreeing with its
+	// derivation, a stale half-travel replacement) does not hold this default at 0,
+	// any more than a derived real position does elsewhere. The gate is the
+	// derivation: an effect-status-LED read names the indicator side and the fallback
+	// names no side at all, so neither carries the effect-path evidence this rest
+	// position claims, and those controls keep their existing default. A
+	// momentary/latch-toggle contact still rests released: its first press must be a
+	// rising edge, not a step from an already-held position. A declared engaged 1 the
+	// override honored already rests here, so the rule coincides with it.
 	if (bistableLatches.length > 0) {
+		const connectivitySteered = new Set(
+			bistableLatches
+				.filter((latch) => latch.sideProvenance === "connectivity")
+				.map((latch) => latch.controlId)
+				.filter((controlId): controlId is string => controlId !== null),
+		);
+		for (let i = 0; i < controls.length; i += 1) {
+			const control = controls[i];
+			if (
+				control !== undefined &&
+				control.role === "bypass" &&
+				control.momentary !== true &&
+				connectivitySteered.has(control.id)
+			) {
+				controls[i] = { ...control, defaultPosition: 1 };
+			}
+		}
 		const latchControlIds = new Set(
 			bistableLatches
 				.map((latch) => latch.controlId)
-				.filter((id): id is string => id !== null),
+				.filter((controlId): controlId is string => controlId !== null),
 		);
 		for (let i = 0; i < devices.length; i += 1) {
 			const device = devices[i];

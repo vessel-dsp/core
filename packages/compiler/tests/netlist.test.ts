@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { compile } from "../src/compile";
+import { findBistableLatches } from "../src/latch-seed";
 import { NetlistError, isUserPanelControl, parseQuantity, readNetlist } from "../src/netlist";
 import { GROUND } from "../src/types";
 import {
@@ -10,6 +11,7 @@ import {
 	derive,
 	dividerWithUnconnectedParts,
 	fixedContactSwitchCircuit,
+	flipFlopEngagedPolarity,
 	gangedRheostats,
 	interfaceOnlyPlaceholder,
 	jacksTypedOnlyByRole,
@@ -345,6 +347,71 @@ describe("readNetlist", () => {
 		} else {
 			throw new Error("did not compile");
 		}
+	});
+
+	it("rests a connectivity latch-steered bypass control engaged", () => {
+		// The flip-flop's footswitch contact rests at 0 and the document declares
+		// engaged 0, but the connectivity derivation reads which collector gates the
+		// effect path, so the compiler knows engaged is control >= 0.5: the default
+		// render must sit there, and the declared rest position does not hold it at 0.
+		const netlist = readNetlist(flipFlopEngagedPolarity);
+		const latches = findBistableLatches(netlist);
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.controlId).toBe("Bypass");
+		expect(latches[0]?.sideProvenance).toBe("connectivity");
+		expect(
+			netlist.controls.find((control) => control.id === "Bypass")
+				?.defaultPosition,
+		).toBe(1);
+	});
+
+	it("rests a connectivity latch-steered bypass control engaged without a declaration", () => {
+		// Same flip-flop with the engaged-position declaration removed: the engaged
+		// rest comes from the latch derivation alone, not from any declaration.
+		const source = flipFlopEngagedPolarity.replace(
+			"  bypass:\n    switch: SW1\n    engagedPosition: 0",
+			"  bypass: none",
+		);
+		const netlist = readNetlist(source);
+		expect(findBistableLatches(netlist)).toHaveLength(1);
+		expect(
+			netlist.controls.find((control) => control.id === "Bypass")
+				?.defaultPosition,
+		).toBe(1);
+	});
+
+	it("lets a declared engaged 1 win for a latch-steered bypass control", () => {
+		// The same flip-flop declaring engaged 1: the override honors it, silently,
+		// and the latch-steered rest coincides rather than competes with it.
+		const source = flipFlopEngagedPolarity.replace(
+			"    engagedPosition: 0",
+			"    engagedPosition: 1",
+		);
+		const netlist = readNetlist(source);
+		expect(findBistableLatches(netlist)).toHaveLength(1);
+		expect(
+			netlist.controls.find((control) => control.id === "Bypass")
+				?.defaultPosition,
+		).toBe(1);
+		const compiled = compile(source);
+		if (compiled.status === "ok") {
+			expect(
+				compiled.warnings.map((warning) => warning.code),
+			).not.toContain("bypass-engaged-disagrees");
+		} else {
+			throw new Error("did not compile");
+		}
+	});
+
+	it("keeps the old default for a bypass control no latch steers", () => {
+		// No cross-coupled pair here, so the latch-steered rest cannot apply: the
+		// shunt default stands as before.
+		const netlist = readNetlist(switchedDivider);
+		expect(findBistableLatches(netlist)).toHaveLength(0);
+		expect(
+			netlist.controls.find((control) => control.id === "Bypass")
+				?.defaultPosition,
+		).toBe(0);
 	});
 
 	it("reads a switch's stated contact state instead of defaulting it", () => {
