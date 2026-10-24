@@ -5523,12 +5523,12 @@ const entries: readonly PartEntry[] = [
 	// R@10mA=800, R@40mA=200, dark/off resistance >=1M. Those three points are linear in log-log
 	// space (pairwise slopes -0.837 and -1.000), which the generic bucket's exponential-in-current
 	// law cannot fit at any choice of constant -- confirmed by attempting the fit and finding no
-	// sane solution (see changelog). `ldrPowerLawCoefficientOhms`/`ldrPowerLawExponent` are a
-	// least-squares power-law fit to those three anchors instead: `ohms = 11.9861 *
-	// amps^-0.892233`, clamped to `[ldrMinOhms, ldrMaxOhms]`. Residuals against the cited anchors:
-	// +3.5% at 1 mA, -8.8% at 10 mA, +5.9% at 40 mA. `ldrMaxOhms` is tightened to 1e6 (the packet's
-	// own cited dark floor) from the generic bucket's placeholder 1e7; `ldrMinOhms` keeps the
-	// generic 100 ohm floor, which the datasheet does not further constrain below the 40 mA point.
+	// sane solution (see changelog). The cell is the three cited anchors as a measured
+	// `ldrTableCurrentAmps`/`ldrTableOhms` table (no fit): 1, 10, 40 mA -> 5.5k, 800, 200 ohm,
+	// evaluated by log-log interpolation, clamped to `[ldrMinOhms, ldrMaxOhms]`. `ldrMaxOhms`
+	// is tightened to 1e6 (the packet's own cited dark floor) from the generic bucket's
+	// placeholder 1e7; `ldrMinOhms` keeps the generic 100 ohm floor, which the datasheet
+	// does not further constrain below the 40 mA point.
 	{
 		"partIds": [
 			"VTL5C2"
@@ -5570,8 +5570,16 @@ const entries: readonly PartEntry[] = [
 						"ledTransconductance": 0.001,
 						"ldrMinOhms": 100,
 						"ldrMaxOhms": 1000000,
-						"ldrPowerLawCoefficientOhms": 11.9861,
-						"ldrPowerLawExponent": -0.892233
+						"ldrTableCurrentAmps": [
+							0.001,
+							0.01,
+							0.04
+						],
+						"ldrTableOhms": [
+							5500,
+							800,
+							200
+						]
 					},
 					"terminals": [
 						0,

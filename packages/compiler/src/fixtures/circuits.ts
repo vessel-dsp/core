@@ -12856,11 +12856,11 @@ wires: []
  * placeholders and VTL5C2's own datasheet -- cited in the packet's own
  * `SelectedLaneLedCurrentToResistanceLaw` property (R@1mA=5.5k, R@10mA=800, R@40mA=200,
  * dark>=1M) -- was never fit to a law at all. `part-catalog.ts`'s dedicated VTL5C2 entry carries
- * that fit now (`ldrPowerLawCoefficientOhms`/`ldrPowerLawExponent`); this fixture is what keeps it
- * pinned, since nothing else in this suite exercises it.
+ * those three anchors as a measured table now (`ldrTableCurrentAmps`/`ldrTableOhms`); this
+ * fixture is what keeps it pinned, since nothing else in this suite exercises it.
  *
  * **Bias.** `R_LED` (7k2 from the 9 V rail) puts the LED within a few percent of the datasheet's
- * 1 mA anchor -- close enough that a regression in the fit or an accidental fallback to the generic
+ * 1 mA anchor -- close enough that a regression in the table or an accidental fallback to the generic
  * exponential moves the verdict, not so exact that the fixture is fragile to the diode law's own
  * rounding. `RLOAD` (10k from output to ground) turns the LDR into a divider so its resistance is
  * what decides the gain, rather than leaving `ldrA`/`ldrB` floating in series with nothing to load
@@ -12868,7 +12868,7 @@ wires: []
  *
  * **What this proves and what it cannot** -- same limit `emitOptocoupler`'s own comment states for
  * every optocoupler resident: the from-source deck's LDR side is a `B`-source that *restates* the
- * runtime's own formula (now the power law, when the device carries one) rather than deriving it
+ * runtime's own formula (now the table, when the device carries one) rather than deriving it
  * independently, so ngspice cannot catch an error shared between the restatement and the runtime.
  * What it grades independently is the pin mapping, the part-specific `ldrMinOhms`/`ldrMaxOhms`
  * clamp, and -- because `source-to-spice.ts` reads the law fields off the same compiled program,

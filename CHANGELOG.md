@@ -13,6 +13,13 @@ rather than stamping a guess. Every program without a table is byte-identical: t
 paths are untouched. This is a compiler minor and a runtime minor (new `Stamp`/`Program` fields, `Program.h` /
 `ProgramJson.cpp`).
 
+**`VTL5C2`'s cell is now the three cited datasheet anchors as a table, not a power-law fit.** The entry carried a
+least-squares fit (`ohms = 11.9861 * amps^-0.892233`, residuals +3.5% at 1 mA, -8.8% at 10 mA, +5.9% at 40 mA) to the
+packet-cited anchors (R@1mA=5.5k, R@10mA=800, R@40mA=200, dark >= 1M); it now stores those anchors directly
+(`ldrTableCurrentAmps` 1, 10, 40 mA, `ldrTableOhms` 5.5k, 800, 200 ohm) with no fit, so the anchors render exactly.
+`ldrMinOhms` 100 and `ldrMaxOhms` 1e6 are unchanged. `runoffgroove-tremulus-lune` is the only document naming this
+part, so it is the only mover.
+
 **Bypass control sense was inverted on the three pedals with a connectivity-derived bypass latch: they now engage at
 control 1.** The latch detector named the transistor whose collector gates the effect FET as the engaged side, but that
 transistor must be OFF (collector high, FET gate high) for the effect to conduct — a collector pulled LOW drags the FET

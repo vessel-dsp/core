@@ -6894,17 +6894,13 @@ export class ReferenceRuntime {
 				// NSL50461, the source-labeled `OPTO` vactrol) still gets exactly this, bit-identical,
 				// because none of them carries a cited current-resistance curve to fit against.
 				//
-				// **A part with one gets the power law instead.** `runoffgroove-tremulus-lune`'s
-				// VTL5C2 is the first: the packet's own `SelectedLaneLedCurrentToResistanceLaw`
-				// property cites datasheet anchors (R@1mA=5.5k, R@10mA=800, R@40mA=200), and those
-				// three points are linear in log-log space (slopes -0.837 and -1.000 between
-				// consecutive pairs) -- a power law, not an exponential-in-linear-current, which is
-				// why the generic law put a genuinely-lit LED 56.7% of the way to its dark ceiling.
-				// `ohms = coefficient * amps^exponent`, least-squares fit to those three anchors
-				// (part-catalog.ts's VTL5C2 entry carries the fit and its residuals), clamped to
-				// `[ldrMinOhms, ldrMaxOhms]` so a dark or saturated LED still floors/ceils sanely --
-				// `Math.pow` of a zero or negative current under a negative exponent returns
-				// `Infinity`, not `NaN`, so the ceiling clamp is what stops it, not a branch on zero.
+				// **A part with a power-law fit gets `ohms = coefficient * amps^exponent`.**
+				// No production entry carries one today (both measured cells moved to
+				// tables); the path stays for programs that do, clamped to
+				// `[ldrMinOhms, ldrMaxOhms]` so a dark or saturated LED still floors/ceils
+				// sanely -- `Math.pow` of a zero or negative current under a negative
+				// exponent returns `Infinity`, not `NaN`, so the ceiling clamp is what
+				// stops it, not a branch on zero.
 				//
 				// **A part with a measured table gets log-log interpolation instead, and the
 				// table wins over the power-law pair when an entry carries both.** The table is

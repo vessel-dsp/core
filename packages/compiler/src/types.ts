@@ -1046,10 +1046,10 @@ export type DeviceLaw =
 			/**
 			 * A part-specific LED-current -> LDR-resistance curve, `ohms = coefficient *
 			 * amps^exponent`, clamped to `[ldrMinOhms, ldrMaxOhms]`. Both fields must be present
-			 * together or both absent. Absent (the default for every part except one with a cited
-			 * datasheet curve) keeps the existing `ldrMinOhms + (ldrMaxOhms-ldrMinOhms) *
-			 * exp(-1000*amps)` law bit-identical -- see `runoffgroove-tremulus-lune`'s VTL5C2 entry
-			 * in `part-catalog.ts` for the one part currently carrying this fit.
+			 * together or both absent. Absent (the default for every part without a measured
+			 * table) keeps the power-law-or-generic path below bit-identical. No production
+			 * entry carries this fit today -- both measured cells moved to
+			 * `ldrTableCurrentAmps`/`ldrTableOhms` -- but programs that do keep executing it.
 			 */
 			readonly ldrPowerLawCoefficientOhms?: number;
 			readonly ldrPowerLawExponent?: number;
