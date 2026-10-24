@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased: compiler (minor; runtime republishes with the new compiler pin)
+## compiler 0.9.0 / runtime 0.7.0 / chain 0.1.12 / player 0.2.10
 
 **Pedals with a connectivity-derived bypass latch now load engaged.** Since the latch-polarity fix, control ≥ 0.5
 holds the effect on — but the three pedals whose bypass footswitch steers a connectivity-derived bistable latch
@@ -67,16 +67,57 @@ some declared voltage above the breakdown. A voltage the document states on the 
 reversed zener, a diode with no breakdown, or no headroom derive nothing. A node whose supply terminal still states nothing
 raises `opamp-supply-undeclared` (devices, node and side per item). No stamp field, wasm or runtime source changes.
 
-**What moves, as measured 2026-10-22** (158 tracked artifacts documents at `f0eddc61b`, `pedalPartCatalog`, compile only, against
-the published 0.8.0): 155 compile and 3 are refused on both arms. One program differs, `boss-aw-2`: IC5A and IC5B go from
-railHigh 9 to 5.235 (the registry's typical for `RD5.1EB3`, the B3 bin of 5.12 to 5.35 V), railLow 0, no other stamp field
-moves. 157 programs are byte-identical. `opamp-supply-undeclared` fires on 15 documents (49 device-and-side items), not on
-`boss-aw-2`: `boss-bf-2`, `boss-ds-1`, `boss-ph-3`, `boss-sp-1-spectrum`, `electro-harmonix-bad-stone`,
+**What moves, as measured 2026-10-24 against the published 0.8.1 / 0.6.3** (artifacts
+`8fd6c8a6e02dc9650b48dddc30558ed65a1ea433`, committed files only, 124 pedals and 23 amps; program text
+plus 2048-sample two-tone 440 Hz at 0.25 plus 1320 Hz at 0.1 at default controls on both consoles, published
+packages against this tree's compiler and its rebuilt wasm): 146 documents compile on both arms and `boss-dd-3t`
+is refused on both, so no compile-status mover. 7 programs move: `boss-aw-2` (IC5A/IC5B `railHigh` 9 to 5.235
+plus the P873 6-point table), `boss-tw-1` (P873 table, gains `registry-provisional-value`),
+`runoffgroove-tremulus-lune` (least-squares fit to the three cited anchors), `boss-sd-1`, `boss-ce-2` and
+`boss-dm-2` (latch stamp swap plus bypass `defaultPosition` 0 to 1), `boss-dm-3` (LED stamp swap, default
+unchanged). 139 programs are byte-identical, and every unchanged program renders bit-identical on both
+consoles: no same-program mover. Audio, largest first: `boss-dm-3` 4.01 on both consoles (1.3e-3 over the
+settled second half — the LED swap; its true effect side is still unverified against hardware), `boss-tw-1`
+3.90 on both (0.59 TS / 1.06 WASM settled — the table moves its settled filter response, not
+hardware-verified), `boss-aw-2` 1.07 on both (0.68 settled — rail plus table), `runoffgroove-tremulus-lune`
+7.35e-3 on both; `boss-sd-1` (TS 1.1e-12, WASM bit-identical) and `boss-ce-2` (TS 9.1e-13, WASM bit-identical)
+move program-only in effect, and `boss-dm-2` moves 2.0e-9 TS / 1.2e-7 WASM. A bypass control at position 0.5
+or above is engaged (1 = engaged): the three engaged-default pedals' new default renders are the effect at the
+old default's level — `boss-sd-1` 0.4529 peak, `boss-ce-2` 2.381, `boss-dm-2` 1.135, identical peaks on both
+arms on both consoles — and forcing the control to 0 renders dry (`boss-sd-1` 0.2468 on both consoles). The 15
+documents gaining `opamp-supply-undeclared` (49 device-and-side items), not on `boss-aw-2`, change warning codes,
+not programs: `boss-bf-2`, `boss-ds-1`, `boss-ph-3`, `boss-sp-1-spectrum`, `electro-harmonix-bad-stone`,
 `electro-harmonix-holy-grail`, `fulltone-ocd-v1.4`, `keeley-compressor-plus`, `marshall-blues-breaker`,
 `moogerfooger-mf-102`, `mxr-distortion-plus`, `pro-co-rat-2-v4b-op07cp`, `pro-co-rat`, `runoffgroove-tremulus-lune`,
 `tape-echo`. The warning names where the fallback is in force; whether the fallback is close to the real rail at each of those
 nodes was not examined, so it is not a count of defects. Covered by
 `packages/compiler/tests/zener-supply-rail.test.ts` (nine tests, three positive and six negative controls).
+`latch-engaged-disagrees` fires on no corpus packet. A-vs-repeat identical
+146/146 on both consoles; B-vs-perturb moves 123 TS / 119 WASM (8 silent in both). The TS-vs-WASM console gaps
+on `moogerfooger-mf-102`, 1959, rockerverb, `boss-tw-1` (plus `jtm45`, `vox`) are unchanged in kind on both
+arms: pre-existing packet state, not a regression.
+
+**The runtime takes a minor for the table law: exact compiler pin 0.9.0 and the regenerated kernel table.**
+`GeneratedKernels.cpp` regenerated with this compiler over the 146 corpus programs: 140 kernels from 562
+scheduled blocks (committed table 139 from 559). Two fingerprints go (`0x711f403d` on `boss-aw-2`,
+`0x83ca2d95` on `electro-harmonix-slapback-echo`) and three come (`0xb672b06f` on the re-traced `boss-aw-2`,
+`0x092663a0` on the re-traced slapback, `0x2b074d31` on the new `maestro-discoverer-delay` packet): every
+change is a re-traced or new packet, none of it compiler-attributable — exporting the old corpus with this
+compiler reproduces the committed 139 fingerprints exactly. Outputs are bit-identical with and without the
+regenerated table over the whole corpus on the WASM console (146 of 146). The `Program`/`Stamp`/`Program.h`/
+`ProgramJson.cpp` change (new `ldrTableCurrentAmps`/`ldrTableOhms` fields, evaluated on both consoles) is why
+this is a minor and not a patch.
+
+**Not measured:** non-default controls and switch states (beyond the `boss-sd-1` bypass-0 dry spot check
+above), oversample above 1, real-time cost (the browser proofs ran, the worklet scoreboard did not), a guitar
+take, ngspice for any new record, whether any change is closer to hardware (the P873 table is a provisional
+2005 hobbyist measurement of one `-380` lot, not a manufacturer curve and not a reference for the AW-2's
+actual `-38`; `boss-tw-1`'s settled shift and `boss-dm-3`'s effect side are unverified the same way), the
+`examples/` documents (excluded from the corpus as in 0.8.1), and a 3 s window (2048-sample only, plus the
+with/without-table comparison at 2048 WASM-only).
+
+The chain changes only its exact pins (compiler 0.9.0, core 0.17.0, runtime 0.7.0) and the player only its
+exact pins (chain 0.1.12, compiler 0.9.0, core 0.17.0, runtime 0.7.0).
 
 **`P873G35` and its `-380`/`-38` spellings leave the generic optocoupler row for their own entry, with a measured table cell.** `boss-aw-2` files the part as `P873G35-38`, which exact folded equality matched to nothing, so the device fell to the optocoupler class default (generic `exp(-1000·I)` law, 100 ohm-10 Mohm) and sat at megohms through the lamp's whole 0.02-0.5 mA sweep. The new entry keeps the generic row's LED figures and clamps exactly (`ledThresholdVolts` 1.6, `ledTransconductance` 0.001, `ldrMinOhms` 100, `ldrMaxOhms` 1e7) and carries the cell as a measured `ldrTableCurrentAmps`/`ldrTableOhms` table: the geometric mean of 18 measured P873-G35-380 units in a 2005 hobbyist table (electro-music.org topic 27276, 22 C; recomputed means 60.1, 11.5, 4.03, 1.88, 0.74, 0.64 kohm at 0.03, 0.1, 0.3, 1, 10, 20 mA), evaluated by log-log interpolation. NOT a manufacturer curve; the Hamamatsu sheets available list neither `-380` nor `-38` with a resistance-vs-current curve. A single power-law fit cannot cover this cell: fitted over 0.3-20 mA (`ohms = 105.6 * amps^-0.4360`, max residual x1.14) it gives ~11 kohm at 0.03 mA against the measured 60.1 kohm, which is why the entry stores the points instead of a fit range. `P873G35-38` joins the entry's `partIds` by the 2026-10-23 owner decision (the service note's `-38` reads as the `-380` grade). Both table parameters are third-party evidence, so they ride `provisionalParams` and compile raises `registry-provisional-value` for devices that run on them, the same mechanism the `2SC2458`/`2SC2459` community saturation currents use. The other parts in the shared row stay on the generic law, untouched. `boss-tw-1` names the same `P873G35-380` part, so it moves to the measured table as well and gains `registry-provisional-value`; no other document names a P873 spelling.
 
