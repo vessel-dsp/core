@@ -64,7 +64,11 @@ export {
 	type SupplyRefusalReason,
 	type SupplyResolution,
 } from "./supply-stamps";
-export { attachDeviceLaws } from "./device-laws";
+export {
+	attachDeviceLaws,
+	invalidLdrTableReason,
+	ldrTableFieldsOf,
+} from "./device-laws";
 // Order construction for the runtime's sparse path: the value-blind static
 // schedule is built at compile time, and the value-aware re-pivot is built by
 // the runtime from the operating-point matrix at `prepare()`. Both are

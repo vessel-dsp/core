@@ -25,6 +25,7 @@ export {
 } from "./chain-slot";
 export {
 	DEFAULT_NEWTON_MAX_ITERATIONS,
+	ldrTableResistanceOhms,
 	ReferenceRuntime,
 	RuntimeError,
 	type RuntimeNodeVoltageSnapshot,

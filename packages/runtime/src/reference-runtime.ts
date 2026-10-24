@@ -490,6 +490,61 @@ function reverbCombGain(delaySeconds: number, decaySeconds: number): number {
 export const DEFAULT_NEWTON_MAX_ITERATIONS = 1024;
 
 /**
+ * An optocoupler LDR table evaluated at one LED current, in ohms before clamping
+ * details: log-log linear interpolation between the bracketing points, the end
+ * segment's log-log slope continued outside, current <= 0 taking `maxOhms`,
+ * then clamped to `[minOhms, maxOhms]`.
+ *
+ * Pure so the compiler tests and the console-parity instruments can call it
+ * directly. The stamp path below validates before calling; a malformed table
+ * never reaches here from a compiled program.
+ */
+export function ldrTableResistanceOhms(
+	currentsAmps: readonly number[],
+	ohms: readonly number[],
+	currentAmps: number,
+	minOhms: number,
+	maxOhms: number,
+): number {
+	if (!(currentAmps > 0)) {
+		return maxOhms;
+	}
+	const n = currentsAmps.length;
+	let lo = 0;
+	let hi = 1;
+	if (currentAmps <= (currentsAmps[0] as number)) {
+		lo = 0;
+		hi = 1;
+	} else if (currentAmps >= (currentsAmps[n - 1] as number)) {
+		lo = n - 2;
+		hi = n - 1;
+	} else {
+		for (let i = 0; i < n - 1; i++) {
+			if (
+				currentAmps >= (currentsAmps[i] as number) &&
+				currentAmps <= (currentsAmps[i + 1] as number)
+			) {
+				lo = i;
+				hi = i + 1;
+				break;
+			}
+		}
+	}
+	const iA = currentsAmps[lo] as number;
+	const iB = currentsAmps[hi] as number;
+	const rA = ohms[lo] as number;
+	const rB = ohms[hi] as number;
+	const lnI = Math.log(currentAmps);
+	const lnI0 = Math.log(iA);
+	const lnI1 = Math.log(iB);
+	const lnR0 = Math.log(rA);
+	const lnR1 = Math.log(rB);
+	const slope = (lnR1 - lnR0) / (lnI1 - lnI0);
+	const raw = Math.exp(lnR0 + (lnI - lnI0) * slope);
+	return Math.min(Math.max(raw, minOhms), maxOhms);
+}
+
+/**
  * The budget a block falls back to for the length of a probation, once one of its samples has
  * shown that more iterations could not help that sample.
  *
@@ -6831,7 +6886,7 @@ export class ReferenceRuntime {
 				rhs[stamp.ledAnode] = (rhs[stamp.ledAnode] ?? 0) - ledEquivalent;
 				rhs[stamp.ledCathode] = (rhs[stamp.ledCathode] ?? 0) + ledEquivalent;
 
-				// LDR resistance from input LED current, by one of two laws.
+				// LDR resistance from input LED current, by one of three laws.
 				//
 				// **The default is the generic exponential**, `ldrMinOhms + (ldrMaxOhms-ldrMinOhms)
 				// * exp(-alpha*amps)` with a module-wide `alpha = 1000` -- every part that shares
@@ -6850,9 +6905,28 @@ export class ReferenceRuntime {
 				// `[ldrMinOhms, ldrMaxOhms]` so a dark or saturated LED still floors/ceils sanely --
 				// `Math.pow` of a zero or negative current under a negative exponent returns
 				// `Infinity`, not `NaN`, so the ceiling clamp is what stops it, not a branch on zero.
+				//
+				// **A part with a measured table gets log-log interpolation instead, and the
+				// table wins over the power-law pair when an entry carries both.** The table is
+				// the general fix for a cell whose log-log curve bends: no fit range has to be
+				// picked per pedal. See `ldrTableResistanceOhms` for the evaluation contract.
 				const alpha = 1000.0; // Coupling sensitivity A^-1, generic-bucket parts only
 				let rLdr: number;
 				if (
+					stamp.ldrTableCurrentAmps !== undefined &&
+					stamp.ldrTableOhms !== undefined &&
+					stamp.ldrTableCurrentAmps.length ===
+						stamp.ldrTableOhms.length &&
+					stamp.ldrTableCurrentAmps.length >= 2
+				) {
+					rLdr = ldrTableResistanceOhms(
+						stamp.ldrTableCurrentAmps,
+						stamp.ldrTableOhms,
+						ledCurrent,
+						stamp.ldrMinOhms,
+						stamp.ldrMaxOhms,
+					);
+				} else if (
 					stamp.ldrPowerLawCoefficientOhms !== undefined &&
 					stamp.ldrPowerLawExponent !== undefined
 				) {

@@ -2,6 +2,17 @@
 
 ## Unreleased: compiler (minor; runtime republishes with the new compiler pin)
 
+**Optocoupler cells can now carry a measured resistance table instead of a single power-law fit.** New optional
+law/stamp fields `ldrTableCurrentAmps`/`ldrTableOhms` (strictly increasing positive currents, positive resistances, at
+least 2 points, both present or both absent) flow from the catalog entry through lowering into the program and both
+consoles. Evaluation interpolates linearly in (ln I, ln R) between the bracketing points, continues the end segment's
+log-log slope outside, clamps to `[ldrMinOhms, ldrMaxOhms]` exactly as the power law is clamped, and takes `ldrMaxOhms`
+for a current at or below zero; a stamp carrying both the table and the power-law pair runs the table. The TS reference
+runtime and the C++ engine implement the same evaluation (rebuilt wasm). A malformed table refuses the pedal at lowering
+rather than stamping a guess. Every program without a table is byte-identical: the generic exponential and the power-law
+paths are untouched. This is a compiler minor and a runtime minor (new `Stamp`/`Program` fields, `Program.h` /
+`ProgramJson.cpp`).
+
 **Bypass control sense was inverted on the three pedals with a connectivity-derived bypass latch: they now engage at
 control 1.** The latch detector named the transistor whose collector gates the effect FET as the engaged side, but that
 transistor must be OFF (collector high, FET gate high) for the effect to conduct — a collector pulled LOW drags the FET

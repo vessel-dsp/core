@@ -17,7 +17,7 @@
 // position, which is what makes rate independence testable: compile once, run at two
 // rates, and the outputs must match.
 
-import { SWITCH_ON_OHMS } from "./device-laws";
+import { invalidLdrTableReason, SWITCH_ON_OHMS } from "./device-laws";
 
 import {
 	findBistableLatches,
@@ -1012,6 +1012,16 @@ export function lowerRegion(
 						`optocoupler ${device.id} requires 4 terminals: anode, cathode, ldrA, ldrB`,
 					);
 				}
+				const tableReason = invalidLdrTableReason(
+					law.ldrTableCurrentAmps,
+					law.ldrTableOhms,
+				);
+				if (tableReason !== null) {
+					throw new LoweringError(
+						`optocoupler ${device.id} has an invalid LDR table: ${tableReason}`,
+						device.id,
+					);
+				}
 				stamps.push({
 					kind: "optocoupler",
 					ledAnode,
@@ -1024,6 +1034,13 @@ export function lowerRegion(
 					ldrMaxOhms: law.ldrMaxOhms,
 					ldrPowerLawCoefficientOhms: law.ldrPowerLawCoefficientOhms,
 					ldrPowerLawExponent: law.ldrPowerLawExponent,
+					...(law.ldrTableCurrentAmps !== undefined &&
+					law.ldrTableOhms !== undefined
+						? {
+								ldrTableCurrentAmps: [...law.ldrTableCurrentAmps],
+								ldrTableOhms: [...law.ldrTableOhms],
+							}
+						: {}),
 				});
 				break;
 			}

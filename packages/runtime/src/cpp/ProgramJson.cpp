@@ -86,6 +86,18 @@ struct JsonValue {
         if (val && val->isString()) return val->stringValue;
         return std::nullopt;
     }
+
+    std::optional<std::vector<double>> getOptionalDoubleArray(const std::string& key) const {
+        const auto* val = find(key);
+        if (!val || !val->isArray()) return std::nullopt;
+        std::vector<double> out;
+        out.reserve(val->arrayValue.size());
+        for (const auto& el : val->arrayValue) {
+            if (!el.isNumber()) return std::nullopt;
+            out.push_back(el.numberValue);
+        }
+        return out;
+    }
 };
 
 class JsonParser {
@@ -498,6 +510,10 @@ Stamp parseStamp(const JsonValue& obj) {
     if (lpc && lpc->isNumber()) st.ldrPowerLawCoefficientOhms = lpc->numberValue;
     const auto* lpe = obj.find("ldrPowerLawExponent");
     if (lpe && lpe->isNumber()) st.ldrPowerLawExponent = lpe->numberValue;
+    if (auto arr = obj.getOptionalDoubleArray("ldrTableCurrentAmps"); arr && !arr->empty())
+        st.ldrTableCurrentAmps = *arr;
+    if (auto arr = obj.getOptionalDoubleArray("ldrTableOhms"); arr && !arr->empty())
+        st.ldrTableOhms = *arr;
     st.r1 = obj.getDouble("r1", 10000.0);
     st.r2 = obj.getDouble("r2", 10000.0);
     st.r5 = obj.getDouble("r5", 10000.0);

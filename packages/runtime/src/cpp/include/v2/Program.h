@@ -205,6 +205,13 @@ struct Stamp {
     // `ldrPowerLawCoefficientOhms`/`ldrPowerLawExponent` in src/compiler/types.ts.
     std::optional<double> ldrPowerLawCoefficientOhms;
     std::optional<double> ldrPowerLawExponent;
+    // Measured table, same contract as the TS console: log-log linear interpolation
+    // between bracketing points, end-segment slope outside, current <= 0 takes
+    // ldrMaxOhms, then clamped to [ldrMinOhms, ldrMaxOhms]; table wins over the
+    // power-law pair. Mirrors `ldrTableCurrentAmps`/`ldrTableOhms` in
+    // src/compiler/types.ts. Empty (or mismatched length) means absent.
+    std::optional<std::vector<double>> ldrTableCurrentAmps;
+    std::optional<std::vector<double>> ldrTableOhms;
     double r1 = 10000.0;
     double r2 = 10000.0;
     double r5 = 10000.0;

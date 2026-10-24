@@ -230,6 +230,77 @@ function portReturnIndex(device: Device): number {
 /** How a supply names the terminal current comes back to. */
 export const SWITCH_OFF_OHMS = 1e9;
 
+/**
+ * Validate an optocoupler LDR table (`ldrTableCurrentAmps`/`ldrTableOhms`).
+ * Returns null when valid, or the reason it is not. Both absent is valid
+ * (no table); one present without the other is not.
+ */
+export function invalidLdrTableReason(
+	currents: unknown,
+	ohms: unknown,
+): string | null {
+	if (currents === undefined && ohms === undefined) return null;
+	if (currents === undefined || ohms === undefined) {
+		return "ldrTableCurrentAmps and ldrTableOhms must be present together or both absent";
+	}
+	if (!Array.isArray(currents) || !Array.isArray(ohms)) {
+		return "ldrTableCurrentAmps and ldrTableOhms must both be arrays";
+	}
+	if (currents.length !== ohms.length) {
+		return `ldrTableCurrentAmps (${currents.length}) and ldrTableOhms (${ohms.length}) must have the same length`;
+	}
+	if (currents.length < 2) {
+		return `ldrTableCurrentAmps/ldrTableOhms need at least 2 points, got ${currents.length}`;
+	}
+	for (let i = 0; i < currents.length; i++) {
+		const c = currents[i] as unknown;
+		const r = ohms[i] as unknown;
+		if (typeof c !== "number" || !Number.isFinite(c) || c <= 0) {
+			return `ldrTableCurrentAmps[${i}] must be a positive finite current in amps, got ${String(c)}`;
+		}
+		if (typeof r !== "number" || !Number.isFinite(r) || r <= 0) {
+			return `ldrTableOhms[${i}] must be a positive finite resistance in ohms, got ${String(r)}`;
+		}
+		if (i > 0 && (c as number) <= (currents[i - 1] as number)) {
+			return `ldrTableCurrentAmps must be strictly increasing, got ${String(currents[i - 1])} then ${String(c)} at index ${i}`;
+		}
+	}
+	return null;
+}
+
+/**
+ * Read an optocoupler LDR table off loosely-typed parameters (registry section
+ * laws and `device.parameters` both arrive here as unknowns at runtime).
+ * Returns the table arms when present and valid, `{}` when absent, and throws
+ * an `Error` carrying the reason when present but invalid -- the caller turns
+ * that into `unsupported` (device-laws) or `LoweringError` (lower).
+ */
+export function ldrTableFieldsOf(params: {
+	readonly ldrTableCurrentAmps?: unknown;
+	readonly ldrTableOhms?: unknown;
+}): {
+	readonly ldrTableCurrentAmps?: readonly number[];
+	readonly ldrTableOhms?: readonly number[];
+} {
+	const reason = invalidLdrTableReason(
+		params.ldrTableCurrentAmps,
+		params.ldrTableOhms,
+	);
+	if (reason !== null) {
+		throw new Error(reason);
+	}
+	if (
+		params.ldrTableCurrentAmps === undefined ||
+		params.ldrTableOhms === undefined
+	) {
+		return {};
+	}
+	return {
+		ldrTableCurrentAmps: [...(params.ldrTableCurrentAmps as readonly number[])],
+		ldrTableOhms: [...(params.ldrTableOhms as readonly number[])],
+	};
+}
+
 function buildNodeToVoltageMap(
 	netlist: Netlist,
 	regulated: ReadonlyArray<{ readonly node: NodeId; readonly volts: number }>,
@@ -3041,6 +3112,23 @@ function resolveDevice(
 			// `kind: switch` (`lampdrive`, `ldrsignal`, `ldrreturn`). Treat that exact
 			// typed role set as the operator it is, not as a routed selector.
 			if (hasExactRoleSet(device, ["lampdrive", "ldrsignal", "ldrreturn"])) {
+				let table: {
+					readonly ldrTableCurrentAmps?: readonly number[];
+					readonly ldrTableOhms?: readonly number[];
+				} = {};
+				try {
+					table = ldrTableFieldsOf(
+						device.parameters as unknown as {
+							readonly ldrTableCurrentAmps?: unknown;
+							readonly ldrTableOhms?: unknown;
+						},
+					);
+				} catch (error) {
+					return unsupported(
+						device,
+						`optocoupler has an invalid LDR table: ${(error as Error).message}`,
+					);
+				}
 				return {
 					outcome: "law",
 					device: device.id,
@@ -3052,6 +3140,7 @@ function resolveDevice(
 						ldrMaxOhms: device.parameters.ldrMaxOhms ?? 1e7,
 						ldrPowerLawCoefficientOhms: device.parameters.ldrPowerLawCoefficientOhms,
 						ldrPowerLawExponent: device.parameters.ldrPowerLawExponent,
+						...table,
 					},
 				};
 			}
@@ -3312,7 +3401,24 @@ function resolveDevice(
 					defaultFrequency: device.parameters.defaultFrequency,
 				},
 			};
-		case "optocoupler":
+		case "optocoupler": {
+			let table: {
+				readonly ldrTableCurrentAmps?: readonly number[];
+				readonly ldrTableOhms?: readonly number[];
+			} = {};
+			try {
+				table = ldrTableFieldsOf(
+					device.parameters as unknown as {
+						readonly ldrTableCurrentAmps?: unknown;
+						readonly ldrTableOhms?: unknown;
+					},
+				);
+			} catch (error) {
+				return unsupported(
+					device,
+					`optocoupler has an invalid LDR table: ${(error as Error).message}`,
+				);
+			}
 			return {
 				outcome: "law",
 				device: device.id,
@@ -3324,8 +3430,10 @@ function resolveDevice(
 					ldrMaxOhms: device.parameters.ldrMaxOhms ?? 1e7,
 					ldrPowerLawCoefficientOhms: device.parameters.ldrPowerLawCoefficientOhms,
 					ldrPowerLawExponent: device.parameters.ldrPowerLawExponent,
+					...table,
 				},
 			};
+		}
 		case "transformer": {
 			// A spring reverb tank arrives here because that is what its shell declares -- a
 			// two-terminal-pair `Circuit.Transformer` with `InputImpedance`/`OutputImpedance`.

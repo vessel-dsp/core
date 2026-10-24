@@ -3885,11 +3885,39 @@ void Engine::applyStamp(
 
             // Generic exponential by default (bit-identical to the previous law, and to every
             // part in the shared catalog bucket that carries no cited current-resistance curve).
-            // A part with one -- VTL5C2 is the first -- gets `ohms = coefficient * amps^exponent`
-            // instead, clamped to [ldrMinOhms, ldrMaxOhms]; identical to reference-runtime.ts,
-            // which `test-v2-wasm-parity.ts` compares against.
+            // A part with a power-law fit gets `ohms = coefficient * amps^exponent` instead;
+            // a part with a measured table gets log-log interpolation instead, and the table
+            // wins over the power-law pair when a stamp carries both. All clamped to
+            // [ldrMinOhms, ldrMaxOhms]; identical to reference-runtime.ts, which
+            // `test-v2-wasm-parity.ts` compares against.
             double rLdr;
-            if (stamp.ldrPowerLawCoefficientOhms.has_value() && stamp.ldrPowerLawExponent.has_value()) {
+            if (stamp.ldrTableCurrentAmps.has_value() && stamp.ldrTableOhms.has_value() &&
+                stamp.ldrTableCurrentAmps.value().size() == stamp.ldrTableOhms.value().size() &&
+                stamp.ldrTableCurrentAmps.value().size() >= 2) {
+                const auto& tblI = stamp.ldrTableCurrentAmps.value();
+                const auto& tblR = stamp.ldrTableOhms.value();
+                if (!(ledCurrent > 0.0)) {
+                    rLdr = stamp.ldrMaxOhms;
+                } else {
+                    size_t n = tblI.size();
+                    size_t lo = 0, hi = 1;
+                    if (ledCurrent <= tblI[0]) { lo = 0; hi = 1; }
+                    else if (ledCurrent >= tblI[n - 1]) { lo = n - 2; hi = n - 1; }
+                    else {
+                        for (size_t i = 0; i + 1 < n; ++i) {
+                            if (ledCurrent >= tblI[i] && ledCurrent <= tblI[i + 1]) { lo = i; hi = i + 1; break; }
+                        }
+                    }
+                    double lnI = std::log(ledCurrent);
+                    double lnI0 = std::log(tblI[lo]);
+                    double lnI1 = std::log(tblI[hi]);
+                    double lnR0 = std::log(tblR[lo]);
+                    double lnR1 = std::log(tblR[hi]);
+                    double slope = (lnR1 - lnR0) / (lnI1 - lnI0);
+                    double raw = std::exp(lnR0 + (lnI - lnI0) * slope);
+                    rLdr = std::min(std::max(raw, stamp.ldrMinOhms), stamp.ldrMaxOhms);
+                }
+            } else if (stamp.ldrPowerLawCoefficientOhms.has_value() && stamp.ldrPowerLawExponent.has_value()) {
                 double powerLawCurrent = std::max(ledCurrent, 0.0);
                 double raw = stamp.ldrPowerLawCoefficientOhms.value() *
                     std::pow(powerLawCurrent, stamp.ldrPowerLawExponent.value());

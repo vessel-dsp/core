@@ -1053,6 +1053,20 @@ export type DeviceLaw =
 			 */
 			readonly ldrPowerLawCoefficientOhms?: number;
 			readonly ldrPowerLawExponent?: number;
+			/**
+			 * A measured LED-current -> LDR-resistance table, evaluated by log-log linear
+			 * interpolation: `ln(R)` is piecewise-linear in `ln(I)` between the bracketing
+			 * points; below the first point and above the last the end segment's log-log
+			 * slope continues; then clamped to `[ldrMinOhms, ldrMaxOhms]` exactly as the
+			 * power law is; a current <= 0 takes `ldrMaxOhms`. Both arrays must be present
+			 * together or both absent, same length, at least 2 points, currents strictly
+			 * increasing and positive, resistances positive and finite. When an entry
+			 * carries both this table and the power-law pair, the table wins and the
+			 * power-law fields are ignored. Absent keeps the power-law-or-generic path
+			 * bit-identical.
+			 */
+			readonly ldrTableCurrentAmps?: readonly number[];
+			readonly ldrTableOhms?: readonly number[];
 	  }
 	| {
 			/**
@@ -1553,6 +1567,14 @@ export type Stamp =
 			readonly ldrMaxOhms: number;
 			readonly ldrPowerLawCoefficientOhms?: number;
 			readonly ldrPowerLawExponent?: number;
+			/**
+			 * Measured table, same contract as the law of the same name: log-log linear
+			 * interpolation between bracketing points, end-segment slope outside, clamp to
+			 * `[ldrMinOhms, ldrMaxOhms]`, current <= 0 takes `ldrMaxOhms`, table wins over
+			 * the power-law pair. Absent keeps older programs behavior-neutral.
+			 */
+			readonly ldrTableCurrentAmps?: readonly number[];
+			readonly ldrTableOhms?: readonly number[];
 	  }
 	| {
 			/** Trapezoidal companion; the conductance is 2C/dt, so it needs the rate. */
