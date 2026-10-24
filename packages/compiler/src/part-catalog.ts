@@ -5405,21 +5405,26 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
-// --- P873G35 / P873G35-380 (measured power-law cell; unblocks boss-aw-2) -------------------------------------------------------------
+// --- P873G35 / P873G35-380 (measured table cell; unblocks boss-aw-2) -------------------------------------------------------------
 	//
 	// Own entry, split out of the PC817/MOC3021 row above the way `VTL5C2` already was:
 	// `boss-aw-2` files the part as `P873G35-38`, which exact folded equality does not
 	// match to any existing id, so the device fell to the optocoupler class default and
 	// sat at megohms through the lamp's whole 0.02-0.5 mA sweep. `P873G35-38` joins this
 	// entry's `partIds` by the 2026-10-23 owner decision (the service note's `-38` reads
-	// as the `-380` grade). The law is a least-squares power-law fit over 0.3-20 mA to
-	// the geometric mean of 18 measured P873-G35-380 units in a 2005 hobbyist table
-	// (electro-music.org topic 27276, 22 C; max residual x1.14), NOT a manufacturer
-	// curve; the Hamamatsu sheets available list neither `-380` nor `-38` with a
-	// resistance-vs-current curve. `ohms = 105.6 * amps^-0.4360` (amps in A; 2.14 kohm
-	// at 1 mA), clamped to `[ldrMinOhms, ldrMaxOhms]`. The LED figures and both clamps
-	// keep the generic row's values exactly (1.6 V, 1e-3, 100 ohm, 1e7). The fit is
-	// third-party evidence, so both law parameters ride `provisionalParams` and compile
+	// as the `-380` grade). The law is the geometric mean of 18 measured P873-G35-380
+	// units in a 2005 hobbyist table (electro-music.org topic 27276, 22 C), stored as a
+	// measured `ldrTableCurrentAmps`/`ldrTableOhms` table and evaluated by log-log
+	// interpolation -- NOT a manufacturer curve; the Hamamatsu sheets available list
+	// neither `-380` nor `-38` with a resistance-vs-current curve. A single power-law fit
+	// cannot cover this cell: fitted over 0.3-20 mA (`ohms = 105.6 * amps^-0.4360`,
+	// max residual x1.14) it gives ~11 kohm at 0.03 mA where the measured geometric
+	// mean is 60.1 kohm, so a low-current circuit like the AW-2's lamp (0.02-0.5 mA)
+	// cannot relax as low as the real pedal. The table carries the six measured points
+	// directly (0.03, 0.1, 0.3, 1, 10, 20 mA -> 60.1, 11.5, 4.03, 1.88, 0.74, 0.64 kohm),
+	// so no fit range has to be picked per pedal. The LED figures and both clamps
+	// keep the generic row's values exactly (1.6 V, 1e-3, 100 ohm, 1e7). The table is
+	// third-party evidence, so both table parameters ride `provisionalParams` and compile
 	// raises `registry-provisional-value` for devices that run on them -- the same
 	// mechanism the `2SC2458`/`2SC2459` community saturation currents use.
 	{
@@ -5458,11 +5463,11 @@ const entries: readonly PartEntry[] = [
 		],
 		"provisionalParams": [
 			{
-				"name": "ldrPowerLawCoefficientOhms",
+				"name": "ldrTableCurrentAmps",
 				"url": "https://electro-music.org/forum/topic-27276.html"
 			},
 			{
-				"name": "ldrPowerLawExponent",
+				"name": "ldrTableOhms",
 				"url": "https://electro-music.org/forum/topic-27276.html"
 			}
 		],
@@ -5476,8 +5481,22 @@ const entries: readonly PartEntry[] = [
 						"ledTransconductance": 0.001,
 						"ldrMinOhms": 100,
 						"ldrMaxOhms": 10000000,
-						"ldrPowerLawCoefficientOhms": 105.6,
-						"ldrPowerLawExponent": -0.436
+						"ldrTableCurrentAmps": [
+							0.00003,
+							0.0001,
+							0.0003,
+							0.001,
+							0.01,
+							0.02
+						],
+						"ldrTableOhms": [
+							60100,
+							11500,
+							4030,
+							1880,
+							740,
+							640
+						]
 					},
 					"terminals": [
 						0,
