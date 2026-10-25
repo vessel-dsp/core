@@ -1,64 +1,121 @@
-// dbx-style VCA law: pure-gain unit tests, transfer renders on the TS console,
-// and TS-vs-WASM console agreement for a program carrying the stamp.
+// dbx-style VCA law v2: exponential dB control plus an internal envelope.
 //
-// The numbers are the packet island's own (`boss-cs-3-service-vca-control-island.cir`):
-// gain = 0.18 + 0.82 / (1 + exp((Vc - 4.5) * 1.6)).
+// The numbers are the NEC uPC1252 feature line (control constant -5.9 mV/dB,
+// Av -30dB~+30dB) and the packet island's threshold quoted both ways: the
+// island centers its off-chip ctrl_bus at 4.5 V, this law centers the on-chip
+// GC node at its engine-measured rest 4.66 V (declared defaults, SUSTAIN 0.5).
 
 import { describe, expect, it } from "bun:test";
 import { compile, pedalPartCatalog } from "@vessel-dsp/compiler";
 import { dbxVcaCell } from "@vessel-dsp/compiler/fixtures/circuits";
 import {
-	dbxVcaGainCenter,
-	dbxVcaGainHigh,
-	dbxVcaGainLow,
+	dbxVcaDcControlCenter,
+	dbxVcaDcControlHigh,
+	dbxVcaDcControlLow,
+	dbxVcaDcInputHigh,
+	dbxVcaDcInputLow,
+	dbxVcaDcInputMid,
 } from "@vessel-dsp/compiler/fixtures/expected";
-import { dbxVcaGain, ReferenceRuntime } from "../src/index";
+import {
+	dbxVcaEnvelopeK,
+	dbxVcaGainDb,
+	dbxVcaGainLinear,
+	ReferenceRuntime,
+} from "../src/index";
 import { V2WasmEngine } from "../src/v2-wasm-engine";
 import { WASM_SKIP_REASON, wasmBinaryPresent } from "./wasm-presence";
 
-describe("dbxVcaGain", () => {
-	it("sits at mid-scale at the center voltage", () => {
-		expect(dbxVcaGain(4.5, 4.5, 1.6, 0.18, 1.0)).toBeCloseTo(0.59, 12);
+describe("dbxVcaGainDb", () => {
+	it("reads 0 dB at the center with no envelope", () => {
+		expect(dbxVcaGainDb(4.66, 4.66, 0, -30, 30)).toBeCloseTo(0, 12);
 	});
 
-	it("reaches the ceiling at low control and the floor at high control", () => {
-		expect(dbxVcaGain(-10, 4.5, 1.6, 0.18, 1.0)).toBeCloseTo(1.0, 9);
-		expect(dbxVcaGain(20, 4.5, 1.6, 0.18, 1.0)).toBeCloseTo(0.18, 9);
+	it("is millivolt-sensitive: 5.9 mV moves a dB", () => {
+		expect(dbxVcaGainDb(4.6659, 4.66, 0, -30, 30)).toBeCloseTo(-1, 9);
+		expect(dbxVcaGainDb(4.6541, 4.66, 0, -30, 30)).toBeCloseTo(1, 9);
 	});
 
-	it("matches the island's B-source at the three transfer points", () => {
-		for (const control of [3.5, 4.5, 5.5]) {
-			const island = 0.18 + 0.82 / (1 + Math.exp((control - 4.5) * 1.6));
-			expect(dbxVcaGain(control, 4.5, 1.6, 0.18, 1.0)).toBeCloseTo(island, 12);
-		}
+	it("matches the LM-2 deck's control law", () => {
+		// `gain_db = -v(ctrl)/0.0059` with control against center.
+		expect(dbxVcaGainDb(4.76, 4.66, 0, -30, 30)).toBeCloseTo(
+			-0.1 / 0.0059,
+			9,
+		);
 	});
 
-	it("falls monotonically as control rises", () => {
+	it("clamps to the datasheet +-30 dB range instead of running away", () => {
+		expect(dbxVcaGainDb(3.5, 4.66, 0, -30, 30)).toBe(30);
+		expect(dbxVcaGainDb(5.5, 4.66, 0, -30, 30)).toBe(-30);
+		// The internal envelope alone can pin the floor: a volt of envelope
+		// is 169 dB down.
+		expect(dbxVcaGainDb(4.66, 4.66, 1, -30, 30)).toBe(-30);
+	});
+
+	it("adds the envelope in volts through the same divisor", () => {
+		expect(dbxVcaGainDb(4.66, 4.66, 0.059, -30, 30)).toBeCloseTo(-10, 9);
+	});
+
+	it("falls monotonically as control rises and as envelope rises", () => {
 		let previous = Infinity;
-		for (let control = 0; control <= 9; control += 0.25) {
-			const gain = dbxVcaGain(control, 4.5, 1.6, 0.18, 1.0);
+		for (let control = 4.55; control <= 4.8; control += 0.05) {
+			const gain = dbxVcaGainDb(control, 4.66, 0, -30, 30);
+			expect(gain).toBeLessThan(previous);
+			previous = gain;
+		}
+		previous = Infinity;
+		for (let env = 0; env <= 0.15; env += 0.01) {
+			const gain = dbxVcaGainDb(4.66, 4.66, env, -30, 30);
 			expect(gain).toBeLessThan(previous);
 			previous = gain;
 		}
 	});
 
 	it("fails if the law were linear in control", () => {
-		// The mutant this pins: a proportional gain (the old linear-OTA fallback's
-		// shape) rises with control instead of falling. Half a volt above center
-		// the sigmoid is already below mid-scale; a linear law is not.
-		expect(dbxVcaGain(5.0, 4.5, 1.6, 0.18, 1.0)).toBeLessThan(0.59);
-		expect(dbxVcaGain(4.0, 4.5, 1.6, 0.18, 1.0)).toBeGreaterThan(0.59);
+		// The mutant this pins: the v1 island sigmoid's shape (bounded,
+		// volts-scale) cannot be moved by the millivolts the topology
+		// delivers. Ten millivolts above center must already move more
+		// than a dB; a linear law barely notices.
+		expect(dbxVcaGainDb(4.67, 4.66, 0, -30, 30)).toBeLessThan(-1);
+		expect(dbxVcaGainDb(4.65, 4.66, 0, -30, 30)).toBeGreaterThan(1);
 	});
 });
 
-describe("dbx-style VCA transfer: gain falls as control rises", () => {
-	// Hand-computed against the fixture: input divider (100 ohm virtual ground
-	// against Rin 10k) times the input conductance times the Ro 22k load times
-	// the sigmoidal control gain. Three control points pin the ceiling end, the
-	// center, and the floor end of the curve; a law edit that moves the gain,
-	// the floor, the ceiling, the center, or the slope fails here rather than
-	// surfacing as a silent level or depth defect in a pedal.
-	const transferGain = (controlVolts: number): number => {
+describe("dbxVcaGainLinear", () => {
+	it("converts dB to voltage gain", () => {
+		expect(dbxVcaGainLinear(0)).toBeCloseTo(1, 12);
+		expect(dbxVcaGainLinear(-6)).toBeCloseTo(0.5011872336272722, 9);
+		expect(dbxVcaGainLinear(20)).toBeCloseTo(10, 12);
+		expect(dbxVcaGainLinear(-30)).toBeCloseTo(0.0316227766016838, 9);
+	});
+});
+
+describe("dbxVcaEnvelopeK", () => {
+	it("matches the one-pole smoothing coefficient", () => {
+		expect(dbxVcaEnvelopeK(0.05, 48000)).toBeCloseTo(
+			1 - Math.exp(-1 / 2400),
+			12,
+		);
+		expect(dbxVcaEnvelopeK(0.0005, 48000)).toBeCloseTo(
+			1 - Math.exp(-1 / 24),
+			12,
+		);
+	});
+
+	it("tracks immediately for a non-positive time constant", () => {
+		expect(dbxVcaEnvelopeK(0, 48000)).toBe(1);
+		expect(dbxVcaEnvelopeK(-1, 48000)).toBe(1);
+	});
+});
+
+describe("dbx-style VCA transfer: exponential control plus input envelope", () => {
+	// Hand-computed against the fixture (see `dbxVcaDc*` in fixtures/expected):
+	// the input divider (100 ohm virtual ground against Rin 10k) times the
+	// input conductance times the Ro 22k load times the exponential gain.
+	// DC inputs settle the internal envelope exactly, so these are exact
+	// closed forms. A law edit that moves the center, the divisor, the clamp
+	// rails, or the envelope fails here rather than surfacing as a silent
+	// level or depth defect in a pedal.
+	const dcGain = (controlVolts: number, inputVolts: number): number => {
 		const result = compile(dbxVcaCell(controlVolts), {
 			registry: pedalPartCatalog,
 		});
@@ -68,93 +125,141 @@ describe("dbx-style VCA transfer: gain falls as control rises", () => {
 		const runtime = new ReferenceRuntime(result.program);
 		runtime.prepare(48_000);
 		const length = 4800;
-		const input = new Float64Array(length);
-		for (let index = 0; index < length; index += 1) {
-			input[index] = 0.05 * Math.sin((2 * Math.PI * 1000 * index) / 48_000);
-		}
+		const input = new Float64Array(length).fill(inputVolts);
 		const output = runtime.process(input);
-		let inPeak = 0;
-		let outPeak = 0;
+		let inSum = 0;
+		let outSum = 0;
 		for (let index = length >> 1; index < length; index += 1) {
-			inPeak = Math.max(inPeak, Math.abs(input[index] ?? 0));
-			outPeak = Math.max(outPeak, Math.abs(output[index] ?? 0));
+			inSum += input[index] ?? 0;
+			outSum += output[index] ?? 0;
 		}
-		return outPeak / inPeak;
+		const count = length - (length >> 1);
+		return outSum / count / (inSum / count);
 	};
 
-	it("passes ceiling-end gain at low control", () => {
-		expect(transferGain(3.5)).toBeCloseTo(dbxVcaGainLow, 2);
+	it("pins the external path: millivolts of control move dB at fixed input", () => {
+		expect(dcGain(4.6, 0.5)).toBeCloseTo(dbxVcaDcControlLow, 2);
+		expect(dcGain(4.66, 0.5)).toBeCloseTo(dbxVcaDcControlCenter, 2);
+		expect(dcGain(4.72, 0.5)).toBeCloseTo(dbxVcaDcControlHigh, 2);
+		expect(dcGain(4.6, 0.5)).toBeGreaterThan(dcGain(4.72, 0.5));
 	});
 
-	it("passes mid-scale gain at the center voltage", () => {
-		expect(transferGain(4.5)).toBeCloseTo(dbxVcaGainCenter, 2);
+	it("compresses: gain falls as DC input level rises at static control", () => {
+		expect(dcGain(4.66, 0.5)).toBeCloseTo(dbxVcaDcInputLow, 2);
+		expect(dcGain(4.66, 2)).toBeCloseTo(dbxVcaDcInputMid, 2);
+		expect(dcGain(4.66, 5)).toBeCloseTo(dbxVcaDcInputHigh, 2);
+		expect(dcGain(4.66, 0.5)).toBeGreaterThan(dcGain(4.66, 2));
+		expect(dcGain(4.66, 2)).toBeGreaterThan(dcGain(4.66, 5));
 	});
 
-	it("passes floor-end gain at high control", () => {
-		expect(transferGain(5.5)).toBeCloseTo(dbxVcaGainHigh, 2);
-	});
-
-	it("compresses: gain strictly falls as control rises", () => {
-		expect(transferGain(3.5)).toBeGreaterThan(transferGain(4.5));
-		expect(transferGain(4.5)).toBeGreaterThan(transferGain(5.5));
+	it("compresses a sine at static control: gain falls as amplitude rises", () => {
+		// Behavioral bands, not closed forms: a sine's settled envelope is a
+		// limit cycle (attack 0.5 ms against release 50 ms), so the exact
+		// mean is solver-measured. What is load-bearing is the fall itself --
+		// the gap v1 shipped, where the same sweep rendered flat.
+		const sineGain = (amplitude: number): number => {
+			const result = compile(dbxVcaCell(4.66), {
+				registry: pedalPartCatalog,
+			});
+			if (result.status !== "ok") {
+				throw new Error(`did not compile: ${JSON.stringify(result.reasons)}`);
+			}
+			const runtime = new ReferenceRuntime(result.program);
+			runtime.prepare(48_000);
+			const length = 4800;
+			const input = new Float64Array(length);
+			for (let index = 0; index < length; index += 1) {
+				input[index] =
+					amplitude * Math.sin((2 * Math.PI * 1000 * index) / 48_000);
+			}
+			const output = runtime.process(input);
+			let inPeak = 0;
+			let outPeak = 0;
+			for (let index = length >> 1; index < length; index += 1) {
+				inPeak = Math.max(inPeak, Math.abs(input[index] ?? 0));
+				outPeak = Math.max(outPeak, Math.abs(output[index] ?? 0));
+			}
+			return outPeak / inPeak;
+		};
+		const low = sineGain(0.5);
+		const mid = sineGain(2);
+		const high = sineGain(5);
+		expect(low).toBeGreaterThan(mid);
+		expect(mid).toBeGreaterThan(high);
+		expect(low).toBeGreaterThan(1.5);
+		expect(low).toBeLessThan(2.2);
+		expect(mid).toBeGreaterThan(1.0);
+		expect(mid).toBeLessThan(1.8);
+		expect(high).toBeGreaterThan(0.5);
+		expect(high).toBeLessThan(1.2);
 	});
 });
 
 describe.skipIf(!wasmBinaryPresent)(
 	"dbx-vca cross-console agreement",
 	() => {
-		it(`renders the transfer cell identically on both consoles (${WASM_SKIP_REASON || "wasm present"})`, async () => {
-			const result = compile(dbxVcaCell(5.5), { registry: pedalPartCatalog });
-			if (result.status !== "ok") {
-				throw new Error(`did not compile: ${JSON.stringify(result.reasons)}`);
-			}
-			const ts = new ReferenceRuntime(result.program);
-			ts.prepare(48_000);
-			const length = 4800;
-			const input = new Float64Array(length);
-			for (let index = 0; index < length; index += 1) {
-				input[index] = 0.05 * Math.sin((2 * Math.PI * 1000 * index) / 48_000);
-			}
-			const tsOut = ts.process(input);
+		it(`renders DC and sine transfer identically on both consoles (${WASM_SKIP_REASON || "wasm present"})`, async () => {
+			const check = async (
+				controlVolts: number,
+				input: Float64Array,
+			): Promise<{ correlation: number; maxDelta: number }> => {
+				const result = compile(dbxVcaCell(controlVolts), {
+					registry: pedalPartCatalog,
+				});
+				if (result.status !== "ok") {
+					throw new Error(`did not compile: ${JSON.stringify(result.reasons)}`);
+				}
+				const ts = new ReferenceRuntime(result.program);
+				ts.prepare(48_000);
+				const tsOut = ts.process(input);
 
-			const wasm = await V2WasmEngine.create(result.program);
-			wasm.prepare({ sampleRate: 48000, maxNewtonIterations: 1024 });
-			const wasmOut = new Float32Array(length);
-			wasm.processBlock(
-				Float32Array.from(input),
-				wasmOut,
-			);
-			wasm.destroy();
+				const wasm = await V2WasmEngine.create(result.program);
+				wasm.prepare({ sampleRate: 48000, maxNewtonIterations: 1024 });
+				const wasmOut = new Float32Array(input.length);
+				wasm.processBlock(Float32Array.from(input), wasmOut);
+				wasm.destroy();
 
-			// Same verdict shape as the supply cross-console test: correlation
-			// >= 0.9999 with max |delta| < 1e-4 over the settled window, so the
-			// C++ mirror cannot drift from the TS Newton path it mirrors.
-			const from = length >> 1;
-			let sumT = 0;
-			let sumW = 0;
-			let sumTT = 0;
-			let sumWW = 0;
-			let sumTW = 0;
-			let maxDelta = 0;
-			const count = length - from;
-			for (let index = from; index < length; index += 1) {
-				const t = tsOut[index] ?? 0;
-				const w = wasmOut[index] ?? 0;
-				sumT += t;
-				sumW += w;
-				sumTT += t * t;
-				sumWW += w * w;
-				sumTW += t * w;
-				maxDelta = Math.max(maxDelta, Math.abs(t - w));
+				const from = input.length >> 1;
+				let sumT = 0;
+				let sumW = 0;
+				let sumTT = 0;
+				let sumWW = 0;
+				let sumTW = 0;
+				let maxDelta = 0;
+				const count = input.length - from;
+				for (let index = from; index < input.length; index += 1) {
+					const t = tsOut[index] ?? 0;
+					const w = wasmOut[index] ?? 0;
+					sumT += t;
+					sumW += w;
+					sumTT += t * t;
+					sumWW += w * w;
+					sumTW += t * w;
+					maxDelta = Math.max(maxDelta, Math.abs(t - w));
+				}
+				const denom = Math.sqrt(
+					Math.max(0, count * sumTT - sumT * sumT) *
+						Math.max(0, count * sumWW - sumW * sumW),
+				);
+				const correlation =
+					denom === 0 ? 1 : (count * sumTW - sumT * sumW) / denom;
+				return { correlation, maxDelta };
+			};
+
+			// DC input sweep point: exercises the settled envelope identically.
+			const dc = new Float64Array(4800).fill(2);
+			const dcAgreement = await check(4.66, dc);
+			expect(dcAgreement.correlation).toBeGreaterThan(0.9999);
+			expect(dcAgreement.maxDelta).toBeLessThan(1e-4);
+
+			// Sine sweep point: exercises the attack/release limit cycle identically.
+			const sine = new Float64Array(4800);
+			for (let index = 0; index < sine.length; index += 1) {
+				sine[index] = 2 * Math.sin((2 * Math.PI * 1000 * index) / 48_000);
 			}
-			const denom = Math.sqrt(
-				Math.max(0, count * sumTT - sumT * sumT) *
-					Math.max(0, count * sumWW - sumW * sumW),
-			);
-			const correlation =
-				denom === 0 ? 1 : (count * sumTW - sumT * sumW) / denom;
-			expect(correlation).toBeGreaterThan(0.9999);
-			expect(maxDelta).toBeLessThan(1e-4);
+			const sineAgreement = await check(4.66, sine);
+			expect(sineAgreement.correlation).toBeGreaterThan(0.9999);
+			expect(sineAgreement.maxDelta).toBeLessThan(1e-4);
 		});
 	},
 );

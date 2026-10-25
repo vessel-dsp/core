@@ -545,30 +545,43 @@ export function ldrTableResistanceOhms(
 }
 
 /**
- * A dbx-style VCA's bounded sigmoidal gain at one control voltage:
- * `minGain + (maxGain - minGain) / (1 + exp((controlVolts - centerVolts) *
- * slopePerVolt))`, so gain falls as control rises.
+ * A dbx-style VCA's control in dB: `-((controlVolts - centerVolts) +
+ * envelopeVolts) / 0.0059`, clamped to `[minGainDb, maxGainDb]`.
  *
- * Pure so the compiler tests and the console-parity instruments can call it
- * directly. The stamp path below evaluates the same expression inline with
- * analytic derivatives; a malformed parameter set never reaches either from
- * a compiled program (lowering refuses what the catalog cannot state).
+ * The 5.9 mV/dB divisor is the NEC uPC1252 feature line (and `boss-lm-2`'s
+ * control deck); the +-30 dB clamp is the datasheet's Av range. Pure so the
+ * compiler tests and the console-parity instruments can call it directly.
+ * The stamp path below evaluates the same expression inline with analytic
+ * derivatives.
  */
-export function dbxVcaGain(
+export function dbxVcaGainDb(
 	controlVolts: number,
 	centerVolts: number,
-	slopePerVolt: number,
-	minGain: number,
-	maxGain: number,
+	envelopeVolts: number,
+	minGainDb: number,
+	maxGainDb: number,
 ): number {
-	const span = maxGain - minGain;
-	const exponent = (controlVolts - centerVolts) * slopePerVolt;
-	// Guard the exp against overflow the way the Newton path below does:
-	// beyond +-50 the sigmoid is at its rail to double precision (and past
-	// ~709 exp overflows to Infinity, whose quotient is exactly the rail).
-	if (exponent > 50) return minGain;
-	if (exponent < -50) return maxGain;
-	return minGain + span / (1 + Math.exp(exponent));
+	const raw = -((controlVolts - centerVolts) + envelopeVolts) / 0.0059;
+	return Math.min(maxGainDb, Math.max(minGainDb, raw));
+}
+
+/** dB to linear voltage gain. Pure companion to `dbxVcaGainDb` above. */
+export function dbxVcaGainLinear(gainDb: number): number {
+	return Math.pow(10, gainDb / 20);
+}
+
+/**
+ * One-sample envelope smoothing coefficient for a time constant in seconds
+ * at a sample rate in hertz: `1 - exp(-1 / (tc * rate))`.
+ *
+ * Pure so tests pin it; the stamp paths on both consoles evaluate the same
+ * closed form inline. A non-positive time constant (no entry states one)
+ * returns 1, tracking the target immediately rather than dividing by zero.
+ */
+export function dbxVcaEnvelopeK(tcSeconds: number, sampleRate: number): number {
+	const denom = tcSeconds * sampleRate;
+	if (!(denom > 0)) return 1;
+	return 1 - Math.exp(-1 / denom);
 }
 
 /**
@@ -8441,51 +8454,63 @@ export class ReferenceRuntime {
 			}
 			case "dbx-vca": {
 				// dbx-style VCA gain cell (uPC1252H2): the output current is
-				// the input current times a bounded sigmoidal gain in the
-				// control voltage, evaluated per Newton iterate with analytic
-				// derivatives (no state: like `linear-vca` this law is
-				// memoryless, so there is nothing to hold).
-				// The control input is voltage-sense ONLY: no conductance is
-				// stamped on it, so a high-impedance detector network drives
-				// it without sagging. Control is read against the fixed
-				// `vrefVolts` center, not against the minus input: the chip's
-				// own reference pin couples straight back to the control
-				// node on the CS-3 (47 ohms), so referencing control to it
-				// would pin the difference at zero and the gain at mid-scale.
+				// the input current times an exponential dB-linear gain in
+				// the external control plus an INTERNAL envelope follower on
+				// the input, evaluated per Newton iterate with analytic
+				// derivatives.
 				//
-				// Sign convention is the file's leaving-positive KCL (see the
-				// diode: matrix carries d(leaving)/dV, rhs carries
-				// -(I0 - dI*V0)): the stamp's physical current ENTERS the
-				// output node, so every term below is negated once.
-				// Unlike `linear-vca`, whose control is read against the
-				// minus input (so the minus row carries the control
-				// derivative too), this gain reads control against the fixed
-				// `vrefVolts` center: the minus row carries only the
-				// input-current derivative and the control derivative sits
-				// on the control row alone.
+				// The envelope is held across this sample's Newton loop (the
+				// compandor precedent: the loop solves one circuit instead
+				// of walking across a circuit that moves under it), updated
+				// once per committed sample from the current iterate with
+				// attack/release coefficients for the entry's time constants.
+				// The one-sample lag is nothing against a detector whose
+				// time constants are milliseconds.
+				const envStateIdx = stamp.stateIndex;
+				const envKey = `${block.id}_dbx_${envStateIdx}`;
+				if (
+					this.elapsedSamples !==
+					(this.lastShiftedSample.get(envKey) ?? -1)
+				) {
+					this.lastShiftedSample.set(envKey, this.elapsedSamples);
+					const vInNow = Math.abs(
+						(solution[stamp.plus] ?? 0.0) - (solution[stamp.minus] ?? 0.0),
+					);
+					const envPrev = state[envStateIdx] ?? 0.0;
+					const envTc =
+						vInNow > envPrev ? stamp.attackSeconds : stamp.releaseSeconds;
+					const envK = dbxVcaEnvelopeK(envTc, this.sampleRate as number);
+					state[envStateIdx] = envPrev + (vInNow - envPrev) * envK;
+				}
+				const envHeld = state[envStateIdx] ?? 0.0;
+				// Exponential dB law, same closed form as `dbxVcaGainDb`:
+				// control against the fixed center plus the held envelope,
+				// through 5.9 mV/dB, clamped to the datasheet range. At a
+				// clamp rail the derivative is zero (the rail, not the
+				// curve, decides the gain there).
+				const vControl = solution[stamp.control] ?? 0.0;
+				const rawDb = -((vControl - stamp.vrefVolts) + envHeld) / 0.0059;
+				const atRail = rawDb <= stamp.minGainDb || rawDb >= stamp.maxGainDb;
+				const gainDb = atRail
+					? Math.min(stamp.maxGainDb, Math.max(stamp.minGainDb, rawDb))
+					: rawDb;
+				const gain = dbxVcaGainLinear(gainDb);
+				// dGain/dVcontrol, negative: gain falls as control rises.
+				// The envelope is held, so minus carries only the
+				// input-current derivative (same row structure as v1).
+				const dGain = atRail
+					? 0
+					: (gain * Math.LN10) / 20 / -0.0059;
 				const vPlus = solution[stamp.plus] ?? 0.0;
 				const vMinus = solution[stamp.minus] ?? 0.0;
-				const vControl = solution[stamp.control] ?? 0.0;
 				const vIn = vPlus - vMinus;
 				const iIn = vIn * stamp.inputSiemens;
-				const span = stamp.maxGain - stamp.minGain;
-				const exponent = (vControl - stamp.vrefVolts) * stamp.slopePerVolt;
-				// Beyond +-50 the sigmoid is at its rail to double precision,
-				// and past ~709 exp overflows to Infinity (the quotient then
-				// goes exactly to its rail, still finite). Clamped exactly
-				// like `dbxVcaGain` above so the two cannot disagree on the
-				// branch taken.
-				const sigma = exponent > 50 ? 0 : exponent < -50 ? 1 : 1 / (1 + Math.exp(exponent));
-				const gain = stamp.minGain + span * sigma;
-				// dGain/dVcontrol: the sigmoid's own derivative, negative:
-				// gain falls as control rises.
-				const dGain = -span * stamp.slopePerVolt * sigma * (1 - sigma);
 				const iOut = iIn * gain;
 				const gIn = gain * stamp.inputSiemens;
 				const gCtrl = iIn * dGain;
-				// Leaving-positive: the output current leaves toward the load
-				// as -iOut, so d(leaving)/dVplus is -gIn, and likewise down
-				// the row; the companion is -(I0 - dI*V0) like the diode's.
+				// Leaving-positive KCL (see the diode): the stamp's physical
+				// current ENTERS the output node, so every term below is
+				// negated once.
 				const leaving = -iOut;
 				const equivalent =
 					leaving - (-gIn * vPlus + gIn * vMinus + -gCtrl * vControl);

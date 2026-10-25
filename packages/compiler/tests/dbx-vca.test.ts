@@ -55,10 +55,12 @@ describe("uPC1252H2 dbx-vca section lands its pins on the right nodes", () => {
 		expect(vca.output).toBe(row(4)); // pin8 OUT
 		expect(vca.control).toBe(row(5)); // pin3 GC1
 		expect(vca.inputSiemens).toBeCloseTo(0.01, 8);
-		expect(vca.vrefVolts).toBeCloseTo(4.5, 8);
-		expect(vca.slopePerVolt).toBeCloseTo(1.6, 8);
-		expect(vca.minGain).toBeCloseTo(0.18, 8);
-		expect(vca.maxGain).toBeCloseTo(1.0, 8);
+		expect(vca.vrefVolts).toBeCloseTo(4.66, 8);
+		expect(vca.attackSeconds).toBeCloseTo(0.0005, 8);
+		expect(vca.releaseSeconds).toBeCloseTo(0.05, 8);
+		expect(vca.minGainDb).toBeCloseTo(-30, 8);
+		expect(vca.maxGainDb).toBeCloseTo(30, 8);
+		expect(vca.stateIndex).toBeGreaterThanOrEqual(0);
 	});
 
 	it("LM-2-style named shell binds the same law by role with no positional warning", () => {

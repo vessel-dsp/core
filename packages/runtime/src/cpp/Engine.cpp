@@ -4324,26 +4324,39 @@ void Engine::applyStamp(
 
         case StampKind::DbxVca: {
             // Bit-identical mirror of reference-runtime.ts `case "dbx-vca"`:
-            // leaving-positive KCL (matrix carries d(leaving)/dV, rhs carries
-            // -(I0 - dI*V0) like the diode), voltage-sense control drawing no
-            // current. The physical current ENTERS the output node, so every
-            // term below is negated once from the entering-positive form.
-            // Unlike LinearVca, whose control is read against the minus
-            // input, this gain reads control against the fixed `vrefVolts`
-            // center: the minus row carries only the input-current derivative
-            // and the control derivative sits on the control row alone.
+            // exponential dB law over the external control plus an INTERNAL
+            // envelope follower on the input (attack/release from the entry's
+            // time constants), held across this sample's Newton loop exactly
+            // like the TS console holds it (compandor precedent: the loop
+            // solves one circuit instead of walking across a moving one).
+            // Leaving-positive KCL like the diode; the physical current
+            // ENTERS the output node, so terms are negated once.
+            int32_t envIdxDbx = stamp.stateIndex;
+            std::string envKeyDbx = block.id + "_dbx_" + std::to_string(envIdxDbx);
+            auto envItDbx = lastShiftedSample_.find(envKeyDbx);
+            int64_t envLastDbx = (envItDbx != lastShiftedSample_.end()) ? envItDbx->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != envLastDbx) {
+                lastShiftedSample_[envKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+                double vInNowDbx = std::abs(solution[stamp.plus] - solution[stamp.minus]);
+                double envPrevDbx = state[envIdxDbx];
+                double envTcDbx = vInNowDbx > envPrevDbx ? stamp.attackSeconds : stamp.releaseSeconds;
+                double envDenomDbx = envTcDbx * options_.sampleRate;
+                double envKDbx = envDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / envDenomDbx) : 1.0;
+                state[envIdxDbx] = envPrevDbx + (vInNowDbx - envPrevDbx) * envKDbx;
+            }
+            double envHeldDbx = state[envIdxDbx];
+            double rawDbDbx = -((solution[stamp.controlNode] - stamp.vrefVolts) + envHeldDbx) / 0.0059;
+            bool atRailDbx = rawDbDbx <= stamp.minGainDb || rawDbDbx >= stamp.maxGainDb;
+            double gainDbDbx = atRailDbx
+                ? std::min(stamp.maxGainDb, std::max(stamp.minGainDb, rawDbDbx))
+                : rawDbDbx;
+            double gainDbx = std::pow(10.0, gainDbDbx / 20.0);
+            double dGainDbx = atRailDbx ? 0.0 : gainDbx * 2.302585092994046 / 20.0 / -0.0059;
             double vPlusDbx = solution[stamp.plus];
             double vMinusDbx = solution[stamp.minus];
             double vControlDbx = solution[stamp.controlNode];
             double vInDbx = vPlusDbx - vMinusDbx;
             double iInDbx = vInDbx * stamp.inputSiemens;
-            double spanDbx = stamp.maxGain - stamp.minGain;
-            double exponentDbx = (vControlDbx - stamp.vrefVolts) * stamp.slopePerVolt;
-            // Clamped exactly like the TS console's `dbxVcaGain` (and its
-            // inline Newton path) so the two consoles take the same branch.
-            double sigmaDbx = exponentDbx > 50.0 ? 0.0 : exponentDbx < -50.0 ? 1.0 : 1.0 / (1.0 + std::exp(exponentDbx));
-            double gainDbx = stamp.minGain + spanDbx * sigmaDbx;
-            double dGainDbx = -spanDbx * stamp.slopePerVolt * sigmaDbx * (1.0 - sigmaDbx);
             double iOutDbx = iInDbx * gainDbx;
             double gInDbx = gainDbx * stamp.inputSiemens;
             double gCtrlDbx = iInDbx * dGainDbx;

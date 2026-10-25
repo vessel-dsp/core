@@ -1034,18 +1034,37 @@ export type DeviceLaw =
 	| {
 			/**
 			 * dbx-style VCA gain cell (uPC1252H2): output current is the input
-			 * current times a bounded sigmoidal gain in the control voltage,
-			 * `minGain + (maxGain - minGain) / (1 + exp((Vcontrol - vrefVolts)
-			 * * slopePerVolt))`, so gain falls as control rises.
+			 * current times an exponential dB-linear gain,
+			 * `10^(clamp(-((Vcontrol - vrefVolts) + envelope) / 0.0059,
+			 * minGainDb, maxGainDb) / 20)`, so gain falls as control rises
+			 * and as input level rises.
 			 *
-			 * Behavioral numbers quoted from the packet's own island deck
-			 * (`boss-cs-3-service-vca-control-island.cir`): the B-source there
-			 * reads `out = (in-vref)*(0.18+0.82/(1+exp((ctrl-4.5)*1.6)))`,
-			 * which is this law with minGain 0.18, maxGain 1.0, vrefVolts
-			 * 4.5 and slopePerVolt 1.6. Transistor-level silicon internals
-			 * are out of scope (the packet excludes them too); the control
-			 * pin is the chip's gain-control input (GC1), read against the
-			 * fixed mid-rail the single-supply pedal biases everything to.
+			 * The dB law is the NEC uPC1252 feature line the catalog quotes
+			 * (control constant -5.9 mV/dB over +/-30 dB) and `boss-lm-2`'s
+			 * own control deck (`gain_db = -v(ctrl)/0.0059`): only a
+			 * millivolt-sensitive law can be moved by what the topology
+			 * actually delivers (millivolts at GC1, volts of internal
+			 * envelope). The v1 island sigmoid needed volts of control swing
+			 * and rendered the pedal linear.
+			 *
+			 * `vrefVolts` is the EXTERNAL (GC-pin) agreement point, 4.66 V:
+			 * engine-measured node-70 rest 4.658 V at declared defaults
+			 * (SUSTAIN 0.5) on the re-traced CS-3, which the 1k-to-4.5V R10
+			 * against the 15k-fed tap sets. The island quotes 4.5 V for its
+			 * off-chip ctrl_bus node instead; both are quoted because the
+			 * law reads the on-chip GC node and the island reads ctrl_bus.
+			 * Centering at GC rest (rather than 4.5) keeps rest gain near
+			 * unity: 0.16 V of offset is 27 dB through 1/0.0059, which would
+			 * park the pedal at a clamp rail with no input at all.
+			 *
+			 * `envelope` is the law's INTERNAL follower state (volts,
+			 * average-rectified smoothed input, held across the Newton loop
+			 * like the compandor's): nothing in the external netlist converts
+			 * input level to control (the 4a detector input is an open trace
+			 * residual), so without it no external-only law can compress.
+			 * Attack/release come from the CS-3's own detector network order
+			 * (C8 4.7 uF by R13 10k ~ 47 ms release; D6 charge path sub-ms
+			 * attack); exact time constants are secondary to the order.
 			 *
 			 * Like `linear-vca`, the control input is voltage-sense only: no
 			 * conductance is stamped on it, so a high-impedance detector
@@ -1056,14 +1075,16 @@ export type DeviceLaw =
 			readonly kind: "dbx-vca";
 			/** Input resistance to the minus terminal, siemens. */
 			readonly inputSiemens: number;
-			/** Control volts at the sigmoid's center (4.5 V on the CS-3 island). */
+			/** External control volts for 0 dB (GC rest, 4.66 V, see above). */
 			readonly vrefVolts: number;
-			/** Sigmoid steepness, per volt (1.6 on the CS-3 island). */
-			readonly slopePerVolt: number;
-			/** Gain floor at high control (0.18 on the CS-3 island). */
-			readonly minGain: number;
-			/** Gain ceiling at low control (1.0 on the CS-3 island). */
-			readonly maxGain: number;
+			/** Internal envelope attack time constant, seconds (0.0005). */
+			readonly attackSeconds: number;
+			/** Internal envelope release time constant, seconds (0.05). */
+			readonly releaseSeconds: number;
+			/** Gain floor, dB (-30, the datasheet's Av range). */
+			readonly minGainDb: number;
+			/** Gain ceiling, dB (+30, the datasheet's Av range). */
+			readonly maxGainDb: number;
 	  }
 	| {
 			/** BBD Clock Driver: propagates the slowly-varying LFO control rate. */
@@ -1938,8 +1959,9 @@ export type Stamp =
 			/**
 			 * dbx-style VCA gain cell (lowered from the `dbx-vca` law).
 			 * Current proportional to the input current, scaled by the
-			 * sigmoidal control gain over `vrefVolts`. Reads the control
-			 * node and draws nothing from it.
+			 * exponential dB gain over `vrefVolts` plus the internal
+			 * envelope in `stateIndex`. Reads the control node and draws
+			 * nothing from it.
 			 */
 			readonly kind: "dbx-vca";
 			readonly plus: NodeId;
@@ -1948,9 +1970,12 @@ export type Stamp =
 			readonly control: NodeId;
 			readonly inputSiemens: number;
 			readonly vrefVolts: number;
-			readonly slopePerVolt: number;
-			readonly minGain: number;
-			readonly maxGain: number;
+			readonly attackSeconds: number;
+			readonly releaseSeconds: number;
+			readonly minGainDb: number;
+			readonly maxGainDb: number;
+			/** Envelope state slot, held across the Newton loop. */
+			readonly stateIndex: number;
 	  }
 	| {
 			readonly kind: "logic-divider";

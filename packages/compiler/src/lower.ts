@@ -836,9 +836,10 @@ export function lowerRegion(
 			// control]. Same shape as `linear-vca`: the control pin is
 			// voltage-sense (no conductance stamped on it) and the input pin
 			// is a current input at about the minus potential. The gain is
-			// the island's bounded sigmoid in the control voltage instead of
-			// the linear law's proportional one, so gain falls as control
-			// rises; see the `dbx-vca` law docs for the cited numbers.
+			// the exponential dB law over the external control plus the
+			// internal envelope (one state slot, held across the Newton loop
+			// like the compandor's); see the `dbx-vca` law docs for the
+			// cited numbers.
 			const plus = device.nodes[0];
 			const minus = device.nodes[1];
 			const output = device.nodes[2];
@@ -868,9 +869,11 @@ export function lowerRegion(
 				control,
 				inputSiemens: law.inputSiemens,
 				vrefVolts: law.vrefVolts,
-				slopePerVolt: law.slopePerVolt,
-				minGain: law.minGain,
-				maxGain: law.maxGain,
+				attackSeconds: law.attackSeconds,
+				releaseSeconds: law.releaseSeconds,
+				minGainDb: law.minGainDb,
+				maxGainDb: law.maxGainDb,
+				stateIndex: stateCount++,
 			});
 			break;
 		}

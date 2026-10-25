@@ -14930,19 +14930,17 @@ export const linearVcaCell = (
  * Synthetic stand-in for the CS-3 VCA stage: bare-pin uPC1252H2 in strict datasheet pin
  * order (the CS-3 `IC3` shell's own spelling: `pin1`..`pin8` with `role: pin`, so every
  * terminal folds to a null role token and the entry binds positionally). Input jack 1
- * through Rin 10k into the VCA input (node 3, ground-referenced), VCA output (node 4)
- * into Ro 22k to ground, both GC pins on the DC control node (node 5, CS-3 node 70's
- * role), ref/GND/ISET/Vc on ground (node 0, the fixture's stiff reference -- the law
- * reads control against its fixed `vrefVolts` center, not against the ref terminal, so
- * the ref node only sets the input current's return).
+ * through Rin 10k (the pedal's R9 value) into the VCA input (node 3, ground-referenced
+ * current input), VCA output (node 4) into Ro 22k to ground, both GC pins on the DC
+ * control node (node 5, CS-3 node 70's role), ref/GND/ISET/Vc on ground (node 0).
  *
- * Hand-computed voltage gain (Vout/Vin): the input divider (100 ohm virtual ground
- * of `inputSiemens` 0.01 against Rin 10k) times the input conductance times the Ro
- * load times the sigmoidal control gain `minGain + (maxGain - minGain) /
- * (1 + exp((Vc - vrefVolts) * slopePerVolt))` with the entry's island numbers
- * (0.18, 1.0, 4.5 V, 1.6/V). Renders of this fixture are the law's transfer proof:
- * gain falls as control rises through the center. The three control points below pin
- * the floor, the center, and the ceiling end of the curve.
+ * The law reads control against its fixed 4.66 V center plus its INTERNAL envelope
+ * (rectified smoothed input, attack 0.5 ms / release 50 ms), so one static-control
+ * program serves both transfer proofs below: sweep the DC control for the external
+ * (SUSTAIN-side) path, sweep the input amplitude for the internal (level-side) path.
+ * Rin stays the pedal's 10k, which divides the cell drive by ~101 -- the sweeps below
+ * therefore use volts-scale inputs to put volts-scale envelope at the cell, the same
+ * mechanism at a hotter drive rather than a different circuit.
  */
 export const dbxVcaCell = (controlVolts: number): string =>
 	`${header("dbx VCA Cell")}components:

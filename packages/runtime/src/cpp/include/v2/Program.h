@@ -224,12 +224,15 @@ struct Stamp {
     double inputSiemens = 0.0;
     double vrefVolts = 1.0;
     double minGain = 0.0;
-    // dbx-style VCA cell (uPC1252H2): sigmoid steepness and gain ceiling.
-    // Mirrors `slopePerVolt`/`maxGain` in src/compiler/types.ts; same
-    // behavior-neutral default story as the linear-vca fields above (no older
-    // program carries a dbx-vca stamp).
-    double slopePerVolt = 0.0;
-    double maxGain = 1.0;
+    // dbx-style VCA cell (uPC1252H2): internal envelope attack/release
+    // time constants and dB clamp rails. Mirrors `attackSeconds`/
+    // `releaseSeconds`/`minGainDb`/`maxGainDb` in src/compiler/types.ts;
+    // same behavior-neutral default story as the linear-vca fields above
+    // (no older program carries a dbx-vca stamp).
+    double attackSeconds = 0.001;
+    double releaseSeconds = 0.05;
+    double minGainDb = -30.0;
+    double maxGainDb = 30.0;
     double vggBiasVolts = 0.0;
     int32_t stages = 1024;
     double sensitivity = 1.0;

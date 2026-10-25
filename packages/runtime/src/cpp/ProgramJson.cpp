@@ -494,8 +494,10 @@ Stamp parseStamp(const JsonValue& obj) {
     st.inputSiemens = obj.getDouble("inputSiemens", 0.0);
     st.vrefVolts = obj.getDouble("vrefVolts", 1.0);
     st.minGain = obj.getDouble("minGain", 0.0);
-    st.slopePerVolt = obj.getDouble("slopePerVolt", 0.0);
-    st.maxGain = obj.getDouble("maxGain", 1.0);
+    st.attackSeconds = obj.getDouble("attackSeconds", 0.001);
+    st.releaseSeconds = obj.getDouble("releaseSeconds", 0.05);
+    st.minGainDb = obj.getDouble("minGainDb", -30.0);
+    st.maxGainDb = obj.getDouble("maxGainDb", 30.0);
 
     const auto* rh = obj.find("railHigh");
     if (rh && rh->isNumber()) st.railHigh = rh->numberValue;

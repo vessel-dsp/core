@@ -4539,14 +4539,29 @@ const entries: readonly PartEntry[] = [
 	// constant is -5.9 mV per dB, over a +/-30 dB range, matching `boss-lm-2`'s own
 	// `boss-lm-2-upc1252h2-vca-control.cir` reference deck (`gain_db = -v(ctrl)/0.0059`).
 	//
-	// BEHAVIORAL LAW (`dbx-vca`, quoted from the packet's own island deck
-	// `boss-cs-3-service-vca-control-island.cir`): the B-source there reads
-	// `out = (in-vref)*(0.18+0.82/(1+exp((ctrl-4.5)*1.6)))`, which is this entry's
-	// minGain 0.18, maxGain 1.0, vrefVolts 4.5, slopePerVolt 1.6. The prior
-	// conductance-plus-linear-OTA fallback is deleted by this entry: an OTA is linear in
-	// its inputs, so the engine rendered the pedal perfectly linear (measured flat 0.650 /
-	// 0.564 gain across 18x input, SUSTAIN/ATTACK inert). Transistor-level silicon
-	// internals are out of scope (the packet excludes them too).
+	// BEHAVIORAL LAW v2 (`dbx-vca`, exponential dB control plus an internal envelope).
+	// The v1 island sigmoid (B-source `out = (in-vref)*(0.18+0.82/(1+exp((ctrl-4.5)*1.6)))`)
+	// needed volts of control swing while the topology delivers millivolts at GC1 (R10 1k
+	// pins node 70 to 4.5 V; the tap feeds it only through R11 15k), so the pedal rendered
+	// linear (measured flat 0.303 gain across 18x input at 0.10.0/0.8.0). The v2 law is the
+	// datasheet's own dB line instead (`gain_dB = -(control terms)/0.0059`, Av -30dB~+30dB,
+	// same as `boss-lm-2`'s `gain_db = -v(ctrl)/0.0059` deck): 5.9 mV moves a dB, so the
+	// millivolts SUSTAIN delivers now move the threshold audibly.
+	//
+	// CENTER (re-derived, both quoted): the island centers its off-chip ctrl_bus at 4.5 V,
+	// but this law reads the on-chip GC node, whose engine-measured rest on the re-traced
+	// file is 4.658 V at declared defaults (SUSTAIN 0.5; SUSTAIN 0->1 moves it 4.6325 to
+	// 4.6728). Centering at 4.5 would park rest gain 27 dB down a clamp rail (0.16 V is
+	// 27 dB through 1/0.0059) with no input at all, hiding every input sweep at the floor;
+	// the entry centers at GC rest (4.66 V) so rest gain is unity and SUSTAIN moves +-dB
+	// around it. Transistor-level silicon internals remain out of scope.
+	//
+	// ENVELOPE (internal, because the trace converts no input level to control): the law
+	// rectifies and smooths its own input (attack 0.0005 s, release 0.05 s -- the CS-3
+	// detector network's order: C8 4.7 uF by R13 10k ~ 47 ms release, D6 charge path
+	// through ~100 ohms ~ 0.5 ms attack; exact TCs secondary). The 4a/Q6/Q8 auxiliary chain cannot substitute:
+	// 4a's audio input is an open trace residual. Envelope and external terms sum in volts
+	// through the same 0.0059 divisor, clamped to the datasheet's +-30 dB.
 	//
 	// BINDING. `boss-lm-2`'s `IC1_UPC1252H2` spells its pins with role suffixes
 	// (`pin1_input`, `pin2_gc2`, `pin3_gc1`, `pin4_symmetry`, `pin5_iset`,
@@ -4570,12 +4585,10 @@ const entries: readonly PartEntry[] = [
 	// IC2's inverting stage), not by this number alone.
 	//
 	// KNOWN DEVIATIONS (documented, not hidden):
-	// - The law reads the on-chip GC node (CS-3 node 70), while the island's sigmoid is
-	//   quoted against the off-chip filtered node (ctrl_bus, node 72). The R11/Q7 divider
-	//   between them is executed as ordinary components, so the loop still settles, but
-	//   its threshold carries that divider's DC offset against the island's number.
-	// - Center/slope for `boss-lm-2`'s biasing are unverified: the entry's numbers are the
-	//   CS-3 island's, and LM-2 limiting calibration belongs workbench-side.
+	// - GC rest (and hence the 4.66 V center) is measured at declared defaults; a packet
+	//   re-trace moving the SUSTAIN-default bias moves rest with it. LM-2's rest/TCs are
+	//   unverified: the entry's numbers are the CS-3's, and LM-2 limiting calibration
+	//   belongs workbench-side.
 	//
 	// `declaredTypes` deliberately empty. It listed `Circuit.IC`, the format's generic "this is a
 	// chip", which identifies nothing and could only ever act as a catch-all: measured 2026-09-04,
@@ -4640,10 +4653,11 @@ const entries: readonly PartEntry[] = [
 					"law": {
 						"kind": "dbx-vca",
 						"inputSiemens": 0.01,
-						"vrefVolts": 4.5,
-						"slopePerVolt": 1.6,
-						"minGain": 0.18,
-						"maxGain": 1.0
+						"vrefVolts": 4.66,
+						"attackSeconds": 0.0005,
+						"releaseSeconds": 0.05,
+						"minGainDb": -30,
+						"maxGainDb": 30
 					},
 					"terminals": [
 						0,
