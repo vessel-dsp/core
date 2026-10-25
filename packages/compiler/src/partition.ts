@@ -95,6 +95,9 @@ const NEWTON_BY_LAW_KIND: Readonly<
 	// gain: linear within a Newton pass at fixed gain, nonlinear across passes as the
 	// control moves. Treating it as linear would freeze the first gain it sees.
 	"linear-vca": true,
+	// Bounded sigmoid in the control voltage with solution-dependent
+	// gain: nonlinear across Newton passes for the same reason.
+	"dbx-vca": true,
 	// Its phase advances once per sample, but the three levels it drives are all read
 	// from the solved VDD rail, so its rows move with the solution inside one sample.
 	"clock-driver": true,

@@ -14927,6 +14927,204 @@ export const linearVcaCell = (
 };
 
 /**
+ * Synthetic stand-in for the CS-3 VCA stage: bare-pin uPC1252H2 in strict datasheet pin
+ * order (the CS-3 `IC3` shell's own spelling: `pin1`..`pin8` with `role: pin`, so every
+ * terminal folds to a null role token and the entry binds positionally). Input jack 1
+ * through Rin 10k into the VCA input (node 3, ground-referenced), VCA output (node 4)
+ * into Ro 22k to ground, both GC pins on the DC control node (node 5, CS-3 node 70's
+ * role), ref/GND/ISET/Vc on ground (node 0, the fixture's stiff reference -- the law
+ * reads control against its fixed `vrefVolts` center, not against the ref terminal, so
+ * the ref node only sets the input current's return).
+ *
+ * Hand-computed voltage gain (Vout/Vin): the input divider (100 ohm virtual ground
+ * of `inputSiemens` 0.01 against Rin 10k) times the input conductance times the Ro
+ * load times the sigmoidal control gain `minGain + (maxGain - minGain) /
+ * (1 + exp((Vc - vrefVolts) * slopePerVolt))` with the entry's island numbers
+ * (0.18, 1.0, 4.5 V, 1.6/V). Renders of this fixture are the law's transfer proof:
+ * gain falls as control rises through the center. The three control points below pin
+ * the floor, the center, and the ceiling end of the curve.
+ */
+export const dbxVcaCell = (controlVolts: number): string =>
+	`${header("dbx VCA Cell")}components:
+  - id: JIN
+    kind: jack
+    name: VCA_IN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+    properties: {}
+  - id: JOUT
+    kind: jack
+    name: VCA_OUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 4
+        position:
+          x: 200
+          y: 0
+    properties: {}
+` +
+		resistor("RIN", 1, 3, "10k") +
+		resistor("RO", 4, 0, "22k") +
+		part("U1", "ic", "Circuit.IC", [["pin1", "pin", 3], ["pin2", "pin", 5], ["pin3", "pin", 5], ["pin4", "pin", 0], ["pin5", "pin", 0], ["pin6", "pin", 0], ["pin7", "pin", 0], ["pin8", "pin", 4]], { PartNumber: "uPC1252H2" }) +
+		part("VCTRL", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 5], ["minus", "negative", 0]], { Voltage: `${controlVolts}` });
+
+/**
+ * The same VCA stage spelled the way `boss-lm-2`'s `IC1_UPC1252H2` spells it: every pin
+ * carries a role suffix (`pin1_input` ... `pin8_output`), so each terminal folds to a
+ * real role token and the entry binds by clean role bijection instead of positionally.
+ * Same nodes and numbers as `dbxVcaCell`; the law and its transfer proof live there.
+ */
+export const dbxVcaNamedCell = (controlVolts: number): string =>
+	`${header("dbx VCA Named Cell")}components:
+  - id: JIN
+    kind: jack
+    name: VCA_IN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+    properties: {}
+  - id: JOUT
+    kind: jack
+    name: VCA_OUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 4
+        position:
+          x: 200
+          y: 0
+    properties: {}
+` +
+		resistor("RIN", 1, 3, "10k") +
+		resistor("RO", 4, 0, "22k") +
+		part("U1", "ic", "Circuit.IC", [["pin1_input", "pin", 3], ["pin2_gc2", "pin", 5], ["pin3_gc1", "pin", 5], ["pin4_symmetry", "pin", 0], ["pin5_iset", "pin", 0], ["pin6_ground_reference", "pin", 0], ["pin7_vcc", "pin", 0], ["pin8_output", "pin", 4]], { PartNumber: "uPC1252H2" }) +
+		part("VCTRL", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 5], ["minus", "negative", 0]], { Voltage: `${controlVolts}` });
+
+/**
+ * Synthetic stand-in for the re-traced CS-3 detector/sustain buffer: bare-pin BA718 in
+ * strict datasheet pin order (`pin1`..`pin9` with `role: pin`), channel A as a follower
+ * buffering the input into channel B as a second follower driving the output jack. Both
+ * followers run at mid-rail (the render drives 4.5 V +/- 0.05), inside the 9 V / ground
+ * rails on pins 1+9 / pin 5. Compiling this fixture proves the 9-pin dual admission:
+ * the entry must expand to two `ideal-opamp` sections (pins [3,2,1] and [5,6,7] in the
+ * [+, -, out] order) instead of opening with registry-arity-mismatch.
+ */
+export const ba718DualCell = (): string =>
+	`${header("BA718 Dual Cell")}components:
+  - id: JIN
+    kind: jack
+    name: BUF_IN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+    properties: {}
+  - id: JOUT
+    kind: jack
+    name: BUF_OUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 5
+        position:
+          x: 200
+          y: 0
+    properties: {}
+` +
+		resistor("RIN", 1, 3, "10k") +
+		part("U1", "ic", "Circuit.OpAmp", [["pin1", "pin", 6], ["pin2", "pin", 4], ["pin3", "pin", 4], ["pin4", "pin", 3], ["pin5", "pin", 0], ["pin6", "pin", 4], ["pin7", "pin", 5], ["pin8", "pin", 5], ["pin9", "pin", 6]], { PartNumber: "BA718" }) +
+		part("V9", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 6], ["minus", "negative", 0]], { Voltage: "9" });
+
+/**
+ * The older BA718 5-pin single-section capture: channel 1's five pins in declaration
+ * order (VCC, OUT1, I1, IN1, VEE) as a follower buffering the input to the output jack.
+ * The 9-pin dual entry must not shadow it: `identify` tells the two apart by arity, so
+ * this still expands to exactly one `ideal-opamp` section.
+ */
+export const ba718SingleCell = (): string =>
+	`${header("BA718 Single Cell")}components:
+  - id: JIN
+    kind: jack
+    name: BUF_IN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+    properties: {}
+  - id: JOUT
+    kind: jack
+    name: BUF_OUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 5
+        position:
+          x: 200
+          y: 0
+    properties: {}
+` +
+		resistor("RIN", 1, 3, "10k") +
+		part("U1", "ic", "Circuit.OpAmp", [["pin1", "pin", 6], ["pin2", "pin", 5], ["pin3", "pin", 5], ["pin4", "pin", 3], ["pin5", "pin", 0]], { PartNumber: "BA718" }) +
+		part("V9", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 6], ["minus", "negative", 0]], { Voltage: "9" });
+
+
+/**
  * Bypass-engagement contract: the switchedDivider graph (a shunt switch the signal routes
  * around, so the connectivity default is open/0) steered by control SW1, with audio.bypass
  * declaring the engaged position. The three renders differ only in the declared position

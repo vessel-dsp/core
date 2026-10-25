@@ -1,6 +1,9 @@
 # Changelog
 
-## compiler 0.9.0 / runtime 0.7.0 / chain 0.1.12 / player 0.2.10
+## compiler 0.10.0 / runtime 0.8.0 / chain 0.1.13 / player 0.2.11
+
+**BA718 9-pin dual admitted; the uPC1252H2 VCA executes as a bounded-sigmoid gain cell on both consoles.** The BA718 catalog entry gains a second shape told apart by arity: the full 9-pin dual declaration (one `ideal-opamp` section per channel, cross-checked against the re-traced CS-3 `IC4` nodes) beside the kept 5-pin single-section capture. The uPC1252H2 entry's conductance-plus-linear-OTA fallback -- linear in its inputs, so the engine rendered the CS-3 perfectly linear (measured flat 0.650 / 0.564 gain across 18x input, SUSTAIN/ATTACK inert) -- is replaced by the new `dbx-vca` law with the packet island's own numbers (`boss-cs-3-service-vca-control-island.cir`: gain `0.18 + 0.82 / (1 + exp((ctrl - 4.5) * 1.6))`, quoted as minGain 0.18, maxGain 1.0, vrefVolts 4.5, slopePerVolt 1.6), so gain falls as control rises. `boss-lm-2`'s role-suffixed shell binds the same entry by clean role bijection with no positional warning; bare-pin shells (CS-3 `IC3`) bind positionally in datasheet pin order with the documented cross-check. The law lowers to a voltage-sense `dbx-vca` stamp beside an input conductance, and the TS reference runtime and the C++ engine implement the same sigmoid with analytic derivatives (rebuilt wasm). The shipped `dbxVcaCell` fixture proves the transfer: renders measure 1.878 / 1.285 / 0.692 at control 3.5 / 4.5 / 5.5 V against hand-computed 1.878 / 1.285 / 0.692, and both consoles agree (correlation >= 0.9999, max |delta| < 1e-4). No in-repo program moves: the new stamp kind reaches only programs naming uPC1252H2, and every existing suite stays green. chain 0.1.13 and player 0.2.11 are exact re-pins; core stays 0.17.0.
+
 
 **Pedals with a connectivity-derived bypass latch now load engaged.** Since the latch-polarity fix, control ≥ 0.5
 holds the effect on — but the three pedals whose bypass footswitch steers a connectivity-derived bistable latch

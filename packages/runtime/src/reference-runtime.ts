@@ -545,6 +545,33 @@ export function ldrTableResistanceOhms(
 }
 
 /**
+ * A dbx-style VCA's bounded sigmoidal gain at one control voltage:
+ * `minGain + (maxGain - minGain) / (1 + exp((controlVolts - centerVolts) *
+ * slopePerVolt))`, so gain falls as control rises.
+ *
+ * Pure so the compiler tests and the console-parity instruments can call it
+ * directly. The stamp path below evaluates the same expression inline with
+ * analytic derivatives; a malformed parameter set never reaches either from
+ * a compiled program (lowering refuses what the catalog cannot state).
+ */
+export function dbxVcaGain(
+	controlVolts: number,
+	centerVolts: number,
+	slopePerVolt: number,
+	minGain: number,
+	maxGain: number,
+): number {
+	const span = maxGain - minGain;
+	const exponent = (controlVolts - centerVolts) * slopePerVolt;
+	// Guard the exp against overflow the way the Newton path below does:
+	// beyond +-50 the sigmoid is at its rail to double precision (and past
+	// ~709 exp overflows to Infinity, whose quotient is exactly the rail).
+	if (exponent > 50) return minGain;
+	if (exponent < -50) return maxGain;
+	return minGain + span / (1 + Math.exp(exponent));
+}
+
+/**
  * The budget a block falls back to for the length of a probation, once one of its samples has
  * shown that more iterations could not help that sample.
  *
@@ -1199,6 +1226,9 @@ const IMPLEMENTED_OPERATORS: Readonly<Record<OperatorKind, true>> = {
 			comparator: true,
 			// Linear-control VCA cell. Reads the control node, draws nothing.
 			"linear-vca": true,
+			// dbx-style VCA cell (uPC1252H2). Bounded sigmoidal gain in the
+			// control voltage. Reads the control node, draws nothing.
+			"dbx-vca": true,
 };
 
 /**
@@ -8400,6 +8430,71 @@ export class ReferenceRuntime {
 					if (stamp.minus !== 0) {
 						(matrix[stamp.output] as number[])[stamp.minus] +=
 							gIn + gCtrl;
+					}
+					if (stamp.control !== 0) {
+						(matrix[stamp.output] as number[])[stamp.control] += -gCtrl;
+					}
+					rhs[stamp.output] =
+						(rhs[stamp.output] ?? 0) - equivalent;
+				}
+				break;
+			}
+			case "dbx-vca": {
+				// dbx-style VCA gain cell (uPC1252H2): the output current is
+				// the input current times a bounded sigmoidal gain in the
+				// control voltage, evaluated per Newton iterate with analytic
+				// derivatives (no state: like `linear-vca` this law is
+				// memoryless, so there is nothing to hold).
+				// The control input is voltage-sense ONLY: no conductance is
+				// stamped on it, so a high-impedance detector network drives
+				// it without sagging. Control is read against the fixed
+				// `vrefVolts` center, not against the minus input: the chip's
+				// own reference pin couples straight back to the control
+				// node on the CS-3 (47 ohms), so referencing control to it
+				// would pin the difference at zero and the gain at mid-scale.
+				//
+				// Sign convention is the file's leaving-positive KCL (see the
+				// diode: matrix carries d(leaving)/dV, rhs carries
+				// -(I0 - dI*V0)): the stamp's physical current ENTERS the
+				// output node, so every term below is negated once.
+				// Unlike `linear-vca`, whose control is read against the
+				// minus input (so the minus row carries the control
+				// derivative too), this gain reads control against the fixed
+				// `vrefVolts` center: the minus row carries only the
+				// input-current derivative and the control derivative sits
+				// on the control row alone.
+				const vPlus = solution[stamp.plus] ?? 0.0;
+				const vMinus = solution[stamp.minus] ?? 0.0;
+				const vControl = solution[stamp.control] ?? 0.0;
+				const vIn = vPlus - vMinus;
+				const iIn = vIn * stamp.inputSiemens;
+				const span = stamp.maxGain - stamp.minGain;
+				const exponent = (vControl - stamp.vrefVolts) * stamp.slopePerVolt;
+				// Beyond +-50 the sigmoid is at its rail to double precision,
+				// and past ~709 exp overflows to Infinity (the quotient then
+				// goes exactly to its rail, still finite). Clamped exactly
+				// like `dbxVcaGain` above so the two cannot disagree on the
+				// branch taken.
+				const sigma = exponent > 50 ? 0 : exponent < -50 ? 1 : 1 / (1 + Math.exp(exponent));
+				const gain = stamp.minGain + span * sigma;
+				// dGain/dVcontrol: the sigmoid's own derivative, negative:
+				// gain falls as control rises.
+				const dGain = -span * stamp.slopePerVolt * sigma * (1 - sigma);
+				const iOut = iIn * gain;
+				const gIn = gain * stamp.inputSiemens;
+				const gCtrl = iIn * dGain;
+				// Leaving-positive: the output current leaves toward the load
+				// as -iOut, so d(leaving)/dVplus is -gIn, and likewise down
+				// the row; the companion is -(I0 - dI*V0) like the diode's.
+				const leaving = -iOut;
+				const equivalent =
+					leaving - (-gIn * vPlus + gIn * vMinus + -gCtrl * vControl);
+				if (stamp.output !== 0) {
+					if (stamp.plus !== 0) {
+						(matrix[stamp.output] as number[])[stamp.plus] += -gIn;
+					}
+					if (stamp.minus !== 0) {
+						(matrix[stamp.output] as number[])[stamp.minus] += gIn;
 					}
 					if (stamp.control !== 0) {
 						(matrix[stamp.output] as number[])[stamp.control] += -gCtrl;

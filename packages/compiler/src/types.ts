@@ -1032,6 +1032,40 @@ export type DeviceLaw =
 			readonly minGain: number;
 	  }
 	| {
+			/**
+			 * dbx-style VCA gain cell (uPC1252H2): output current is the input
+			 * current times a bounded sigmoidal gain in the control voltage,
+			 * `minGain + (maxGain - minGain) / (1 + exp((Vcontrol - vrefVolts)
+			 * * slopePerVolt))`, so gain falls as control rises.
+			 *
+			 * Behavioral numbers quoted from the packet's own island deck
+			 * (`boss-cs-3-service-vca-control-island.cir`): the B-source there
+			 * reads `out = (in-vref)*(0.18+0.82/(1+exp((ctrl-4.5)*1.6)))`,
+			 * which is this law with minGain 0.18, maxGain 1.0, vrefVolts
+			 * 4.5 and slopePerVolt 1.6. Transistor-level silicon internals
+			 * are out of scope (the packet excludes them too); the control
+			 * pin is the chip's gain-control input (GC1), read against the
+			 * fixed mid-rail the single-supply pedal biases everything to.
+			 *
+			 * Like `linear-vca`, the control input is voltage-sense only: no
+			 * conductance is stamped on it, so a high-impedance detector
+			 * network drives it without sagging. The input pin is a current
+			 * input at about the minus potential (inputSiemens to minus is
+			 * both its impedance and the I = V*G the gain multiplies).
+			 */
+			readonly kind: "dbx-vca";
+			/** Input resistance to the minus terminal, siemens. */
+			readonly inputSiemens: number;
+			/** Control volts at the sigmoid's center (4.5 V on the CS-3 island). */
+			readonly vrefVolts: number;
+			/** Sigmoid steepness, per volt (1.6 on the CS-3 island). */
+			readonly slopePerVolt: number;
+			/** Gain floor at high control (0.18 on the CS-3 island). */
+			readonly minGain: number;
+			/** Gain ceiling at low control (1.0 on the CS-3 island). */
+			readonly maxGain: number;
+	  }
+	| {
 			/** BBD Clock Driver: propagates the slowly-varying LFO control rate. */
 			readonly kind: "clock-driver";
 			readonly defaultFrequency?: number;
@@ -1899,6 +1933,24 @@ export type Stamp =
 			readonly inputSiemens: number;
 			readonly vrefVolts: number;
 			readonly minGain: number;
+	  }
+	| {
+			/**
+			 * dbx-style VCA gain cell (lowered from the `dbx-vca` law).
+			 * Current proportional to the input current, scaled by the
+			 * sigmoidal control gain over `vrefVolts`. Reads the control
+			 * node and draws nothing from it.
+			 */
+			readonly kind: "dbx-vca";
+			readonly plus: NodeId;
+			readonly minus: NodeId;
+			readonly output: NodeId;
+			readonly control: NodeId;
+			readonly inputSiemens: number;
+			readonly vrefVolts: number;
+			readonly slopePerVolt: number;
+			readonly minGain: number;
+			readonly maxGain: number;
 	  }
 	| {
 			readonly kind: "logic-divider";

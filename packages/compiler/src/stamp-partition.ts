@@ -206,6 +206,12 @@ export const STAMP_SHAPES = {
 		ports: "nodes",
 		newton: true,
 	},
+	"dbx-vca": {
+		nodes: ["plus", "minus", "output", "control"],
+		aux: 0,
+		ports: "nodes",
+		newton: true,
+	},
 } as const satisfies {
 	[K in Stamp["kind"]]: {
 		readonly nodes: readonly (keyof Extract<Stamp, { kind: K }> & string)[];

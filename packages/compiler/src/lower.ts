@@ -831,6 +831,49 @@ export function lowerRegion(
 			});
 			break;
 		}
+		case "dbx-vca": {
+			// Positional terminals only (sections path): [plus, minus, output,
+			// control]. Same shape as `linear-vca`: the control pin is
+			// voltage-sense (no conductance stamped on it) and the input pin
+			// is a current input at about the minus potential. The gain is
+			// the island's bounded sigmoid in the control voltage instead of
+			// the linear law's proportional one, so gain falls as control
+			// rises; see the `dbx-vca` law docs for the cited numbers.
+			const plus = device.nodes[0];
+			const minus = device.nodes[1];
+			const output = device.nodes[2];
+			const control = device.nodes[3];
+			if (
+				plus === undefined ||
+				minus === undefined ||
+				output === undefined ||
+				control === undefined
+			) {
+				throw new LoweringError(
+					`dbx-vca ${device.id} requires plus, minus, output, and control terminals`,
+					device.id,
+				);
+			}
+			stamps.push({
+				kind: "conductance",
+				a: plus,
+				b: minus,
+				siemens: law.inputSiemens,
+			});
+			stamps.push({
+				kind: "dbx-vca",
+				plus,
+				minus,
+				output,
+				control,
+				inputSiemens: law.inputSiemens,
+				vrefVolts: law.vrefVolts,
+				slopePerVolt: law.slopePerVolt,
+				minGain: law.minGain,
+				maxGain: law.maxGain,
+			});
+			break;
+		}
 			case "inverter": {
 				const { input, output, vdd, gnd } = inverterTerminals(device);
 				if (input === undefined || output === undefined) {

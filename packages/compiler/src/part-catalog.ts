@@ -1408,19 +1408,76 @@ const entries: readonly PartEntry[] = [
 	// BA728F", ROHM), Fig. 4's BA718 9-pin SIP block diagram and pin row, which states pin 1
 	// through 9 as: VCC, VOUT(1ch), I1, IN1, VEE, IN2, I2, VOUT(2ch), VCC. Electrical
 	// characteristics (Ta=25C, VCC=6V, VEE=-6V): "Large signal voltage gain Av ... Min 86 Typ
-	// 100 ... dB". Used as `openLoopGain: decibelGain(100)`, the typ figure, matching this
+	// 100 ... dB". Used as `openLoopGain: 100000`, the typ figure, matching this
 	// file's convention for the other op-amps above.
 	//
-	// `boss-cs-3.vdsp`'s `IC4` declares only 5 of the real 9 pins, named plainly `pin1`
-	// through `pin5` (no suffix, so `terminalRoleToken` folds every one of them to `null` --
-	// this entry cannot be pinout-guarded, the same bound `identify.ts` documents for a part
-	// numbered `pin1..pinN`). Declaration order there is sequential ascending pin number, the
-	// same convention verified for the NE570 entry above: `pin1`=idx0 through `pin5`=idx4. Read
-	// against the real 9-pin table, that is exactly channel 1's five pins in order -- VCC, OUT1,
-	// I1 (the inverting/feedback node), IN1, VEE -- a self-contained single-op-amp capture of
-	// the chip's first section, with channel 2's pins 6-9 simply absent from this component.
-	// Only the three audio terminals matter to `ideal-opamp`; VCC/VEE are not read (rails come
-	// from the circuit's own supply set, same as every other entry here).
+	// Two shapes share this part id (one entry each, told apart by arity, the M5218 dual-split
+	// precedent): the full 9-pin dual declaration first, then the older 5-pin single-section
+	// capture. The re-traced `boss-cs-3.vdsp` `IC4` declares all nine in strict sequential
+	// ascending pin order (`pin1`..`pin9`, bare names folding to null roles, so this entry
+	// cannot be pinout-guarded and stays on the documented-positional route with the
+	// cross-check below, the NE570 precedent):
+	// 4a: out=pin2 (node 42), -in=pin3/I1 (node 41), +in=pin4/IN1 (node 5, the 4.5 V rail),
+	// VEE=pin5 (node 0, ground); 4b: +in=pin6/IN2 (node 76, SUSTAIN/ATTACK wiper net),
+	// out=pin7 (node 47 into D6), -in=pin8/I2 (node 47, follower strap), VCC=pin1/pin9
+	// (node 4, 9 V). Each section below carries only its own three audio terminals in the
+	// `ideal-opamp` [+, -, out] order; VCC/VEE are not read (rails come from the circuit's
+	// own supply set, same as every other entry here).
+	{
+		"partIds": [
+			"BA718"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						3,
+						2,
+						1
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						5,
+						6,
+						7
+					]
+				}
+			],
+			"pinout": [
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+			]
+		}
+	},
+
+	// The older BA718 5-pin single-section capture: channel 1's five pins in declaration
+	// order (VCC, OUT1, I1, IN1, VEE), kept working for the pre-retrace capture that declares
+	// only them. Same part id, same typ gain; the 9-pin entry above serves the full dual
+	// declaration. Bare `pin1`..`pin5` names fold to null roles here too, so this entry is
+	// likewise positional with the declaration order as its only assertion.
 	{
 		"partIds": [
 			"BA718"
@@ -4482,6 +4539,44 @@ const entries: readonly PartEntry[] = [
 	// constant is -5.9 mV per dB, over a +/-30 dB range, matching `boss-lm-2`'s own
 	// `boss-lm-2-upc1252h2-vca-control.cir` reference deck (`gain_db = -v(ctrl)/0.0059`).
 	//
+	// BEHAVIORAL LAW (`dbx-vca`, quoted from the packet's own island deck
+	// `boss-cs-3-service-vca-control-island.cir`): the B-source there reads
+	// `out = (in-vref)*(0.18+0.82/(1+exp((ctrl-4.5)*1.6)))`, which is this entry's
+	// minGain 0.18, maxGain 1.0, vrefVolts 4.5, slopePerVolt 1.6. The prior
+	// conductance-plus-linear-OTA fallback is deleted by this entry: an OTA is linear in
+	// its inputs, so the engine rendered the pedal perfectly linear (measured flat 0.650 /
+	// 0.564 gain across 18x input, SUSTAIN/ATTACK inert). Transistor-level silicon
+	// internals are out of scope (the packet excludes them too).
+	//
+	// BINDING. `boss-lm-2`'s `IC1_UPC1252H2` spells its pins with role suffixes
+	// (`pin1_input`, `pin2_gc2`, `pin3_gc1`, `pin4_symmetry`, `pin5_iset`,
+	// `pin6_ground_reference`, `pin7_vcc`, `pin8_output`), which fold to
+	// input/gc2/gc1/symmetry/iset/groundreference/vcc/output -- every group below
+	// resolves onto exactly one of those, so it binds by clean role bijection with no
+	// positional assumption. `boss-cs-3`'s `IC3` names its pins bare `pin1`..`pin8`
+	// (roles all null), so it binds positionally in strict sequential pin order, the
+	// NE570 precedent, cross-checked here: pin1 = node 14 (signal in through R9),
+	// pin2/pin3 = node 70 (GC pair, driven by the R11/Q7 detector network), pin4/pin6 =
+	// node 15 (GC3/GND side, coupled to 70 through R8), pin5 = node 17 (ISET through R7
+	// to ground), pin7 = node 4 (9 V rail), pin8 = node 18 (signal out through R6/C5).
+	// The single section below carries [in, ref, out, control] in the `dbx-vca` law order
+	// as canonical positions [0, 5, 7, 2]: in = pin1, ref = pin6 (GND), out = pin8,
+	// control = pin3 (GC1 -- the detector-driven GC pin on both pedals: on `boss-lm-2`
+	// D8/D9 feed node 6, which is pin3_gc1, while pin2_gc2 sits on node 17).
+	//
+	// `inputSiemens` 0.01 is the current-input impedance convention this file already
+	// uses for a current-input VCA pin (the `linear-vca` entries carry the same 0.01);
+	// the absolute level is then set by the external transimpedance (CS-3's R6 10k into
+	// IC2's inverting stage), not by this number alone.
+	//
+	// KNOWN DEVIATIONS (documented, not hidden):
+	// - The law reads the on-chip GC node (CS-3 node 70), while the island's sigmoid is
+	//   quoted against the off-chip filtered node (ctrl_bus, node 72). The R11/Q7 divider
+	//   between them is executed as ordinary components, so the loop still settles, but
+	//   its threshold carries that divider's DC offset against the island's number.
+	// - Center/slope for `boss-lm-2`'s biasing are unverified: the entry's numbers are the
+	//   CS-3 island's, and LM-2 limiting calibration belongs workbench-side.
+	//
 	// `declaredTypes` deliberately empty. It listed `Circuit.IC`, the format's generic "this is a
 	// chip", which identifies nothing and could only ever act as a catch-all: measured 2026-09-04,
 	// both corpus users (`boss-cs-3`'s `IC3` and `boss-lm-2`'s `IC1_UPC1252H2`) match by exact part
@@ -4523,11 +4618,13 @@ const entries: readonly PartEntry[] = [
 				"pin6",
 				"gnd",
 				"ref",
-				"ground"
+				"ground",
+				"groundreference"
 			],
 			[
 				"pin7",
-				"vc"
+				"vc",
+				"vcc"
 			],
 			[
 				"pin8",
@@ -4541,23 +4638,18 @@ const entries: readonly PartEntry[] = [
 			"sections": [
 				{
 					"law": {
-						"kind": "conductance",
-						"siemens": 0.01
-					},
-					"terminals": [
-						0,
-						5
-					]
-				},
-				{
-					"law": {
-						"kind": "ota",
-						"transconductance": 0.01
+						"kind": "dbx-vca",
+						"inputSiemens": 0.01,
+						"vrefVolts": 4.5,
+						"slopePerVolt": 1.6,
+						"minGain": 0.18,
+						"maxGain": 1.0
 					},
 					"terminals": [
 						0,
 						5,
-						7
+						7,
+						2
 					]
 				}
 			],

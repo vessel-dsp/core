@@ -359,3 +359,16 @@ export const selectorThreeWayGains = {
  */
 export const linearVcaGainFull = ((100 / 10100) * 0.01 * 22000 * 1) / 2;
 export const linearVcaGainHalf = ((100 / 10100) * 0.01 * 22000 * 0.5) / 2;
+
+/**
+ * `dbxVcaCell` hand-computed voltage gains (Vout/Vin): the input divider
+ * (100 ohm virtual ground of `inputSiemens` 0.01 against Rin 10k) times the
+ * input conductance times the Ro 22k load times the sigmoidal control gain
+ * `0.18 + 0.82 / (1 + exp((Vc - 4.5) * 1.6))` with the uPC1252H2 entry's
+ * island numbers. Three control points pin the curve's ceiling end, center,
+ * and floor end: gain must FALL as control rises, which is the compression
+ * the old linear fallback could not produce.
+ */
+export const dbxVcaGainLow = (100 / 10100) * 0.01 * 22000 * (0.18 + 0.82 / (1 + Math.exp((3.5 - 4.5) * 1.6)));
+export const dbxVcaGainCenter = ((100 / 10100) * 0.01 * 22000 * 0.59);
+export const dbxVcaGainHigh = (100 / 10100) * 0.01 * 22000 * (0.18 + 0.82 / (1 + Math.exp((5.5 - 4.5) * 1.6)));

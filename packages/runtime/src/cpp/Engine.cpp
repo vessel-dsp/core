@@ -492,6 +492,7 @@ static const std::unordered_set<std::string> SUPPORTED_OPERATORS = {
     "ota",
     "compandor",
     "linear-vca",
+    "dbx-vca",
     "clock-driver",
     "comparator"
 };
@@ -1039,6 +1040,16 @@ inline void collectTouchedCells(const Block& block, int32_t size, const std::vec
                 // Voltage-sense control: the output row reads plus, minus and
                 // control, but NO row reads back onto control (it draws no
                 // current). Mirrors reference-runtime.ts `case "linear-vca"`.
+                addMat(s.output, s.plus); addMat(s.output, s.minus);
+                addMat(s.output, s.controlNode);
+                addRhs(s.output);
+                break;
+            }
+            case StampKind::DbxVca: {
+                // Same voltage-sense shape as LinearVca: the output row reads
+                // plus, minus and control, but NO row reads back onto control
+                // (it draws no current). Mirrors reference-runtime.ts
+                // `case "dbx-vca"`.
                 addMat(s.output, s.plus); addMat(s.output, s.minus);
                 addMat(s.output, s.controlNode);
                 addRhs(s.output);
@@ -4307,6 +4318,48 @@ void Engine::applyStamp(
                     double iOutResidual = iOut - gDiff * vDiff - gBiasCtrl * vBiasAcross;
                     rhs[stamp.output] += iOutResidual;
                 }
+            }
+            break;
+        }
+
+        case StampKind::DbxVca: {
+            // Bit-identical mirror of reference-runtime.ts `case "dbx-vca"`:
+            // leaving-positive KCL (matrix carries d(leaving)/dV, rhs carries
+            // -(I0 - dI*V0) like the diode), voltage-sense control drawing no
+            // current. The physical current ENTERS the output node, so every
+            // term below is negated once from the entering-positive form.
+            // Unlike LinearVca, whose control is read against the minus
+            // input, this gain reads control against the fixed `vrefVolts`
+            // center: the minus row carries only the input-current derivative
+            // and the control derivative sits on the control row alone.
+            double vPlusDbx = solution[stamp.plus];
+            double vMinusDbx = solution[stamp.minus];
+            double vControlDbx = solution[stamp.controlNode];
+            double vInDbx = vPlusDbx - vMinusDbx;
+            double iInDbx = vInDbx * stamp.inputSiemens;
+            double spanDbx = stamp.maxGain - stamp.minGain;
+            double exponentDbx = (vControlDbx - stamp.vrefVolts) * stamp.slopePerVolt;
+            // Clamped exactly like the TS console's `dbxVcaGain` (and its
+            // inline Newton path) so the two consoles take the same branch.
+            double sigmaDbx = exponentDbx > 50.0 ? 0.0 : exponentDbx < -50.0 ? 1.0 : 1.0 / (1.0 + std::exp(exponentDbx));
+            double gainDbx = stamp.minGain + spanDbx * sigmaDbx;
+            double dGainDbx = -spanDbx * stamp.slopePerVolt * sigmaDbx * (1.0 - sigmaDbx);
+            double iOutDbx = iInDbx * gainDbx;
+            double gInDbx = gainDbx * stamp.inputSiemens;
+            double gCtrlDbx = iInDbx * dGainDbx;
+            double leavingDbx = -iOutDbx;
+            double equivalentDbx = leavingDbx - (-gInDbx * vPlusDbx + gInDbx * vMinusDbx - gCtrlDbx * vControlDbx);
+            if (stamp.output != 0) {
+                if (stamp.plus != 0) {
+                    matrix[stamp.output * size + stamp.plus] += -gInDbx;
+                }
+                if (stamp.minus != 0) {
+                    matrix[stamp.output * size + stamp.minus] += gInDbx;
+                }
+                if (stamp.controlNode != 0) {
+                    matrix[stamp.output * size + stamp.controlNode] += -gCtrlDbx;
+                }
+                rhs[stamp.output] -= equivalentDbx;
             }
             break;
         }

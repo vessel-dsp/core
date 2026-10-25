@@ -336,6 +336,7 @@ StampKind parseStampKind(const std::string& s) {
     if (s == "ota") return StampKind::Ota;
     if (s == "compandor") return StampKind::Compandor;
     if (s == "linear-vca") return StampKind::LinearVca;
+    if (s == "dbx-vca") return StampKind::DbxVca;
     if (s == "clock-driver") return StampKind::ClockDriver;
     if (s == "comparator") return StampKind::Comparator;
     if (s == "spring-reverb") return StampKind::SpringReverb;
@@ -493,6 +494,8 @@ Stamp parseStamp(const JsonValue& obj) {
     st.inputSiemens = obj.getDouble("inputSiemens", 0.0);
     st.vrefVolts = obj.getDouble("vrefVolts", 1.0);
     st.minGain = obj.getDouble("minGain", 0.0);
+    st.slopePerVolt = obj.getDouble("slopePerVolt", 0.0);
+    st.maxGain = obj.getDouble("maxGain", 1.0);
 
     const auto* rh = obj.find("railHigh");
     if (rh && rh->isNumber()) st.railHigh = rh->numberValue;

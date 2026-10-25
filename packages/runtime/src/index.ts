@@ -24,6 +24,7 @@ export {
 	type StageCoverage,
 } from "./chain-slot";
 export {
+	dbxVcaGain,
 	DEFAULT_NEWTON_MAX_ITERATIONS,
 	ldrTableResistanceOhms,
 	ReferenceRuntime,
