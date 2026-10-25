@@ -1035,36 +1035,52 @@ export type DeviceLaw =
 			/**
 			 * dbx-style VCA gain cell (uPC1252H2): output current is the input
 			 * current times an exponential dB-linear gain,
-			 * `10^(clamp(-((Vcontrol - vrefVolts) + envelope) / 0.0059,
-			 * minGainDb, maxGainDb) / 20)`, so gain falls as control rises
-			 * and as input level rises.
+			 * `10^(clamp(-terms / 0.0059, minGainDb, maxGainDb) / 20)`, where
+			 * `terms` is the smoothed sum of the external control
+			 * (`Vcontrol - vrefVolts`) and the rectified input
+			 * (`|input current| * detectorOhms`). Gain falls as control
+			 * rises and as input level rises.
 			 *
 			 * The dB law is the NEC uPC1252 feature line the catalog quotes
 			 * (control constant -5.9 mV/dB over +/-30 dB) and `boss-lm-2`'s
 			 * own control deck (`gain_db = -v(ctrl)/0.0059`): only a
 			 * millivolt-sensitive law can be moved by what the topology
-			 * actually delivers (millivolts at GC1, volts of internal
-			 * envelope). The v1 island sigmoid needed volts of control swing
-			 * and rendered the pedal linear.
+			 * actually delivers. The v1 island sigmoid needed volts of
+			 * control swing and rendered the pedal linear.
 			 *
 			 * `vrefVolts` is the EXTERNAL (GC-pin) agreement point, 4.66 V:
 			 * engine-measured node-70 rest 4.658 V at declared defaults
-			 * (SUSTAIN 0.5) on the re-traced CS-3, which the 1k-to-4.5V R10
-			 * against the 15k-fed tap sets. The island quotes 4.5 V for its
-			 * off-chip ctrl_bus node instead; both are quoted because the
-			 * law reads the on-chip GC node and the island reads ctrl_bus.
-			 * Centering at GC rest (rather than 4.5) keeps rest gain near
-			 * unity: 0.16 V of offset is 27 dB through 1/0.0059, which would
-			 * park the pedal at a clamp rail with no input at all.
+			 * (SUSTAIN 0.5) on the re-traced CS-3. The island quotes 4.5 V
+			 * for its off-chip ctrl_bus node instead; both are quoted because
+			 * the law reads the on-chip GC node and the island reads
+			 * ctrl_bus. Centering at 4.5 would park rest gain 27 dB down a
+			 * clamp rail (0.16 V is 27 dB through 1/0.0059).
 			 *
-			 * `envelope` is the law's INTERNAL follower state (volts,
-			 * average-rectified smoothed input, held across the Newton loop
-			 * like the compandor's): nothing in the external netlist converts
-			 * input level to control (the 4a detector input is an open trace
-			 * residual), so without it no external-only law can compress.
-			 * Attack/release come from the CS-3's own detector network order
-			 * (C8 4.7 uF by R13 10k ~ 47 ms release; D6 charge path sub-ms
-			 * attack); exact time constants are secondary to the order.
+			 * `detectorOhms` scales the rectified input CURRENT to control
+			 * volts (1k): the cell's input node is a virtual ground (100
+			 * ohms against the 10k feed), so the node voltage there is
+			 * millivolts while the source swings volts -- rectifying node
+			 * volts alone leaves the envelope 100x too small and the pedal
+			 * expands (cell -20% vs input current +18x). 1k maps the CS-3
+			 * feed current (3.5-63 uA rms across the 0.05-0.9 V sweep,
+			 * engine-measured at node 13) to 0.004-0.06 V of control, i.e.
+			 * ~1-11 dB of level-driven gain reduction on top of the external
+			 * path: compression without floor-slamming (a full R9-mirror 10k
+			 * would pin the -30 dB floor above ~0.2 V in; 1k lands the 0.9 V
+			 * protocol point near -20 dB, firm limiting off the rail). The chip's true
+			 * internal transresistance is silicon-internal (excluded);
+			 * LM-2's 18k feed reads proportionally lower for the same input
+			 * volts (workbench-side).
+			 *
+			 * The sum is smoothed with attack/release (the CS-3 detector
+			 * network's order: C8 4.7 uF by R13 10k ~ 47 ms release, D6
+			 * charge path through ~100 ohms ~ 0.5 ms attack) and held across
+			 * the Newton loop like the compandor's. Smoothing the total --
+			 * rather than the envelope alone -- is load-bearing: node 70
+			 * carries tens of millivolts of audio in the pedal, and reading
+			 * it raw pumps the gain at audio rate (measured both signs of
+			 * mistracking); the follower passes SUSTAIN-scale moves and the
+			 * settled envelope while rejecting audio-rate ripple.
 			 *
 			 * Like `linear-vca`, the control input is voltage-sense only: no
 			 * conductance is stamped on it, so a high-impedance detector
@@ -1077,10 +1093,12 @@ export type DeviceLaw =
 			readonly inputSiemens: number;
 			/** External control volts for 0 dB (GC rest, 4.66 V, see above). */
 			readonly vrefVolts: number;
-			/** Internal envelope attack time constant, seconds (0.0005). */
+			/** Smoothed-terms attack time constant, seconds (0.0005). */
 			readonly attackSeconds: number;
-			/** Internal envelope release time constant, seconds (0.05). */
+			/** Smoothed-terms release time constant, seconds (0.05). */
 			readonly releaseSeconds: number;
+			/** Input-current-to-control-volts detector scaling, ohms (1000). */
+			readonly detectorOhms: number;
 			/** Gain floor, dB (-30, the datasheet's Av range). */
 			readonly minGainDb: number;
 			/** Gain ceiling, dB (+30, the datasheet's Av range). */
@@ -1959,9 +1977,8 @@ export type Stamp =
 			/**
 			 * dbx-style VCA gain cell (lowered from the `dbx-vca` law).
 			 * Current proportional to the input current, scaled by the
-			 * exponential dB gain over `vrefVolts` plus the internal
-			 * envelope in `stateIndex`. Reads the control node and draws
-			 * nothing from it.
+			 * exponential dB gain over the smoothed control terms in
+			 * `stateIndex`. Reads the control node and draws nothing from it.
 			 */
 			readonly kind: "dbx-vca";
 			readonly plus: NodeId;
@@ -1972,9 +1989,10 @@ export type Stamp =
 			readonly vrefVolts: number;
 			readonly attackSeconds: number;
 			readonly releaseSeconds: number;
+			readonly detectorOhms: number;
 			readonly minGainDb: number;
 			readonly maxGainDb: number;
-			/** Envelope state slot, held across the Newton loop. */
+			/** Smoothed-terms state slot, held across the Newton loop. */
 			readonly stateIndex: number;
 	  }
 	| {

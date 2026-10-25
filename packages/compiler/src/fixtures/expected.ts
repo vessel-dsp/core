@@ -361,27 +361,28 @@ export const linearVcaGainFull = ((100 / 10100) * 0.01 * 22000 * 1) / 2;
 export const linearVcaGainHalf = ((100 / 10100) * 0.01 * 22000 * 0.5) / 2;
 
 /**
- * `dbxVcaCell` hand-computed DC voltage gains (Vout/Vin) under the v2 law:
+ * `dbxVcaCell` hand-computed DC voltage gains (Vout/Vin) under the v3 law:
  * the input divider (100 ohm virtual ground of `inputSiemens` 0.01 against
  * Rin 10k) times the input conductance times the Ro 22k load times the
- * exponential gain `10^(dc/20)` with `dc = -((Vc - 4.66) + Vin*100/10100) /
- * 0.0059`. DC inputs settle the internal envelope exactly (a constant
- * target converges regardless of attack/release asymmetry), so these are
- * exact closed forms, not fits. The control sweep pins the external
- * (SUSTAIN-side) path at fixed input; the input sweep pins the internal
- * (level-side) path at fixed control 4.66 V. AC renders of the same cell
- * assert behavioral bands separately (a sine's settled envelope is a limit
- * cycle, not a closed form).
+ * exponential gain `10^(dc/20)` with `dc = -((Vc - 4.66) + |Vdc| * 100 *
+ * 0.01 * 1600 / 10100) / 0.0059` clamped to +-30 dB. DC inputs settle the
+ * smoothed terms exactly (a constant target converges regardless of
+ * attack/release asymmetry), so these are exact closed forms, not fits. The
+ * control sweep pins the external (SUSTAIN-side) path at fixed input; the
+ * input sweep pins the internal (level-side) path at static control,
+ * including at the pedal's +40 mV GC rest offset (the acceptance shape).
  */
 const dbxDivider = (100 / 10100) * 0.01 * 22000;
 const dbxDcGain = (controlVolts: number, inputVolts: number): number => {
-	const cellVolts = (inputVolts * 100) / 10100;
-	const gainDb = -((controlVolts - 4.66) + cellVolts) / 0.0059;
+	const terms = controlVolts - 4.66 + (Math.abs(inputVolts) * 100 * 0.01 * 1000) / 10100;
+	const gainDb = Math.min(30, Math.max(-30, -terms / 0.0059));
 	return dbxDivider * Math.pow(10, gainDb / 20);
 };
 export const dbxVcaDcControlLow = dbxDcGain(4.6, 0.5);
 export const dbxVcaDcControlCenter = dbxDcGain(4.66, 0.5);
 export const dbxVcaDcControlHigh = dbxDcGain(4.72, 0.5);
-export const dbxVcaDcInputLow = dbxDcGain(4.66, 0.5);
-export const dbxVcaDcInputMid = dbxDcGain(4.66, 2);
-export const dbxVcaDcInputHigh = dbxDcGain(4.66, 5);
+export const dbxVcaDcInputLow = dbxDcGain(4.66, 0.05);
+export const dbxVcaDcInputMid = dbxDcGain(4.66, 0.2);
+export const dbxVcaDcInputHigh = dbxDcGain(4.66, 0.5);
+export const dbxVcaDcInputRestLow = dbxDcGain(4.7, 0.05);
+export const dbxVcaDcInputRestOffset = dbxDcGain(4.7, 0.5);

@@ -545,23 +545,23 @@ export function ldrTableResistanceOhms(
 }
 
 /**
- * A dbx-style VCA's control in dB: `-((controlVolts - centerVolts) +
- * envelopeVolts) / 0.0059`, clamped to `[minGainDb, maxGainDb]`.
+ * A dbx-style VCA's control in dB: `-termsVolts / 0.0059`, clamped to
+ * `[minGainDb, maxGainDb]`.
  *
  * The 5.9 mV/dB divisor is the NEC uPC1252 feature line (and `boss-lm-2`'s
- * control deck); the +-30 dB clamp is the datasheet's Av range. Pure so the
- * compiler tests and the console-parity instruments can call it directly.
- * The stamp path below evaluates the same expression inline with analytic
- * derivatives.
+ * control deck); the +-30 dB clamp is the datasheet's Av range. `termsVolts`
+ * is the smoothed sum the stamp holds (external control against its center
+ * plus the rectified input current through `detectorOhms`) -- see
+ * `dbxVcaControlTarget`. Pure so the compiler tests and the console-parity
+ * instruments can call it directly. The stamp path below evaluates the same
+ * expression inline with the clamp test deciding the derivative.
  */
 export function dbxVcaGainDb(
-	controlVolts: number,
-	centerVolts: number,
-	envelopeVolts: number,
+	termsVolts: number,
 	minGainDb: number,
 	maxGainDb: number,
 ): number {
-	const raw = -((controlVolts - centerVolts) + envelopeVolts) / 0.0059;
+	const raw = -termsVolts / 0.0059;
 	return Math.min(maxGainDb, Math.max(minGainDb, raw));
 }
 
@@ -571,13 +571,24 @@ export function dbxVcaGainLinear(gainDb: number): number {
 }
 
 /**
- * One-sample envelope smoothing coefficient for a time constant in seconds
- * at a sample rate in hertz: `1 - exp(-1 / (tc * rate))`.
+ * One dbx-vca control-terms target in volts: the external control against
+ * its center plus the rectified input current through the detector scaling,
+ * `(vControl - centerVolts) + Math.abs(inputCurrentAmps) * detectorOhms`.
  *
- * Pure so tests pin it; the stamp paths on both consoles evaluate the same
- * closed form inline. A non-positive time constant (no entry states one)
- * returns 1, tracking the target immediately rather than dividing by zero.
+ * The absolute value is the rectification: the input always drives toward
+ * more gain reduction, never away, whichever half-cycle conducts. Pure so
+ * the sign chain (louder input decreases gain_dB) is unit-probed here
+ * rather than read out of the stamp path.
  */
+export function dbxVcaControlTarget(
+	vControl: number,
+	centerVolts: number,
+	inputCurrentAmps: number,
+	detectorOhms: number,
+): number {
+	return vControl - centerVolts + Math.abs(inputCurrentAmps) * detectorOhms;
+}
+
 export function dbxVcaEnvelopeK(tcSeconds: number, sampleRate: number): number {
 	const denom = tcSeconds * sampleRate;
 	if (!(denom > 0)) return 1;
@@ -8454,75 +8465,66 @@ export class ReferenceRuntime {
 			}
 			case "dbx-vca": {
 				// dbx-style VCA gain cell (uPC1252H2): the output current is
-				// the input current times an exponential dB-linear gain in
-				// the external control plus an INTERNAL envelope follower on
-				// the input, evaluated per Newton iterate with analytic
-				// derivatives.
+				// the input current times an exponential dB-linear gain over
+				// the SMOOTHED control terms, evaluated per Newton iterate
+				// with the terms held.
 				//
-				// The envelope is held across this sample's Newton loop (the
-				// compandor precedent: the loop solves one circuit instead
-				// of walking across a circuit that moves under it), updated
-				// once per committed sample from the current iterate with
-				// attack/release coefficients for the entry's time constants.
-				// The one-sample lag is nothing against a detector whose
-				// time constants are milliseconds.
-				const envStateIdx = stamp.stateIndex;
-				const envKey = `${block.id}_dbx_${envStateIdx}`;
+				// The terms are the external control against its center plus
+				// the rectified input current through `detectorOhms`
+				// (`dbxVcaControlTarget`), smoothed with attack/release and
+				// held across this sample's Newton loop (the compandor
+				// precedent: the loop solves one circuit instead of walking
+				// across a circuit that moves under it). Smoothing the total
+				// is load-bearing, not just the envelope: the pedal's GC
+				// node carries tens of millivolts of audio, and reading it
+				// raw pumps the gain at audio rate. The follower passes
+				// SUSTAIN-scale moves and the settled input level while
+				// rejecting audio-rate ripple; with the terms held there is
+				// no live control derivative (the control row carries no
+				// stamp), unlike v2's analytic one.
+				const termsStateIdx = stamp.stateIndex;
+				const termsKey = `${block.id}_dbx_${termsStateIdx}`;
 				if (
 					this.elapsedSamples !==
-					(this.lastShiftedSample.get(envKey) ?? -1)
+					(this.lastShiftedSample.get(termsKey) ?? -1)
 				) {
-					this.lastShiftedSample.set(envKey, this.elapsedSamples);
-					const vInNow = Math.abs(
-						(solution[stamp.plus] ?? 0.0) - (solution[stamp.minus] ?? 0.0),
-					);
-					const envPrev = state[envStateIdx] ?? 0.0;
-					const envTc =
-						vInNow > envPrev ? stamp.attackSeconds : stamp.releaseSeconds;
-					const envK = dbxVcaEnvelopeK(envTc, this.sampleRate as number);
-					state[envStateIdx] = envPrev + (vInNow - envPrev) * envK;
+					this.lastShiftedSample.set(termsKey, this.elapsedSamples);
+					const vInNow = (solution[stamp.plus] ?? 0.0) - (solution[stamp.minus] ?? 0.0);
+					const iInNow = vInNow * stamp.inputSiemens;
+					const target =
+						((solution[stamp.control] ?? 0.0) - stamp.vrefVolts) +
+						Math.abs(iInNow) * stamp.detectorOhms;
+					const termsPrev = state[termsStateIdx] ?? 0.0;
+					const termsTc =
+						target > termsPrev ? stamp.attackSeconds : stamp.releaseSeconds;
+					const termsK = dbxVcaEnvelopeK(termsTc, this.sampleRate as number);
+					state[termsStateIdx] = termsPrev + (target - termsPrev) * termsK;
 				}
-				const envHeld = state[envStateIdx] ?? 0.0;
-				// Exponential dB law, same closed form as `dbxVcaGainDb`:
-				// control against the fixed center plus the held envelope,
-				// through 5.9 mV/dB, clamped to the datasheet range. At a
-				// clamp rail the derivative is zero (the rail, not the
-				// curve, decides the gain there).
-				const vControl = solution[stamp.control] ?? 0.0;
-				const rawDb = -((vControl - stamp.vrefVolts) + envHeld) / 0.0059;
-				const atRail = rawDb <= stamp.minGainDb || rawDb >= stamp.maxGainDb;
-				const gainDb = atRail
-					? Math.min(stamp.maxGainDb, Math.max(stamp.minGainDb, rawDb))
-					: rawDb;
+				const termsHeld = state[termsStateIdx] ?? 0.0;
+				// Same closed form as `dbxVcaGainDb`: control terms through
+				// 5.9 mV/dB, clamped to the datasheet range. At a clamp rail
+				// the rail decides the gain (derivative zero); the terms are
+				// held anyway, so no row carries a control derivative.
+				const rawDb = -termsHeld / 0.0059;
+				const gainDb = Math.min(stamp.maxGainDb, Math.max(stamp.minGainDb, rawDb));
 				const gain = dbxVcaGainLinear(gainDb);
-				// dGain/dVcontrol, negative: gain falls as control rises.
-				// The envelope is held, so minus carries only the
-				// input-current derivative (same row structure as v1).
-				const dGain = atRail
-					? 0
-					: (gain * Math.LN10) / 20 / -0.0059;
 				const vPlus = solution[stamp.plus] ?? 0.0;
 				const vMinus = solution[stamp.minus] ?? 0.0;
 				const vIn = vPlus - vMinus;
 				const iIn = vIn * stamp.inputSiemens;
 				const iOut = iIn * gain;
 				const gIn = gain * stamp.inputSiemens;
-				const gCtrl = iIn * dGain;
 				// Leaving-positive KCL (see the diode): the stamp's physical
 				// current ENTERS the output node, so every term below is
 				// negated once.
 				const leaving = -iOut;
-				const equivalent =
-					leaving - (-gIn * vPlus + gIn * vMinus + -gCtrl * vControl);
+				const equivalent = leaving - (-gIn * vPlus + gIn * vMinus);
 				if (stamp.output !== 0) {
 					if (stamp.plus !== 0) {
 						(matrix[stamp.output] as number[])[stamp.plus] += -gIn;
 					}
 					if (stamp.minus !== 0) {
 						(matrix[stamp.output] as number[])[stamp.minus] += gIn;
-					}
-					if (stamp.control !== 0) {
-						(matrix[stamp.output] as number[])[stamp.control] += -gCtrl;
 					}
 					rhs[stamp.output] =
 						(rhs[stamp.output] ?? 0) - equivalent;

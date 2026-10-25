@@ -14934,13 +14934,17 @@ export const linearVcaCell = (
  * current input), VCA output (node 4) into Ro 22k to ground, both GC pins on the DC
  * control node (node 5, CS-3 node 70's role), ref/GND/ISET/Vc on ground (node 0).
  *
- * The law reads control against its fixed 4.66 V center plus its INTERNAL envelope
- * (rectified smoothed input, attack 0.5 ms / release 50 ms), so one static-control
- * program serves both transfer proofs below: sweep the DC control for the external
- * (SUSTAIN-side) path, sweep the input amplitude for the internal (level-side) path.
- * Rin stays the pedal's 10k, which divides the cell drive by ~101 -- the sweeps below
- * therefore use volts-scale inputs to put volts-scale envelope at the cell, the same
- * mechanism at a hotter drive rather than a different circuit.
+ * The law reads the smoothed sum of control against its fixed 4.66 V center plus the
+ * rectified input current through detectorOhms (attack 0.5 ms / release 50 ms), so one
+ * static-control program serves both transfer proofs below: sweep the DC control for the
+ * external (SUSTAIN-side) path, sweep the input amplitude for the internal (level-side)
+ * path. Rin stays the pedal's 10k; the detector scaling (not the node voltage) is what
+ * puts the envelope in control-volts, mirroring how the current-input chip is fed.
+ *
+ * A second use below pins the pedal's GC rest offset: the same cell with control pinned
+ * 40 mV above center reproduces the re-traced CS-3's node-70 rest at high SUSTAIN, so
+ * the input sweep there proves monotonic fall under the pedal's own DC operating
+ * conditions, not just at the law's center.
  */
 export const dbxVcaCell = (controlVolts: number): string =>
 	`${header("dbx VCA Cell")}components:

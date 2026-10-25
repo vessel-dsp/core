@@ -58,6 +58,7 @@ describe("uPC1252H2 dbx-vca section lands its pins on the right nodes", () => {
 		expect(vca.vrefVolts).toBeCloseTo(4.66, 8);
 		expect(vca.attackSeconds).toBeCloseTo(0.0005, 8);
 		expect(vca.releaseSeconds).toBeCloseTo(0.05, 8);
+		expect(vca.detectorOhms).toBeCloseTo(1000, 8);
 		expect(vca.minGainDb).toBeCloseTo(-30, 8);
 		expect(vca.maxGainDb).toBeCloseTo(30, 8);
 		expect(vca.stateIndex).toBeGreaterThanOrEqual(0);

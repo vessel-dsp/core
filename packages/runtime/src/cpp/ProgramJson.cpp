@@ -494,8 +494,9 @@ Stamp parseStamp(const JsonValue& obj) {
     st.inputSiemens = obj.getDouble("inputSiemens", 0.0);
     st.vrefVolts = obj.getDouble("vrefVolts", 1.0);
     st.minGain = obj.getDouble("minGain", 0.0);
-    st.attackSeconds = obj.getDouble("attackSeconds", 0.001);
+    st.attackSeconds = obj.getDouble("attackSeconds", 0.0005);
     st.releaseSeconds = obj.getDouble("releaseSeconds", 0.05);
+    st.detectorOhms = obj.getDouble("detectorOhms", 1000.0);
     st.minGainDb = obj.getDouble("minGainDb", -30.0);
     st.maxGainDb = obj.getDouble("maxGainDb", 30.0);
 

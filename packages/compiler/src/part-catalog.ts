@@ -4539,29 +4539,37 @@ const entries: readonly PartEntry[] = [
 	// constant is -5.9 mV per dB, over a +/-30 dB range, matching `boss-lm-2`'s own
 	// `boss-lm-2-upc1252h2-vca-control.cir` reference deck (`gain_db = -v(ctrl)/0.0059`).
 	//
-	// BEHAVIORAL LAW v2 (`dbx-vca`, exponential dB control plus an internal envelope).
-	// The v1 island sigmoid (B-source `out = (in-vref)*(0.18+0.82/(1+exp((ctrl-4.5)*1.6)))`)
-	// needed volts of control swing while the topology delivers millivolts at GC1 (R10 1k
-	// pins node 70 to 4.5 V; the tap feeds it only through R11 15k), so the pedal rendered
-	// linear (measured flat 0.303 gain across 18x input at 0.10.0/0.8.0). The v2 law is the
-	// datasheet's own dB line instead (`gain_dB = -(control terms)/0.0059`, Av -30dB~+30dB,
-	// same as `boss-lm-2`'s `gain_db = -v(ctrl)/0.0059` deck): 5.9 mV moves a dB, so the
-	// millivolts SUSTAIN delivers now move the threshold audibly.
+	// BEHAVIORAL LAW v3 (`dbx-vca`, exponential dB control over smoothed terms).
+	// v1's island sigmoid needed volts of control swing while the topology delivers
+	// millivolts at GC1 (R10 1k pins node 70 to 4.5 V; the tap feeds it only through R11
+	// 15k), so the pedal rendered linear (flat 0.303 gain across 18x input). v2 added an
+	// internal envelope over the cell's node voltage, but the cell input is a virtual
+	// ground (100 ohms against the 10k feed): rectifying node volts leaves the envelope
+	// ~100x too small (8 mV at 0.9 V in), the cell falls 20% while its input current
+	// grows 18x, and the pedal expands. v3 therefore scales the RECTIFIED INPUT CURRENT
+	// through `detectorOhms` and smooths the SUM with the external control.
 	//
-	// CENTER (re-derived, both quoted): the island centers its off-chip ctrl_bus at 4.5 V,
-	// but this law reads the on-chip GC node, whose engine-measured rest on the re-traced
-	// file is 4.658 V at declared defaults (SUSTAIN 0.5; SUSTAIN 0->1 moves it 4.6325 to
-	// 4.6728). Centering at 4.5 would park rest gain 27 dB down a clamp rail (0.16 V is
-	// 27 dB through 1/0.0059) with no input at all, hiding every input sweep at the floor;
-	// the entry centers at GC rest (4.66 V) so rest gain is unity and SUSTAIN moves +-dB
-	// around it. Transistor-level silicon internals remain out of scope.
+	// CENTER (re-derived, both quoted): the island centers its off-chip ctrl_bus at
+	// 4.5 V, but the law reads the on-chip GC node, whose engine-measured rest is
+	// 4.658 V at declared defaults (SUSTAIN 0.5; SUSTAIN 0->1 moves it 4.6325->4.6728).
+	// Centering at 4.5 would park rest gain 27 dB down a clamp rail (0.16 V is 27 dB
+	// through 1/0.0059), hiding every input sweep at the floor.
 	//
-	// ENVELOPE (internal, because the trace converts no input level to control): the law
-	// rectifies and smooths its own input (attack 0.0005 s, release 0.05 s -- the CS-3
-	// detector network's order: C8 4.7 uF by R13 10k ~ 47 ms release, D6 charge path
-	// through ~100 ohms ~ 0.5 ms attack; exact TCs secondary). The 4a/Q6/Q8 auxiliary chain cannot substitute:
-	// 4a's audio input is an open trace residual. Envelope and external terms sum in volts
-	// through the same 0.0059 divisor, clamped to the datasheet's +-30 dB.
+	// SCALE (`detectorOhms` 1000): 1k maps the CS-3 feed current (engine-measured
+	// 3.5-63 uA rms across the 0.05-0.9 V sweep at node 13 through R9 10k) to
+	// 0.004-0.06 V of control, i.e. ~1-11 dB of level-driven gain reduction on top of
+	// the external path: compression without floor-slamming (a full R9-mirror 10k would
+	// pin the -30 dB floor above ~0.2 V in; 1k lands the 0.9 V protocol point near
+	// -20 dB, firm limiting off the rail). The chip's true internal transresistance
+	// is silicon-internal (excluded); LM-2's 18k feed reads proportionally lower for
+	// the same input volts (workbench-side).
+	//
+	// SMOOTHING (load-bearing): node 70 carries tens of millivolts of audio in the
+	// pedal, and reading it raw pumps the gain at audio rate. The law smooths the total
+	// terms with attack/release (C8 4.7 uF by R13 10k ~ 47 ms release, D6 charge path
+	// through ~100 ohms ~ 0.5 ms attack) and holds them across the Newton loop like the
+	// compandor's. The 4a/Q6/Q8 auxiliary chain cannot substitute: 4a's audio input is
+	// an open trace residual.
 	//
 	// BINDING. `boss-lm-2`'s `IC1_UPC1252H2` spells its pins with role suffixes
 	// (`pin1_input`, `pin2_gc2`, `pin3_gc1`, `pin4_symmetry`, `pin5_iset`,
@@ -4656,6 +4664,7 @@ const entries: readonly PartEntry[] = [
 						"vrefVolts": 4.66,
 						"attackSeconds": 0.0005,
 						"releaseSeconds": 0.05,
+						"detectorOhms": 1000,
 						"minGainDb": -30,
 						"maxGainDb": 30
 					},

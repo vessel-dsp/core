@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/chain",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"description": "Headless audio signal chain graph engine for VesselDSP circuits, guitar profiling, amp shaping, and cabinet IRs.",
 	"keywords": [
 		"dsp",
@@ -57,9 +57,9 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json"
 	},
 	"dependencies": {
-		"@vessel-dsp/compiler": "0.11.0",
+		"@vessel-dsp/compiler": "0.12.0",
 		"@vessel-dsp/core": "0.17.0",
-		"@vessel-dsp/runtime": "0.9.0"
+		"@vessel-dsp/runtime": "0.10.0"
 	},
 	"publishConfig": {
 		"access": "public"

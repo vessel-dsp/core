@@ -224,13 +224,15 @@ struct Stamp {
     double inputSiemens = 0.0;
     double vrefVolts = 1.0;
     double minGain = 0.0;
-    // dbx-style VCA cell (uPC1252H2): internal envelope attack/release
-    // time constants and dB clamp rails. Mirrors `attackSeconds`/
-    // `releaseSeconds`/`minGainDb`/`maxGainDb` in src/compiler/types.ts;
-    // same behavior-neutral default story as the linear-vca fields above
-    // (no older program carries a dbx-vca stamp).
-    double attackSeconds = 0.001;
+    // dbx-style VCA cell (uPC1252H2): smoothed-terms attack/release
+    // time constants, input-current-to-control-volts detector scaling, and
+    // dB clamp rails. Mirrors `attackSeconds`/`releaseSeconds`/
+    // `detectorOhms`/`minGainDb`/`maxGainDb` in src/compiler/types.ts; same
+    // behavior-neutral default story as the linear-vca fields above (no
+    // older program carries a dbx-vca stamp).
+    double attackSeconds = 0.0005;
     double releaseSeconds = 0.05;
+    double detectorOhms = 1000.0;
     double minGainDb = -30.0;
     double maxGainDb = 30.0;
     double vggBiasVolts = 0.0;

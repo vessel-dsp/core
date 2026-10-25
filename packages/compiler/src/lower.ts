@@ -836,10 +836,10 @@ export function lowerRegion(
 			// control]. Same shape as `linear-vca`: the control pin is
 			// voltage-sense (no conductance stamped on it) and the input pin
 			// is a current input at about the minus potential. The gain is
-			// the exponential dB law over the external control plus the
-			// internal envelope (one state slot, held across the Newton loop
-			// like the compandor's); see the `dbx-vca` law docs for the
-			// cited numbers.
+			// the exponential dB law over the smoothed sum of the external
+			// control and the rectified input current through detectorOhms
+			// (one state slot, held across the Newton loop like the
+			// compandor's); see the `dbx-vca` law docs for the cited numbers.
 			const plus = device.nodes[0];
 			const minus = device.nodes[1];
 			const output = device.nodes[2];
@@ -871,6 +871,7 @@ export function lowerRegion(
 				vrefVolts: law.vrefVolts,
 				attackSeconds: law.attackSeconds,
 				releaseSeconds: law.releaseSeconds,
+				detectorOhms: law.detectorOhms,
 				minGainDb: law.minGainDb,
 				maxGainDb: law.maxGainDb,
 				stateIndex: stateCount++,

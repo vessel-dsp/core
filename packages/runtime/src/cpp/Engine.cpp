@@ -4324,53 +4324,49 @@ void Engine::applyStamp(
 
         case StampKind::DbxVca: {
             // Bit-identical mirror of reference-runtime.ts `case "dbx-vca"`:
-            // exponential dB law over the external control plus an INTERNAL
-            // envelope follower on the input (attack/release from the entry's
-            // time constants), held across this sample's Newton loop exactly
-            // like the TS console holds it (compandor precedent: the loop
-            // solves one circuit instead of walking across a moving one).
+            // exponential dB law over the SMOOTHED control terms (external
+            // control against its center plus the rectified input current
+            // through `detectorOhms`), held across this sample's Newton loop
+            // exactly like the TS console holds it (compandor precedent).
+            // Smoothing the total is load-bearing: the pedal's GC node
+            // carries audio, and reading it raw pumps the gain at audio
+            // rate. With the terms held no row carries a control derivative.
             // Leaving-positive KCL like the diode; the physical current
             // ENTERS the output node, so terms are negated once.
-            int32_t envIdxDbx = stamp.stateIndex;
-            std::string envKeyDbx = block.id + "_dbx_" + std::to_string(envIdxDbx);
-            auto envItDbx = lastShiftedSample_.find(envKeyDbx);
-            int64_t envLastDbx = (envItDbx != lastShiftedSample_.end()) ? envItDbx->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != envLastDbx) {
-                lastShiftedSample_[envKeyDbx] = static_cast<int64_t>(elapsedSamples_);
-                double vInNowDbx = std::abs(solution[stamp.plus] - solution[stamp.minus]);
-                double envPrevDbx = state[envIdxDbx];
-                double envTcDbx = vInNowDbx > envPrevDbx ? stamp.attackSeconds : stamp.releaseSeconds;
-                double envDenomDbx = envTcDbx * options_.sampleRate;
-                double envKDbx = envDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / envDenomDbx) : 1.0;
-                state[envIdxDbx] = envPrevDbx + (vInNowDbx - envPrevDbx) * envKDbx;
+            int32_t termsIdxDbx = stamp.stateIndex;
+            std::string termsKeyDbx = block.id + "_dbx_" + std::to_string(termsIdxDbx);
+            auto termsItDbx = lastShiftedSample_.find(termsKeyDbx);
+            int64_t termsLastDbx = (termsItDbx != lastShiftedSample_.end()) ? termsItDbx->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != termsLastDbx) {
+                lastShiftedSample_[termsKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+                double vInNowDbx = solution[stamp.plus] - solution[stamp.minus];
+                double iInNowDbx = vInNowDbx * stamp.inputSiemens;
+                double targetDbx = (solution[stamp.controlNode] - stamp.vrefVolts) +
+                    std::abs(iInNowDbx) * stamp.detectorOhms;
+                double termsPrevDbx = state[termsIdxDbx];
+                double termsTcDbx = targetDbx > termsPrevDbx ? stamp.attackSeconds : stamp.releaseSeconds;
+                double termsDenomDbx = termsTcDbx * options_.sampleRate;
+                double termsKDbx = termsDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / termsDenomDbx) : 1.0;
+                state[termsIdxDbx] = termsPrevDbx + (targetDbx - termsPrevDbx) * termsKDbx;
             }
-            double envHeldDbx = state[envIdxDbx];
-            double rawDbDbx = -((solution[stamp.controlNode] - stamp.vrefVolts) + envHeldDbx) / 0.0059;
-            bool atRailDbx = rawDbDbx <= stamp.minGainDb || rawDbDbx >= stamp.maxGainDb;
-            double gainDbDbx = atRailDbx
-                ? std::min(stamp.maxGainDb, std::max(stamp.minGainDb, rawDbDbx))
-                : rawDbDbx;
+            double termsHeldDbx = state[termsIdxDbx];
+            double rawDbDbx = -termsHeldDbx / 0.0059;
+            double gainDbDbx = std::min(stamp.maxGainDb, std::max(stamp.minGainDb, rawDbDbx));
             double gainDbx = std::pow(10.0, gainDbDbx / 20.0);
-            double dGainDbx = atRailDbx ? 0.0 : gainDbx * 2.302585092994046 / 20.0 / -0.0059;
             double vPlusDbx = solution[stamp.plus];
             double vMinusDbx = solution[stamp.minus];
-            double vControlDbx = solution[stamp.controlNode];
             double vInDbx = vPlusDbx - vMinusDbx;
             double iInDbx = vInDbx * stamp.inputSiemens;
             double iOutDbx = iInDbx * gainDbx;
             double gInDbx = gainDbx * stamp.inputSiemens;
-            double gCtrlDbx = iInDbx * dGainDbx;
             double leavingDbx = -iOutDbx;
-            double equivalentDbx = leavingDbx - (-gInDbx * vPlusDbx + gInDbx * vMinusDbx - gCtrlDbx * vControlDbx);
+            double equivalentDbx = leavingDbx - (-gInDbx * vPlusDbx + gInDbx * vMinusDbx);
             if (stamp.output != 0) {
                 if (stamp.plus != 0) {
                     matrix[stamp.output * size + stamp.plus] += -gInDbx;
                 }
                 if (stamp.minus != 0) {
                     matrix[stamp.output * size + stamp.minus] += gInDbx;
-                }
-                if (stamp.controlNode != 0) {
-                    matrix[stamp.output * size + stamp.controlNode] += -gCtrlDbx;
                 }
                 rhs[stamp.output] -= equivalentDbx;
             }
