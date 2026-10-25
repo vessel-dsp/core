@@ -361,28 +361,53 @@ export const linearVcaGainFull = ((100 / 10100) * 0.01 * 22000 * 1) / 2;
 export const linearVcaGainHalf = ((100 / 10100) * 0.01 * 22000 * 0.5) / 2;
 
 /**
- * `dbxVcaCell` hand-computed DC voltage gains (Vout/Vin) under the v3 law:
- * the input divider (100 ohm virtual ground of `inputSiemens` 0.01 against
- * Rin 10k) times the input conductance times the Ro 22k load times the
- * exponential gain `10^(dc/20)` with `dc = -((Vc - 4.66) + |Vdc| * 100 *
- * 0.01 * 1600 / 10100) / 0.0059` clamped to +-30 dB. DC inputs settle the
- * smoothed terms exactly (a constant target converges regardless of
+ * `dbxVcaCell` hand-computed DC voltage gains (Vout/Vin) under the v4 law.
+ * The fixture divider is unity by construction (Rin 14.2k, Ro 14.3k, 100 ohm
+ * input: 100/14300 x 0.01 x 14300 = 1), so the render equals the law's own
+ * voltage gain `10^(dc/20)` with `dc = -terms/0.0059` clamped to +-30 dB and
+ * `terms = sustainGain*(Vc-sustainRef) + max(0, envelopeSlope*ln(|iIn|*1e6)
+ * + kneeBase + kneeTrack*(Vc-4.65))`, `iIn = Vdc*100/14300*0.01`. DC inputs
+ * settle both followers exactly (constant targets converge regardless of
  * attack/release asymmetry), so these are exact closed forms, not fits. The
- * control sweep pins the external (SUSTAIN-side) path at fixed input; the
- * input sweep pins the internal (level-side) path at static control,
- * including at the pedal's +40 mV GC rest offset (the acceptance shape).
+ * rest trio pins the SUSTAIN-coupled rest (inverted, session-quoted); the
+ * 4.6581 sweep pins the log-domain envelope plus knee; the 4.6728 point pins
+ * the deep-suppression end. AC/session renders assert separately.
  */
-const dbxDivider = (100 / 10100) * 0.01 * 22000;
-const dbxDcGain = (controlVolts: number, inputVolts: number): number => {
-	const terms = controlVolts - 4.66 + (Math.abs(inputVolts) * 100 * 0.01 * 1000) / 10100;
-	const gainDb = Math.min(30, Math.max(-30, -terms / 0.0059));
-	return dbxDivider * Math.pow(10, gainDb / 20);
+const dbxDcGainDb = (controlVolts: number, inputVolts: number): number => {
+	const v3 = (inputVolts * 100) / 14300;
+	const iIn = v3 * 0.01;
+	const rest = -4.23 * (controlVolts - 4.6504);
+	const knee = -0.069 + 4.36 * (controlVolts - 4.65);
+	const env = iIn > 0 ? Math.max(0, 0.049 * Math.log(iIn * 1e6) + knee) : 0;
+	const terms = rest + env;
+	return Math.min(30, Math.max(-30, -terms / 0.0059));
 };
-export const dbxVcaDcControlLow = dbxDcGain(4.6, 0.5);
-export const dbxVcaDcControlCenter = dbxDcGain(4.66, 0.5);
-export const dbxVcaDcControlHigh = dbxDcGain(4.72, 0.5);
-export const dbxVcaDcInputLow = dbxDcGain(4.66, 0.05);
-export const dbxVcaDcInputMid = dbxDcGain(4.66, 0.2);
-export const dbxVcaDcInputHigh = dbxDcGain(4.66, 0.5);
-export const dbxVcaDcInputRestLow = dbxDcGain(4.7, 0.05);
-export const dbxVcaDcInputRestOffset = dbxDcGain(4.7, 0.5);
+const dbxDcGain = (controlVolts: number, inputVolts: number): number =>
+	Math.pow(10, dbxDcGainDb(controlVolts, inputVolts) / 20);
+export const dbxVcaDcRestMin = dbxDcGain(4.6325, 0.01);
+export const dbxVcaDcRestCentre = dbxDcGain(4.6581, 0.01);
+export const dbxVcaDcRestMax = dbxDcGain(4.6728, 0.01);
+export const dbxVcaDcLevelMid = dbxDcGain(4.6581, 0.1);
+export const dbxVcaDcLevelHot = dbxDcGain(4.6581, 0.3);
+export const dbxVcaDcSusMaxHot = dbxDcGain(4.6728, 0.3);
+
+/**
+ * `dbxVcaPedalChain` hand-computed DC voltage gains (Vout/Vin) under the v5
+ * law at LEVEL 1 (linear pot wiper at the top). The LEVEL pot loads the VCA
+ * transimpedance (14.3k in parallel with the full 50k track at LEVEL 1, both
+ * legs exact since residual is 0), so the render equals the law's own voltage
+ * gain times (14.3k || 50k)/14.3k. The control node is dialed per SUSTAIN
+ * setting (4.6325 + pos*0.0403 V, the engine-measured V70 rest span); the
+ * shutdown is identically zero here -- renders start from prepare-silence
+ * with signal present from t = 0, so the prime never rises and the pump never
+ * fires, and DC inputs settle every follower exactly. These pin the chain
+ * wiring (Rin/Ro/LEVEL/VCTRL span); release dynamics assert separately on the
+ * session-8 stimulus.
+ */
+const dbxPedalUnity = (14300 * 50000) / 64300 / 14300;
+const dbxPedalGain = (sustainPos: number, inputVolts: number): number =>
+	dbxDcGain(4.6325 + sustainPos * 0.0403, inputVolts) * dbxPedalUnity;
+export const dbxVcaPedalDcSusMin = dbxPedalGain(0, 0.01);
+export const dbxVcaPedalDcSusCentre = dbxPedalGain(0.5, 0.01);
+export const dbxVcaPedalDcSusMax = dbxPedalGain(1, 0.01);
+export const dbxVcaPedalDcSusMaxHot = dbxPedalGain(1, 0.3);

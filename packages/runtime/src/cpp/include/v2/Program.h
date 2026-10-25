@@ -224,15 +224,29 @@ struct Stamp {
     double inputSiemens = 0.0;
     double vrefVolts = 1.0;
     double minGain = 0.0;
-    // dbx-style VCA cell (uPC1252H2): smoothed-terms attack/release
-    // time constants, input-current-to-control-volts detector scaling, and
-    // dB clamp rails. Mirrors `attackSeconds`/`releaseSeconds`/
-    // `detectorOhms`/`minGainDb`/`maxGainDb` in src/compiler/types.ts; same
+    // dbx-style VCA cell (uPC1252H2): session-calibrated SUSTAIN rest
+    // coupling, log-domain envelope with SUSTAIN-tracked knee, smoothed-terms
+    // attack/release, depth-varying release slowdown, victim-dependent
+    // shutdown (prime + edge gulp), and dB clamp rails.
+    // Mirrors the `dbx-vca` law fields in src/compiler/types.ts; same
     // behavior-neutral default story as the linear-vca fields above (no
     // older program carries a dbx-vca stamp).
+    double sustainGain = -4.0;
+    double sustainRef = 4.65;
+    double envelopeSlope = 0.049;
+    double kneeBaseVolts = -0.069;
+    double kneeTrack = 4.36;
     double attackSeconds = 0.0005;
     double releaseSeconds = 0.05;
-    double detectorOhms = 1000.0;
+    double releaseSlowdown = 2400.0;
+    double shutdownEdgeVolts = 0.05;
+    double shutdownGain = 100.0;
+    double primeRiseSeconds = 10.0;
+    double primeFallSeconds = 0.15;
+    double shutdownAttackSeconds = 0.00015;
+    double shutdownFastSeconds = 0.025;
+    double shutdownSlowSeconds = 300.0;
+    double primeRefCurrent = 0.0000005;
     double minGainDb = -30.0;
     double maxGainDb = 30.0;
     double vggBiasVolts = 0.0;

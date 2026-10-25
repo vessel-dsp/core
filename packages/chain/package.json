@@ -1,67 +1,67 @@
 {
-	"name": "@vessel-dsp/chain",
-	"version": "0.1.15",
-	"description": "Headless audio signal chain graph engine for VesselDSP circuits, guitar profiling, amp shaping, and cabinet IRs.",
-	"keywords": [
-		"dsp",
-		"audio",
-		"signal-chain",
-		"guitar",
-		"ir",
-		"impulse-response",
-		"vessel-dsp"
-	],
-	"homepage": "https://vessel-dsp.github.io/core/",
-	"bugs": {
-		"url": "https://github.com/vessel-dsp/core/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/vessel-dsp/core.git"
-	},
-	"license": "MIT",
-	"sideEffects": false,
-	"type": "module",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"bun": "./dist/index.js",
-			"import": "./dist/index.js"
-		},
-		"./ir-resample": {
-			"types": "./dist/ir-resample.d.ts",
-			"bun": "./dist/ir-resample.js",
-			"import": "./dist/ir-resample.js"
-		},
-		"./nam-engine.wasm": "./nam-engine/nam-engine.wasm",
-		"./nam-engine.js": "./nam-engine/nam-engine.js",
-		"./nam-engine.NOTICE.md": "./nam-engine/NOTICE.md",
-		"./package.json": {
-			"default": "./package.json"
-		}
-	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"files": [
-		"dist",
-		"nam-engine",
-		"README.md",
-		"LICENSE.md"
-	],
-	"scripts": {
-		"build": "rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
-		"clean": "rm -rf dist",
-		"prepack": "bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run build",
-		"pack:dry-run": "npm pack --dry-run",
-		"typecheck": "tsc --noEmit -p tsconfig.json"
-	},
-	"dependencies": {
-		"@vessel-dsp/compiler": "0.12.0",
-		"@vessel-dsp/core": "0.17.0",
-		"@vessel-dsp/runtime": "0.10.0"
-	},
-	"publishConfig": {
-		"access": "public"
-	}
+  "name": "@vessel-dsp/chain",
+  "version": "0.1.17",
+  "description": "Headless audio signal chain graph engine for VesselDSP circuits, guitar profiling, amp shaping, and cabinet IRs.",
+  "keywords": [
+    "dsp",
+    "audio",
+    "signal-chain",
+    "guitar",
+    "ir",
+    "impulse-response",
+    "vessel-dsp"
+  ],
+  "homepage": "https://vessel-dsp.github.io/core/",
+  "bugs": {
+    "url": "https://github.com/vessel-dsp/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vessel-dsp/core.git"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./ir-resample": {
+      "types": "./dist/ir-resample.d.ts",
+      "bun": "./dist/ir-resample.js",
+      "import": "./dist/ir-resample.js"
+    },
+    "./nam-engine.wasm": "./nam-engine/nam-engine.wasm",
+    "./nam-engine.js": "./nam-engine/nam-engine.js",
+    "./nam-engine.NOTICE.md": "./nam-engine/NOTICE.md",
+    "./package.json": {
+      "default": "./package.json"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "nam-engine",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist",
+    "clean": "rm -rf dist",
+    "prepack": "bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run build",
+    "pack:dry-run": "npm pack --dry-run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vessel-dsp/compiler": "0.14.0",
+    "@vessel-dsp/core": "0.17.0",
+    "@vessel-dsp/runtime": "0.12.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

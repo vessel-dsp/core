@@ -835,11 +835,12 @@ export function lowerRegion(
 			// Positional terminals only (sections path): [plus, minus, output,
 			// control]. Same shape as `linear-vca`: the control pin is
 			// voltage-sense (no conductance stamped on it) and the input pin
-			// is a current input at about the minus potential. The gain is
-			// the exponential dB law over the smoothed sum of the external
-			// control and the rectified input current through detectorOhms
-			// (one state slot, held across the Newton loop like the
-			// compandor's); see the `dbx-vca` law docs for the cited numbers.
+			// is a current input at about the minus potential. Terms are the
+			// session-fitted SUSTAIN-coupled rest plus the smoothed log-domain
+			// envelope plus the shutdown (four state slots -- smoothed control,
+			// smoothed envelope, prime, shutdown -- held across the Newton loop
+			// like the compandor's); see the `dbx-vca` law docs for the cited
+			// numbers.
 			const plus = device.nodes[0];
 			const minus = device.nodes[1];
 			const output = device.nodes[2];
@@ -861,6 +862,8 @@ export function lowerRegion(
 				b: minus,
 				siemens: law.inputSiemens,
 			});
+			const dbxStateIndex = stateCount;
+			stateCount += 4;
 			stamps.push({
 				kind: "dbx-vca",
 				plus,
@@ -868,13 +871,25 @@ export function lowerRegion(
 				output,
 				control,
 				inputSiemens: law.inputSiemens,
-				vrefVolts: law.vrefVolts,
+				sustainGain: law.sustainGain,
+				sustainRef: law.sustainRef,
+				envelopeSlope: law.envelopeSlope,
+				kneeBaseVolts: law.kneeBaseVolts,
+				kneeTrack: law.kneeTrack,
 				attackSeconds: law.attackSeconds,
 				releaseSeconds: law.releaseSeconds,
-				detectorOhms: law.detectorOhms,
+				releaseSlowdown: law.releaseSlowdown,
+				shutdownEdgeVolts: law.shutdownEdgeVolts,
+				shutdownGain: law.shutdownGain,
+				primeRiseSeconds: law.primeRiseSeconds,
+				primeFallSeconds: law.primeFallSeconds,
+				shutdownAttackSeconds: law.shutdownAttackSeconds,
+				shutdownFastSeconds: law.shutdownFastSeconds,
+				shutdownSlowSeconds: law.shutdownSlowSeconds,
+				primeRefCurrent: law.primeRefCurrent,
 				minGainDb: law.minGainDb,
 				maxGainDb: law.maxGainDb,
-				stateIndex: stateCount++,
+				stateIndex: dbxStateIndex,
 			});
 			break;
 		}

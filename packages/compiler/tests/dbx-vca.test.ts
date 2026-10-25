@@ -55,13 +55,20 @@ describe("uPC1252H2 dbx-vca section lands its pins on the right nodes", () => {
 		expect(vca.output).toBe(row(4)); // pin8 OUT
 		expect(vca.control).toBe(row(5)); // pin3 GC1
 		expect(vca.inputSiemens).toBeCloseTo(0.01, 8);
-		expect(vca.vrefVolts).toBeCloseTo(4.66, 8);
+		expect(vca.sustainGain).toBeCloseTo(-4.23, 8);
+		expect(vca.sustainRef).toBeCloseTo(4.6504, 8);
+		expect(vca.envelopeSlope).toBeCloseTo(0.049, 8);
+		expect(vca.kneeBaseVolts).toBeCloseTo(-0.069, 8);
+		expect(vca.kneeTrack).toBeCloseTo(4.36, 8);
 		expect(vca.attackSeconds).toBeCloseTo(0.0005, 8);
 		expect(vca.releaseSeconds).toBeCloseTo(0.05, 8);
-		expect(vca.detectorOhms).toBeCloseTo(1000, 8);
+		expect(vca.releaseSlowdown).toBeCloseTo(2400, 8);
 		expect(vca.minGainDb).toBeCloseTo(-30, 8);
 		expect(vca.maxGainDb).toBeCloseTo(30, 8);
 		expect(vca.stateIndex).toBeGreaterThanOrEqual(0);
+		// Four state slots: smoothed control, smoothed envelope, prime, shutdown.
+		const block2 = mnaBlockContaining(result, 5);
+		expect(block2.stateCount).toBeGreaterThanOrEqual(vca.stateIndex + 4);
 	});
 
 	it("LM-2-style named shell binds the same law by role with no positional warning", () => {

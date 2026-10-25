@@ -25,7 +25,13 @@ export {
 } from "./chain-slot";
 export {
 	dbxVcaGainDb,
-	dbxVcaControlTarget,
+	dbxVcaRestTerms,
+	dbxVcaEnvelopeTerms,
+	dbxVcaKneeVolts,
+	dbxVcaReleaseTc,
+	dbxVcaPrimeTarget,
+	dbxVcaShutdownTarget,
+	dbxVcaVictimTc,
 	dbxVcaGainLinear,
 	dbxVcaEnvelopeK,
 	DEFAULT_NEWTON_MAX_ITERATIONS,

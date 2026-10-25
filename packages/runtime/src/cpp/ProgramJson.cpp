@@ -494,9 +494,22 @@ Stamp parseStamp(const JsonValue& obj) {
     st.inputSiemens = obj.getDouble("inputSiemens", 0.0);
     st.vrefVolts = obj.getDouble("vrefVolts", 1.0);
     st.minGain = obj.getDouble("minGain", 0.0);
+    st.sustainGain = obj.getDouble("sustainGain", -4.0);
+    st.sustainRef = obj.getDouble("sustainRef", 4.65);
+    st.envelopeSlope = obj.getDouble("envelopeSlope", 0.049);
+    st.kneeBaseVolts = obj.getDouble("kneeBaseVolts", -0.069);
+    st.kneeTrack = obj.getDouble("kneeTrack", 4.36);
     st.attackSeconds = obj.getDouble("attackSeconds", 0.0005);
     st.releaseSeconds = obj.getDouble("releaseSeconds", 0.05);
-    st.detectorOhms = obj.getDouble("detectorOhms", 1000.0);
+    st.releaseSlowdown = obj.getDouble("releaseSlowdown", 2400.0);
+    st.shutdownEdgeVolts = obj.getDouble("shutdownEdgeVolts", 0.05);
+    st.shutdownGain = obj.getDouble("shutdownGain", 100.0);
+    st.primeRiseSeconds = obj.getDouble("primeRiseSeconds", 10.0);
+    st.primeFallSeconds = obj.getDouble("primeFallSeconds", 0.15);
+    st.shutdownAttackSeconds = obj.getDouble("shutdownAttackSeconds", 0.00015);
+    st.shutdownFastSeconds = obj.getDouble("shutdownFastSeconds", 0.025);
+    st.shutdownSlowSeconds = obj.getDouble("shutdownSlowSeconds", 300.0);
+    st.primeRefCurrent = obj.getDouble("primeRefCurrent", 0.0000005);
     st.minGainDb = obj.getDouble("minGainDb", -30.0);
     st.maxGainDb = obj.getDouble("maxGainDb", 30.0);
 

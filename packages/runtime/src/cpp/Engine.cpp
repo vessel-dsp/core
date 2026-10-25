@@ -4324,35 +4324,100 @@ void Engine::applyStamp(
 
         case StampKind::DbxVca: {
             // Bit-identical mirror of reference-runtime.ts `case "dbx-vca"`:
-            // exponential dB law over the SMOOTHED control terms (external
-            // control against its center plus the rectified input current
-            // through `detectorOhms`), held across this sample's Newton loop
-            // exactly like the TS console holds it (compandor precedent).
-            // Smoothing the total is load-bearing: the pedal's GC node
-            // carries audio, and reading it raw pumps the gain at audio
-            // rate. With the terms held no row carries a control derivative.
-            // Leaving-positive KCL like the diode; the physical current
-            // ENTERS the output node, so terms are negated once.
-            int32_t termsIdxDbx = stamp.stateIndex;
-            std::string termsKeyDbx = block.id + "_dbx_" + std::to_string(termsIdxDbx);
-            auto termsItDbx = lastShiftedSample_.find(termsKeyDbx);
-            int64_t termsLastDbx = (termsItDbx != lastShiftedSample_.end()) ? termsItDbx->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != termsLastDbx) {
-                lastShiftedSample_[termsKeyDbx] = static_cast<int64_t>(elapsedSamples_);
-                double vInNowDbx = solution[stamp.plus] - solution[stamp.minus];
-                double iInNowDbx = vInNowDbx * stamp.inputSiemens;
-                double targetDbx = (solution[stamp.controlNode] - stamp.vrefVolts) +
-                    std::abs(iInNowDbx) * stamp.detectorOhms;
-                double termsPrevDbx = state[termsIdxDbx];
-                double termsTcDbx = targetDbx > termsPrevDbx ? stamp.attackSeconds : stamp.releaseSeconds;
-                double termsDenomDbx = termsTcDbx * options_.sampleRate;
-                double termsKDbx = termsDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / termsDenomDbx) : 1.0;
-                state[termsIdxDbx] = termsPrevDbx + (targetDbx - termsPrevDbx) * termsKDbx;
+            // exponential dB law over the smoothed SUSTAIN-coupled rest plus
+            // the smoothed log-domain envelope plus the victim-dependent
+            // shutdown, all held across this sample's Newton loop exactly
+            // like the TS console holds them (compandor precedent). The
+            // release TC varies with suppression depth (fast near top,
+            // minutes-slow from deep suppression); attack stays fast. The
+            // prime rises in silence and falls under signal; the shutdown is
+            // pumped only by post-gap transient edges and bled
+            // victim-dependently (fast under sustained signal, frozen in
+            // silence). With everything held there is no live control
+            // derivative. Leaving-positive KCL like the diode; the physical
+            // current ENTERS the output node, so terms are negated once.
+            int32_t dbxBaseIdx = stamp.stateIndex;
+            std::string ctrlKeyDbx = block.id + "_dbxc_" + std::to_string(dbxBaseIdx);
+            auto ctrlItDbx = lastShiftedSample_.find(ctrlKeyDbx);
+            int64_t ctrlLastDbx = (ctrlItDbx != lastShiftedSample_.end()) ? ctrlItDbx->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != ctrlLastDbx) {
+                lastShiftedSample_[ctrlKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+                double vCtrlNowDbx = solution[stamp.controlNode];
+                double ctrlPrevDbx = state[dbxBaseIdx];
+                double ctrlTcDbx = vCtrlNowDbx > ctrlPrevDbx ? stamp.attackSeconds : stamp.releaseSeconds;
+                double ctrlDenomDbx = ctrlTcDbx * options_.sampleRate;
+                double ctrlKDbx = ctrlDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / ctrlDenomDbx) : 1.0;
+                state[dbxBaseIdx] = ctrlPrevDbx + (vCtrlNowDbx - ctrlPrevDbx) * ctrlKDbx;
             }
-            double termsHeldDbx = state[termsIdxDbx];
+            double vCtrlHeldDbx = state[dbxBaseIdx];
+            double kneeHeldDbx = stamp.kneeBaseVolts + stamp.kneeTrack * (vCtrlHeldDbx - 4.65);
+            double vInInstDbx = solution[stamp.plus] - solution[stamp.minus];
+            double iInInstDbx = vInInstDbx * stamp.inputSiemens;
+            std::string primeKeyDbx = block.id + "_dbxp_" + std::to_string(dbxBaseIdx);
+            auto primeItDbx = lastShiftedSample_.find(primeKeyDbx);
+            int64_t primeLastDbx = (primeItDbx != lastShiftedSample_.end()) ? primeItDbx->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != primeLastDbx) {
+                lastShiftedSample_[primeKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+                double primeTargetDbx = std::abs(iInInstDbx) > stamp.primeRefCurrent ? 0.0 : 1.0;
+                double primePrevDbx = state[dbxBaseIdx + 2];
+                double primeTcDbx = primeTargetDbx > primePrevDbx ? stamp.primeRiseSeconds : stamp.primeFallSeconds;
+                double primeDenomDbx = primeTcDbx * options_.sampleRate;
+                double primeKDbx = primeDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / primeDenomDbx) : 1.0;
+                state[dbxBaseIdx + 2] = primePrevDbx + (primeTargetDbx - primePrevDbx) * primeKDbx;
+            }
+            double primeHeldDbx = state[dbxBaseIdx + 2];
+            if (primeHeldDbx < 0.0) primeHeldDbx = 0.0;
+            if (primeHeldDbx > 1.0) primeHeldDbx = 1.0;
+            std::string envKeyDbx = block.id + "_dbxe_" + std::to_string(dbxBaseIdx);
+            auto envItDbx = lastShiftedSample_.find(envKeyDbx);
+            int64_t envLastDbx = (envItDbx != lastShiftedSample_.end()) ? envItDbx->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != envLastDbx) {
+                lastShiftedSample_[envKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+                double absInDbx = std::abs(iInInstDbx);
+                double envTargetDbx = absInDbx > 0.0
+                    ? std::max(0.0, stamp.envelopeSlope * std::log(absInDbx * 1e6) + kneeHeldDbx)
+                    : 0.0;
+                double envPrevDbx = state[dbxBaseIdx + 1];
+                double envDepthDbx = envPrevDbx / 0.15;
+                if (envDepthDbx < 0.0) envDepthDbx = 0.0;
+                if (envDepthDbx > 1.0) envDepthDbx = 1.0;
+                double envTcDbx = envTargetDbx > envPrevDbx
+                    ? stamp.attackSeconds
+                    : stamp.releaseSeconds * std::pow(stamp.releaseSlowdown, envDepthDbx);
+                double envDenomDbx = envTcDbx * options_.sampleRate;
+                double envKDbx = envDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / envDenomDbx) : 1.0;
+                state[dbxBaseIdx + 1] = envPrevDbx + (envTargetDbx - envPrevDbx) * envKDbx;
+            }
+            double envHeldDbx = state[dbxBaseIdx + 1];
+            std::string shutKeyDbx = block.id + "_dbxs_" + std::to_string(dbxBaseIdx);
+            auto shutItDbx = lastShiftedSample_.find(shutKeyDbx);
+            int64_t shutLastDbx = (shutItDbx != lastShiftedSample_.end()) ? shutItDbx->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != shutLastDbx) {
+                lastShiftedSample_[shutKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+                double absPeakDbx = std::abs(iInInstDbx);
+                double peakTargetDbx = absPeakDbx > 0.0
+                    ? std::max(0.0, stamp.envelopeSlope * std::log(absPeakDbx * 1e6) + kneeHeldDbx)
+                    : 0.0;
+                double shutExcessDbx = peakTargetDbx - stamp.shutdownEdgeVolts;
+                double shutTargetDbx = 0.0;
+                if (shutExcessDbx > 0.0 && primeHeldDbx > 0.0) {
+                    shutTargetDbx = stamp.shutdownGain * shutExcessDbx * shutExcessDbx * primeHeldDbx;
+                }
+                double shutPrevDbx = state[dbxBaseIdx + 3];
+                double shutTcDbx = shutTargetDbx > shutPrevDbx
+                    ? stamp.shutdownAttackSeconds
+                    : (primeHeldDbx > 0.05 ? stamp.shutdownSlowSeconds : stamp.shutdownFastSeconds);
+                double shutDenomDbx = shutTcDbx * options_.sampleRate;
+                double shutKDbx = shutDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / shutDenomDbx) : 1.0;
+                state[dbxBaseIdx + 3] = shutPrevDbx + (shutTargetDbx - shutPrevDbx) * shutKDbx;
+            }
+            double restHeldDbx = stamp.sustainGain * (vCtrlHeldDbx - stamp.sustainRef);
+            double shutHeldDbx = state[dbxBaseIdx + 3];
+            double termsHeldDbx = restHeldDbx + envHeldDbx;
             double rawDbDbx = -termsHeldDbx / 0.0059;
             double gainDbDbx = std::min(stamp.maxGainDb, std::max(stamp.minGainDb, rawDbDbx));
-            double gainDbx = std::pow(10.0, gainDbDbx / 20.0);
+            double totalDbDbx = std::max(-100.0, gainDbDbx - shutHeldDbx / 0.0059);
+            double gainDbx = std::pow(10.0, totalDbDbx / 20.0);
             double vPlusDbx = solution[stamp.plus];
             double vMinusDbx = solution[stamp.minus];
             double vInDbx = vPlusDbx - vMinusDbx;

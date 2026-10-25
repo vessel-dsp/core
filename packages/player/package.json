@@ -1,74 +1,74 @@
 {
-	"name": "@vessel-dsp/player",
-	"version": "0.2.13",
-	"description": "Embeddable HTML Custom Element (<vessel-player>) and Web Audio player for VesselDSP circuits, guitar profiling, NAM, and cabinet IRs.",
-	"keywords": [
-		"guitar-pedal",
-		"electronics",
-		"simulation",
-		"dsp",
-		"player",
-		"custom-element",
-		"web-component",
-		"spectrum-analyzer",
-		"nam",
-		"cabinet"
-	],
-	"homepage": "https://vessel-dsp.github.io/core/",
-	"bugs": {
-		"url": "https://github.com/vessel-dsp/core/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/vessel-dsp/core.git"
-	},
-	"license": "MIT",
-	"sideEffects": false,
-	"type": "module",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"bun": "./dist/index.js",
-			"import": "./dist/index.js"
-		},
-		"./engine": {
-			"types": "./dist/engine/register.d.ts",
-			"bun": "./dist/engine/register.js",
-			"import": "./dist/engine/register.js"
-		},
-		"./worklet-player.js": {
-			"default": "./dist/worklet/player-worklet.js"
-		},
-		"./wasm/*": {
-			"default": "./dist/wasm/*"
-		},
-		"./package.json": {
-			"default": "./package.json"
-		}
-	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"files": [
-		"dist",
-		"README.md",
-		"LICENSE.md"
-	],
-	"scripts": {
-		"build": "rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && bun scripts/build-player-worklet.ts",
-		"build:worklet": "bun scripts/build-player-worklet.ts",
-		"clean": "rm -rf dist",
-		"prepack": "bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run --cwd ../chain build && bun run build",
-		"pack:dry-run": "npm pack --dry-run",
-		"typecheck": "tsc --noEmit -p tsconfig.json"
-	},
-	"dependencies": {
-		"@vessel-dsp/chain": "0.1.15",
-		"@vessel-dsp/compiler": "0.12.0",
-		"@vessel-dsp/core": "0.17.0",
-		"@vessel-dsp/runtime": "0.10.0"
-	},
-	"publishConfig": {
-		"access": "public"
-	}
+  "name": "@vessel-dsp/player",
+  "version": "0.2.15",
+  "description": "Embeddable HTML Custom Element (<vessel-player>) and Web Audio player for VesselDSP circuits, guitar profiling, NAM, and cabinet IRs.",
+  "keywords": [
+    "guitar-pedal",
+    "electronics",
+    "simulation",
+    "dsp",
+    "player",
+    "custom-element",
+    "web-component",
+    "spectrum-analyzer",
+    "nam",
+    "cabinet"
+  ],
+  "homepage": "https://vessel-dsp.github.io/core/",
+  "bugs": {
+    "url": "https://github.com/vessel-dsp/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vessel-dsp/core.git"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./dist/index.js",
+      "import": "./dist/index.js"
+    },
+    "./engine": {
+      "types": "./dist/engine/register.d.ts",
+      "bun": "./dist/engine/register.js",
+      "import": "./dist/engine/register.js"
+    },
+    "./worklet-player.js": {
+      "default": "./dist/worklet/player-worklet.js"
+    },
+    "./wasm/*": {
+      "default": "./dist/wasm/*"
+    },
+    "./package.json": {
+      "default": "./package.json"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && bun run ../../scripts/fix-dist-imports.ts dist && bun scripts/build-player-worklet.ts",
+    "build:worklet": "bun scripts/build-player-worklet.ts",
+    "clean": "rm -rf dist",
+    "prepack": "bun run --cwd ../core build && bun run --cwd ../compiler build && bun run --cwd ../runtime build:wasm && bun run --cwd ../runtime build && bun run --cwd ../chain build && bun run build",
+    "pack:dry-run": "npm pack --dry-run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vessel-dsp/chain": "0.1.17",
+    "@vessel-dsp/compiler": "0.14.0",
+    "@vessel-dsp/core": "0.17.0",
+    "@vessel-dsp/runtime": "0.12.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

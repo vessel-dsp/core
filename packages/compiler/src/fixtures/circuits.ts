@@ -14930,21 +14930,20 @@ export const linearVcaCell = (
  * Synthetic stand-in for the CS-3 VCA stage: bare-pin uPC1252H2 in strict datasheet pin
  * order (the CS-3 `IC3` shell's own spelling: `pin1`..`pin8` with `role: pin`, so every
  * terminal folds to a null role token and the entry binds positionally). Input jack 1
- * through Rin 10k (the pedal's R9 value) into the VCA input (node 3, ground-referenced
- * current input), VCA output (node 4) into Ro 22k to ground, both GC pins on the DC
- * control node (node 5, CS-3 node 70's role), ref/GND/ISET/Vc on ground (node 0).
+ * through Rin 14.2k into the VCA input (node 3, ground-referenced current input),
+ * VCA output (node 4) into Ro 14.3k to ground, both GC pins on the DC control node
+ * (node 5, CS-3 node 70's role), ref/GND/ISET/Vc on ground (node 0).
  *
- * The law reads the smoothed sum of control against its fixed 4.66 V center plus the
- * rectified input current through detectorOhms (attack 0.5 ms / release 50 ms), so one
- * static-control program serves both transfer proofs below: sweep the DC control for the
- * external (SUSTAIN-side) path, sweep the input amplitude for the internal (level-side)
- * path. Rin stays the pedal's 10k; the detector scaling (not the node voltage) is what
- * puts the envelope in control-volts, mirroring how the current-input chip is fed.
- *
- * A second use below pins the pedal's GC rest offset: the same cell with control pinned
- * 40 mV above center reproduces the re-traced CS-3's node-70 rest at high SUSTAIN, so
- * the input sweep there proves monotonic fall under the pedal's own DC operating
- * conditions, not just at the law's center.
+ * Rin is 14.2k rather than the pedal's R9 10k so the cell's input current per source
+ * volt matches the pedal's engine-measured 0.7x buffer loss (0.7/10k = 1/14.3k), and
+ * Ro is 14.3k (= Rin + 100) so the input divider times the input impedance times the
+ * load is exactly unity: renders read the law's own voltage gain, and session
+ * comparisons read the law rather than either divider. The law reads the smoothed
+ * SUSTAIN-coupled rest plus the smoothed log-domain envelope (attack 0.5 ms /
+ * release 50 ms with depth-varying release), so one static-control program serves
+ * the transfer proofs below: sweep the DC control for the external path, sweep the
+ * input amplitude for the internal path, and pin control at the pedal's GC rest
+ * offsets to reproduce the re-traced CS-3's operating conditions per SUSTAIN setting.
  */
 export const dbxVcaCell = (controlVolts: number): string =>
 	`${header("dbx VCA Cell")}components:
@@ -14981,10 +14980,75 @@ export const dbxVcaCell = (controlVolts: number): string =>
           y: 0
     properties: {}
 ` +
-		resistor("RIN", 1, 3, "10k") +
-		resistor("RO", 4, 0, "22k") +
+		resistor("RIN", 1, 3, "14.2k") +
+		resistor("RO", 4, 0, "14.3k") +
 		part("U1", "ic", "Circuit.IC", [["pin1", "pin", 3], ["pin2", "pin", 5], ["pin3", "pin", 5], ["pin4", "pin", 0], ["pin5", "pin", 0], ["pin6", "pin", 0], ["pin7", "pin", 0], ["pin8", "pin", 4]], { PartNumber: "uPC1252H2" }) +
 		part("VCTRL", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 5], ["minus", "negative", 0]], { Voltage: `${controlVolts}` });
+
+/**
+ * Pedal-program stand-in for the session-8 release work: the `dbxVcaCell` VCA
+ * stage (same Rin/Ro transimpedance, loaded at LEVEL 1 by the full 50k LEVEL
+ * track to an exact, hand-computed factor) with a SUSTAIN-coupled control
+ * node and a LEVEL output divider, i.e. the law in its pedal biasing rather
+ * than the bare cell. The control node is dialed to the engine-measured V70
+ * for the SUSTAIN setting (4.6325 + sustainPos*0.0403 V, the rest span the v4
+ * fit is joint against); the SUSTAIN-to-V70 divider itself lives in the
+ * packet, the law reads its result. LEVEL is a linear 50k pot to ground
+ * (wiper to the output jack); release tests run it at 1. Unlike the cell,
+ * this program exercises the law end-to-end (control path plus output stage)
+ * under the session-8 stimulus: history, gap, pip, probe.
+ */
+export const dbxVcaPedalChain = (sustainPos: number, levelPos: number): string => {
+	const controlVolts = 4.6325 + sustainPos * 0.0403;
+	return (
+		`${header("dbx VCA Pedal Chain")}deviceInterface:
+  controls:
+    - id: Level
+      label: Level
+      kind: knob
+      role: output-level
+      taper: linear
+components:
+  - id: JIN
+    kind: jack
+    name: PEDAL_IN
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+    properties: {}
+  - id: JOUT
+    kind: jack
+    name: PEDAL_OUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 2
+        position:
+          x: 200
+          y: 0
+    properties: {}
+` +
+		resistor("RIN", 1, 3, "14.2k") +
+		resistor("RO", 4, 0, "14.3k") +
+		part("U1", "ic", "Circuit.IC", [["pin1", "pin", 3], ["pin2", "pin", 5], ["pin3", "pin", 5], ["pin4", "pin", 0], ["pin5", "pin", 0], ["pin6", "pin", 0], ["pin7", "pin", 0], ["pin8", "pin", 4]], { PartNumber: "uPC1252H2" }) +
+		part("VCTRL", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 5], ["minus", "negative", 0]], { Voltage: `${controlVolts}` }) +
+		part("VRLEVEL", "potentiometer", "Circuit.Potentiometer", [["end1", "end", 4], ["wiper", "wiper", 2], ["end2", "end", 0]], { Resistance: "50k", ControlId: "Level", Wipe: `${levelPos}` })
+	);
+};
 
 /**
  * The same VCA stage spelled the way `boss-lm-2`'s `IC1_UPC1252H2` spells it: every pin
@@ -15027,8 +15091,8 @@ export const dbxVcaNamedCell = (controlVolts: number): string =>
           y: 0
     properties: {}
 ` +
-		resistor("RIN", 1, 3, "10k") +
-		resistor("RO", 4, 0, "22k") +
+		resistor("RIN", 1, 3, "14.2k") +
+		resistor("RO", 4, 0, "14.3k") +
 		part("U1", "ic", "Circuit.IC", [["pin1_input", "pin", 3], ["pin2_gc2", "pin", 5], ["pin3_gc1", "pin", 5], ["pin4_symmetry", "pin", 0], ["pin5_iset", "pin", 0], ["pin6_ground_reference", "pin", 0], ["pin7_vcc", "pin", 0], ["pin8_output", "pin", 4]], { PartNumber: "uPC1252H2" }) +
 		part("VCTRL", "voltage-source", "Circuit.VoltageSource", [["plus", "positive", 5], ["minus", "negative", 0]], { Voltage: `${controlVolts}` });
 

@@ -1035,52 +1035,66 @@ export type DeviceLaw =
 			/**
 			 * dbx-style VCA gain cell (uPC1252H2): output current is the input
 			 * current times an exponential dB-linear gain,
-			 * `10^(clamp(-terms / 0.0059, minGainDb, maxGainDb) / 20)`, where
-			 * `terms` is the smoothed sum of the external control
-			 * (`Vcontrol - vrefVolts`) and the rectified input
-			 * (`|input current| * detectorOhms`). Gain falls as control
-			 * rises and as input level rises.
+			 * `10^(clamp(-terms / 0.0059, minGainDb, maxGainDb) / 20)`.
+			 *
+			 * `terms` is the smoothed SUSTAIN-coupled rest plus the smoothed
+			 * log-domain envelope plus the victim-dependent shutdown, all held
+			 * across the Newton loop like the compandor's:
+			 * `rest = sustainGain * (Vcontrol - sustainRef)`,
+			 * `envelope = max(0, envelopeSlope * ln(|input current| * 1e6)
+			 * + knee)`, `knee = kneeBaseVolts + kneeTrack * (Vcontrol - 4.65)`,
+			 * `shutdown` below. Gain falls as control rises and as input
+			 * level rises.
 			 *
 			 * The dB law is the NEC uPC1252 feature line the catalog quotes
 			 * (control constant -5.9 mV/dB over +/-30 dB) and `boss-lm-2`'s
 			 * own control deck (`gain_db = -v(ctrl)/0.0059`): only a
 			 * millivolt-sensitive law can be moved by what the topology
-			 * actually delivers. The v1 island sigmoid needed volts of
-			 * control swing and rendered the pedal linear.
+			 * actually delivers.
 			 *
-			 * `vrefVolts` is the EXTERNAL (GC-pin) agreement point, 4.66 V:
-			 * engine-measured node-70 rest 4.658 V at declared defaults
-			 * (SUSTAIN 0.5) on the re-traced CS-3. The island quotes 4.5 V
-			 * for its off-chip ctrl_bus node instead; both are quoted because
-			 * the law reads the on-chip GC node and the island reads
-			 * ctrl_bus. Centering at 4.5 would park rest gain 27 dB down a
-			 * clamp rail (0.16 V is 27 dB through 1/0.0059).
+			 * `sustainGain`/`sustainRef` are the session-fitted SUSTAIN
+			 * coupling (-4.23 and 4.6504 V): the pedal's rest gain rises with
+			 * SUSTAIN (+27.5 dB across the engine-measured V70 rest span
+			 * 4.6325->4.6728), opposite to a naive control-follows-detector
+			 * reading -- the session curves (sus-min flat -13.2 dB, centre
+			 * +5.68 dB, sus-max +14.28 dB at 10 mV in) force the inverted,
+			 * amplified form, quoted here as the cause for moving the old
+			 * -6.8 dB SUSTAIN response.
 			 *
-			 * `detectorOhms` scales the rectified input CURRENT to control
-			 * volts (1k): the cell's input node is a virtual ground (100
-			 * ohms against the 10k feed), so the node voltage there is
-			 * millivolts while the source swings volts -- rectifying node
-			 * volts alone leaves the envelope 100x too small and the pedal
-			 * expands (cell -20% vs input current +18x). 1k maps the CS-3
-			 * feed current (3.5-63 uA rms across the 0.05-0.9 V sweep,
-			 * engine-measured at node 13) to 0.004-0.06 V of control, i.e.
-			 * ~1-11 dB of level-driven gain reduction on top of the external
-			 * path: compression without floor-slamming (a full R9-mirror 10k
-			 * would pin the -30 dB floor above ~0.2 V in; 1k lands the 0.9 V
-			 * protocol point near -20 dB, firm limiting off the rail). The chip's true
-			 * internal transresistance is silicon-internal (excluded);
-			 * LM-2's 18k feed reads proportionally lower for the same input
-			 * volts (workbench-side).
+			 * `envelopeSlope`/`kneeBaseVolts`/`kneeTrack` are the session-fitted
+			 * log-domain detector (0.049 V/neper; knee -0.069 V at V70 4.65
+			 * rising 4.36 V/V): below the knee the pedal holds rest gain,
+			 * above it each input decade adds the same dB of reduction, and
+			 * the knee tracks SUSTAIN so sus-min stays flat to 300 mV while
+			 * centre and sus-max engage progressively. Fitted jointly against
+			 * the 12-point session sweep (worst residual 0.7 dB); the threshold
+			 * shape, not any single number, is what the new session-curve
+			 * tests pin.
 			 *
-			 * The sum is smoothed with attack/release (the CS-3 detector
-			 * network's order: C8 4.7 uF by R13 10k ~ 47 ms release, D6
-			 * charge path through ~100 ohms ~ 0.5 ms attack) and held across
-			 * the Newton loop like the compandor's. Smoothing the total --
-			 * rather than the envelope alone -- is load-bearing: node 70
-			 * carries tens of millivolts of audio in the pedal, and reading
-			 * it raw pumps the gain at audio rate (measured both signs of
-			 * mistracking); the follower passes SUSTAIN-scale moves and the
-			 * settled envelope while rejecting audio-rate ripple.
+			 * `shutdown` is the session-8 victim-dependent state (v5, on top
+			 * of the untouched v4 rest/envelope/release above): a fast
+			 * peak-holder pumped only by hot peaks while primed and bled
+			 * only by sustained signal. Per peak, the pump target is
+			 * `shutdownGain * max(0, peakTarget - shutdownEdgeVolts)^2
+			 * * primed`, where `peakTarget` is the instantaneous log-domain
+			 * target: after a silence gap the prime is high, so a hot peak
+			 * dumps a recharge gulp (D6 conducting hard into the depleted
+			 * C8, edge-coupled drive as C16 couples edges into the gate
+			 * network) while under continuous signal and at render onsets
+			 * the prime is zero and the gulp is zero. The square is the D6
+			 * diode exponential over the operating range; the absolute
+			 * threshold is the diode forward drop plus topped-C8 headroom,
+			 * which is why sine ripple (0.022 V log-domain) and mild peaks
+			 * never pump. `primed` rises toward 1 in silence
+			 * (`primeRiseSeconds`) and falls toward 0 under signal
+			 * (`primeFallSeconds`), so the v4 threshold fit is structurally
+			 * untouched. The shutdown bleeds with a victim-dependent TC (`shutdownFastSeconds` under
+			 * sustained signal through the signal-driven Q6/Q8 collector and
+			 * Q7 transconductance discharge, `shutdownSlowSeconds` R-only in
+			 * silence): a post-gap pip crushes in-stimulus and clears within
+			 * a fraction of a second under the probe tone, while silence
+			 * holds (finite). Session-8 fit: post-gap pip 0.007x mild,
+			 * tone from +1 s at baseline flat.
 			 *
 			 * Like `linear-vca`, the control input is voltage-sense only: no
 			 * conductance is stamped on it, so a high-impedance detector
@@ -1091,14 +1105,38 @@ export type DeviceLaw =
 			readonly kind: "dbx-vca";
 			/** Input resistance to the minus terminal, siemens. */
 			readonly inputSiemens: number;
-			/** External control volts for 0 dB (GC rest, 4.66 V, see above). */
-			readonly vrefVolts: number;
+			/** SUSTAIN rest gain slope, dimensionless (session-fitted -4.23). */
+			readonly sustainGain: number;
+			/** SUSTAIN rest zero point, volts (session-fitted 4.6504). */
+			readonly sustainRef: number;
+			/** Log-domain envelope slope, volts per neper (fitted 0.049). */
+			readonly envelopeSlope: number;
+			/** Detector knee at V70 4.65 V, volts (fitted -0.069). */
+			readonly kneeBaseVolts: number;
+			/** Detector knee tracking with GC volts, dimensionless (fitted +4.36). */
+			readonly kneeTrack: number;
 			/** Smoothed-terms attack time constant, seconds (0.0005). */
 			readonly attackSeconds: number;
 			/** Smoothed-terms release time constant, seconds (0.05). */
 			readonly releaseSeconds: number;
-			/** Input-current-to-control-volts detector scaling, ohms (1000). */
-			readonly detectorOhms: number;
+			/** Depth-varying release slowdown at full suppression (2400: 50 ms -> 120 s; fit hook for the hot-start + 60 s take). */
+			readonly releaseSlowdown: number;
+			/** Post-gap gulp threshold, volts: diode forward + topped-C8 headroom (session-8 fit, above sine ripple, below post-gap excess). */
+			readonly shutdownEdgeVolts: number;
+			/** Post-gap gulp gain, per volt (session-8 fit: sizes the 0.007x crush). */
+			readonly shutdownGain: number;
+			/** Silence-priming time constant, seconds (gap builds prime over ~10 s). */
+			readonly primeRiseSeconds: number;
+			/** Signal disarm time constant, seconds (tone clears prime in fractions of a second). */
+			readonly primeFallSeconds: number;
+			/** Shutdown pump attack time constant, seconds (edge-coupled charge lands within the pip). */
+			readonly shutdownAttackSeconds: number;
+			/** Shutdown signal-driven discharge TC, seconds (probe clears in <1 s). */
+			readonly shutdownFastSeconds: number;
+			/** Shutdown R-only discharge TC, seconds (frozen over takes, finite). */
+			readonly shutdownSlowSeconds: number;
+			/** Signal-presence floor, amps (above solver noise, below the quietest session tone). */
+			readonly primeRefCurrent: number;
 			/** Gain floor, dB (-30, the datasheet's Av range). */
 			readonly minGainDb: number;
 			/** Gain ceiling, dB (+30, the datasheet's Av range). */
@@ -1977,8 +2015,11 @@ export type Stamp =
 			/**
 			 * dbx-style VCA gain cell (lowered from the `dbx-vca` law).
 			 * Current proportional to the input current, scaled by the
-			 * exponential dB gain over the smoothed control terms in
-			 * `stateIndex`. Reads the control node and draws nothing from it.
+			 * exponential dB gain over the smoothed SUSTAIN-coupled rest
+			 * plus the smoothed log-domain envelope plus the shutdown in
+			 * `stateIndex`/`stateIndex + 1`/`stateIndex + 2`/`stateIndex + 3`
+			 * (control, envelope, prime, shutdown). Reads the control node and
+			 * draws nothing from it.
 			 */
 			readonly kind: "dbx-vca";
 			readonly plus: NodeId;
@@ -1986,13 +2027,25 @@ export type Stamp =
 			readonly output: NodeId;
 			readonly control: NodeId;
 			readonly inputSiemens: number;
-			readonly vrefVolts: number;
+			readonly sustainGain: number;
+			readonly sustainRef: number;
+			readonly envelopeSlope: number;
+			readonly kneeBaseVolts: number;
+			readonly kneeTrack: number;
 			readonly attackSeconds: number;
 			readonly releaseSeconds: number;
-			readonly detectorOhms: number;
+			readonly releaseSlowdown: number;
+			readonly shutdownEdgeVolts: number;
+			readonly shutdownGain: number;
+			readonly primeRiseSeconds: number;
+			readonly primeFallSeconds: number;
+			readonly shutdownAttackSeconds: number;
+			readonly shutdownFastSeconds: number;
+			readonly shutdownSlowSeconds: number;
+			readonly primeRefCurrent: number;
 			readonly minGainDb: number;
 			readonly maxGainDb: number;
-			/** Smoothed-terms state slot, held across the Newton loop. */
+			/** Smoothed-control state slot; envelope, prime, shutdown follow it. */
 			readonly stateIndex: number;
 	  }
 	| {

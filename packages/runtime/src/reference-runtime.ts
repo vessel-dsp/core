@@ -550,11 +550,11 @@ export function ldrTableResistanceOhms(
  *
  * The 5.9 mV/dB divisor is the NEC uPC1252 feature line (and `boss-lm-2`'s
  * control deck); the +-30 dB clamp is the datasheet's Av range. `termsVolts`
- * is the smoothed sum the stamp holds (external control against its center
- * plus the rectified input current through `detectorOhms`) -- see
- * `dbxVcaControlTarget`. Pure so the compiler tests and the console-parity
- * instruments can call it directly. The stamp path below evaluates the same
- * expression inline with the clamp test deciding the derivative.
+ * is the smoothed SUSTAIN-coupled rest plus the smoothed log-domain
+ * envelope -- see `dbxVcaRestTerms` and `dbxVcaEnvelopeTerms`. Pure so the
+ * compiler tests and the console-parity instruments can call it directly.
+ * The stamp path below evaluates the same expression inline with the clamp
+ * test deciding the derivative.
  */
 export function dbxVcaGainDb(
 	termsVolts: number,
@@ -571,22 +571,125 @@ export function dbxVcaGainLinear(gainDb: number): number {
 }
 
 /**
- * One dbx-vca control-terms target in volts: the external control against
- * its center plus the rectified input current through the detector scaling,
- * `(vControl - centerVolts) + Math.abs(inputCurrentAmps) * detectorOhms`.
- *
- * The absolute value is the rectification: the input always drives toward
- * more gain reduction, never away, whichever half-cycle conducts. Pure so
- * the sign chain (louder input decreases gain_dB) is unit-probed here
- * rather than read out of the stamp path.
+ * The SUSTAIN-coupled rest term in volts: `sustainGain * (vControl -
+ * sustainRef)`. Session-fitted (inverted, amplified): rest gain rises with
+ * the GC node, opposite to a naive control-follows-detector reading, because
+ * that is what the session threshold curves demand (sus-min flat -13.2 dB,
+ * centre +5.68 dB, sus-max +14.28 dB at 10 mV in).
  */
-export function dbxVcaControlTarget(
+export function dbxVcaRestTerms(
 	vControl: number,
-	centerVolts: number,
-	inputCurrentAmps: number,
-	detectorOhms: number,
+	sustainGain: number,
+	sustainRef: number,
 ): number {
-	return vControl - centerVolts + Math.abs(inputCurrentAmps) * detectorOhms;
+	return sustainGain * (vControl - sustainRef);
+}
+
+/**
+ * The log-domain envelope term in volts: `max(0, slope * ln(|iIn| * 1e6) +
+ * kneeVolts)`, with `iIn` in amps (the 1e6 keeps the log argument
+ * dimensionless against a 1 uA reference). Below the knee the pedal holds
+ * rest gain; above it each input decade adds the same dB of reduction; the
+ * knee tracks SUSTAIN (see the law docs). `Math.log(0)` is -Infinity and
+ * `Math.max(0, -Infinity)` is 0, so silence reads exactly zero -- but an
+ * explicit guard keeps that from depending on log-edge behavior.
+ */
+export function dbxVcaEnvelopeTerms(
+	inputAmps: number,
+	slopeVoltsPerNeper: number,
+	kneeVolts: number,
+): number {
+	const absIn = Math.abs(inputAmps);
+	if (!(absIn > 0)) return 0;
+	return Math.max(0, slopeVoltsPerNeper * Math.log(absIn * 1e6) + kneeVolts);
+}
+
+/**
+ * The detector knee in volts at one GC voltage: a SUSTAIN-tracked threshold
+ * (`kneeBaseVolts` at 4.65 V rising `kneeTrack` volts per GC volt), so
+ * sus-min stays flat to 300 mV while centre and sus-max engage progressively.
+ * Pure so the threshold shape is unit-testable.
+ */
+export function dbxVcaKneeVolts(
+	vControl: number,
+	kneeBaseVolts: number,
+	kneeTrack: number,
+): number {
+	return kneeBaseVolts + kneeTrack * (vControl - 4.65);
+}
+
+/**
+ * Depth-varying release time constant in seconds: `baseSeconds *
+ * slowdown^depth01`, where depth01 is the held suppression depth normalized
+ * to [0, 1]. Fast near the top (base rate: session-3 immediacy), minutes-slow
+ * from deep suppression. Pure so the curve is unit-testable; the production
+ * slowdown is a fit hook for the hot-start + 60 s take, which does not exist
+ * yet -- see the law docs.
+ */
+export function dbxVcaReleaseTc(
+	depth01: number,
+	baseSeconds: number,
+	slowdown: number,
+): number {
+	const depth = Math.min(1, Math.max(0, depth01));
+	return baseSeconds * Math.pow(slowdown, depth);
+}
+
+/**
+ * Silence priming target, 1 or 0: 1 when the rectified input sits below the
+ * presence floor (`primeRefCurrent`), else 0. The prime follower chases this
+ * with `primeRiseSeconds` upward (a gap builds prime over seconds) and
+ * `primeFallSeconds` downward (signal disarms in fractions of a second), so a
+ * post-gap transient edge pumps the shutdown while render onsets and
+ * continuous tones never do (priming starts at zero). Pure so the gate is
+ * unit-testable.
+ */
+export function dbxVcaPrimeTarget(
+	inputAmps: number,
+	refCurrentAmps: number,
+): number {
+	return Math.abs(inputAmps) > refCurrentAmps ? 0 : 1;
+}
+
+/**
+ * Post-gap gulp target in volts: `shutdownGain * max(0, peakTarget -
+ * edgeThreshVolts)^2 * primed01`, where `peakTarget` is the instantaneous
+ * log-domain target. After a silence gap the prime is high, so a hot peak
+ * dumps a recharge gulp (D6 conducting hard into the depleted C8); under
+ * continuous signal the prime is zero and the gulp is zero, and render
+ * onsets never pump (priming starts at zero). The square is the D6 diode
+ * exponential over the operating range; the absolute threshold is the diode
+ * forward drop plus topped-C8 headroom, which is why sine ripple never
+ * pumps. Pure so the fit is unit-testable.
+ */
+export function dbxVcaShutdownTarget(
+	peakTargetVolts: number,
+	edgeThreshVolts: number,
+	primed01: number,
+	gainPerVolt: number,
+): number {
+	const excess = peakTargetVolts - edgeThreshVolts;
+	if (!(excess > 0) || !(primed01 > 0)) return 0;
+	const primed = Math.min(1, primed01);
+	return gainPerVolt * excess * excess * primed;
+}
+
+/**
+ * Victim-dependent shutdown bleed time constant in seconds: `fastSeconds`
+ * once the prime has disarmed (`primed01` below 0.05, i.e. sustained signal
+ * present), `slowSeconds` while primed (R-only, frozen over takes but
+ * finite). The discharge path conducts only once signal has dislodged the
+ * prime; while a post-gap transient holds the prime the crush holds with it,
+ * then clears in a fraction of a second under the probe tone. Pure so the
+ * curve is unit-testable.
+ */
+export function dbxVcaVictimTc(
+	primed01: number,
+	fastSeconds: number,
+	slowSeconds: number,
+): number {
+	const primed = Math.min(1, Math.max(0, primed01));
+	return primed > 0.05 ? slowSeconds : fastSeconds;
 }
 
 export function dbxVcaEnvelopeK(tcSeconds: number, sampleRate: number): number {
@@ -8466,48 +8569,140 @@ export class ReferenceRuntime {
 			case "dbx-vca": {
 				// dbx-style VCA gain cell (uPC1252H2): the output current is
 				// the input current times an exponential dB-linear gain over
-				// the SMOOTHED control terms, evaluated per Newton iterate
-				// with the terms held.
+				// the smoothed SUSTAIN-coupled rest plus the smoothed
+				// log-domain envelope plus the victim-dependent shutdown,
+				// evaluated per Newton iterate with all four followers held.
 				//
-				// The terms are the external control against its center plus
-				// the rectified input current through `detectorOhms`
-				// (`dbxVcaControlTarget`), smoothed with attack/release and
-				// held across this sample's Newton loop (the compandor
-				// precedent: the loop solves one circuit instead of walking
-				// across a circuit that moves under it). Smoothing the total
-				// is load-bearing, not just the envelope: the pedal's GC
-				// node carries tens of millivolts of audio, and reading it
-				// raw pumps the gain at audio rate. The follower passes
-				// SUSTAIN-scale moves and the settled input level while
-				// rejecting audio-rate ripple; with the terms held there is
-				// no live control derivative (the control row carries no
-				// stamp), unlike v2's analytic one.
-				const termsStateIdx = stamp.stateIndex;
-				const termsKey = `${block.id}_dbx_${termsStateIdx}`;
+				// Slot 0 smooths the GC control itself (SUSTAIN moves and
+				// audio rejection: the pedal's GC node carries tens of
+				// millivolts of audio, and reading it raw pumps the gain at
+				// audio rate). The rest term and the SUSTAIN-tracked knee
+				// both read the held control. Slot 1 smooths the rectified
+				// log-domain input (the knee makes sus-min flat while
+				// centre and sus-max engage progressively). The release TC
+				// varies with suppression depth (fast near top, minutes-slow
+				// from deep suppression); attack stays fast.
+				//
+				// Slot 2 is the silence prime (1 in silence, 0 under signal;
+				// slow to rise, fast to fall). Slot 3 is the shutdown: a
+				// fast peak-holder pumped only by post-gap transient edges
+				// (the envelope has decayed, so the first post-gap peak dumps
+				// a recharge gulp) and bled victim-dependently (fast under
+				// sustained signal, frozen in silence). Render onsets and
+				// continuous tones never pump (priming starts at zero), so
+				// the v4 threshold fit is structurally untouched. With
+				// everything held there is no live control derivative (the
+				// control row carries no stamp).
+				const dbxBaseIdx = stamp.stateIndex;
+				const ctrlKey = `${block.id}_dbxc_${dbxBaseIdx}`;
 				if (
 					this.elapsedSamples !==
-					(this.lastShiftedSample.get(termsKey) ?? -1)
+					(this.lastShiftedSample.get(ctrlKey) ?? -1)
 				) {
-					this.lastShiftedSample.set(termsKey, this.elapsedSamples);
-					const vInNow = (solution[stamp.plus] ?? 0.0) - (solution[stamp.minus] ?? 0.0);
-					const iInNow = vInNow * stamp.inputSiemens;
-					const target =
-						((solution[stamp.control] ?? 0.0) - stamp.vrefVolts) +
-						Math.abs(iInNow) * stamp.detectorOhms;
-					const termsPrev = state[termsStateIdx] ?? 0.0;
-					const termsTc =
-						target > termsPrev ? stamp.attackSeconds : stamp.releaseSeconds;
-					const termsK = dbxVcaEnvelopeK(termsTc, this.sampleRate as number);
-					state[termsStateIdx] = termsPrev + (target - termsPrev) * termsK;
+					this.lastShiftedSample.set(ctrlKey, this.elapsedSamples);
+					const vCtrlNow = solution[stamp.control] ?? 0.0;
+					const ctrlPrev = state[dbxBaseIdx] ?? 0.0;
+					const ctrlTc =
+						vCtrlNow > ctrlPrev ? stamp.attackSeconds : stamp.releaseSeconds;
+					const ctrlK = dbxVcaEnvelopeK(ctrlTc, this.sampleRate as number);
+					state[dbxBaseIdx] = ctrlPrev + (vCtrlNow - ctrlPrev) * ctrlK;
 				}
-				const termsHeld = state[termsStateIdx] ?? 0.0;
-				// Same closed form as `dbxVcaGainDb`: control terms through
-				// 5.9 mV/dB, clamped to the datasheet range. At a clamp rail
+				const vCtrlHeld = state[dbxBaseIdx] ?? 0.0;
+				const restHeld = dbxVcaRestTerms(
+					vCtrlHeld,
+					stamp.sustainGain,
+					stamp.sustainRef,
+				);
+				const kneeHeld = dbxVcaKneeVolts(
+					vCtrlHeld,
+					stamp.kneeBaseVolts,
+					stamp.kneeTrack,
+				);
+				const vInInstDbx = (solution[stamp.plus] ?? 0.0) - (solution[stamp.minus] ?? 0.0);
+				const iInInstDbx = vInInstDbx * stamp.inputSiemens;
+				const primeKey = `${block.id}_dbxp_${dbxBaseIdx}`;
+				if (
+					this.elapsedSamples !==
+					(this.lastShiftedSample.get(primeKey) ?? -1)
+				) {
+					this.lastShiftedSample.set(primeKey, this.elapsedSamples);
+					const primeTarget = dbxVcaPrimeTarget(
+						iInInstDbx,
+						stamp.primeRefCurrent,
+					);
+					const primePrev = state[dbxBaseIdx + 2] ?? 0.0;
+					const primeTc =
+						primeTarget > primePrev
+							? stamp.primeRiseSeconds
+							: stamp.primeFallSeconds;
+					const primeK = dbxVcaEnvelopeK(primeTc, this.sampleRate as number);
+					state[dbxBaseIdx + 2] = primePrev + (primeTarget - primePrev) * primeK;
+				}
+				const primeHeld = state[dbxBaseIdx + 2] ?? 0.0;
+				const envKey = `${block.id}_dbxe_${dbxBaseIdx}`;
+				if (
+					this.elapsedSamples !==
+					(this.lastShiftedSample.get(envKey) ?? -1)
+				) {
+					this.lastShiftedSample.set(envKey, this.elapsedSamples);
+					const envTarget = dbxVcaEnvelopeTerms(
+						iInInstDbx,
+						stamp.envelopeSlope,
+						kneeHeld,
+					);
+					const envPrev = state[dbxBaseIdx + 1] ?? 0.0;
+					const envDepth = Math.min(1, Math.max(0, envPrev / 0.15));
+					const envTc =
+						envTarget > envPrev
+							? stamp.attackSeconds
+							: dbxVcaReleaseTc(envDepth, stamp.releaseSeconds, stamp.releaseSlowdown);
+					const envK = dbxVcaEnvelopeK(envTc, this.sampleRate as number);
+					state[dbxBaseIdx + 1] = envPrev + (envTarget - envPrev) * envK;
+				}
+				const envHeld = state[dbxBaseIdx + 1] ?? 0.0;
+				const shutKey = `${block.id}_dbxs_${dbxBaseIdx}`;
+				if (
+					this.elapsedSamples !==
+					(this.lastShiftedSample.get(shutKey) ?? -1)
+				) {
+					this.lastShiftedSample.set(shutKey, this.elapsedSamples);
+					const peakTarget = dbxVcaEnvelopeTerms(
+						iInInstDbx,
+						stamp.envelopeSlope,
+						kneeHeld,
+					);
+					const shutTarget = dbxVcaShutdownTarget(
+						peakTarget,
+						stamp.shutdownEdgeVolts,
+						primeHeld,
+						stamp.shutdownGain,
+					);
+					const shutPrev = state[dbxBaseIdx + 3] ?? 0.0;
+					const shutTc =
+						shutTarget > shutPrev
+							? stamp.shutdownAttackSeconds
+							: dbxVcaVictimTc(
+									primeHeld,
+									stamp.shutdownFastSeconds,
+									stamp.shutdownSlowSeconds,
+								);
+					const shutK = dbxVcaEnvelopeK(shutTc, this.sampleRate as number);
+					state[dbxBaseIdx + 3] = shutPrev + (shutTarget - shutPrev) * shutK;
+				}
+				const shutHeld = state[dbxBaseIdx + 3] ?? 0.0;
+				const termsHeld = restHeld + envHeld;
+				// Same closed form as `dbxVcaGainDb`: rest plus envelope terms
+				// through 5.9 mV/dB, clamped to the datasheet range. At a clamp rail
 				// the rail decides the gain (derivative zero); the terms are
-				// held anyway, so no row carries a control derivative.
+				// held anyway, so the control row carries no stamp. The shutdown
+				// rides OUTSIDE the linear clamp: a post-gap transient crushes
+				// toward mute (session 1/2 pips annihilated at -57 dB, session 8
+				// at -67 dB absolute), past any linear Av range, so it adds its
+				// dB after the clamp with only a -100 dB mute floor for safety.
 				const rawDb = -termsHeld / 0.0059;
 				const gainDb = Math.min(stamp.maxGainDb, Math.max(stamp.minGainDb, rawDb));
-				const gain = dbxVcaGainLinear(gainDb);
+				const totalDb = Math.max(-100, gainDb - shutHeld / 0.0059);
+				const gain = dbxVcaGainLinear(totalDb);
 				const vPlus = solution[stamp.plus] ?? 0.0;
 				const vMinus = solution[stamp.minus] ?? 0.0;
 				const vIn = vPlus - vMinus;
@@ -8518,7 +8713,8 @@ export class ReferenceRuntime {
 				// current ENTERS the output node, so every term below is
 				// negated once.
 				const leaving = -iOut;
-				const equivalent = leaving - (-gIn * vPlus + gIn * vMinus);
+				const equivalent =
+					leaving - (-gIn * vPlus + gIn * vMinus);
 				if (stamp.output !== 0) {
 					if (stamp.plus !== 0) {
 						(matrix[stamp.output] as number[])[stamp.plus] += -gIn;

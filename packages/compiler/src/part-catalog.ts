@@ -4539,37 +4539,61 @@ const entries: readonly PartEntry[] = [
 	// constant is -5.9 mV per dB, over a +/-30 dB range, matching `boss-lm-2`'s own
 	// `boss-lm-2-upc1252h2-vca-control.cir` reference deck (`gain_db = -v(ctrl)/0.0059`).
 	//
-	// BEHAVIORAL LAW v3 (`dbx-vca`, exponential dB control over smoothed terms).
-	// v1's island sigmoid needed volts of control swing while the topology delivers
-	// millivolts at GC1 (R10 1k pins node 70 to 4.5 V; the tap feeds it only through R11
-	// 15k), so the pedal rendered linear (flat 0.303 gain across 18x input). v2 added an
-	// internal envelope over the cell's node voltage, but the cell input is a virtual
-	// ground (100 ohms against the 10k feed): rectifying node volts leaves the envelope
-	// ~100x too small (8 mV at 0.9 V in), the cell falls 20% while its input current
-	// grows 18x, and the pedal expands. v3 therefore scales the RECTIFIED INPUT CURRENT
-	// through `detectorOhms` and smooths the SUM with the external control.
+	// BEHAVIORAL LAW v4 (session-calibrated: threshold/rest-gain + release).
+	// v2 rendered the pedal linear (flat 0.303: the island sigmoid needs volts, GC1
+	// delivers millivolts) and v3 rendered it expanding (the v2 envelope rectified the
+	// cell's virtual-ground node volts, ~100x too small, while raw audio on node 70
+	// pumped the gain). v4 fits the session threshold curves directly: SUSTAIN-coupled
+	// rest (sustainGain -4.23, sustainRef 4.6504 V -- rest gain rises with SUSTAIN,
+	// +27.5 dB across the engine-measured V70 rest span 4.6325->4.6728, inverting the
+	// old -6.8 dB SUSTAIN response with the session curves quoted as cause) plus a
+	// log-domain envelope with a SUSTAIN-tracked knee (envelopeSlope 0.049 V/neper,
+	// kneeBase -0.069 V at V70 4.65 rising 4.36 V/V): below the knee the pedal holds
+	// rest gain, above it each input decade adds the same dB of reduction, and the knee
+	// tracks SUSTAIN so sus-min stays flat to 300 mV while centre and sus-max engage
+	// progressively. Joint fit to the 12-point session sweep (worst residual 0.7 dB);
+	// hot points stay within ~1 dB of the coordinator's renders (no regression).
+	// The island still quotes 4.5 V for its off-chip ctrl_bus (both quoted).
 	//
-	// CENTER (re-derived, both quoted): the island centers its off-chip ctrl_bus at
-	// 4.5 V, but the law reads the on-chip GC node, whose engine-measured rest is
-	// 4.658 V at declared defaults (SUSTAIN 0.5; SUSTAIN 0->1 moves it 4.6325->4.6728).
-	// Centering at 4.5 would park rest gain 27 dB down a clamp rail (0.16 V is 27 dB
-	// through 1/0.0059), hiding every input sweep at the floor.
+	// CENTER (rest span, both quoted): the GC rest moves 4.6325->4.6728 across SUSTAIN
+	// 0->1 (engine-measured at declared defaults). sustainRef 4.6504 V with sustainGain
+	// -4.23 maps that span onto the session rest gains (sus-min -13.2, centre +5.68,
+	// sus-max +14.28 dB at 10 mV in).
 	//
-	// SCALE (`detectorOhms` 1000): 1k maps the CS-3 feed current (engine-measured
-	// 3.5-63 uA rms across the 0.05-0.9 V sweep at node 13 through R9 10k) to
-	// 0.004-0.06 V of control, i.e. ~1-11 dB of level-driven gain reduction on top of
-	// the external path: compression without floor-slamming (a full R9-mirror 10k would
-	// pin the -30 dB floor above ~0.2 V in; 1k lands the 0.9 V protocol point near
-	// -20 dB, firm limiting off the rail). The chip's true internal transresistance
-	// is silicon-internal (excluded); LM-2's 18k feed reads proportionally lower for
-	// the same input volts (workbench-side).
+	// KNEE (threshold moves with SUSTAIN): the knee must sit above 300 mV-equivalent
+	// at sus-min (flat -13.2), near 30-50 mV at centre, and near 10 mV at sus-max --
+	// a fixed knee cannot satisfy 30 mV-off (centre) and 30 mV-on (sus-max) at once,
+	// so it tracks V70 at +4.36 V/V. The chip's true threshold mechanism is
+	// silicon-internal (excluded); LM-2's biasing is unverified (workbench-side).
 	//
-	// SMOOTHING (load-bearing): node 70 carries tens of millivolts of audio in the
-	// pedal, and reading it raw pumps the gain at audio rate. The law smooths the total
-	// terms with attack/release (C8 4.7 uF by R13 10k ~ 47 ms release, D6 charge path
-	// through ~100 ohms ~ 0.5 ms attack) and holds them across the Newton loop like the
-	// compandor's. The 4a/Q6/Q8 auxiliary chain cannot substitute: 4a's audio input is
-	// an open trace residual.
+	// SMOOTHING (load-bearing as in v3): node 70 carries tens of millivolts of audio,
+	// so both the external control and the rectified input are smoothed with
+	// attack/release (C8 4.7 uF by R13 10k ~ 47 ms release, D6 charge path ~ 0.5 ms
+	// attack) and held across the Newton loop. Release TC varies with suppression
+	// depth (releaseSlowdown 2400: 50 ms near top, minutes-slow from deep suppression;
+	// fit hook for the hot-start + 60 s take, which does not exist yet) -- a fixed
+	// release is refuted by the session (pips annihilated after hot history, passing
+	// after mild history, across the same gap). The 4a/Q6/Q8 auxiliary chain cannot
+	// substitute: 4a's audio input is an open trace residual.
+	//
+	// SHUTDOWN (v5, session-8 victim dependence, on top of the untouched v4 above):
+	// the depth-only release clears slowly everywhere-post-hot, but hardware clears
+	// in <1 s under tone while holding across a 30 s gap -- so the release from a
+	// post-gap transient crush must be victim-dependent, not just depth-dependent.
+	// A fourth follower holds the shutdown: pumped only by hot peaks while primed
+	// (silence builds prime over ~10 s, signal disarms in fractions of a second),
+	// with an absolute gulp threshold (shutdownEdgeVolts) and quadratic size
+	// (shutdownGain fit: D6 conducting hard into the depleted C8 on the first
+	// post-gap peak, the square the D6 diode exponential over the range; the
+	// absolute threshold is the diode forward drop plus topped-C8 headroom, which
+	// is why sine ripple and mild peaks never pump). Render onsets and continuous
+	// tones never pump (priming starts at zero and signal holds it there): the v4
+	// threshold fit is structurally untouched. The shutdown bleeds
+	// victim-dependently (shutdownFastSeconds under sustained signal through the
+	// signal-driven Q6/Q8 collector plus Q7 transconductance discharge,
+	// shutdownSlowSeconds R-only in silence: holds across takes, finite).
+	// Session-8 fit: post-gap pip 0.007x mild, tone from +1 s at baseline flat,
+	// no creep.
 	//
 	// BINDING. `boss-lm-2`'s `IC1_UPC1252H2` spells its pins with role suffixes
 	// (`pin1_input`, `pin2_gc2`, `pin3_gc1`, `pin4_symmetry`, `pin5_iset`,
@@ -4593,10 +4617,11 @@ const entries: readonly PartEntry[] = [
 	// IC2's inverting stage), not by this number alone.
 	//
 	// KNOWN DEVIATIONS (documented, not hidden):
-	// - GC rest (and hence the 4.66 V center) is measured at declared defaults; a packet
-	//   re-trace moving the SUSTAIN-default bias moves rest with it. LM-2's rest/TCs are
-	//   unverified: the entry's numbers are the CS-3's, and LM-2 limiting calibration
-	//   belongs workbench-side.
+	// - SUSTAIN rest span, knee track, and envelope slope are fitted to the session
+	//   threshold curves (worst residual 0.7 dB); a packet re-trace moving the
+	//   SUSTAIN-default bias moves rest with it. LM-2's biasing is unverified:
+	//   the entry's numbers are the CS-3's, and LM-2 calibration belongs
+	//   workbench-side.
 	//
 	// `declaredTypes` deliberately empty. It listed `Circuit.IC`, the format's generic "this is a
 	// chip", which identifies nothing and could only ever act as a catch-all: measured 2026-09-04,
@@ -4661,10 +4686,22 @@ const entries: readonly PartEntry[] = [
 					"law": {
 						"kind": "dbx-vca",
 						"inputSiemens": 0.01,
-						"vrefVolts": 4.66,
+						"sustainGain": -4.23,
+						"sustainRef": 4.6504,
+						"envelopeSlope": 0.049,
+						"kneeBaseVolts": -0.069,
+						"kneeTrack": 4.36,
 						"attackSeconds": 0.0005,
 						"releaseSeconds": 0.05,
-						"detectorOhms": 1000,
+						"releaseSlowdown": 2400,
+						"shutdownEdgeVolts": 0.08,
+						"shutdownGain": 28,
+						"primeRiseSeconds": 10,
+						"primeFallSeconds": 0.15,
+						"shutdownAttackSeconds": 0.00015,
+						"shutdownFastSeconds": 0.025,
+						"shutdownSlowSeconds": 300,
+						"primeRefCurrent": 0.0000005,
 						"minGainDb": -30,
 						"maxGainDb": 30
 					},
