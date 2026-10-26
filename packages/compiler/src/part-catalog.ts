@@ -4571,6 +4571,30 @@ const entries: readonly PartEntry[] = [
 	// attack/release (C8 4.7 uF by R13 10k ~ 47 ms release, D6 charge path ~ 0.5 ms
 	// attack) and held across the Newton loop. Release TC varies with suppression
 	// depth (releaseSlowdown 2400: 50 ms near top, minutes-slow from deep suppression;
+	// releaseShape 6 bends the mid-depth curve down (depth^6 in the slowdown
+	// exponent): 56 ms at half depth instead of 2.45 s, endpoints pinned
+	// (50 ms at top for session-3 immediacy, 120 s at full depth for
+	// cross-take persistence). The v6 pick-attack fit: in-stream gain was
+	// frozen (identical peak/sustain gains across 30-1000 ms dips), so the
+	// engine passed dry ratios through while hardware breathes in the dips;
+	// the shape restores dip recovery without touching settled tones, the v4
+	// threshold fit, or the session-8 shutdown path;
+	// H1 base-attack fix (drive numbers as cause: full-pedal Mayer feed
+	// 20.9 uA peak / 3.51 uA RMS with the jack carrying 0.23 V peaks --
+	// 2.2x the fixture feed that already breathes to 17x -- and GC pooled
+	// identical in peak and body windows (4.6729 vs 4.6728 V), so the miss
+	// is envelope dynamics, not drive). Probe wall: no single attack TC
+	// threads the gate and the bars (bars need <=~5 ms: 8 ms already fails
+	// the threshold sweep 1.96 dB and the synthetic body 0.84; the gate
+	// needs >=12 ms: 8 ms stays frozen ~5.9x; depth-gating and depth-norm
+	// moves fail the medians or the top). The frozen joint is the pegged
+	// release: loud-body targets hit depth 1.0 (0.179 V peak vs 0.15 norm),
+	// where the TC sits at 120 s, so short dips recover ~0%. releaseMax
+	// caps the deep release at 0.8 s -- surgical to depths above ~0.84,
+	// where no fitted bar operates except the v4 slow-end pair (see the
+	// tension note in the H1 entry): ripple, mild-pip and body windows all
+	// live below it, and the session-8 post-gap path is the separate victim
+	// follower;
 	// fit hook for the hot-start + 60 s take, which does not exist yet) -- a fixed
 	// release is refuted by the session (pips annihilated after hot history, passing
 	// after mild history, across the same gap). The 4a/Q6/Q8 auxiliary chain cannot
@@ -4691,9 +4715,11 @@ const entries: readonly PartEntry[] = [
 						"envelopeSlope": 0.049,
 						"kneeBaseVolts": -0.069,
 						"kneeTrack": 4.36,
-						"attackSeconds": 0.0005,
+						"attackSeconds": 0.004,
 						"releaseSeconds": 0.05,
 						"releaseSlowdown": 2400,
+						"releaseShape": 6,
+						"releaseMaxSeconds": 0.8,
 						"shutdownEdgeVolts": 0.08,
 						"shutdownGain": 28,
 						"primeRiseSeconds": 10,

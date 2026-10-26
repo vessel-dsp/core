@@ -1115,12 +1115,16 @@ export type DeviceLaw =
 			readonly kneeBaseVolts: number;
 			/** Detector knee tracking with GC volts, dimensionless (fitted +4.36). */
 			readonly kneeTrack: number;
-			/** Smoothed-terms attack time constant, seconds (0.0005). */
+			/** Smoothed-terms attack time constant, seconds (0.004; v6 dip-recovery breathing). */
 			readonly attackSeconds: number;
 			/** Smoothed-terms release time constant, seconds (0.05). */
 			readonly releaseSeconds: number;
 			/** Depth-varying release slowdown at full suppression (2400: 50 ms -> 120 s; fit hook for the hot-start + 60 s take). */
 			readonly releaseSlowdown: number;
+			/** Release-curve shape exponent on normalized depth (6: 56 ms at half depth, endpoints pinned; v6 pick-attack breathing fit). */
+			readonly releaseShape: number;
+			/** Deep-release ceiling, seconds (0.8: pegged-depth recovery for in-stream dips; H1 base-attack fix, binds only above depth ~0.84). */
+			readonly releaseMaxSeconds: number;
 			/** Post-gap gulp threshold, volts: diode forward + topped-C8 headroom (session-8 fit, above sine ripple, below post-gap excess). */
 			readonly shutdownEdgeVolts: number;
 			/** Post-gap gulp gain, per volt (session-8 fit: sizes the 0.007x crush). */
@@ -2035,6 +2039,8 @@ export type Stamp =
 			readonly attackSeconds: number;
 			readonly releaseSeconds: number;
 			readonly releaseSlowdown: number;
+			readonly releaseShape: number;
+			readonly releaseMaxSeconds: number;
 			readonly shutdownEdgeVolts: number;
 			readonly shutdownGain: number;
 			readonly primeRiseSeconds: number;

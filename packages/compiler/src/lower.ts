@@ -879,6 +879,8 @@ export function lowerRegion(
 				attackSeconds: law.attackSeconds,
 				releaseSeconds: law.releaseSeconds,
 				releaseSlowdown: law.releaseSlowdown,
+				releaseShape: law.releaseShape,
+				releaseMaxSeconds: law.releaseMaxSeconds,
 				shutdownEdgeVolts: law.shutdownEdgeVolts,
 				shutdownGain: law.shutdownGain,
 				primeRiseSeconds: law.primeRiseSeconds,

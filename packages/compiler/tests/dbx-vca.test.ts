@@ -60,9 +60,17 @@ describe("uPC1252H2 dbx-vca section lands its pins on the right nodes", () => {
 		expect(vca.envelopeSlope).toBeCloseTo(0.049, 8);
 		expect(vca.kneeBaseVolts).toBeCloseTo(-0.069, 8);
 		expect(vca.kneeTrack).toBeCloseTo(4.36, 8);
-		expect(vca.attackSeconds).toBeCloseTo(0.0005, 8);
+		expect(vca.attackSeconds).toBeCloseTo(0.004, 8);
 		expect(vca.releaseSeconds).toBeCloseTo(0.05, 8);
 		expect(vca.releaseSlowdown).toBeCloseTo(2400, 8);
+		// H1 base-attack fix (on top of the v6 dip-recovery shape): the v6
+		// 4 ms attack stands (ripple tracking, pip settling, body bars),
+		// and a 0.8 s deep-release ceiling unpegs in-stream dips -- the
+		// frozen joint was the 120 s release at pegged depth. Drive numbers
+		// as cause: full-pedal Mayer feed 20.9 uA pk with GC pooled flat
+		// across peak/body windows -- envelope dynamics, not drive.
+		expect(vca.releaseShape).toBeCloseTo(6, 8);
+		expect(vca.releaseMaxSeconds).toBeCloseTo(0.8, 8);
 		expect(vca.minGainDb).toBeCloseTo(-30, 8);
 		expect(vca.maxGainDb).toBeCloseTo(30, 8);
 		expect(vca.stateIndex).toBeGreaterThanOrEqual(0);

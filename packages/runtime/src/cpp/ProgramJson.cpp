@@ -3,6 +3,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -502,6 +503,8 @@ Stamp parseStamp(const JsonValue& obj) {
     st.attackSeconds = obj.getDouble("attackSeconds", 0.0005);
     st.releaseSeconds = obj.getDouble("releaseSeconds", 0.05);
     st.releaseSlowdown = obj.getDouble("releaseSlowdown", 2400.0);
+    st.releaseShape = obj.getDouble("releaseShape", 1.0);
+    st.releaseMaxSeconds = obj.getDouble("releaseMaxSeconds", std::numeric_limits<double>::infinity());
     st.shutdownEdgeVolts = obj.getDouble("shutdownEdgeVolts", 0.05);
     st.shutdownGain = obj.getDouble("shutdownGain", 100.0);
     st.primeRiseSeconds = obj.getDouble("primeRiseSeconds", 10.0);

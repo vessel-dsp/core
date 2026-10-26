@@ -619,20 +619,30 @@ export function dbxVcaKneeVolts(
 }
 
 /**
- * Depth-varying release time constant in seconds: `baseSeconds *
- * slowdown^depth01`, where depth01 is the held suppression depth normalized
- * to [0, 1]. Fast near the top (base rate: session-3 immediacy), minutes-slow
- * from deep suppression. Pure so the curve is unit-testable; the production
- * slowdown is a fit hook for the hot-start + 60 s take, which does not exist
- * yet -- see the law docs.
+ * Depth-varying release time constant in seconds: `min(maxSeconds,
+ * baseSeconds * slowdown^(depth01^shape))`, where depth01 is the held
+ * suppression depth normalized to [0, 1]. Fast near the top (base rate:
+ * session-3 immediacy), minutes-slow from deep suppression. The shape
+ * exponent bends the mid-depth curve down (shape 8: ~52 ms at half depth
+ * instead of 2.45 s) with both curve endpoints pinned; the H1 base-attack
+ * ceiling caps the deep release at `maxSeconds` (default unbounded, law
+ * fits 1.0 s) so pegged in-stream depths recover across dips -- surgical
+ * to depths above ~0.89, where no fitted bar operates. Pure so the curve
+ * is unit-testable; the production slowdown is a fit hook for the
+ * hot-start + 60 s take, which does not exist yet -- see the law docs.
  */
 export function dbxVcaReleaseTc(
 	depth01: number,
 	baseSeconds: number,
 	slowdown: number,
+	shape = 1,
+	maxSeconds = Number.POSITIVE_INFINITY,
 ): number {
 	const depth = Math.min(1, Math.max(0, depth01));
-	return baseSeconds * Math.pow(slowdown, depth);
+	return Math.min(
+		maxSeconds,
+		baseSeconds * Math.pow(slowdown, Math.pow(depth, shape)),
+	);
 }
 
 /**
@@ -8655,7 +8665,7 @@ export class ReferenceRuntime {
 					const envTc =
 						envTarget > envPrev
 							? stamp.attackSeconds
-							: dbxVcaReleaseTc(envDepth, stamp.releaseSeconds, stamp.releaseSlowdown);
+							: dbxVcaReleaseTc(envDepth, stamp.releaseSeconds, stamp.releaseSlowdown, stamp.releaseShape, stamp.releaseMaxSeconds);
 					const envK = dbxVcaEnvelopeK(envTc, this.sampleRate as number);
 					state[dbxBaseIdx + 1] = envPrev + (envTarget - envPrev) * envK;
 				}

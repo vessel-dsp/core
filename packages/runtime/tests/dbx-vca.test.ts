@@ -164,6 +164,42 @@ describe("dbxVcaReleaseTc", () => {
 		expect(dbxVcaReleaseTc(0.5, 0.05, 2400)).toBeCloseTo(0.05 * Math.sqrt(2400), 9);
 	});
 
+	it("bends the mid-depth curve down under the v6 shape with endpoints pinned", () => {
+		// v6 pick-attack fit (session-8 numbers as cause): the depth-only
+		// curve froze in-stream gain across 30-1000 ms dips (identical
+		// peak/sustain gains: the engine passed dry ratios through while
+		// hardware breathes to p90 10.3x/max 15.2x). depth^6 in the
+		// slowdown exponent drops half-depth to 63 ms (from 2.45 s) while
+		// depth 0 stays 50 ms (session-3 immediacy) and depth 1 stays
+		// 120 s (cross-take persistence, post-gap pip still crushed 0.007x
+		// by the victim shutdown, probe flat from +1 s).
+		expect(dbxVcaReleaseTc(0, 0.05, 2400, 6)).toBeCloseTo(0.05, 12);
+		expect(dbxVcaReleaseTc(1, 0.05, 2400, 6)).toBeCloseTo(120, 9);
+		expect(dbxVcaReleaseTc(0.5, 0.05, 2400, 6)).toBeCloseTo(
+			0.05 * Math.pow(2400, Math.pow(0.5, 6)),
+			9,
+		);
+		expect(dbxVcaReleaseTc(0.5, 0.05, 2400, 6)).toBeCloseTo(0.0565, 3);
+	});
+
+	it("caps the deep release under the H1 ceiling, leaving the curve below it untouched", () => {
+		// H1 base-attack fix (drive numbers as cause: full-pedal Mayer feed
+		// 20.9 uA pk healthy with GC pooled flat -- envelope dynamics, not
+		// drive): loud-body targets peg depth at 1.0, where the curve sits
+		// at 120 s and short dips recover ~0%. The ceiling binds only above
+		// depth ~0.89 (no fitted bar operates there: ripple, mild-pip and
+		// body windows all live below it; session-8 post-gap is the separate
+		// victim follower), so the mid curve and the top endpoint are intact.
+		expect(dbxVcaReleaseTc(1, 0.05, 2400, 6, 0.8)).toBeCloseTo(0.8, 12);
+		expect(dbxVcaReleaseTc(0.5, 0.05, 2400, 6, 0.8)).toBeCloseTo(
+			0.05 * Math.pow(2400, Math.pow(0.5, 6)),
+			9,
+		);
+		expect(dbxVcaReleaseTc(0, 0.05, 2400, 6, 0.8)).toBeCloseTo(0.05, 12);
+		// Unbounded default preserves the v6 curve exactly.
+		expect(dbxVcaReleaseTc(1, 0.05, 2400, 6)).toBeCloseTo(120, 9);
+	});
+
 	it("clamps the depth to [0, 1] instead of running away", () => {
 		expect(dbxVcaReleaseTc(-0.5, 0.05, 2400)).toBeCloseTo(0.05, 12);
 		expect(dbxVcaReleaseTc(2, 0.05, 2400)).toBeCloseTo(120, 9);
@@ -376,11 +412,13 @@ describe("dbx-vca state-dependent release", () => {
 	// HOT history while sines stay alive (0.196); (b) the same pips pass
 	// (0.013-0.023) after MILD history; (c) no visible slope either way at
 	// 10 ms resolution; (d) the hot-start + 60 s trailing-tone take does not
-	// exist yet. So: recovery from deep suppression must be orders of
-	// magnitude slower than from mild suppression (bounded below by the 3 s
-	// pip gap plus cross-take persistence), finite (it moves toward rest,
-	// not stuck), and the mild end must recover promptly (session-3
-	// immediacy). DC steps stand in for the pip history here: the followers
+	// exist yet. So: recovery from deep suppression under sustained signal
+	// is finite (it moves toward rest, not stuck), monotonic, and complete
+	// within seconds (ceiling-bound -- sessions 6/7/8 all show immediate
+	// baseline under tone, never a slow creep), and the mild end recovers
+	// promptly (session-3 immediacy). The deep end is still much slower
+	// than the mild end in RATE (50 ms vs the 0.8 s ceiling), just bounded.
+	// DC steps stand in for the pip history here: the followers
 	// see the same suppression depth either way, and the cell has no reactive
 	// parts, so the measured time course is the law's release curve alone.
 	const releaseCourse = (
@@ -444,32 +482,51 @@ describe("dbx-vca state-dependent release", () => {
 		expect(course.at(0.5)).toBeCloseTo(course.restDb, 0);
 	});
 
-	it("stays suppressed across the 3 s pip gap after hot history (slow end)", () => {
-		// Sus-max rest, 1 V history: depth 1, TC 120 s. After the full pip
-		// gap the probe is still >15 dB below rest, having recovered <5 dB
-		// from onset -- the session's annihilated pips, bounded below.
+	it("recovers from hot history under sustained tone within ~1 s, flat after (session-grounded)", () => {
+		// SUPERSEDES the slow-end pin (used to assert >15 dB suppression
+		// held at 3 s with <5 dB creep): that pin modelled a no-gap
+		// weak-tone regime no session take ever measured, inferring an
+		// unbounded minutes-release from the annihilated pips. The pips are
+		// post-GAP (silence) -- governed by the separate victim shutdown
+		// (session-8 suite, green) -- while every tone-recovery take on
+		// record shows immediate baseline, never a slow creep: session 6
+		// (tone-after-hot at baseline), session 7 (pip-after-continuous-hot
+		// at hot level), session 8 (probe flat from +1 s). Reopen with a
+		// tone take showing slow recovery (hotgap/hotpip stimuli exist).
+		// Sus-max rest, 1 V history: depth pegged, TC at the 0.8 s ceiling.
+		// The probe is back at rest by ~1 s (measured 13.876 vs 13.876 at
+		// 1.0 s) and dead flat after (0.000 dB 1.5 s -> 3.0 s): recovery,
+		// not creep. H1 cause: the ceiling unpegs in-stream dips (gate).
 		const course = releaseCourse(REST_MAX, 1.0, 0.01);
 		const onset = course.at(0.05);
 		expect(course.restDb - onset).toBeGreaterThan(30);
-		expect(course.restDb - course.at(3.0)).toBeGreaterThan(15);
-		expect(course.at(3.0) - onset).toBeLessThan(5);
+		expect(Math.abs(course.restDb - course.at(1.5))).toBeLessThan(1);
+		expect(Math.abs(course.restDb - course.at(3.0))).toBeLessThan(1);
+		expect(Math.abs(course.at(3.0) - course.at(1.5))).toBeLessThan(0.5);
 	});
 
-	it("deep recovery is finite and orders of magnitude slower than fast recovery", () => {
+	it("deep recovery is finite, monotonic, and completes on sustained signal (ceiling-bound)", () => {
+		// SUPERSEDES the orders-of-magnitude pin (used to assert deep <=10%
+		// home at 3 s): same session grounding as above -- unbounded slow
+		// recovery under tone was inferred, never measured (sessions 6/7/8
+		// all clear to baseline; post-gap holds are the victim shutdown's).
+		// The RATE ordering survives (50 ms top vs the 0.8 s ceiling, still
+		// 16x); only the unbounded tail is gone. Reopen with a slow-creep
+		// tone take.
 		const deep = releaseCourse(REST_MAX, 1.0, 0.01);
 		const fast = releaseCourse(REST_CENTRE, 0.05, 0.01);
 		// Finite: the deep probe moves monotonically toward rest, not stuck.
 		expect(deep.at(0.5)).toBeGreaterThan(deep.at(0.05));
 		expect(deep.at(3.0)).toBeGreaterThan(deep.at(0.5));
 		// Order-of-magnitude bar in recovered fraction of the dB gap: fast
-		// is >=90% home by 0.5 s, deep is <=10% home at 3 s.
+		// is >=90% home by 0.5 s, deep is >=90% home by 3 s (measured 1.0).
 		const recoveredFraction = (
 			course: { at: (seconds: number) => number; restDb: number },
 			seconds: number,
 		): number =>
 			(course.at(seconds) - course.at(0.05)) / (course.restDb - course.at(0.05));
 		expect(recoveredFraction(fast, 0.5)).toBeGreaterThan(0.9);
-		expect(recoveredFraction(deep, 3.0)).toBeLessThan(0.1);
+		expect(recoveredFraction(deep, 3.0)).toBeGreaterThan(0.9);
 	});
 });
 
@@ -608,9 +665,13 @@ describe.skipIf(!wasmBinaryPresent)(
 			await spot(REST_CENTRE, 0.01, 5.68);
 			await spot(REST_MAX, 0.3, -14.4);
 
-			// Slow-release end on the compiled console: hot history then a
-			// 10 mV probe is still >15 dB below rest 3 s later, matching the
-			// TS-console bound above (the 3 s pip gap, bounded below).
+			// Release end on the compiled console: hot history then a
+			// 10 mV probe is back at rest 3 s later on both consoles
+			// (measured 0.4 dB off), matching the TS-console bound above.
+			// SUPERSEDES the slow-hold pin for the same session-grounded
+			// reason: the annihilated-pips evidence is post-gap (victim
+			// shutdown, session-8 suite green), while tone takes 6/7/8
+			// clear to baseline. Reopen with a slow-creep tone take.
 			const historyLength = 48000;
 			const probeLength = Math.round(3.2 * 48000);
 			const input = new Float64Array(historyLength + probeLength);
@@ -622,8 +683,9 @@ describe.skipIf(!wasmBinaryPresent)(
 				historyLength + Math.round(3.0 * 48000),
 			);
 			const susMaxRestDb = SESSION_DB[REST_MAX]?.[0] ?? 0;
-			expect(susMaxRestDb - tsDb).toBeGreaterThan(15);
-			expect(susMaxRestDb - wasmDb).toBeGreaterThan(15);
+			expect(Math.abs(susMaxRestDb - tsDb)).toBeLessThan(2);
+			expect(Math.abs(susMaxRestDb - wasmDb)).toBeLessThan(2);
+			expect(Math.abs(tsDb - wasmDb)).toBeLessThan(1);
 		});
 	},
 );
@@ -938,6 +1000,96 @@ describe("dbx-vca session-6/7 no-regression cells on the pedal program", () => {
 		expect(20 * Math.log10(pip / steady)).toBeGreaterThan(-2);
 		expect(20 * Math.log10(pip / steady)).toBeLessThan(2);
 	});
+});
+
+describe("dbx-vca v6 pick-attack breathing on the pedal program", () => {
+	// Gate proxy for the Mayer onset distribution (exact-detector numbers on
+	// the pedal program with guitar input: 17-18 onsets, med 3.3-3.4,
+	// p90 8.7-12.2, max 16.4-16.8 vs hardware 12/4.9/10.3/15.2; the stimulus
+	// file itself stays out of the tree, so this cell reproduces the
+	// mechanism synthetically): a loud phrase, a near-quiet dip of D ms, a
+	// hot pick with a sustained body. Dip recovery must punch the pick
+	// above dry while the body stays compressed, and longer dips must open
+	// further -- the depth^6 release shape plus 4 ms attack. Short dips
+	// stay low (the medians-stay-put proxy).
+	const SR = 48000;
+	const FREQ = 220;
+	const dipPick = (dipMs: number): { dry: Float64Array; wet: Float64Array; onset: number } => {
+		const result = compile(dbxVcaPedalChain(1, 1), {
+			registry: pedalPartCatalog,
+		});
+		if (result.status !== "ok") {
+			throw new Error(`did not compile: ${JSON.stringify(result.reasons)}`);
+		}
+		const runtime = new ReferenceRuntime(result.program);
+		runtime.prepare(SR);
+		const total = Math.round(2.2 * SR);
+		const input = new Float64Array(total);
+		const phrase = Math.round(0.6 * SR);
+		for (let i = 0; i < phrase; i++) {
+			input[i] = 0.1 * Math.sin((2 * Math.PI * FREQ * i) / SR);
+		}
+		const dip = Math.round((dipMs / 1000) * SR);
+		for (let i = phrase; i < phrase + dip; i++) {
+			input[i] = 0.008 * Math.sin((2 * Math.PI * FREQ * i) / SR);
+		}
+		const onset = phrase + dip;
+		const rise = Math.round(0.005 * SR);
+		for (let i = 0; i < rise; i++) {
+			const w = 0.5 * (1 - Math.cos((Math.PI * i) / rise));
+			input[onset + i] += 0.2 * w * Math.sin((2 * Math.PI * FREQ * (onset + i)) / SR);
+		}
+		const tail = Math.round(0.15 * SR);
+		for (let i = 0; i < tail; i++) {
+			input[onset + rise + i] +=
+				0.2 * Math.exp(-i / (0.008 * SR)) * Math.sin((2 * Math.PI * FREQ * (onset + rise + i)) / SR);
+		}
+		for (let i = onset + Math.round(0.01 * SR); i < total; i++) {
+			input[i] += 0.06 * Math.sin((2 * Math.PI * FREQ * i) / SR);
+		}
+		return { dry: input, wet: runtime.process(input), onset };
+	};
+	// Exact-detector windows: peak over the first 5 ms, sustain RMS over
+	// 50-150 ms after onset.
+	const overshoot = (x: Float64Array, onset: number): { peak: number; sus: number; r: number } => {
+		let peak = 0;
+		for (let i = onset; i < Math.min(x.length, onset + 240); i++) {
+			peak = Math.max(peak, Math.abs(x[i] ?? 0));
+		}
+		let sum = 0;
+		let count = 0;
+		for (let i = onset + 2400; i < Math.min(x.length, onset + 7200); i++) {
+			sum += (x[i] ?? 0) * (x[i] ?? 0);
+			count++;
+		}
+		const sus = Math.sqrt(sum / Math.max(1, count));
+		return { peak, sus, r: sus > 1e-9 ? peak / sus : 0 };
+	};
+
+	it("opens with dip length: long dips punch, short dips stay low", () => {
+		const short = dipPick(30);
+		const mid = dipPick(80);
+		const long = dipPick(600);
+		const rShort = overshoot(short.wet, short.onset).r;
+		const rMid = overshoot(mid.wet, mid.onset).r;
+		const rLong = overshoot(long.wet, long.onset).r;
+		// Measured at the v6 fit: 5.35 / 7.83 / 14.65.
+		expect(rLong).toBeGreaterThan(rMid);
+		expect(rMid).toBeGreaterThan(rShort);
+		expect(rLong).toBeGreaterThan(10);
+		expect(rShort).toBeLessThan(rLong / 2);
+	}, 120_000);
+
+	it("punches the pick above dry while the body stays compressed", () => {
+		const { dry, wet, onset } = dipPick(150);
+		const d = overshoot(dry, onset);
+		const w = overshoot(wet, onset);
+		// Measured at the v6 fit: peak gain 1.87, sustain gain 0.53,
+		// overshoot 13.18 against dry 3.72.
+		expect(w.r).toBeGreaterThan(10);
+		expect(w.peak / d.peak).toBeGreaterThan(1);
+		expect(w.sus / d.sus).toBeLessThan(0.7);
+	}, 120_000);
 });
 
 describe.skipIf(!wasmBinaryPresent)(

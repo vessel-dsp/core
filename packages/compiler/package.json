@@ -1,6 +1,6 @@
 {
 	"name": "@vessel-dsp/compiler",
-	"version": "0.14.0",
+	"version": "0.16.0",
 	"description": "Headless circuit compiler turning .vdsp documents into executable simulation Programs.",
 	"keywords": [
 		"guitar-pedal",

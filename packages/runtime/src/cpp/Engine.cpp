@@ -4383,7 +4383,7 @@ void Engine::applyStamp(
                 if (envDepthDbx > 1.0) envDepthDbx = 1.0;
                 double envTcDbx = envTargetDbx > envPrevDbx
                     ? stamp.attackSeconds
-                    : stamp.releaseSeconds * std::pow(stamp.releaseSlowdown, envDepthDbx);
+                    : std::min(stamp.releaseMaxSeconds, stamp.releaseSeconds * std::pow(stamp.releaseSlowdown, std::pow(envDepthDbx, stamp.releaseShape)));
                 double envDenomDbx = envTcDbx * options_.sampleRate;
                 double envKDbx = envDenomDbx > 0.0 ? 1.0 - std::exp(-1.0 / envDenomDbx) : 1.0;
                 state[dbxBaseIdx + 1] = envPrevDbx + (envTargetDbx - envPrevDbx) * envKDbx;

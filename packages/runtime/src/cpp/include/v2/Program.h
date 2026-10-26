@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 #include <optional>
@@ -239,6 +240,8 @@ struct Stamp {
     double attackSeconds = 0.0005;
     double releaseSeconds = 0.05;
     double releaseSlowdown = 2400.0;
+    double releaseShape = 1.0;
+    double releaseMaxSeconds = std::numeric_limits<double>::infinity();
     double shutdownEdgeVolts = 0.05;
     double shutdownGain = 100.0;
     double primeRiseSeconds = 10.0;
