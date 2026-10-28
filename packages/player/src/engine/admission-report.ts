@@ -35,15 +35,49 @@ export type PlayerLoadMeasurementFlag = {
 	readonly playerMeasureProgram?: boolean;
 };
 
+/**
+ * Player extension on the inbound `load` message. The runtime worklet
+ * ignores it; the player worklet reads it. A finite integer >= 1 forces
+ * the runtime to prepare at that oversample factor (explicit override for
+ * tests/benchmarking, or the engine's 1x hold for rate-dependent programs);
+ * absent means the worklet measures the candidates and decides itself.
+ * `oversampleReason` carries the forcing side's reason for the report.
+ */
+export type PlayerOversampleFlag = {
+	readonly oversample?: number;
+	readonly oversampleReason?: string;
+};
+
 /** Player extension on the outbound `loaded` reply. */
 export type PlayerLoadedMeasurement = {
 	/**
 	 * This program's own per-sample cost in nanoseconds, timed on the
 	 * shipped console on the audio thread during this load (warmed,
-	 * median-of-3, same 128-frame method the main-thread probe used), summed
-	 * over the program slots. Null when nothing was measured (flag off, no
-	 * wasm engine, or the timing threw): the static verdict decides then.
+	 * hot drive, mean of the timed blocks at the prepared oversample
+	 * factor), summed over the program slots. Null when nothing was
+	 * measured (flag off, no wasm engine, or the timing threw): the static
+	 * verdict decides then.
 	 */
 	readonly measuredNsPerSample?: number | null;
 	readonly programSchedule?: readonly PlayerProgramScheduleEntry[];
+	/**
+	 * The oversample decision behind this load: the factor the runtime was
+	 * prepared at, the pure decision's reason, the per-factor block costs
+	 * priced on THIS device on the audio thread, and the resampler latency
+	 * the factor adds in host samples (reported, never compensated).
+	 */
+	readonly oversample?: {
+		readonly factor: number;
+		readonly reason: string;
+		readonly costs: readonly {
+			readonly factor: number;
+			readonly ok: boolean;
+			readonly p99Ms?: number;
+			readonly meanMs?: number;
+			readonly maxMs?: number;
+			readonly blocks?: number;
+			readonly note?: string;
+		}[];
+		readonly latencyHostSamples: number | null;
+	} | null;
 };

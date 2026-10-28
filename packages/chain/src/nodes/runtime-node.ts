@@ -4,7 +4,8 @@ import { ReferenceRuntime } from "@vessel-dsp/runtime";
 import type { SupplyAddress } from "@vessel-dsp/runtime";
 import type { SupplyProfile } from "../supply-profile.js";
 import { customSupplyProfile } from "../supply-profile.js";
-import type { ChainNode } from "../types.js";
+import type { ChainNode, ChainPrepareOptions } from "../types.js";
+import { validateOversample } from "../oversample.js";
 
 export type RuntimeNodeOptions = {
 	readonly source?: string;
@@ -25,6 +26,12 @@ export class RuntimeNode implements ChainNode {
 	private params: Record<string, number> = {};
 
 	private sampleRate = 48000;
+
+	/**
+	 * The solver oversample factor from the last `prepare()` (1 when never
+	 * prepared with one): the solver runs at host rate x this factor.
+	 */
+	private oversample = 1;
 
 	private source: string | undefined;
 	private supplyResolution: SupplyResolution | null = null;
@@ -133,9 +140,10 @@ export class RuntimeNode implements ChainNode {
 		return this.supplyProfile;
 	}
 
-	prepare(sampleRate: number): void {
+	prepare(sampleRate: number, options?: ChainPrepareOptions): void {
 		this.sampleRate = sampleRate;
-		this.runtime.prepare(sampleRate);
+		this.oversample = validateOversample(options?.oversample);
+		this.runtime.prepare(sampleRate, { oversample: this.oversample });
 		if (this.supplyProfile !== null && this.supplyResolution !== null) {
 			this.applyProfileToRuntime(
 				this.supplyProfile,
@@ -146,7 +154,9 @@ export class RuntimeNode implements ChainNode {
 
 	reset(): void {
 		if (this.sampleRate > 0) {
-			this.runtime.prepare(this.sampleRate);
+			this.runtime.prepare(this.sampleRate, {
+				oversample: this.oversample,
+			});
 			if (this.supplyProfile !== null && this.supplyResolution !== null) {
 				this.applyProfileToRuntime(
 					this.supplyProfile,
@@ -154,6 +164,11 @@ export class RuntimeNode implements ChainNode {
 				);
 			}
 		}
+	}
+
+	/** The oversample factor from the last `prepare()` (1 by default). */
+	getOversample(): number {
+		return this.oversample;
 	}
 
 	getParam(id: string): number | undefined {

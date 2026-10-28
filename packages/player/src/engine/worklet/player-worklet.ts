@@ -25,8 +25,21 @@ import type { ControlId, Program } from "@vessel-dsp/compiler";
 import type {
 	PlayerLoadedMeasurement,
 	PlayerLoadMeasurementFlag,
+	PlayerOversampleFlag,
 	PlayerProgramScheduleEntry,
 } from "../admission-report.js";
+import {
+	chooseOversampleFactor,
+	oversampleExclusion,
+	OVERSAMPLE_DEFAULT_FACTOR,
+	OVERSAMPLE_DRIVE_HZ,
+	OVERSAMPLE_DRIVE_VOLTS_PEAK,
+	OVERSAMPLE_MEASURE_BLOCKS,
+	OVERSAMPLE_MEASURED_CANDIDATES,
+	OVERSAMPLE_QUANTUM_FRAMES,
+	OVERSAMPLE_WARMUP_BLOCKS,
+	type OversampleFactorMeasurement,
+} from "../oversample-chooser.js";
 import {
 	bypassNotModelledAdvisories,
 	ChainRuntime,
@@ -256,14 +269,20 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 
 	private handleMessage(message: V2WorkletInboundMessage): void {
 		if (message.type === "load") {
-			// Player-specific extension (see admission-report.ts): the
-			// runtime protocol carries no such field and the runtime
-			// worklet ignores it. Absent means measure -- a load that does
-			// not explicitly opt out gets a measured cost, the fail-closed
-			// direction for the admission gate.
-			const measure =
-				(message as V2WorkletInboundMessage & PlayerLoadMeasurementFlag).playerMeasureProgram !== false;
-			void this.loadChain(message.slots, message.wasmConsole, measure);
+			// Player-specific extensions (see admission-report.ts): the
+			// runtime protocol carries no such fields and the runtime
+			// worklet ignores them. Absent measure flag means measure -- a
+			// load that does not explicitly opt out gets a measured cost,
+			// the fail-closed direction for the admission gate. A forced
+			// `oversample` (explicit override, or the engine's 1x hold for
+			// rate-dependent programs) skips the candidate measurement and
+			// prepares at that factor.
+			const extended = message as V2WorkletInboundMessage & PlayerLoadMeasurementFlag & PlayerOversampleFlag;
+			const measure = extended.playerMeasureProgram !== false;
+			const forced = Number.isInteger(extended.oversample) && (extended.oversample as number) >= 1
+				? (extended.oversample as number)
+				: undefined;
+			void this.loadChain(message.slots, message.wasmConsole, measure, forced, extended.oversampleReason);
 			return;
 		}
 		if (message.type === "setControl") {
@@ -286,8 +305,8 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 			portFullScaleVolts: program.portFullScaleVolts,
 			portReferenceVolts: program.portReferenceVolts,
 			portImpedanceOhms: program.portImpedanceOhms,
-			prepare(rate: number): void {
-				engine.prepare({ sampleRate: rate });
+			prepare(rate: number, options?: { readonly oversample?: number }): void {
+				engine.prepare({ sampleRate: rate, oversample: options?.oversample });
 			},
 			process(buffer: Float64Array): Float64Array {
 				if (scratchIn.length !== buffer.length) {
@@ -413,6 +432,8 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 		descriptors: readonly V2WorkletSlot[],
 		wasmConsole?: { readonly wasmBytes: ArrayBuffer },
 		measureProgram = true,
+		forcedOversample?: number,
+		forcedReason?: string,
 	): Promise<void> {
 		try {
 			for (const handle of this.namHandles) {
@@ -436,14 +457,58 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 					chainAdvisories: [],
 					measuredNsPerSample: null,
 					programSchedule: [],
+					oversample: null,
 				} as V2WorkletOutboundMessage);
 				return;
 			}
 			this.isPassthrough = false;
 
+			const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
 			const slots = await this.buildSlots(descriptors, wasmConsole);
 			const runtime = new ChainRuntime(slots);
-			runtime.prepare(sampleRate);
+			const programs = descriptors
+				.filter((descriptor) => descriptor.kind === "program")
+				.map((descriptor) => descriptor.program);
+
+			// Per-device oversample choice, timed HERE on the shipped console
+			// on the audio thread -- never on the main thread, which is why
+			// the page bundle needs no second engine instantiation path.
+			// `runtime.prepare` at each factor prepares every slot (the
+			// WASM wrappers and the ReferenceRuntime slots alike take the
+			// factor through their own prepare), then the program engines
+			// are timed with a hot drive at the real 128-frame quantum.
+			let factor: number;
+			let reason: string;
+			let costs: OversampleFactorMeasurement[] = [];
+			if (forcedOversample !== undefined) {
+				factor = forcedOversample;
+				reason = forcedReason ?? `explicit oversample ${String(forcedOversample)}x`;
+				runtime.prepare(currentSr, { oversample: factor });
+			} else if (measureProgram) {
+				const exclusion = firstOversampleExclusion(programs);
+				if (exclusion.excluded) {
+					factor = OVERSAMPLE_DEFAULT_FACTOR;
+					reason = `held at 1x: ${exclusion.reason}`;
+					runtime.prepare(currentSr, { oversample: factor });
+				} else {
+					costs = this.priceOversampleCandidates(runtime, currentSr);
+					const decision = chooseOversampleFactor({
+						costs,
+						quantumMs: (OVERSAMPLE_QUANTUM_FRAMES / currentSr) * 1000,
+						exclusion: { excluded: false, reason: exclusion.reason },
+					});
+					factor = decision.factor;
+					reason = decision.reason;
+					runtime.prepare(currentSr, { oversample: factor });
+				}
+			} else {
+				// A no-measure load with no forced factor cannot happen (the
+				// engine always forces on rebuilds); fail closed to today's
+				// behaviour rather than guessing.
+				factor = OVERSAMPLE_DEFAULT_FACTOR;
+				reason = "no oversample instruction on a no-measure load; fail closed to 1x";
+				runtime.prepare(currentSr, { oversample: factor });
+			}
 
 			this.runtime = runtime;
 			this.isWasmActive = wasmConsole !== undefined && this.wasmEngines.size > 0;
@@ -486,22 +551,27 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 					controls.push({ slot, id: control.id });
 				}
 			}
-			const programs = descriptors
-				.filter((descriptor) => descriptor.kind === "program")
-				.map((descriptor) => descriptor.program);
-			// The admission measurement, timed HERE on the shipped console
-			// on the audio thread -- never on the main thread, which is why
-			// the page bundle needs no copy of the node-flavoured glue (see
-			// docs/design/player-architecture.md, "Cutover" admission note).
-			// Same 128-frame warmed median-of-3 method the main-thread
-			// probe used, so the figures stay comparable with the §7 table.
+			// The admission measurement at the PREPARED factor, timed here on
+			// the shipped console on the audio thread: the decisive
+			// real-time number for the admission gate. Hot drive (not the
+			// old quiet probe), so the gate prices the nonlinear regime the
+			// guitar actually plays in.
 			let measuredNsPerSample: number | null = null;
 			let programSchedule: PlayerProgramScheduleEntry[] = [];
 			if (measureProgram) {
-				const measured = this.measureProgramEngines();
-				measuredNsPerSample = measured.nsPerSample;
-				programSchedule = measured.schedule;
+				const priced = this.priceProgramEngines(currentSr, factor);
+				measuredNsPerSample = priced.nsPerSample;
+				programSchedule = priced.schedule;
+				if (forcedOversample !== undefined) {
+					costs = [priced.cost];
+				} else {
+					const atFactor = costs.find((entry) => entry.factor === factor);
+					if (atFactor === undefined || atFactor.ok !== true) {
+						costs = [...costs, priced.cost];
+					}
+				}
 			}
+			const latencyHostSamples = primaryOversampleLatency(this.wasmEngines);
 			this.post({
 				type: "loaded",
 				controls,
@@ -509,6 +579,7 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 				chainAdvisories: [...chainAdvisories(slots.map(slotContract)), ...bypassNotModelledAdvisories(slots)],
 				measuredNsPerSample,
 				programSchedule,
+				oversample: { factor, reason, costs, latencyHostSamples },
 			} as V2WorkletOutboundMessage);
 		} catch (error) {
 			this.runtime = null;
@@ -518,58 +589,107 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 		}
 	}
 
-	private measureProgramEngines(): { nsPerSample: number | null; schedule: PlayerProgramScheduleEntry[] } {
-		// This program's own per-sample cost on the shipped console, timed
-		// on the audio thread during load: the decisive real-time number
-		// for the admission gate. Only primary program engines (slot < 1000;
-		// the 1000+ slots are bypass-mode buffer mirrors that do not run in
-		// effect mode) priced, summed across program slots. A program the
-		// console cannot run measures nothing (null) and the static verdict
-		// decides instead -- fail closed, never played unpriced.
-		try {
-			const entries = [...this.wasmEngines.entries()].filter(([slot]) => slot < 1000);
-			if (entries.length === 0) {
-				return { nsPerSample: null, schedule: [] };
+	private priceOversampleCandidates(runtime: ChainRuntime, hostRate: number): OversampleFactorMeasurement[] {
+		// One candidate after another, highest first: each `prepare` clears
+		// engine state, so every factor is priced from the same cold start
+		// after its own warm-up, and a throwing factor records itself
+		// rather than failing the load.
+		const costs: OversampleFactorMeasurement[] = [];
+		for (const factor of OVERSAMPLE_MEASURED_CANDIDATES) {
+			try {
+				runtime.prepare(hostRate, { oversample: factor });
+				costs.push(this.timePreparedProgramEngines(hostRate, factor).cost);
+			} catch (error) {
+				costs.push({ factor, ok: false, note: errorMessage(error) });
 			}
-			const clock: () => number =
-				typeof performance !== "undefined" && typeof performance.now === "function"
-					? () => performance.now() * 1e6
-					: () => Date.now() * 1e6;
-			const currentSr = typeof sampleRate !== "undefined" ? sampleRate : 48000;
-			let totalNs = 0;
-			const schedule: PlayerProgramScheduleEntry[] = [];
-			for (const [slot, engine] of entries) {
-				engine.prepare({ sampleRate: currentSr });
-				const frames = 128;
-				const input = new Float32Array(frames).fill(0.1);
-				const output = new Float32Array(frames);
-				for (let warm = 0; warm < 4; warm += 1) {
-					engine.processBlock(input, output);
-				}
-				const samples: number[] = [];
-				for (let sample = 0; sample < 3; sample += 1) {
-					const blocks = 5;
-					const t0 = clock();
-					for (let block = 0; block < blocks; block += 1) {
-						engine.processBlock(input, output);
-					}
-					const elapsed = clock() - t0;
-					if (elapsed >= 0 && Number.isFinite(elapsed)) {
-						samples.push(elapsed / (blocks * frames));
-					}
-				}
-				if (samples.length === 0) {
-					return { nsPerSample: null, schedule: [] };
-				}
-				samples.sort((a, b) => a - b);
-				totalNs += samples[Math.floor(samples.length / 2)] as number;
-				const counters = engine.getScheduleTelemetry();
-				schedule.push({ slot, ...counters });
-			}
-			return { nsPerSample: totalNs, schedule };
-		} catch {
-			return { nsPerSample: null, schedule: [] };
 		}
+		return costs;
+	}
+
+	private priceProgramEngines(
+		hostRate: number,
+		factor: number,
+	): { nsPerSample: number | null; schedule: PlayerProgramScheduleEntry[]; cost: OversampleFactorMeasurement } {
+		// The prepared factor's own cost on the shipped console, timed on
+		// the audio thread during load: the decisive real-time number for
+		// the admission gate, and the report the engine exposes. Only
+		// primary program engines (slot < 1000; the 1000+ slots are
+		// bypass-mode buffer mirrors that do not run in effect mode)
+		// priced, summed across program slots. A program the console cannot
+		// run measures nothing (null) and the static verdict decides
+		// instead -- fail closed, never played unpriced.
+		try {
+			const priced = this.timePreparedProgramEngines(hostRate, factor);
+			return { nsPerSample: priced.nsPerSample, schedule: priced.schedule, cost: priced.cost };
+		} catch {
+			return {
+				nsPerSample: null,
+				schedule: [],
+				cost: { factor, ok: false, note: "measurement threw" },
+			};
+		}
+	}
+
+	private timePreparedProgramEngines(
+		hostRate: number,
+		factor: number,
+	): { nsPerSample: number; schedule: PlayerProgramScheduleEntry[]; cost: OversampleFactorMeasurement } {
+		const entries = [...this.wasmEngines.entries()].filter(([slot]) => slot < 1000);
+		if (entries.length === 0) {
+			throw new Error("no wasm program engine to price");
+		}
+		const clock: () => number =
+			typeof performance !== "undefined" && typeof performance.now === "function"
+				? () => performance.now() * 1e6
+				: () => Date.now() * 1e6;
+		// Hot drive, not the old quiet probe: cost is much lower at quiet
+		// input, and the gate must price the nonlinear regime the guitar
+		// actually plays in. Same 0.3 V peak 1 kHz sine for every packet.
+		const frames = OVERSAMPLE_QUANTUM_FRAMES;
+		const input = new Float32Array(frames);
+		for (let index = 0; index < frames; index += 1) {
+			input[index] = OVERSAMPLE_DRIVE_VOLTS_PEAK * Math.sin((2 * Math.PI * OVERSAMPLE_DRIVE_HZ * index) / hostRate);
+		}
+		const output = new Float32Array(frames);
+		let totalNs = 0;
+		const schedule: PlayerProgramScheduleEntry[] = [];
+		let worstMs = 0;
+		let p99Ms = 0;
+		let meanMs = 0;
+		for (const [slot, engine] of entries) {
+			for (let warm = 0; warm < OVERSAMPLE_WARMUP_BLOCKS; warm += 1) {
+				engine.processBlock(input, output);
+			}
+			const blockMs: number[] = [];
+			for (let block = 0; block < OVERSAMPLE_MEASURE_BLOCKS; block += 1) {
+				const t0 = clock();
+				engine.processBlock(input, output);
+				const elapsedMs = (clock() - t0) / 1e6;
+				if (!(elapsedMs >= 0 && Number.isFinite(elapsedMs))) {
+					throw new Error(`non-finite block time at ${String(factor)}x`);
+				}
+				blockMs.push(elapsedMs);
+			}
+			blockMs.sort((a, b) => a - b);
+			const rank = Math.min(blockMs.length - 1, Math.ceil((blockMs.length * 99) / 100) - 1);
+			const slotP99 = blockMs[rank] as number;
+			const slotMean = blockMs.reduce((acc, value) => acc + value, 0) / blockMs.length;
+			const slotMax = blockMs[blockMs.length - 1] as number;
+			if (!(slotP99 >= 0 && slotMean >= 0 && slotMax >= 0)) {
+				throw new Error(`non-finite block time at ${String(factor)}x`);
+			}
+			p99Ms = Math.max(p99Ms, slotP99);
+			meanMs += slotMean;
+			worstMs = Math.max(worstMs, slotMax);
+			totalNs += (slotMean * 1e6) / frames;
+			const counters = engine.getScheduleTelemetry();
+			schedule.push({ slot, ...counters });
+		}
+		return {
+			nsPerSample: totalNs,
+			schedule,
+			cost: { factor, ok: true, p99Ms, meanMs, maxMs: worstMs, blocks: OVERSAMPLE_MEASURE_BLOCKS },
+		};
 	}
 
 	private setControl(slot: number, id: ControlId, position: number): void {
@@ -768,6 +888,44 @@ class PlayerWorkletProcessor extends AudioWorkletProcessor {
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * The first rate-dependent program in this load, if any: every program
+ * slot is inspected, because oversampling is per-runtime-prepare while the
+ * mistuning is per-program. Typed program facts only (see
+ * oversample-chooser.ts); the first hit names the reason.
+ */
+function firstOversampleExclusion(programs: readonly Program[]): {
+	readonly excluded: boolean;
+	readonly reason: string;
+} {
+	for (const program of programs) {
+		const exclusion = oversampleExclusion(program);
+		if (exclusion.excluded) {
+			return exclusion;
+		}
+	}
+	return { excluded: false, reason: "no rate-dependent algorithm in this chain" };
+}
+
+/**
+ * The resampler latency of the prepared factor in host samples, read off
+ * the first primary WASM engine (all program engines prepare at the same
+ * factor, so they agree). Null with no WASM engine (TS-only load):
+ * reported, never compensated.
+ */
+function primaryOversampleLatency(engines: ReadonlyMap<number, V2WasmEngine>): number | null {
+	for (const [slot, engine] of engines) {
+		if (slot < 1000) {
+			try {
+				return engine.oversampleLatency();
+			} catch {
+				return null;
+			}
+		}
+	}
+	return null;
 }
 
 registerProcessor(playerWorkletProcessorName, PlayerWorkletProcessor);

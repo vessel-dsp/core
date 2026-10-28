@@ -36,7 +36,7 @@ export interface ChainNode {
 	readonly kind: string;
 	bypassed: boolean;
 	mix: number;
-	prepare(sampleRate: number): void;
+	prepare(sampleRate: number, options?: ChainPrepareOptions): void;
 	process(input: Float64Array | Float32Array): Float64Array;
 	reset(): void;
 	getParam(id: string): number | undefined;
@@ -69,9 +69,29 @@ export interface ChainPreset {
 
 export interface SignalChainOptions {
 	sampleRate?: number;
+	/**
+	 * Solver oversample factor for circuit nodes, forwarded to every node
+	 * on `prepare` (only `RuntimeNode` reads it today). 1 (or absent) is
+	 * today's behaviour: the solver runs at the host rate.
+	 */
+	oversample?: number;
 	inputProfile?: Partial<InputProfileConfig>;
 	master?: Partial<MasterConfig>;
 }
+
+/**
+ * Per-`prepare` options, forwarded to every node. Only circuit-runtime
+ * nodes read `oversample`; every other node ignores it.
+ */
+export type ChainPrepareOptions = {
+	/**
+	 * Solver oversample factor (host x oversample is the solver rate).
+	 * Validated like `ReferenceRuntime.prepare`: floored, minimum 1,
+	 * non-finite refused. Powers of two run the band-limited resampler;
+	 * any other factor keeps the legacy hold-and-last path.
+	 */
+	readonly oversample?: number;
+};
 
 export type CableLengthPreset =
 	| "15cm"

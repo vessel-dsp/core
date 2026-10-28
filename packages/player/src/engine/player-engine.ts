@@ -59,6 +59,14 @@ import type {
 	PlayerLoadMeasurementFlag,
 	PlayerProgramScheduleEntry,
 } from "./admission-report.js";
+import type { PlayerOversampleFlag } from "./admission-report.js";
+import {
+	oversampleExclusion,
+	redecideOversampleOnRebuild,
+	validateOversampleOverride,
+	OVERSAMPLE_DEFAULT_FACTOR,
+	type OversampleFactorMeasurement,
+} from "./oversample-chooser.js";
 
 export type EngineFetchResponse = {
 	readonly ok: boolean;
@@ -93,6 +101,15 @@ export type RealPlayerEngineOptions = {
 	readonly probeNam?: NamProbeFn;
 	/** Injected nanosecond clock for calibration; default wraps performance.now. */
 	readonly now?: () => number;
+	/**
+	 * Explicit oversample factor, the ONLY oversample configuration: it
+	 * forces the runtime to prepare at that factor for tests and
+	 * benchmarking, bypassing the per-device measurement and the
+	 * rate-dependent exclusion (and saying so in the decision reason).
+	 * Absent (the default) means the worklet measures the candidates and
+	 * decides per device.
+	 */
+	readonly oversample?: number;
 };
 
 type LoadedChain = {
@@ -105,6 +122,21 @@ type LoadedReply = {
 	readonly controls: Array<{ slot: number; id: string }>;
 	readonly measuredNsPerSample: number | null;
 	readonly programSchedule: readonly PlayerProgramScheduleEntry[];
+	readonly oversample: {
+		readonly factor: number;
+		readonly reason: string;
+		readonly costs: readonly OversampleFactorMeasurement[];
+		readonly latencyHostSamples: number | null;
+	} | null;
+};
+
+/** The oversample decision behind the last load, for UI, tests, and rebuilds. */
+export type PlayerOversampleDecision = {
+	readonly factor: number;
+	readonly reason: string;
+	readonly costs: readonly OversampleFactorMeasurement[];
+	readonly latencyHostSamples: number | null;
+	readonly excluded: boolean;
 };
 
 function defaultFetch(src: string): Promise<EngineFetchResponse> {
@@ -125,6 +157,54 @@ function defaultNowNs(): number {
 
 function dbToLinear(db: number): number {
 	return 10 ** (db / 20);
+}
+
+/**
+ * Read the worklet's oversample report off a `loaded` reply, validating
+ * the shape: a malformed report is null (fail closed downstream), never
+ * trusted. Costs entries keep only well-formed fields.
+ */
+function readOversampleReport(value: unknown): LoadedReply["oversample"] {
+	if (value === null || value === undefined || typeof value !== "object") {
+		return null;
+	}
+	const report = value as Record<string, unknown>;
+	if (typeof report.factor !== "number" || !Number.isFinite(report.factor)) {
+		return null;
+	}
+	if (typeof report.reason !== "string") {
+		return null;
+	}
+	const costs: OversampleFactorMeasurement[] = [];
+	if (Array.isArray(report.costs)) {
+		for (const entry of report.costs) {
+			if (entry === null || typeof entry !== "object") {
+				continue;
+			}
+			const cost = entry as Record<string, unknown>;
+			if (typeof cost.factor !== "number" || !Number.isFinite(cost.factor) || typeof cost.ok !== "boolean") {
+				continue;
+			}
+			costs.push({
+				factor: cost.factor,
+				ok: cost.ok,
+				...(typeof cost.p99Ms === "number" && Number.isFinite(cost.p99Ms) ? { p99Ms: cost.p99Ms } : {}),
+				...(typeof cost.meanMs === "number" && Number.isFinite(cost.meanMs) ? { meanMs: cost.meanMs } : {}),
+				...(typeof cost.maxMs === "number" && Number.isFinite(cost.maxMs) ? { maxMs: cost.maxMs } : {}),
+				...(typeof cost.blocks === "number" && Number.isFinite(cost.blocks) ? { blocks: cost.blocks } : {}),
+				...(typeof cost.note === "string" ? { note: cost.note } : {}),
+			});
+		}
+	}
+	return {
+		factor: report.factor,
+		reason: report.reason,
+		costs,
+		latencyHostSamples:
+			typeof report.latencyHostSamples === "number" && Number.isFinite(report.latencyHostSamples)
+				? report.latencyHostSamples
+				: null,
+	};
 }
 
 // A WebAssembly binary starts with the magic `\0asm`; anything else fails
@@ -194,6 +274,10 @@ export class RealPlayerEngine implements PlayerEngine {
 	// (same program, same rate) instead of re-measuring on the audio thread
 	// mid-playback, which would itself be a dropout.
 	private measuredProgram: { program: Program; rate: number; nsPerSample: number | null } | null = null;
+	// The oversample decision behind the last load, keyed the same way.
+	// Rebuilds re-decide from its cached per-factor costs (the program did
+	// not change, only NAM/IR extras did) instead of re-measuring.
+	private oversampleDecision: { program: Program; rate: number; decision: PlayerOversampleDecision } | null = null;
 	private loadAwaiters: Array<{
 		resolve: (info: LoadedReply) => void;
 		reject: (error: Error) => void;
@@ -309,6 +393,17 @@ export class RealPlayerEngine implements PlayerEngine {
 	/** The context sample rate, or null before the first gesture created it. */
 	getContextSampleRate(): number | null {
 		return this.context?.sampleRate ?? null;
+	}
+
+	/**
+	 * The oversample decision behind the last load: the factor the runtime
+	 * runs at, the per-factor block costs priced on THIS device, and the
+	 * reason (measured choice, exclusion hold, explicit override, or
+	 * fail-closed). Null before the first gesture chose one. A UI or test
+	 * reads this; the worklet's `loaded` echo carries the same record.
+	 */
+	getOversampleDecision(): PlayerOversampleDecision | null {
+		return this.oversampleDecision?.decision ?? null;
 	}
 
 	dispose(): void {
@@ -487,6 +582,25 @@ export class RealPlayerEngine implements PlayerEngine {
 			this.attachPort(node.port);
 			const slots = this.buildSlots(chain.program, nam, ir);
 			const loaded = this.waitForLoaded();
+			// Per-device oversample choice: an explicit override forces the
+			// factor; a rate-dependent program (pitch tracker/shifter, which
+			// count solver samples) holds at 1x; otherwise the worklet
+			// measures the candidates on the audio thread and decides. The
+			// factor rides the load message; the decision rides back on
+			// `loaded` and is exposed through getOversampleDecision().
+			const exclusion = oversampleExclusion(chain.program);
+			const override = validateOversampleOverride(this.options.oversample);
+			let forced: number | undefined;
+			let forcedReason: string | undefined;
+			if (override.factor !== null) {
+				forced = override.factor;
+				forcedReason = `explicit override ${String(override.factor)}x (measurement and exclusion bypassed)`;
+			} else if (exclusion.excluded) {
+				forced = OVERSAMPLE_DEFAULT_FACTOR;
+				forcedReason = `held at 1x: ${exclusion.reason}`;
+			} else if (override.note !== null) {
+				forcedReason = override.note;
+			}
 			// The decisive cost is timed INSIDE the worklet on the shipped
 			// console and rides the `loaded` reply back: the page bundle
 			// never imports the node-flavoured glue, so no bundler ever sees
@@ -497,12 +611,14 @@ export class RealPlayerEngine implements PlayerEngine {
 				slots,
 				wasmConsole: { wasmBytes: dspBytes },
 				playerMeasureProgram: true,
-			} as V2WorkletInboundMessage & PlayerLoadMeasurementFlag);
+				...(forced !== undefined ? { oversample: forced, oversampleReason: forcedReason } : {}),
+			} as V2WorkletInboundMessage & PlayerLoadMeasurementFlag & PlayerOversampleFlag);
 			const info = await loaded;
 			// Decisive gate BEFORE anything audible: a refusal tears the
 			// graph down and the gesture never glitches.
 			this.gateMeasured(rate, stat, info.measuredNsPerSample, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0);
 			this.measuredProgram = { program: chain.program, rate, nsPerSample: info.measuredNsPerSample };
+			this.recordOversampleDecision(chain.program, rate, info, forced, forcedReason, exclusion.excluded, override.note);
 			this.applyLoadedControls(chain, info);
 			await this.startInputSource(context, gain);
 			try {
@@ -573,11 +689,17 @@ export class RealPlayerEngine implements PlayerEngine {
 		// Re-gate BEFORE replacing the chain: a NAM/IR added after the
 		// first play brings its own measured cost, priced exactly as at
 		// start, and a refusal touches nothing. The program cost comes from
-		// the start-time worklet measurement (same program, same rate --
-		// cached), never from a re-measure on the audio thread mid-play.
+		// the start-time worklet measurement at the prepared factor (same
+		// program, same rate -- cached), never from a re-measure on the
+		// audio thread mid-play. When the extras no longer fit at the
+		// current factor, the chooser steps down through the cached
+		// per-factor costs instead of refusing outright; 1x is today's
+		// path, gated by the worklet's own measurement as at start.
 		const stat = this.staticAdmission(chain.program, rate);
-		const programNs = this.cachedProgramNs(chain.program, rate, stat);
-		this.gateTotal(rate, programNs, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0, "measured");
+		const extrasNs = (nam?.nsPerSample ?? 0) + (ir?.nsPerSample ?? 0);
+		const redecided = this.redecideOversample(chain.program, rate, extrasNs);
+		const programNs = this.programNsForGate(chain.program, rate, stat, redecided.factor);
+		this.gateTotal(rate, programNs, nam?.nsPerSample ?? 0, ir?.nsPerSample ?? 0, redecided.factor === OVERSAMPLE_DEFAULT_FACTOR ? "static" : "measured");
 		const slots = this.buildSlots(chain.program, nam, ir);
 		const loaded = this.waitForLoaded();
 		postV2WorkletMessage(node.port, {
@@ -585,9 +707,125 @@ export class RealPlayerEngine implements PlayerEngine {
 			slots,
 			wasmConsole: { wasmBytes: dspBytes },
 			playerMeasureProgram: false,
-		} as V2WorkletInboundMessage & PlayerLoadMeasurementFlag);
+			oversample: redecided.factor,
+			oversampleReason: redecided.reason,
+		} as V2WorkletInboundMessage & PlayerLoadMeasurementFlag & PlayerOversampleFlag);
 		const info = await loaded;
 		this.applyLoadedControls(chain, info);
+		this.updateOversampleDecisionOnRebuild(chain.program, rate, redecided.factor, redecided.reason, info);
+	}
+
+	/**
+	 * The oversample factor for a selection rebuild: the explicit override
+	 * wins unchanged; otherwise the cached start-time costs re-decide
+	 * against the new extras without re-measuring mid-playback.
+	 */
+	private redecideOversample(
+		program: Program,
+		rate: number,
+		extrasNsPerSample: number,
+	): { readonly factor: number; readonly reason: string } {
+		const override = validateOversampleOverride(this.options.oversample);
+		if (override.factor !== null) {
+			return {
+				factor: override.factor,
+				reason: `explicit override ${String(override.factor)}x (measurement and exclusion bypassed)`,
+			};
+		}
+		const cached = this.oversampleDecision;
+		if (cached === null || cached.program !== program || cached.rate !== rate) {
+			return {
+				factor: OVERSAMPLE_DEFAULT_FACTOR,
+				reason: "no cached oversample decision for this program and rate; fail closed to 1x",
+			};
+		}
+		return redecideOversampleOnRebuild({
+			costs: cached.decision.costs,
+			currentFactor: cached.decision.factor,
+			extrasNsPerSample,
+			budgetNsPerSample: (1e9 / rate) * ADMISSION_CPU_FRACTION,
+		});
+	}
+
+	/**
+	 * The program-side gate input for a rebuild at the re-decided factor:
+	 * the start-time worklet measurement when the factor is unchanged (the
+	 * exact number the start gate used), the cached per-factor mean when
+	 * stepping down through measured factors, and the static prediction
+	 * (fail closed) at 1x, which carries no cached cost.
+	 */
+	private programNsForGate(
+		program: Program,
+		rate: number,
+		stat: { verdict: AdmissionVerdict; predictedNs: number | null },
+		factor: number,
+	): number {
+		const measured = this.measuredProgram;
+		const cached = this.oversampleDecision;
+		if (
+			measured !== null &&
+			measured.program === program &&
+			measured.rate === rate &&
+			measured.nsPerSample !== null &&
+			cached !== null &&
+			cached.program === program &&
+			cached.rate === rate &&
+			cached.decision.factor === factor
+		) {
+			return measured.nsPerSample;
+		}
+		if (factor !== OVERSAMPLE_DEFAULT_FACTOR && cached !== null && cached.program === program && cached.rate === rate) {
+			const entry = cached.decision.costs.find((cost) => cost.factor === factor);
+			if (entry?.ok === true && typeof entry.meanMs === "number" && Number.isFinite(entry.meanMs)) {
+				return (entry.meanMs * 1e6) / 128;
+			}
+		}
+		return stat.predictedNs ?? Number.POSITIVE_INFINITY;
+	}
+
+	private recordOversampleDecision(
+		program: Program,
+		rate: number,
+		info: LoadedReply,
+		forced: number | undefined,
+		forcedReason: string | undefined,
+		excluded: boolean,
+		prefixNote: string | null,
+	): void {
+		const report = info.oversample;
+		const parts = [
+			prefixNote,
+			report?.reason ?? forcedReason ?? "worklet reported no oversample decision; fail closed to 1x",
+		].filter((part): part is string => part !== null && part !== undefined);
+		this.oversampleDecision = {
+			program,
+			rate,
+			decision: {
+				factor: report?.factor ?? forced ?? OVERSAMPLE_DEFAULT_FACTOR,
+				reason: parts.join("; "),
+				costs: report?.costs ?? [],
+				latencyHostSamples: report?.latencyHostSamples ?? null,
+				excluded,
+			},
+		};
+	}
+
+	private updateOversampleDecisionOnRebuild(
+		program: Program,
+		rate: number,
+		factor: number,
+		reason: string,
+		info: LoadedReply,
+	): void {
+		const cached = this.oversampleDecision;
+		const costs = cached !== null && cached.program === program && cached.rate === rate ? cached.decision.costs : [];
+		const latency = info.oversample?.latencyHostSamples ?? cached?.decision.latencyHostSamples ?? null;
+		const excluded = cached?.decision.excluded ?? false;
+		this.oversampleDecision = {
+			program,
+			rate,
+			decision: { factor, reason, costs, latencyHostSamples: latency, excluded },
+		};
 	}
 
 	private attachPort(port: { onmessage: unknown; postMessage: unknown }): void {
@@ -614,6 +852,7 @@ export class RealPlayerEngine implements PlayerEngine {
 					measuredNsPerSample:
 						typeof message.measuredNsPerSample === "number" ? message.measuredNsPerSample : null,
 					programSchedule: Array.isArray(message.programSchedule) ? [...message.programSchedule] : [],
+					oversample: readOversampleReport(message.oversample),
 				};
 				for (const waiter of awaiters) {
 					clearTimeout(waiter.timer);

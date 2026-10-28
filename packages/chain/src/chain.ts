@@ -3,8 +3,10 @@ import { GainNode } from "./nodes/gain-node.js";
 import { InputProfileNode } from "./nodes/input-profile-node.js";
 import { CabinetIrNode } from "./nodes/ir-node.js";
 import { MasterNode } from "./nodes/master-node.js";
+import { validateOversample } from "./oversample.js";
 import type {
 	ChainNode,
+	ChainPrepareOptions,
 	ChainPreset,
 	NodeSnapshot,
 	SignalChainOptions,
@@ -16,13 +18,16 @@ export class SignalChain {
 
 	private nodes: ChainNode[] = [];
 	private sampleRate = 48000;
+	private oversample = 1;
 
 	constructor(options?: SignalChainOptions) {
 		this.inputProfile = new InputProfileNode(options?.inputProfile);
 		this.master = new MasterNode(options?.master);
 		if (options?.sampleRate) {
 			this.sampleRate = options.sampleRate;
-			this.prepare(options.sampleRate);
+			this.prepare(options.sampleRate, { oversample: options.oversample });
+		} else if (options?.oversample !== undefined) {
+			this.oversample = validateOversample(options.oversample);
 		}
 	}
 
@@ -36,7 +41,7 @@ export class SignalChain {
 		} else {
 			this.nodes.push(node);
 		}
-		node.prepare(this.sampleRate);
+		node.prepare(this.sampleRate, { oversample: this.oversample });
 		return this;
 	}
 
@@ -44,7 +49,7 @@ export class SignalChain {
 		this.removeNode(node.id);
 		const targetIndex = Math.max(0, Math.min(this.nodes.length, index));
 		this.nodes.splice(targetIndex, 0, node);
-		node.prepare(this.sampleRate);
+		node.prepare(this.sampleRate, { oversample: this.oversample });
 		return this;
 	}
 
@@ -117,11 +122,12 @@ export class SignalChain {
 		return this.nodes.length;
 	}
 
-	prepare(sampleRate: number): void {
+	prepare(sampleRate: number, options?: ChainPrepareOptions): void {
 		this.sampleRate = sampleRate;
+		this.oversample = validateOversample(options?.oversample);
 		this.inputProfile.prepare(sampleRate);
 		for (const node of this.nodes) {
-			node.prepare(sampleRate);
+			node.prepare(sampleRate, { oversample: this.oversample });
 		}
 		this.master.prepare(sampleRate);
 	}

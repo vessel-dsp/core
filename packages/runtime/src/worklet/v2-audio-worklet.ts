@@ -171,8 +171,8 @@ class V2PedalProcessor extends AudioWorkletProcessor {
 			portFullScaleVolts: program.portFullScaleVolts,
 			portReferenceVolts: program.portReferenceVolts,
 			portImpedanceOhms: program.portImpedanceOhms,
-			prepare(rate: number): void {
-				engine.prepare({ sampleRate: rate });
+			prepare(rate: number, options?: { readonly oversample?: number }): void {
+				engine.prepare({ sampleRate: rate, oversample: options?.oversample });
 			},
 			process(buffer: Float64Array): Float64Array {
 				if (scratchIn.length !== buffer.length) {

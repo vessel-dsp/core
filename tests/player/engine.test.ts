@@ -923,3 +923,212 @@ describe("registration", () => {
 		expect("playerWorkletProcessorName" in barrel).toBe(false);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Per-device oversample choice
+// ---------------------------------------------------------------------------
+
+function oversampleReportReply(
+	controls: Array<{ slot: number; id: string }>,
+	measuredNsPerSample: number | null,
+	report: {
+		factor: number;
+		reason: string;
+		costs: Array<{ factor: number; ok: boolean; p99Ms?: number; meanMs?: number; blocks?: number; note?: string }>;
+		latencyHostSamples: number | null;
+	} | null,
+): PostedMessage {
+	return {
+		type: "loaded",
+		controls,
+		supplyGroundConflicts: [],
+		chainAdvisories: [],
+		measuredNsPerSample,
+		programSchedule: [],
+		oversample: report,
+	};
+}
+
+function pitchProgram(): Program {
+	return {
+		...stubProgram(),
+		requiredModels: ["pitch-shift"],
+	} as unknown as Program;
+}
+
+describe("oversample decision", () => {
+	test("a measured 4x decision rides the load and the report", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(
+			harness,
+			oversampleReportReply([{ slot: 0, id: "Gain" }], 1500, {
+				factor: 4,
+				reason: "4x: p99 0.85 ms of 2.67 ms quantum (headroom 50%); 2x not tried",
+				costs: [
+					{ factor: 4, ok: true, p99Ms: 0.85, meanMs: 0.6, blocks: 64 },
+					{ factor: 2, ok: true, p99Ms: 0.4, meanMs: 0.3, blocks: 64 },
+				],
+				latencyHostSamples: 26.25,
+			}),
+		);
+		await pending;
+		const load = lastPosted(harness.ports, "load");
+		// Expected: the measure path posts no forced factor (the worklet decides)
+		expect("oversample" in load).toBe(false);
+		expect((load as Record<string, unknown>).playerMeasureProgram).toBe(true);
+		const decision = (harness.engine as RealPlayerEngine).getOversampleDecision();
+		// Expected: the report is exposed with factor, costs, latency and reason
+		expect(decision?.factor).toBe(4);
+		expect(decision?.costs.length).toBe(2);
+		expect(decision?.latencyHostSamples).toBe(26.25);
+		expect(decision?.reason).toContain("4x");
+		expect(decision?.excluded).toBe(false);
+		// Expected: the fitting measurement played
+		expect(harness.contexts[0]?.resumes).toBe(1);
+		harness.engine.dispose();
+		// Negative control: without a report the engine fails closed to 1x and still plays
+		const closed = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await closed.engine.load({ vdsp: "/circuit.vdsp" });
+		const pendingClosed = Promise.resolve(closed.engine.start());
+		await replyOnceLoaded(closed, loadedReply([{ slot: 0, id: "Gain" }], 1500));
+		await pendingClosed;
+		const closedDecision = (closed.engine as RealPlayerEngine).getOversampleDecision();
+		expect(closedDecision?.factor).toBe(1);
+		expect(closedDecision?.reason).toContain("fail closed");
+		expect(closed.contexts[0]?.resumes).toBe(1);
+		closed.engine.dispose();
+	});
+
+	test("an explicit override forces the factor and bypasses measurement", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js", oversample: 2 },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(
+			harness,
+			oversampleReportReply([{ slot: 0, id: "Gain" }], 1500, {
+				factor: 2,
+				reason: "explicit override 2x (measurement and exclusion bypassed)",
+				costs: [{ factor: 2, ok: true, p99Ms: 0.4, meanMs: 0.3, blocks: 64 }],
+				latencyHostSamples: 19.5,
+			}),
+		);
+		await pending;
+		const load = lastPosted(harness.ports, "load");
+		// Expected: the override rides the load message with its reason
+		expect((load as Record<string, unknown>).oversample).toBe(2);
+		expect(String((load as Record<string, unknown>).oversampleReason)).toContain("explicit override");
+		const decision = (harness.engine as RealPlayerEngine).getOversampleDecision();
+		expect(decision?.factor).toBe(2);
+		expect(decision?.reason).toContain("explicit override");
+		expect(harness.contexts[0]?.resumes).toBe(1);
+		harness.engine.dispose();
+	});
+
+	test("an invalid override is ignored and the path measures on", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js", oversample: 0 },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(
+			harness,
+			oversampleReportReply([{ slot: 0, id: "Gain" }], 1500, {
+				factor: 4,
+				reason: "4x: p99 0.85 ms of 2.67 ms quantum (headroom 50%); 2x not tried",
+				costs: [{ factor: 4, ok: true, p99Ms: 0.85, meanMs: 0.6, blocks: 64 }],
+				latencyHostSamples: 26.25,
+			}),
+		);
+		await pending;
+		const load = lastPosted(harness.ports, "load");
+		// Expected: no forced factor was posted for the invalid override
+		expect("oversample" in load).toBe(false);
+		const decision = (harness.engine as RealPlayerEngine).getOversampleDecision();
+		expect(decision?.factor).toBe(4);
+		expect(decision?.reason).toContain("ignoring invalid oversample override");
+		harness.engine.dispose();
+	});
+
+	test("a rate-dependent program holds at 1x with the typed reason", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: pitchProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(
+			harness,
+			oversampleReportReply([{ slot: 0, id: "Gain" }], 1500, {
+				factor: 1,
+				reason: "held at 1x: program needs pitch-shift (requiredModels), which counts solver samples and mistunes above 1x",
+				costs: [],
+				latencyHostSamples: 0,
+			}),
+		);
+		await pending;
+		const load = lastPosted(harness.ports, "load");
+		// Expected: the 1x hold rides the load message, not a measurement
+		expect((load as Record<string, unknown>).oversample).toBe(1);
+		const decision = (harness.engine as RealPlayerEngine).getOversampleDecision();
+		expect(decision?.factor).toBe(1);
+		expect(decision?.excluded).toBe(true);
+		expect(decision?.reason).toContain("pitch-shift");
+		expect(harness.contexts[0]?.resumes).toBe(1);
+		harness.engine.dispose();
+	});
+
+	test("a selection rebuild reposts the decided factor without re-measuring", async () => {
+		const harness = makeEngine(
+			{ "/dsp.wasm": MINIMAL_WASM },
+			{ program: stubProgram(), dspWasmUrl: "/dsp.wasm", workletUrl: "/player-worklet.js" },
+		);
+		await harness.engine.load({ vdsp: "/circuit.vdsp" });
+		const pending = Promise.resolve(harness.engine.start());
+		await replyOnceLoaded(
+			harness,
+			oversampleReportReply([{ slot: 0, id: "Gain" }], 1500, {
+				factor: 4,
+				reason: "4x: p99 0.85 ms of 2.67 ms quantum (headroom 50%)",
+				costs: [
+					{ factor: 4, ok: true, p99Ms: 0.85, meanMs: 0.6, blocks: 64 },
+					{ factor: 2, ok: true, p99Ms: 0.4, meanMs: 0.3, blocks: 64 },
+				],
+				latencyHostSamples: 26.25,
+			}),
+		);
+		await pending;
+		harness.engine.setNam(null);
+		const loads = (): PostedMessage[] =>
+			harness.ports.flatMap((port) => port.posted).filter((message) => message.type === "load");
+		for (let waited = 0; waited < 2000 && loads().length < 2; waited += 1) {
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		}
+		// Expected: the rebuild reposts the decided 4x without measuring
+		expect(loads().length).toBe(2);
+		expect((loads()[1] as Record<string, unknown>).oversample).toBe(4);
+		expect((loads()[1] as Record<string, unknown>).playerMeasureProgram).toBe(false);
+		harness.ports[0]?.fire(oversampleReportReply([{ slot: 0, id: "Gain" }], null, {
+			factor: 4,
+			reason: "kept 4x after the chain change (cached mean 0.600 ms/block plus 0 ns extras inside 5208 ns budget)",
+			costs: [],
+			latencyHostSamples: 26.25,
+		}));
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		// Expected: the cached 1500 ns re-gated cleanly, still at 4x
+		expect(harness.events.some((entry) => entry.event === "error")).toBe(false);
+		expect((harness.engine as RealPlayerEngine).getOversampleDecision()?.factor).toBe(4);
+		harness.engine.dispose();
+	});
+});

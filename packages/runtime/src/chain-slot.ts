@@ -90,8 +90,21 @@ export type SlotContract = {
 export type ExternalProcessor = SlotContract & {
 	/** Named in advisories and telemetry, since a processor has no program to point at. */
 	readonly id: string;
-	prepare(sampleRate: number): void;
+	prepare(sampleRate: number, options?: ExternalProcessorPrepareOptions): void;
 	process(buffer: Float64Array): Float64Array;
+};
+
+/**
+ * Per-`prepare` options for an injected processor. Only circuit-console
+ * wrappers read `oversample` (the WASM console in the player worklet);
+ * NAM/IR adapters ignore it: their engines run at the host rate.
+ */
+export type ExternalProcessorPrepareOptions = {
+	/**
+	 * Solver oversample factor (host x oversample is the solver rate).
+	 * Absent is 1, today's behaviour.
+	 */
+	readonly oversample?: number;
 };
 
 /**

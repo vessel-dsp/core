@@ -154,6 +154,13 @@ export class ChainRuntime {
 		options: {
 			readonly maxNewtonIterations?: number;
 			readonly realtimeBudget?: RealtimeBudget;
+			/**
+			 * Solver oversample factor, forwarded to every circuit console
+			 * in the chain (the `ReferenceRuntime` slots directly, an
+			 * injected circuit console through its own `prepare` options).
+			 * NAM/IR processors ignore it. Absent is 1, today's behaviour.
+			 */
+			readonly oversample?: number;
 		} = {},
 	): void {
 		// Resolved here, once, so the iteration count the admission gate charges is exactly
@@ -189,13 +196,25 @@ export class ChainRuntime {
 				// chain was already charged against it above; forwarding it per slot would
 				// charge every slot against the whole chain's budget a second time.
 				if (engine instanceof ReferenceRuntime) {
-					engine.prepare(sampleRate, { maxNewtonIterations });
+					engine.prepare(sampleRate, {
+						maxNewtonIterations,
+						oversample: options.oversample,
+					});
 				} else {
-					engine.prepare(sampleRate);
+					engine.prepare(sampleRate, { oversample: options.oversample });
 				}
 				const bufEngine = this.bufferEngines[slot];
 				if (bufEngine !== null) {
-					bufEngine.prepare(sampleRate, { maxNewtonIterations });
+					if (bufEngine instanceof ReferenceRuntime) {
+						bufEngine.prepare(sampleRate, {
+							maxNewtonIterations,
+							oversample: options.oversample,
+						});
+					} else {
+						bufEngine.prepare(sampleRate, {
+							oversample: options.oversample,
+						});
+					}
 				}
 			} catch (error) {
 				if (error instanceof RuntimeError) {
