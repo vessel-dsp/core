@@ -33,6 +33,7 @@ import { createAmpProfileFromVdsp, createAmpPreviewLayout } from "@vessel-dsp/am
 import { createCabinetPreviewLayout } from "@vessel-dsp/cabinet";
 import { resolvePreviewEffectPreset } from "@vessel-dsp/visual-effects";
 import { fileURLToPath } from "node:url";
+import { readdirSync } from "node:fs";
 import { rewriteRelativeEsmSpecifiers } from "../scripts/fix-dist-imports";
 
 type JsonRecord = Readonly<Record<string, unknown>>;
@@ -193,6 +194,27 @@ function expectCoreDependencyCompatible(
 		...CORE_COMPATIBLE_DEPENDENCY_VERSIONS,
 		String(core.version),
 	]).toContain(String(version));
+}
+
+/**
+ * The 0.17.1 guard: `compiler-v0.17.1` was tagged (and its npm publish then
+ * failed) while chain, player and runtime still pinned `@vessel-dsp/compiler`
+ * 0.17.0 exactly, so `bun install --frozen-lockfile` wanted lockfile changes
+ * in CI. Every exact-pinned `@vessel-dsp/*` dependency must equal the pinned
+ * package's current version; ranges (`^`, `workspace:`, ...) are not exact
+ * pins and are skipped. `@vessel-dsp/core` keeps its blessed legacy pin
+ * (`CORE_COMPATIBLE_DEPENDENCY_VERSIONS`) alongside the current version.
+ */
+function workspacePackageDirs(): readonly string[] {
+	const root = fileURLToPath(new URL("../packages/", import.meta.url));
+	return readdirSync(root, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => entry.name)
+		.sort();
+}
+
+function isExactVersion(spec: unknown): spec is string {
+	return typeof spec === "string" && /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(spec);
 }
 
 function devDependencies(pkg: JsonRecord): JsonRecord {
@@ -946,6 +968,42 @@ describe("release metadata", () => {
 		expect(changelog).toContain("## compiler 0.2.0 / runtime 0.2.0");
 		expect(changelog).toContain("## chain 0.1.0");
 		expect(changelog).toContain("@vessel-dsp/control-ui");
+	});
+
+	test("exact workspace pins match current versions (the 0.17.1 guard)", async () => {
+		const versions = new Map<string, string>();
+		for (const dir of workspacePackageDirs()) {
+			const pkg = await readPackageJson(dir);
+			if (typeof pkg.name === "string" && pkg.name.startsWith("@vessel-dsp/")) {
+				versions.set(pkg.name, String(pkg.version));
+			}
+		}
+		const coreVersion = versions.get("@vessel-dsp/core");
+		const mismatches: string[] = [];
+		for (const dir of workspacePackageDirs()) {
+			const pkg = await readPackageJson(dir);
+			const deps = runtimeDependencies(pkg);
+			for (const [name, spec] of Object.entries(deps)) {
+				if (!name.startsWith("@vessel-dsp/") || !isExactVersion(spec)) {
+					continue;
+				}
+				const current = versions.get(name);
+				if (current === undefined) {
+					mismatches.push(`${dir}: ${name}@${spec} names no workspace package`);
+					continue;
+				}
+				const allowed =
+					name === "@vessel-dsp/core"
+						? [current, ...CORE_COMPATIBLE_DEPENDENCY_VERSIONS]
+						: [current];
+				if (!allowed.includes(spec)) {
+					mismatches.push(
+						`${dir}: ${name}@${spec} but ${name} is ${current}`,
+					);
+				}
+			}
+		}
+		expect(mismatches).toEqual([]);
 	});
 });
 

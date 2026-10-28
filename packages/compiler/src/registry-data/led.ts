@@ -85,11 +85,13 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// through 470 ohm, an extrapolated use disclosed here. n 2.76 would need Rs 6.2
 		// ohm were the junction n 2, so it may carry a small version of the inflated-n
 		// structure that sank the blue/white/green pairs; unverified outside the anchors.
-		// Wave 10 (corpus-driven): bare "RED" (6 scraped projects) and initial "R" ride here --
-		// same bench, spelling variants (the row already pools three spellings). "R" as red is
-		// corroborated positionally: Bass Brutalist and Skeleton Key both fit D1=R with D2=Y/B
-		// as anti-parallel feedback-loop clippers, so R/Y/B are color initials.
-		partIds: ["RED LED", "5mm red LED", "LED-RED", "RED", "R"],
+		// Wave 10 (corpus-driven): bare "RED" (6 scraped projects) rides here --
+		// same bench, spelling variant (the row already pools three spellings).
+		// The single-letter initial "R" was removed 2026-10-28: its only evidence
+		// is positional (anti-parallel clippers in two scraped boards), a topology
+		// lead and not a citation, and an "R"-valued non-LED diode field would
+		// silently take LED parameters and suppress the diode-law-default warning.
+		partIds: ["RED LED", "5mm red LED", "LED-RED", "RED"],
 		class: "led",
 		note:
 			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 samples, maker unrecorded, two currents: the pair " +
@@ -231,9 +233,10 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// (5 mm), within the fit's resolution; the colour default pools both per the
 		// owner's by-colour rule. Reached via typed `Color` only: the one packet spelling
 		// ("3mm blue") states vocabulary `Color: blue`, so the id was removed as redundant.
-		// Wave 10 (corpus-driven): initial "B" rides here (Skeleton Key D2, same R/Y/B
-		// positional evidence as the red row's "R").
-		partIds: ["blue", "B"],
+		// Wave 10 (corpus-driven): no single-letter initial rides here (removed
+		// 2026-10-28 with the red row's "R": positional evidence only, and a "B"-valued
+		// non-LED diode field would silently take LED parameters).
+		partIds: ["blue"],
 		class: "led",
 		note:
 			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 + 2 samples (A/B four identified LEDs, C/D one " +
@@ -378,11 +381,12 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		// Yellow indicator default: first-session two-point pair, Rs fixed at the 2.0 ohm
 		// class default (which is then correct for it). Valid about 1.4 to 11 mA only;
-		// unverified outside the two anchors. Reached via typed `Color` only, plus Wave 10
-		// initial "Y" (Bass Brutalist D2, same positional evidence). No published cross-check
+		// unverified outside the two anchors. Reached via typed `Color` only.
+		// No published cross-check
 		// found (no model for an indicator yellow LED in LTspice Standard.dio; manufacturer
 		// sites not searched).
-		partIds: ["yellow", "Y"],
+		// Single-letter "Y" removed 2026-10-28 with the red row's "R".
+		partIds: ["yellow"],
 		class: "led",
 		note:
 			"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), 4 samples, maker unrecorded, two currents: the pair " +
