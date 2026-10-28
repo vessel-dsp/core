@@ -1871,4 +1871,97 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 7 (germanium fill, corpus-driven). No saturationCurrent: the Mullard
+		// Pocket Data Book prints no Vbe figure for OC75 (hfe, ICBO, Ptot only), so no
+		// IS derivation; the stamp falls back to the class default. Recorded bias
+		// caveat: with silicon-default IS this PNP biases near 0.7 V Vbe instead of
+		// germanium ~0.25 V. Correct operating points need an IS source (manufacturer
+		// model, bench measurement, or a form ruling). Polarity is structural (PNP).
+		// Corpus: Sola Sound Tone Bender MKI (OC75).
+		partIds: ["OC75"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 90,
+				basis: "derived",
+				source:
+					"Mullard Pocket Data Book 1965/66, OC75 entry (p.54): 'Measured at " +
+					"Tamb = 25°C, VCE -2.0 V, IC 30 mA, hfe 90' (single printed TYP; " +
+					"ICBO 4.5 uA and Ptot 75 mW carry no gain information)",
+				derivation:
+					"Printed hfe TYP 90 at IC = 30 mA, VCE = -2.0 V, transcribed " +
+					"(no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		// Wave 7 (germanium fill, corpus-driven). No saturationCurrent: same reason as
+		// OC75 above -- the Pocket Data Book prints no Vbe for OC81D. Same bias caveat.
+		// Corpus: Sola Sound Tone Bender MKII (two sheets) -- 12 instances.
+		partIds: ["OC81D"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 60,
+				basis: "derived",
+				source:
+					"Mullard Pocket Data Book 1965/66, OC81D entry (p.55): 'hfe typ " +
+					"(IE = 10 mA, VCE = -6 V) 60' (Ptot 100 mW, VCE max -20 V, ICM 50 mA " +
+					"carry no gain information)",
+				derivation:
+					"Printed hfe TYP 60 at IE = 10 mA, VCE = -6 V, transcribed.",
+			},
+		},
+	},
+	{
+		// Wave 7 (germanium fill, corpus-driven). No saturationCurrent: Siemens prints
+		// only single-sided UBE bounds (<0.3 / <0.65 / <1 V) -- limits, not ranges.
+		// Same bias caveat as OC75. Corpus: EQD Tone Reaper (AC176).
+		partIds: ["AC176"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 111.8033989,
+				basis: "derived",
+				source:
+					"Siemens AC176/AC176K datasheet (Databook 1970/71; Rev. 1.3 02/19 " +
+					"reprint), 'Statische Kenndaten (TU = 25°C)': B = 110 (50 bis 250) " +
+					"at IC = 300 mA, UCB = 0 V (the 50 mA B = 35 and 1000 mA B = 30 rows " +
+					"are off-operating-point; UBE figures are single-sided bounds)",
+				derivation:
+					"Printed B bin 50-250 at IC = 300 mA; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 250) = 111.8033989. The printed TYP 110 " +
+					"agrees to 2%; the midpoint is used per the bin rule.",
+			},
+		},
+	},
+	{
+		// Wave 7 (germanium fill, corpus-driven). No forwardBeta: Central's 2N1308 hFE
+		// is MIN-only 80 at VCE = 1.0 V, IC = 10 mA (no MAX/TYP; corroborated MIN-only
+		// by the 2N1292-2N1382 numerical index), and the Newmarket germanium table
+		// carries 2N1303/1305/1307/1309 but no 2N1308 row -- a bare MIN is a limit, not
+		// a range. BF falls back to the class default (reads high). The saturationCurrent
+		// below follows the 2N3906 precedent (printed VBE(sat) MIN-MAX range at
+		// IC = 10 mA); admissibility judgment for review: the 2N2222A exclusion targeted
+		// 150 mA series-R domination, this is 10 mA at forced beta 20. If form 1 is read
+		// as active-region-only without exception, drop this param (IS falls back to
+		// default) and keep the row BF-less. Corpus: BearFoot Emerald Green, EQD Hoof.
+		partIds: ["2N1308"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 6.31226e-07,
+				basis: "derived",
+				source:
+					"Central Semiconductor 2N1302/2N1304/2N1306/2N1308 datasheet " +
+					"(R1 2014-05-05), ELECTRICAL CHARACTERISTICS: 'VBE(SAT), IC = 10 mA, " +
+					"IB = 0.5 mA (2N1304, 06, 08), MIN 0.15 MAX 0.35 V'",
+				derivation:
+					"Printed VBE(sat) range 0.15-0.35 V at IC = 10 mA; arithmetic midpoint " +
+					"0.25 V (form 2, printed range, no TYP); IS = IC * exp(-Vbe / Vt) with " +
+					"n = 1 (form 1): 0.01 * exp(-0.25 / 0.025852) = 6.31226e-07.",
+			},
+		},
+	},
 ]);

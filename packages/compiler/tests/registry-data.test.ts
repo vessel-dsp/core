@@ -871,6 +871,11 @@ describe("wave-4 fill inventory", () => {
 		// their corpus-used GR ranks, the SOT-23 MMBT5089 pair entry, KTC3198-BL) and
 		// 6 more JFET rows (2SK30A-O channel, 2SK879 + Y, 2SK880 + GR, Vt0-only J113;
 		// the bare 2SK30ATM spelling rides as an alias on the gate-only entry).
+		// Wave 7 (germanium fill, corpus-driven): 4 BJT rows -- OC75 BF 90 and OC81D
+		// BF 60 (Mullard Pocket Data Book TYPs), AC176 BF 111.8 (Siemens B-bin geomean),
+		// 2N1308 IS-only 6.31e-7 (Central VBE(sat) range midpoint; BF MIN-only, no row).
+		// All four carry the silicon-bias caveat (IS omitted except 2N1308, BF omitted
+		// on 2N1308); NKT275 stays out (MIN-only everywhere located).
 		// LED work: the 1N4148 community record replaced by the owner's measured pair;
 		// five measured LED colour rows (red and green by packet spelling, blue, white and
 		// yellow by typed Color), Item 2's custom-LED full quad, and Item 1's derived VT/Rs.
@@ -879,12 +884,12 @@ describe("wave-4 fill inventory", () => {
 		expect(jfetRegistryRecords).toHaveLength(27);
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
-		expect(bjtRegistryRecords).toHaveLength(62);
+		expect(bjtRegistryRecords).toHaveLength(66);
 		expect(diodeRegistryRecords).toHaveLength(18);
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 62 + 18 + 2 + 35 + 27 + 7 + 8 + 1 + 5);
+		expect(partRegistryData).toHaveLength(24 + 66 + 18 + 2 + 35 + 27 + 7 + 8 + 1 + 5);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
