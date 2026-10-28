@@ -7551,11 +7551,15 @@ const entries: readonly PartEntry[] = [
 	// 2026-10-15: the NJR/JRC marking rides the NJM sheet). GBW is not in this entry: it
 	// lives in the data-registry row (TYP 15 MHz at f = 10 kHz), stamped by the pass below.
 	{
+		// Wave 8: the bare transcribed number-portion "4580" (Azusa Driver U2, 8 pins)
+		// rides this entry (same die family per the owner JRC-rides-NJM decision above);
+		// it carries no GBW figure (see `opampGainBandwidthAbsent`).
 		"partIds": [
 			"JRC4580D",
 			"JRC4580",
 			"NJM4580D",
-			"NJM4580"
+			"NJM4580",
+			"4580"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [
@@ -8067,8 +8071,11 @@ const entries: readonly PartEntry[] = [
 	// (1OUT, 1IN-, 1IN+, VDD-/GND, 2IN+, 2IN-, 2OUT, VDD+), same A/B convention as the
 	// LM833 entry above.
 	{
+		// Wave 8: the C-suffix spelling rides here -- the quoted table IS the TLC2262C
+		// operating characteristics (MXR Badass 78 U2). Same row as the GBW alias.
 		"partIds": [
-			"TLC2262"
+			"TLC2262",
+			"TLC2262C"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [
@@ -9204,6 +9211,404 @@ const entries: readonly PartEntry[] = [
 				null,
 				null,
 				null
+			]
+		}
+	},
+
+	// Wave 8 (opamp batch, corpus-driven): sections whose open-loop gain is the sheet's
+	// own TYP AOL transcribed (the gain-bandwidth product lives in
+	// `registry-data/opamp.ts`, stamped by the passes below; the swing pair stays absent
+	// per the D4 freeze). GBW rows and catalog entries are 1:1 by part id, so no entry
+	// splits; AOL-only and generic-name ids below carry sections with no GBW row.
+
+	// TI TL081 single JFET-input op-amp, from SLOS081O (Feb 1977, rev Sept 2025) 5.8 DC:
+	// 'AOL | Open-loop voltage | VO = 0 V | TL08xC | MIN 25 TYP 200 V/mV'. Used as
+	// `openLoopGain: 200000` (bare id takes the commercial C-grade column, disclosed;
+	// TL072C precedent). No GBW figure (package/grade split; see
+	// `opampGainBandwidthAbsent`). Single-DIP shape mirrors the LM741/TL071 entry.
+	{
+		"partIds": [
+			"TL081"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// TI MC1458P dual general-purpose op-amp, from SLOS069C (Feb 1971, rev Aug 2010),
+	// electrical characteristics at VCC+- = +-15 V: 'Large-signal differential voltage
+	// amplification, RL >= 2 kOhm, VO = +-10 V, 25C: MIN 20 (MC1458) / 50 (MC1558) TYP 200
+	// V/mV'. Used as `openLoopGain: 200000` (both grades share the TYP). MC1458P is the
+	// PDIP orderable named on the title block. GBW TYP 1 MHz lives in the data-registry row.
+	{
+		"partIds": [
+			"MC1458P"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// Renesas CA3240EZ dual BiMOS op-amp, from FN1050 Rev 6.00 (Mar 2005) guaranteed table
+	// (VSUPPLY = +-15 V, TA = 25C): 'Large-Signal Voltage Gain AOL, VO = 26VP-P, RL = 2 kOhm
+	// (Note 3): MIN 20 TYP 100 kV/V' both grades. Used as `openLoopGain: 100000`. CA3240EZ
+	// is the 8 Ld PDIP orderable. GBW TYP 4.5 MHz lives in the data-registry row.
+	{
+		"partIds": [
+			"CA3240EZ"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
+			]
+		}
+	},
+
+	// ON Semi LM301AN single non-compensated op-amp, from LM301A/D Rev. 12 (July 2025)
+	// ELECTRICAL CHARACTERISTICS (TA = +25C; LM301A column, +-5 to +-15 V supply range):
+	// 'Large Signal Voltage Gain AV: MIN 50 (LM201A) / 25 (LM301A) TYP 160 V/mV' both grades
+	// share the TYP. Used as `openLoopGain: 160000`. LM301AN is the PDIP-8 orderable. No GBW
+	// row exists (see `opampGainBandwidthAbsent`; same AOL-only shape as LM308).
+	// Single-DIP shape mirrors the LM741/TL071 entry.
+	{
+		"partIds": [
+			"LM301AN"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 160000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// Renesas CA3130EZ single BiMOS op-amp, from FN817 Rev 6.00 (Aug 2005) Table 1
+	// (TA = 25C, V+ = 15 V, V- = 0 V): 'Large-Signal Voltage Gain AOL, VO = 10VP-P, RL = 2
+	// kOhm: MIN 50 TYP 320 kV/V' both grades. Used as `openLoopGain: 320000`. CA3130EZ is
+	// the 8 Ld PDIP orderable. No GBW figure (compensation-dependent fT; see
+	// `opampGainBandwidthAbsent`). Single-DIP shape mirrors the LM741/TL071 entry.
+	{
+		"partIds": [
+			"CA3130EZ"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 320000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			]
+		}
+	},
+
+	// Bare "4559" dual (Mojo Rook IC1, 8 pins): no 4559-family sheet cited, so the sections
+	// carry the house 100000, disclosed as unsourced (TL062/LM741-single precedent), with no
+	// GBW figure (see `opampGainBandwidthAbsent`; same verdict as bare 4558). Standard dual
+	// order, same pin-numbered role convention as the NJM4580 entry.
+	{
+		"partIds": [
+			"4559"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
 			]
 		}
 	},

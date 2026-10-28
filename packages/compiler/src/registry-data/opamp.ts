@@ -455,7 +455,9 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 		// the bare id the datasheet names in its description takes the commercial (C)
 		// grade column, disclosed; no suffixed grade is aliased. The +-5 V (10 V total)
 		// table is quoted as the one closest to a 9 V pedal.
-		partIds: ["TLC2262"],
+		// The quoted table IS the TLC2262C operating characteristics (SLOS177D p7),
+		// so the C-suffix spelling rides this row (MXR Badass 78 U2).
+		partIds: ["TLC2262", "TLC2262C"],
 		gainBandwidthHz: {
 			value: 0.73e6,
 			basis: "datasheet",
@@ -550,6 +552,42 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"columns): 'FREQUENCY RESPONSE | Gain-Bandwidth Product, G = 100: TYP 20 MHz'. The AOL " +
 				"row that sets the sections gain is on the same table: 'OPEN-LOOP GAIN | Open-Loop " +
 				"Voltage Gain, VO = +-10 V, RL = 1 kOhm: MIN 80 TYP 100 dB'.",
+		},
+	},
+	{
+		// Wave 8 (opamp batch, corpus-driven). GBW only (D4 swing freeze stands).
+		// MC1458P is the PDIP orderable named on the sheet's title block (MC1458 ... D, P,
+		// OR PS PACKAGE). Both grades print the same TYPS, so no grade split.
+		partIds: ["MC1458P"],
+		gainBandwidthHz: {
+			value: 1e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): TI MC1458/MC1558 SLOS069C " +
+				"(Feb 1971, rev Aug 2010), electrical characteristics at VCC+- = +-15 V: " +
+				"'B1 | Unity-gain bandwidth | 25C | TYP 1 MHz' both grades (MIN/MAX blank) -- " +
+				"a unity-gain bandwidth IS the gain-bandwidth product (coordinator ruling " +
+				"2026-10-19, LM324 precedent). The AVD row that sets the sections gain is the " +
+				"same table: 'Large-signal differential voltage amplification, RL >= 2 kOhm, " +
+				"VO = +-10 V, 25C: MIN 20 (MC1458) / 50 (MC1558) TYP 200 V/mV'.",
+		},
+	},
+	{
+		// Wave 8 (opamp batch, corpus-driven). GBW only (D4 swing freeze stands).
+		// CA3240EZ is the 8 Ld PDIP orderable in the FN1050 orderables table. Both grades
+		// print the same TYPS everywhere quoted, so no grade split. The fT figure is from
+		// the TYPICAL VALUES table (the guaranteed table carries no frequency row); the
+		// -40-to-85C typical table's AOL 63 kV/V is disclosed and not used.
+		partIds: ["CA3240EZ"],
+		gainBandwidthHz: {
+			value: 4.5e6,
+			basis: "datasheet",
+			source:
+				"Fetched manufacturer sheet (no vendored copy): Renesas CA3240/CA3240A FN1050 " +
+				"Rev 6.00 (Mar 2005), TYPICAL VALUES (VSUPPLY = +-15 V, TA = 25C): 'Gain Bandwidth " +
+				"Product fT: TYP 4.5 MHz' both grades. The AOL row that sets the sections gain is " +
+				"the guaranteed table (same supply/temp): 'Large-Signal Voltage Gain AOL, VO = " +
+				"26VP-P, RL = 2 kOhm (Note 3): MIN 20 TYP 100 kV/V' both grades.",
 		},
 	},
 ]);
@@ -656,6 +694,49 @@ export const opampGainBandwidthAbsent: ReadonlyArray<{
 	{
 		partIds: ["TL022CP2", "AK4552VT", "AK4552", "AK4552VT13", "AK4552VT8"],
 		reason: "Not an op-amp datasheet part: a converter or macro shell modelled with an op-amp section.",
+	},
+	{
+		partIds: ["TL081"],
+		reason:
+			"Fetched manufacturer sheet (no vendored copy): TI TL08xx SLOS081O (Feb 1977, rev " +
+				"Sept 2025) splits the GBW row 'All NS and PS packages; All TL08xM devices TYP 3 MHz' " +
+				"against 'All other devices TYP 5.25 MHz', and the bare TL081 id states no package or " +
+				"grade (same verdict as TL072C). The sections entry carries the citable TL08xC AOL " +
+				"TYP 200 V/mV (VO = 0 V).",
+	},
+	{
+		partIds: ["CA3130EZ"],
+		reason:
+			"Fetched manufacturer sheet (no vendored copy): Renesas CA3130/CA3130A FN817 Rev 6.00 " +
+				"(Aug 2005) prints no single GBW: 'Open Loop Unity Gain Crossover Frequency fT: CC = 0: " +
+				"15 MHz; CC = 47pF: 4 MHz' (For Unity Gain Stability >=47pF Required) -- the figure " +
+				"depends on the pedal's external compensation network, so no transcription applies. " +
+				"The sections entry carries the citable Table-1 (V+ = 15 V, V- = 0 V) AOL TYP 320 kV/V " +
+				"(VO = 10VP-P, RL = 2 kOhm); the +5 V typical table's 100 kV/V is disclosed and not used.",
+	},
+	{
+		partIds: ["LM301AN"],
+		reason:
+			"Fetched manufacturer sheet (no vendored copy): ON Semi LM301A/LM201A LM301A/D Rev. 12 " +
+				"(July 2025) prints no gain-bandwidth, unity-gain or crossover row (full-text search " +
+				"finds none; only the Open-Loop Frequency Response graph). LM301AN is the PDIP-8 " +
+				"orderable in its orderables table. The sections entry carries the citable AV TYP 160 " +
+				"V/mV alone (same AOL-only shape as LM308).",
+	},
+	{
+		partIds: ["4559"],
+		reason:
+			"'4559' is a generic name no datasheet owns (the Mojo Rook transcriber's number-portion " +
+				"reading; no 4559-family sheet cited -- same verdict as bare 4558). The sections entry " +
+				"carries the house 100000, disclosed as unsourced (TL062/LM741-single precedent).",
+	},
+	{
+		partIds: ["4580"],
+		reason:
+			"'4580' is a generic name no datasheet owns (the Azusa Driver transcriber's number-portion " +
+				"reading; the only 4580-family sheet is the NJM4580 one the JRC4580 entry rides -- same " +
+				"verdict as bare 4558). It rides that entry's sections (AOL TYP 110 dB) with no GBW " +
+				"figure of its own.",
 	},
 ];
 

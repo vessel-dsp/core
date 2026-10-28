@@ -872,8 +872,9 @@ describe("wave-4 fill inventory", () => {
 		// 6 more JFET rows (2SK30A-O channel, 2SK879 + Y, 2SK880 + GR, Vt0-only J113;
 		// the bare 2SK30ATM spelling rides as an alias on the gate-only entry).
 		// Wave 7 (germanium fill, corpus-driven): 4 BJT rows -- OC75 BF 90 and OC81D
-		// Wave 7 top-up (corpus-driven PDFs): PN2222A BF-only 173.2 (sole bin at 150 mA, disclosed off-operating-point) and BF244A full channel (IDSS/VGSoff range midpoints, square law) in jfet.ts. MPSA06 stays out (MIN/MAX-only throughout). 1N5711/1N5818/1N4005/6 stay out (MAX-only tables; TYP I-V curves need a graph-read ruling).
+		// Wave 7 top-up (corpus-driven PDFs): PN2222A BF-only 173.2 (sole bin at 150 mA, disclosed off-operating-point) and BF244A full channel (IDSS/VGSoff range midpoints, square law) in jfet.ts. 1N5711 stays out (MAX-only table; its TYP I-V curve needs a graph-read ruling; 1N5818/1N4005/6 and MPSA06 landed in wave 9 below).
 		// BF 60 (Mullard Pocket Data Book TYPs), AC176 BF 111.8 (Siemens B-bin geomean),
+		// Wave 8 (opamp batch, corpus-driven): 2 GBW rows (MC1458P 1 MHz B1 TYP, CA3240EZ 4.5 MHz fT TYP) + TLC2262C riding the evidenced C-grade row; AOL-only/alias sections for TL081 (200k, TL08xC), LM301AN (160k, ON AV), CA3130EZ (320k, Table 1), bare 4559 (house 100k, disclosed) and bare 4580 (rides JRC4580 110 dB); GBW-absent: TL081 (3/5.25 split), CA3130EZ (CC-dependent fT), LM301AN (no row), 4559/4580 (generic names, 4558 precedent).
 		// 2N1308 IS-only 6.31e-7 (Central VBE(sat) range midpoint; BF MIN-only, no row).
 		// All four carry the silicon-bias caveat (IS omitted except 2N1308, BF omitted
 		// on 2N1308); NKT275 stays out (MIN-only everywhere located).
@@ -884,7 +885,7 @@ describe("wave-4 fill inventory", () => {
 		// Boss OC-2 JP 07556, IS+n+Rs pooled at the engine VT), alias 1S-188FM per the
 		// OC-2 service-note legend; 1SS-188FM deliberately unregistered (silicon-prefix
 		// spelling in the DS-2 source, no Ge mark).
-		expect(opampRegistryRecords).toHaveLength(24);
+		expect(opampRegistryRecords).toHaveLength(26);
 		expect(zenerRegistryRecords).toHaveLength(35);
 		expect(jfetRegistryRecords).toHaveLength(28);
 		expect(regulatorRegistryRecords).toHaveLength(7);
@@ -894,7 +895,7 @@ describe("wave-4 fill inventory", () => {
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 67 + 19 + 2 + 35 + 28 + 7 + 8 + 1 + 5);
+		expect(partRegistryData).toHaveLength(26 + 67 + 19 + 2 + 35 + 28 + 7 + 8 + 1 + 5);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
