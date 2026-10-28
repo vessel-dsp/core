@@ -55,6 +55,16 @@ const bjt = (id: string, collector: number, base: number, emitter: number) =>
 const resistor = (id: string, a: number, b: number) =>
 	device(id, "resistor", [a, b], ["a", "b"]);
 
+const diode = (
+	id: string,
+	anode: number,
+	cathode: number,
+	parameters: Record<string, number> = {},
+) => ({
+	...device(id, "diode", [anode, cathode], ["anode", "cathode"]),
+	parameters,
+});
+
 function netlist(
 	devices: readonly Device[],
 	controls: Netlist["controls"] = [],
@@ -373,6 +383,198 @@ describe("effect-status LED evidence", () => {
 		const withLed = netlist(switched, [], [led("LED1", 30, 20)]);
 		expect(findBistableLatches(withLed)[0]?.sideProvenance).toBe("connectivity");
 		expect(findLatchLedDisagreements(withLed)).toEqual([]);
+	});
+});
+
+describe("effect-status LED series chains", () => {
+	// The `crossCoupled` pair gates no switch, so connectivity refuses everywhere
+	// below and the LED is the only evidence. Every chain below is built from
+	// component ids that name no corpus pedal: these pin the chain rule's shape
+	// (series-only, no-branch, current-carrying, unanimous), never a packet.
+	test("a cathode resistor-plus-diode chain votes the reached member", () => {
+		// LED cathode 30 → R 31 → D (forward 31→20) → QB collector 20.
+		const devices = [
+			...crossCoupled,
+			resistor("R_LED", 30, 31),
+			diode("D_LED", 31, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 40, 30)]));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+
+	test("a reverse undeclared diode still carries the chain", () => {
+		// The `boss-oc-2` shape in miniature: the chain diode sits backwards
+		// (cathode toward the LED) with no declared breakdown — typed data alone
+		// cannot tell it from an ordinary diode — and the walk admits it rather
+		// than refusing the branch on absence of evidence.
+		const devices = [
+			...crossCoupled,
+			diode("D_REV", 31, 30),
+			resistor("R_LED", 31, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 40, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+
+	test("a reverse declared zener carries the chain", () => {
+		const devices = [
+			...crossCoupled,
+			diode("D_Z", 31, 30, { breakdownVolts: 5.1 }),
+			resistor("R_LED", 31, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 40, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+
+	test("a branched middle is not a chain", () => {
+		// Node 31 also touches a second resistor: three terminals, so the run is
+		// a branch and the LED stays silent.
+		const devices = [
+			...crossCoupled,
+			resistor("R_LED", 30, 31),
+			resistor("R_BRANCH", 31, 60),
+			diode("D_LED", 31, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 40, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("fallback");
+	});
+
+	test("a capacitor in series is not a chain", () => {
+		const devices = [
+			...crossCoupled,
+			device("C_LED", "capacitor", [30, 31], ["a", "b"]),
+			resistor("R_LED", 31, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 40, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("fallback");
+	});
+
+	test("the walk does not pass through the LED itself", () => {
+		// The anode side reaches QA's collector only by crossing the LED device
+		// (30 → LED1 → 31 → R → 10). That crossing is excluded, so the only vote
+		// is the cathode-side resistor to QB: unanimous, not conflicting.
+		const devices = [
+			...crossCoupled,
+			device("LED1", "diode", [30, 31], ["anode", "cathode"]),
+			resistor("R_LED", 31, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 30, 31)]));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+
+	test("conflicting chains are no evidence", () => {
+		const devices = [
+			...crossCoupled,
+			resistor("R_A", 30, 31),
+			resistor("R_B", 30, 32),
+			diode("D_A", 31, 10),
+			diode("D_B", 32, 20),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 40, 30)]));
+		expect(latches[0]?.sideProvenance).toBe("fallback");
+	});
+
+	test("an anode-side two-element chain votes the other member", () => {
+		// LED anode 30 → R 31 → D (forward away from the LED) → QA collector 10:
+		// lit when QA is HIGH, so the ON side is QB.
+		const devices = [
+			...crossCoupled,
+			resistor("R_LED", 30, 31),
+			diode("D_LED", 10, 31),
+		];
+		const latches = findBistableLatches(netlist(devices, [], [led("LED1", 30, 40)]));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("effect-status-led");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+});
+
+describe("diode-isolated supply flood", () => {
+	// The supply node sits one diode from the inlet rail, so the unexpanded flood
+	// leaks through the load resistors into the whole circuit and both collectors
+	// appear to gate both switches. Blocking the diode-joined node leaves each
+	// collector reaching only its own switch, and the audio side derives the rest.
+	test("derives through a polarity diode from the inlet rail", () => {
+		const switched = [
+			bjt("QA", 10, 21, 0),
+			bjt("QB", 20, 11, 0),
+			resistor("Rcross1", 10, 11),
+			resistor("Rcross2", 20, 21),
+			device("V1", "voltage-source", [30, 0], ["positive", "negative"]),
+			diode("D_SUP", 30, 31),
+			resistor("RloadA", 31, 10),
+			resistor("RloadB", 31, 20),
+			resistor("RgateA", 10, 12),
+			resistor("RgateB", 20, 22),
+			device("SWA", "jfet", [13, 12, 14], ["drain", "gate", "source"]),
+			device("SWB", "jfet", [23, 22, 24], ["drain", "gate", "source"]),
+			{
+				...device("VR1", "potentiometer", [13, 40, 41], [
+					"lug1",
+					"wiper",
+					"lug3",
+				]),
+				control: "Tone",
+			},
+			resistor("Rdry", 23, 50),
+		];
+		const latches = findBistableLatches(netlist(switched));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("connectivity");
+		expect(latches[0]?.offWhenEngagedTransistorId).toBe("QA");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
+	});
+
+	test("a base clamp diode does not un-find the latch", () => {
+		// A clamp diode from a base to ground (`boss-ds-1`'s D7 shape) joins the
+		// base to a rail by one diode: the flood may stop there, but candidacy
+		// keeps the structural rails, so the pair survives.
+		const clamped = [
+			...crossCoupled,
+			diode("D_CLAMP", 11, 0),
+		];
+		const latches = findBistableLatches(netlist(clamped));
+		expect(latches).toHaveLength(1);
+		expect([11, 21]).toContain(latches[0]?.onWhenEngagedBase);
+	});
+
+	test("an indicator on the rail does not block the flood", () => {
+		// An effect-status LED from the inlet rail to a gate-feed node is a load,
+		// not supply distribution: the flood passes through the node.
+		const switched = [
+			bjt("QA", 10, 21, 0),
+			bjt("QB", 20, 11, 0),
+			resistor("Rcross1", 10, 11),
+			resistor("Rcross2", 20, 21),
+			device("V1", "voltage-source", [30, 0], ["positive", "negative"]),
+			resistor("RloadA", 30, 10),
+			resistor("RloadB", 30, 20),
+			resistor("RgateA", 10, 12),
+			resistor("RgateB", 20, 22),
+			device("SWA", "jfet", [13, 12, 14], ["drain", "gate", "source"]),
+			device("SWB", "jfet", [23, 22, 24], ["drain", "gate", "source"]),
+			{
+				...device("VR1", "potentiometer", [13, 40, 41], [
+					"lug1",
+					"wiper",
+					"lug3",
+				]),
+				control: "Tone",
+			},
+			resistor("Rdry", 23, 50),
+			device("LED1", "diode", [30, 12], ["anode", "cathode"]),
+		];
+		const panel = [led("LED1", 30, 12)];
+		const latches = findBistableLatches(netlist(switched, [], panel));
+		expect(latches).toHaveLength(1);
+		expect(latches[0]?.sideProvenance).toBe("connectivity");
+		expect(latches[0]?.onWhenEngagedTransistorId).toBe("QB");
 	});
 });
 

@@ -107,14 +107,20 @@ export type BistableLatch = {
 
 /**
  * How an effect-status LED sits on a latch collector, or in other words which way
- * round it lights. `cathode-direct` / `cathode-1R` light when the collector is LOW
- * (transistor ON); `anode-direct` lights when it is HIGH (transistor OFF). An anode
- * one resistor away is deliberately not evidence: that is the shape a shared supply
- * node makes with the collector load resistors (measured on both `boss-bd-2` builds
- * and `boss-ds-2`, whose LED anodes sit a resistor from *both* collectors), not a
+ * round it lights. `cathode-direct` / `cathode-1R` / `cathode-chain` light when the
+ * collector is LOW (transistor ON); `anode-direct` / `anode-chain` light when it is
+ * HIGH (transistor OFF). An anode exactly one resistor away is deliberately not
+ * evidence: that is the shape a shared supply node makes with the collector load
+ * resistors (measured on both `boss-bd-2` builds, `boss-ds-2`, `boss-cs-2` and
+ * `boss-oc-2`, whose LED anodes sit a resistor from *both* collectors), not a
  * steering branch.
  */
-export type LedLatchPolarity = "cathode-direct" | "cathode-1R" | "anode-direct";
+export type LedLatchPolarity =
+	| "cathode-direct"
+	| "cathode-1R"
+	| "cathode-chain"
+	| "anode-direct"
+	| "anode-chain";
 
 /**
  * A latch where connectivity and the effect-status LED name different engaged sides.
@@ -134,11 +140,12 @@ type LatchNetlist = Pick<Netlist, "devices" | "effectStatusLeds"> & {
 
 export function findBistableLatches(netlist: LatchNetlist): readonly BistableLatch[] {
 	const rails = detectorRails(netlist);
+	const floodRails = latchFloodRails(netlist, rails);
 	const pairs = candidatePairs(netlist, rails);
 
 	const latches: BistableLatch[] = [];
 	for (const pair of pairs) {
-		const assessed = assessLatchSides(netlist, rails, pair.a, pair.b);
+		const assessed = assessLatchSides(netlist, floodRails, pair.a, pair.b);
 
 		const bypassControls = (netlist.controls ?? []).filter(
 			(c) => c.role === "bypass",
@@ -179,9 +186,10 @@ export function findLatchLedDisagreements(
 	netlist: LatchNetlist,
 ): readonly LatchLedDisagreement[] {
 	const rails = detectorRails(netlist);
+	const floodRails = latchFloodRails(netlist, rails);
 	const out: LatchLedDisagreement[] = [];
 	for (const pair of candidatePairs(netlist, rails)) {
-		const assessed = assessLatchSides(netlist, rails, pair.a, pair.b);
+		const assessed = assessLatchSides(netlist, floodRails, pair.a, pair.b);
 		if (
 			assessed.sideProvenance === "connectivity" &&
 			assessed.ledVote !== null &&
@@ -252,12 +260,20 @@ function assessLatchSides(
 /**
  * The latch member an effect-status LED indicates as ON when engaged, or `null`.
  *
- * One unanimous vote wins: every LED whose terminal sits on a latch collector names
- * the member lit in the effect state (cathode on a collector: lit when LOW, so that
- * member; anode directly on a collector: lit when HIGH, so the other member), and
- * conflicting or absent votes are no evidence rather than a tie-break. Matching is
- * by the panel record's exact component id (already resolved to terminals by stage 1)
- * and the typed `led` kind it carried — never by name or description text.
+ * One unanimous vote wins: every LED terminal chain that reaches a latch collector
+ * names the member lit in the effect state (a cathode-side chain: lit when that
+ * collector is LOW, so that member; an anode-side chain: lit when it is HIGH, so
+ * the other member), and conflicting or absent votes are no evidence rather than a
+ * tie-break. Matching is by the panel record's exact component id (already resolved
+ * to terminals by stage 1) and the typed `led` kind it carried — never by name or
+ * description text.
+ *
+ * A chain is a pure series branch between the LED terminal and the collector: every
+ * link is a two-terminal resistor or diode, and every interior node joins exactly
+ * two device terminals (no branch). The LED device itself is never a link — a walk
+ * through it would join the anode side to the cathode side and manufacture a vote
+ * for every packet. An anode-side chain of exactly one resistor is not a vote
+ * (the shared-supply-plus-loads shape above); a direct anode hit still is.
  */
 function ledIndicatedOnMember(
 	netlist: LatchNetlist,
@@ -267,17 +283,51 @@ function ledIndicatedOnMember(
 	const leds = netlist.effectStatusLeds ?? [];
 	const votes: LedVote[] = [];
 	for (const led of leds) {
+		const chainsTo = (
+			terminal: "anode" | "cathode",
+			member: Transistor,
+		): readonly (readonly string[])[] => {
+			const start = terminal === "anode" ? led.anode : led.cathode;
+			if (start === member.collector) {
+				return [[]];
+			}
+			// On a cathode-side chain the LED's forward current runs with the walk
+			// (LED terminal toward the collector); on an anode-side chain it runs
+			// against the walk (collector toward the LED terminal).
+			return ledSeriesChains(
+				netlist,
+				led.id,
+				start,
+				member.collector,
+				terminal === "anode",
+			);
+		};
 		for (const member of [a, b] as const) {
-			const cathode = cathodeRelation(netlist, led.cathode, member.collector);
-			if (cathode !== null) {
-				votes.push({
-					member,
-					ledId: led.id,
-					polarity: cathode === "direct" ? "cathode-direct" : "cathode-1R",
-				});
-			} else if (led.anode === member.collector) {
-				const other = member.id === a.id ? b : a;
-				votes.push({ member: other, ledId: led.id, polarity: "anode-direct" });
+			for (const terminal of ["cathode", "anode"] as const) {
+				for (const path of chainsTo(terminal, member)) {
+					if (terminal === "cathode") {
+						votes.push({
+							member,
+							ledId: led.id,
+							polarity:
+								path.length === 0
+									? "cathode-direct"
+									: path.length === 1 && isSingleResistor(netlist, path)
+										? "cathode-1R"
+										: "cathode-chain",
+						});
+					} else {
+						if (path.length === 1 && isSingleResistor(netlist, path)) {
+							continue;
+						}
+						const other = member.id === a.id ? b : a;
+						votes.push({
+							member: other,
+							ledId: led.id,
+							polarity: path.length === 0 ? "anode-direct" : "anode-chain",
+						});
+					}
+				}
 			}
 		}
 	}
@@ -291,31 +341,175 @@ function ledIndicatedOnMember(
 	return null;
 }
 
-/**
- * How an LED cathode reaches a latch collector: `direct` on the node, the id of the
- * single resistor joining them, or `null`. Resistors only — a shared supply node is
- * not a branch, and neither is anything else.
- */
-function cathodeRelation(
+/** Whether a chain path is a single resistor link. */
+function isSingleResistor(
 	netlist: Pick<Netlist, "devices">,
-	cathode: NodeId,
-	collector: NodeId,
-): "direct" | string | null {
-	if (cathode === collector) {
-		return "direct";
+	path: readonly string[],
+): boolean {
+	if (path.length !== 1) {
+		return false;
 	}
 	const link = netlist.devices.find(
-		(device) =>
-			device.kind === "resistor" &&
-			device.nodes.length === 2 &&
-			((device.nodes[0] === cathode && device.nodes[1] === collector) ||
-				(device.nodes[0] === collector && device.nodes[1] === cathode)),
+		(device) => String(device.id) === path[0],
 	);
-	return link === undefined ? null : String(link.id);
+	return link?.kind === "resistor";
 }
 
-/** This detector's rail set: ground plus every asserted supply node. */
-function detectorRails(netlist: Pick<Netlist, "devices">): Set<NodeId> {
+/**
+ * Series device-id paths from a node to a target over two-terminal resistors and
+ * diodes, excluding one device id (the LED being evaluated). Every interior node
+ * must join exactly two device terminals across the whole netlist — a branch, a
+ * ground return, a transistor terminal or an IC pin on the way disqualifies the
+ * run. The start node is an endpoint and exempt; the target is an endpoint and
+ * exempt. Revisits are refused, so every walk terminates.
+ *
+ * Each diode on a returned path must be able to carry the LED's forward current
+ * in the walk direction (see `diodeCarriesLedCurrent`); a path with a blocking
+ * diode is not returned.
+ */
+function ledSeriesChains(
+	netlist: Pick<Netlist, "devices">,
+	excludedId: string,
+	start: NodeId,
+	target: NodeId,
+	reversedCurrent: boolean,
+): readonly (readonly string[])[] {
+	const adjacency = new Map<NodeId, { readonly to: NodeId; readonly id: string }[]>();
+	for (const device of netlist.devices) {
+		if (String(device.id) === excludedId) {
+			continue;
+		}
+		if (
+			(device.kind !== "resistor" && device.kind !== "diode") ||
+			device.nodes.length !== 2
+		) {
+			continue;
+		}
+		const from = device.nodes[0];
+		const to = device.nodes[1];
+		if (from === undefined || to === undefined || from === to) {
+			continue;
+		}
+		for (const [a, b] of [
+			[from, to],
+			[to, from],
+		] as const) {
+			const links = adjacency.get(a);
+			if (links === undefined) {
+				adjacency.set(a, [{ to: b, id: String(device.id) }]);
+			} else {
+				links.push({ to: b, id: String(device.id) });
+			}
+		}
+	}
+	const degree = (node: NodeId): number => {
+		let count = 0;
+		for (const device of netlist.devices) {
+			for (const terminal of device.nodes) {
+				if (terminal === node) {
+					count += 1;
+				}
+			}
+		}
+		return count;
+	};
+	const out: string[][] = [];
+	const walk = (node: NodeId, path: string[], visited: Set<NodeId>): void => {
+		for (const link of adjacency.get(node) ?? []) {
+			if (visited.has(link.to)) {
+				continue;
+			}
+			// An interior node is a series joint or the walk ends here: anything
+			// with more or fewer than two terminals is a branch, not a chain.
+			if (link.to !== target && degree(link.to) !== 2) {
+				continue;
+			}
+			const device = netlist.devices.find(
+				(candidate) => String(candidate.id) === link.id,
+			);
+			if (device === undefined) {
+				continue;
+			}
+			if (device.kind === "diode") {
+				// The walk runs LED terminal to collector on both sides, but the
+				// current runs with the walk only on the cathode side.
+				const [from, to] = reversedCurrent
+					? ([link.to, node] as const)
+					: ([node, link.to] as const);
+				if (!diodeCarriesLedCurrent(device, from, to)) {
+					continue;
+				}
+			}
+			if (link.to === target) {
+				out.push([...path, link.id]);
+				continue;
+			}
+			visited.add(link.to);
+			walk(link.to, [...path, link.id], visited);
+			visited.delete(link.to);
+		}
+	};
+	walk(start, [], new Set<NodeId>([start]));
+	return out;
+}
+
+/**
+ * Whether a diode can carry the LED's forward current across one chain step, from
+ * node `from` to node `to`. The walk direction is the current direction on a
+ * cathode-side chain (LED terminal toward the collector); on an anode-side chain
+ * the current runs the other way (collector toward the LED terminal), so callers
+ * pass the endpoints swapped and the same forward/reverse test applies.
+ *
+ * A diode conducts forward, or in reverse when it is a zener with a declared
+ * breakdown (`parameters.breakdownVolts`, the typed diode law — never the part
+ * number or description text, which this detector must not read). Where the typed
+ * data cannot decide, the diode is accepted either way:
+ *
+ * - the anode/cathode orientation is absent or repeated (`ledTerminalNode` finds
+ *   no single role), so forward and reverse are meaningless;
+ * - there is no declared breakdown, so the typed data cannot tell an undeclared
+ *   zener from an ordinary diode. `boss-oc-2`'s `D2` is exactly this: an RD5.1
+ *   zener in reverse in the CHECK branch, known as a zener only by its part
+ *   number, with `parameters` empty and `declaredType` the plain diode source
+ *   type. Refusing it on absence of evidence would refuse the real branch, so
+ *   the walk admits it and the no-branch, unanimity and precedence rules carry
+ *   the specificity instead.
+ */
+function diodeCarriesLedCurrent(
+	device: Device,
+	from: NodeId,
+	to: NodeId,
+): boolean {
+	const anode = ledTerminalNode(device, "anode");
+	const cathode = ledTerminalNode(device, "cathode");
+	if (anode === null || cathode === null) {
+		return true;
+	}
+	const forward = from === anode && to === cathode;
+	if (forward) {
+		return true;
+	}
+	const reverse = from === cathode && to === anode;
+	if (!reverse) {
+		return true;
+	}
+	const breakdown = device.parameters.breakdownVolts ?? 0;
+	if (breakdown > 0) {
+		return true;
+	}
+	return true;
+}
+
+/** This detector's rail set: ground plus every asserted supply node.
+ *
+ * This is the structural set, and it is also what decides latch candidacy
+ * (requirement 3 below): a collector or base sitting on one of these is supply,
+ * not state. It deliberately does NOT include diode-joined nodes — a base with
+ * a clamp diode to ground is still a state node (`boss-ds-1`'s `Q4` base, node
+ * 37, via `D7`), and promoting it would un-find a real latch. The flood view is
+ * `latchFloodRails`.
+ */
+function detectorRails(netlist: LatchNetlist): Set<NodeId> {
 	const rails = new Set<NodeId>([0]);
 	for (const device of netlist.devices) {
 		if (device.kind === "voltage-source" || device.kind === "rail") {
@@ -325,6 +519,68 @@ function detectorRails(netlist: Pick<Netlist, "devices">): Set<NodeId> {
 		}
 	}
 	return rails;
+}
+
+/**
+ * The rail set the gate-steering floods are blocked at: the structural rails
+ * plus every node a single diode joins to one of those.
+ *
+ * A reverse-polarity protection diode puts the whole board supply one diode from
+ * the inlet rail, and the DC flood must treat that node as supply rather than
+ * as a route: measured on `boss-oc-2`, node 7 sits behind `D1` (S5500G) off the
+ * rail node 60, so both collectors flood through their load resistors (`R22`,
+ * `R23`) into node 7, down the bias divider (`R46`) to the 4.5 V node 2, and
+ * out to every JFET gate — both sides then "gate the same switches" and the
+ * rule refuses a latch whose real gate paths (`Q5` collector → `R28` → `D4` →
+ * `Q3` gate; `Q6` collector → `R30` → `D5` → `Q4` gate) are one switch each.
+ * Blocking node 7 leaves each collector reaching only its own switch.
+ *
+ * Two deliberate limits. One hop only: a longer diode string is a signal path
+ * (steering, clamping, detection), not supply distribution, and stopping the
+ * flood there could hide a real gate. Effect-status indicators excluded: an LED
+ * terminates on supply but is a load, not distribution, and its far node can sit
+ * inside latch or LED networks rather than on a rail.
+ *
+ * The candidate not taken is stopping the flood at the shared load-resistor top
+ * (a node both collectors reach through one resistor each): on this corpus every
+ * such node is already a rail or is diode-joined to one (`boss-oc-2` node 7,
+ * `boss-ds-1` node 5, `boss-hm-2` node 71, `boss-mt-2` node 1, the rest already
+ * rails), so the diode rule is strictly more general here.
+ *
+ * This set is flood-blocking only. Candidacy (`candidatePairs`) keeps the
+ * structural set: the expansion can mark small-signal clamp nodes — `boss-ds-1`'s
+ * `Q4` base (node 37) sits behind its base-ground clamp `D7` — and a clamped
+ * state node is still a state node. Blocking such a node in a flood only shrinks
+ * reachability (worst case a refusal, the safe direction); promoting it to a
+ * rail would un-find the latch outright.
+ */
+function latchFloodRails(
+	netlist: LatchNetlist,
+	rails: ReadonlySet<NodeId>,
+): Set<NodeId> {
+	const flood = new Set<NodeId>(rails);
+	const indicators = new Set(
+		(netlist.effectStatusLeds ?? []).map((led) => led.id),
+	);
+	for (const device of netlist.devices) {
+		if (device.kind !== "diode" || device.nodes.length !== 2) {
+			continue;
+		}
+		if (indicators.has(device.id)) {
+			continue;
+		}
+		const from = device.nodes[0];
+		const to = device.nodes[1];
+		if (from === undefined || to === undefined || from === to) {
+			continue;
+		}
+		if (rails.has(from) && !rails.has(to)) {
+			flood.add(to);
+		} else if (rails.has(to) && !rails.has(from)) {
+			flood.add(from);
+		}
+	}
+	return flood;
 }
 
 /**
