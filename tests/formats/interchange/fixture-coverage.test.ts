@@ -144,6 +144,7 @@ function countByFormat(
 		schx: 0,
 		spice: 0,
 		"ltspice-asc": 0,
+		"diptrace-dchxml": 0,
 	};
 	for (const fixture of fixtures) {
 		counts[fixture.format] += 1;

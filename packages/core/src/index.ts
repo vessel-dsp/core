@@ -62,6 +62,7 @@ export {
 	isVdspFilename,
 	parseCircuitDocument,
 	parseCircuitDocumentFile,
+	parseDipTraceDocument,
 	parseVdspCircuitDocument,
 	parseVdspCircuitDocumentWithTopology,
 	serializeCircuitDocumentFile,
@@ -150,6 +151,30 @@ export { parseSchx } from "./formats/schx/parser";
 export { serializeSchx } from "./formats/schx/serializer";
 export { parseSpiceNetlist } from "./formats/spice/parser";
 export { serializeSpiceNetlist } from "./formats/spice/serializer";
+export {
+	convertDipTrace,
+	type ConvertDipTraceOptions,
+	type ConvertDipTraceResult,
+	type DipTraceDiagnostic,
+	type DipTraceDiagnosticCode,
+	type DipTraceTaperConvention,
+} from "./formats/diptrace/convert";
+export {
+	dipTraceCapacitorPositivePad,
+	findDipTracePadLabelMismatches,
+	parseDipTraceSchematic,
+	readDipTraceSourceType,
+	type DipTraceLibraryPin,
+	type DipTraceLibrarySection,
+	type DipTraceLibraryShape,
+	type DipTraceLibraryShapePoint,
+	type DipTraceModel,
+	type DipTraceNet,
+	type DipTraceNetMember,
+	type DipTracePadLabelMismatch,
+	type DipTracePart,
+	type DipTracePartPin,
+} from "./formats/diptrace/parser";
 export type { Connectivity, NodeId, PinRef } from "./model/connectivity";
 export { getPinNode, pinKey, resolveConnectivity } from "./model/connectivity";
 export type {

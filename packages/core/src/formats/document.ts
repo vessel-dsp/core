@@ -6,6 +6,11 @@ import {
 } from "../model/validation";
 import { parseLtspiceAsc } from "./ltspice/parser";
 import { serializeLtspiceAsc } from "./ltspice/serializer";
+import { convertDipTrace } from "./diptrace/convert";
+import {
+	parseDipTraceSchematic,
+	readDipTraceSourceType,
+} from "./diptrace/parser";
 import { parseSchx } from "./schx/parser";
 import { serializeSchx } from "./schx/serializer";
 import { parseSpiceNetlist } from "./spice/parser";
@@ -21,7 +26,11 @@ import {
 	serializeCircuitJsonDocument,
 } from "./circuit-json/serializer";
 
-export type CircuitFormat = "schx" | "spice" | "ltspice-asc";
+export type CircuitFormat =
+	| "schx"
+	| "spice"
+	| "ltspice-asc"
+	| "diptrace-dchxml";
 
 export type CircuitDocumentFileFormat =
 	| CircuitFormat
@@ -124,6 +133,9 @@ export function detectCircuitFormat(filename: string): CircuitFormat | null {
 	if (lower.endsWith(".asc")) {
 		return "ltspice-asc";
 	}
+	if (lower.endsWith(".dchxml")) {
+		return "diptrace-dchxml";
+	}
 	return null;
 }
 
@@ -145,6 +157,8 @@ export function parseCircuitDocument(
 			return parseSpiceNetlist(source);
 		case "ltspice-asc":
 			return parseLtspiceAsc(source);
+		case "diptrace-dchxml":
+			return parseDipTraceDocument(source, options.filename);
 	}
 }
 
@@ -162,8 +176,18 @@ function detectFormat(
 			.find((line) => line.trim().length > 0)
 			?.trim() ?? "";
 
-	if (firstLine.startsWith("<?xml") || firstLine.startsWith("<Schematic")) {
-		return "schx";
+	if (firstLine.startsWith("<")) {
+		// Typed root check, not a substring over the text: a .schx that merely
+		// mentions DipTrace-Schematic in prose keeps its own root and stays schx.
+		if (readDipTraceSourceType(source) === "DipTrace-Schematic") {
+			return "diptrace-dchxml";
+		}
+		if (
+			firstLine.startsWith("<?xml") ||
+			firstLine.startsWith("<Schematic")
+		) {
+			return "schx";
+		}
 	}
 	if (firstLine.toUpperCase().startsWith("VERSION ")) {
 		return "ltspice-asc";
@@ -206,6 +230,29 @@ export function vdspFilenameFromName(name: string): string {
 
 export function parseVdspCircuitDocument(source: string): CircuitDocument {
 	return parseInterchangeYaml(source);
+}
+
+/**
+ * Parse a DipTrace `.dchxml` schematic export into a `CircuitDocument`.
+ * Conversion refusals (no exactly-one IN/OUT audio pair, empty circuit)
+ * throw with the named reason; component-level gaps stay in the document as
+ * `unsupported` kinds with diagnostics.
+ */
+export function parseDipTraceDocument(
+	source: string,
+	filename?: string,
+): CircuitDocument {
+	const model = parseDipTraceSchematic(source);
+	const { document, refusal } = convertDipTrace(model, {
+		...(filename === undefined ? {} : { name: filename.replace(/\.dchxml$/i, "") }),
+	});
+	if (document === null) {
+		throw new Error(refusal ?? "diptrace conversion refused");
+	}
+	return {
+		...document,
+		rawAttributes: { ...document.rawAttributes, format: "diptrace-dchxml" },
+	};
 }
 
 export function parseVdspCircuitDocumentWithTopology(
@@ -302,6 +349,8 @@ export function serializeCircuitDocumentFile(
 			return serializeSpiceNetlist(document);
 		case "circuit-json":
 			return `${JSON.stringify(serializeCircuitJsonDocument(document).elements, null, 2)}\n`;
+		case "diptrace-dchxml":
+			throw new Error("serializing to diptrace-dchxml is not supported");
 	}
 }
 

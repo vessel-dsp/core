@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Source Type="DipTrace-Schematic" Version="5.3.5.1" Units="mm">
+<Library Type="DipTrace-ComponentLibrary" Version="5.3.5.1" Units="mm">
+<Components>
+<Component ComponentStyle="CompType0" Id="0">
+<Part Id="0">
+<Name>Pole_CAP</Name>
+<PartName>Part 1</PartName>
+<Value>10u</Value>
+<Category Index="0"></Category>
+<Pins>
+<Pin Id="0" ElectricType="Undefined" PadId="1" X="0" Y="0"><Name>1</Name><PadNumber>1</PadNumber></Pin>
+<Pin Id="1" ElectricType="Undefined" PadId="2" X="10" Y="0"><Name>2</Name><PadNumber>2</PadNumber></Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Line"><Points><Point X="8" Y="5"/><Point X="12" Y="5"/></Points></Shape>
+<Shape Id="1" Type="Line"><Points><Point X="10" Y="3"/><Point X="10" Y="7"/></Points></Shape>
+<Shape Id="2" Type="Line"><Points><Point X="0" Y="-4"/><Point X="0" Y="4"/></Points></Shape>
+<Shape Id="3" Type="Line"><Points><Point X="10" Y="-4"/><Point X="10" Y="4"/></Points></Shape>
+</Shapes>
+</Part>
+</Component>
+<Component ComponentStyle="CompType1" Id="0">
+<Part Id="0">
+<Name>Pole_CAP</Name>
+<PartName>Part 1</PartName>
+<Value>22u</Value>
+<Category Index="0"></Category>
+<Pins>
+<Pin Id="0" ElectricType="Undefined" PadId="1" X="0" Y="0"><Name>1</Name><PadNumber>1</PadNumber></Pin>
+<Pin Id="1" ElectricType="Undefined" PadId="2" X="10" Y="0"><Name>2</Name><PadNumber>2</PadNumber></Pin>
+</Pins>
+<Shapes>
+<Shape Id="0" Type="Arc"><Points><Point X="8" Y="5"/><Point X="12" Y="5"/></Points></Shape>
+<Shape Id="1" Type="Line"><Points><Point X="10" Y="3"/><Point X="10" Y="7"/></Points></Shape>
+<Shape Id="2" Type="Line"><Points><Point X="0" Y="-4"/><Point X="0" Y="4"/></Points></Shape>
+<Shape Id="3" Type="Line"><Points><Point X="10" Y="-4"/><Point X="10" Y="4"/></Points></Shape>
+</Shapes>
+</Part>
+</Component>
+<Component ComponentStyle="CompType2" Id="0">
+<Part Id="0">
+<Name>GRND</Name>
+<PartName>Part 1</PartName>
+<Category Index="0"></Category>
+<Pins>
+<Pin Id="0" ElectricType="Power" PadId="-1" X="0" Y="0"><Name>GND</Name><PadNumber>1</PadNumber></Pin>
+</Pins>
+</Part>
+</Component>
+<Component ComponentStyle="CompType3" Id="0">
+<Part Id="0">
+<Name>VA</Name>
+<PartName>Part 1</PartName>
+<Category Index="4"></Category>
+<Pins>
+<Pin Id="0" ElectricType="Undefined" PadId="1" X="0" Y="0"><Name>1</Name><PadNumber>1</PadNumber></Pin>
+</Pins>
+</Part>
+</Component>
+<Component ComponentStyle="CompType4" Id="0">
+<Part Id="0">
+<Name></Name>
+<PartName>Part 1</PartName>
+<Category Index="1"></Category>
+<Pins>
+<Pin Id="0" ElectricType="Undefined" PadId="1" X="0" Y="0"><Name>1</Name><PadNumber>1</PadNumber></Pin>
+</Pins>
+</Part>
+</Component>
+</Components>
+</Library>
+<Schematic>
+<Components>
+<Part Id="0" ComponentStyle="CompType0" ComponentPart="0" Sheet="0" X="0" Y="0">
+<RefDes>C1</RefDes>
+<PartRefDes>1</PartRefDes>
+<PartName>Part 1</PartName>
+<Value>10u</Value>
+<Name>Pole_CAP</Name>
+<BaseName>Pole_CAP</BaseName>
+<LibPath></LibPath>
+<Category Index="0"></Category>
+<Pins>
+<Pin Id="0" NetId="0"></Pin>
+<Pin Id="1" NetId="1"></Pin>
+</Pins>
+</Part>
+<Part Id="1" ComponentStyle="CompType1" ComponentPart="0" Sheet="0" X="20" Y="0">
+<RefDes>C2</RefDes>
+<PartRefDes>1</PartRefDes>
+<PartName>Part 1</PartName>
+<Value>22u</Value>
+<Name>Pole_CAP</Name>
+<BaseName>Pole_CAP</BaseName>
+<LibPath></LibPath>
+<Category Index="0"></Category>
+<Pins>
+<Pin Id="0" NetId="0"></Pin>
+<Pin Id="1" NetId="1"></Pin>
+</Pins>
+</Part>
+<Part Id="2" ComponentStyle="CompType2" ComponentPart="0" Sheet="0" X="40" Y="0">
+<RefDes>NetPort1</RefDes>
+<PartRefDes>1</PartRefDes>
+<PartName>Part 1</PartName>
+<Value></Value>
+<Name>GRND</Name>
+<BaseName>GRND</BaseName>
+<LibPath></LibPath>
+<Category Index="0"></Category>
+<Pins>
+<Pin Id="0" NetId="0"></Pin>
+</Pins>
+</Part>
+<Part Id="3" ComponentStyle="CompType3" ComponentPart="0" Sheet="0" X="50" Y="0">
+<RefDes>NetPort2</RefDes>
+<PartRefDes>1</PartRefDes>
+<PartName>Part 1</PartName>
+<Value></Value>
+<Name>VA</Name>
+<BaseName>VA</BaseName>
+<LibPath></LibPath>
+<Category Index="4"></Category>
+<Pins>
+<Pin Id="0" NetId="1"></Pin>
+</Pins>
+</Part>
+<Part Id="4" ComponentStyle="CompType4" ComponentPart="0" Sheet="0" X="60" Y="0">
+<RefDes>Connector1</RefDes>
+<PartRefDes>1</PartRefDes>
+<PartName>Part 1</PartName>
+<Value>IN</Value>
+<Name></Name>
+<BaseName></BaseName>
+<LibPath></LibPath>
+<Category Index="1"></Category>
+<Pins>
+<Pin Id="0" NetId="2"></Pin>
+</Pins>
+</Part>
+<Part Id="5" ComponentStyle="CompType4" ComponentPart="0" Sheet="0" X="70" Y="0">
+<RefDes>Connector2</RefDes>
+<PartRefDes>1</PartRefDes>
+<PartName>Part 1</PartName>
+<Value>OUT</Value>
+<Name></Name>
+<BaseName></BaseName>
+<LibPath></LibPath>
+<Category Index="1"></Category>
+<Pins>
+<Pin Id="0" NetId="3"></Pin>
+</Pins>
+</Part>
+</Components>
+<Nets>
+<Net Id="0" NetClass="0" HiddenId="0"><Name>Net 0</Name><Pins><Item Part="0" Pin="0"/><Item Part="1" Pin="0"/><Item Part="2" Pin="0"/></Pins><Wires></Wires></Net>
+<Net Id="1" NetClass="0" HiddenId="0"><Name>Net 1</Name><Pins><Item Part="0" Pin="1"/><Item Part="1" Pin="1"/><Item Part="3" Pin="0"/></Pins><Wires></Wires></Net>
+<Net Id="2" NetClass="0" HiddenId="0"><Name>Net 2</Name><Pins><Item Part="4" Pin="0"/></Pins><Wires></Wires></Net>
+<Net Id="3" NetClass="0" HiddenId="0"><Name>Net 3</Name><Pins><Item Part="5" Pin="0"/></Pins><Wires></Wires></Net>
+</Nets>
+</Schematic>
+</Source>
