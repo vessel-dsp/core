@@ -294,9 +294,49 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// Diodes Inc Schottky barrier rectifier; bundle-only in hand (no per-part URL
-		// recorded), so the SPICE-models index page is the model file URL and the bundle
-		// path, sha and card are quoted.
+		// Diodes Inc Schottky barrier rectifier; bundle-only in hand (same index-page
+		// citation as 1N5819; the DI_1N5818 card sits two cards below DI_1N5817 in the
+		// owner bundle). Corpus: (project NetPort scan names 1N5818 once, DO-41).
+		partIds: ["1N5818"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 263e-6,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_1N5818 D  ( IS=263u RS=73.1m BV=30.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.90 TT=4.32u )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_1N5818 D  ( IS=263u RS=73.1m BV=30.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.90 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.9,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_1N5818 D  ( IS=263u RS=73.1m BV=30.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.90 TT=4.32u )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_1N5818 D  ( IS=263u RS=73.1m BV=30.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.90 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 73.1e-3,
+				basis: "manufacturer-model",
+				source:
+					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
+					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
+					".MODEL DI_1N5818 D  ( IS=263u RS=73.1m BV=30.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.90 TT=4.32u )",
+				modelFileUrl: DIODES_SPICE_INDEX,
+				modelLine:
+					".MODEL DI_1N5818 D  ( IS=263u RS=73.1m BV=30.0 IBV=1.00m\n+ CJO=203p  M=0.333 N=1.90 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc Schottky barrier rectifier; bundle-only in hand (same index-page citation as 1N5819).
 		partIds: ["1N5819"],
 		class: "diode",
 		params: {
@@ -503,6 +543,94 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 				modelFileUrl: "https://www.diodes.com/spice/download/339/1N4004.spice.txt",
 				modelLine:
 					".MODEL DI_1N4004 D  ( IS=76.9p RS=42.0m BV=400 IBV=5.00u\n+ CJO=39.8p  M=0.333 N=1.45 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc rectifier diode; fetched whole in this run (one request, no scanning).
+		// Corpus: Fulltone Robin Trower OD.
+		partIds: ["1N4005"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 76.9e-12,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/408/1N4005.spice.txt " +
+					"(Diodes Inc 1N4005.spice.txt, fetched 2026-10-28 in this run, sha256 " +
+					"4ec4209b0e04e12191a30538a71c43f128207749cc9d631bb15661b910fcec59). Card lines:\n" +
+					".MODEL DI_1N4005 D  ( IS=76.9e-12 RS=42e-3 BV=600 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/408/1N4005.spice.txt",
+				modelLine:
+					".MODEL DI_1N4005 D  ( IS=76.9e-12 RS=42e-3 BV=600 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.45,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/408/1N4005.spice.txt " +
+					"(Diodes Inc 1N4005.spice.txt, fetched 2026-10-28 in this run, sha256 " +
+					"4ec4209b0e04e12191a30538a71c43f128207749cc9d631bb15661b910fcec59). Card lines:\n" +
+					".MODEL DI_1N4005 D  ( IS=76.9e-12 RS=42e-3 BV=600 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/408/1N4005.spice.txt",
+				modelLine:
+					".MODEL DI_1N4005 D  ( IS=76.9e-12 RS=42e-3 BV=600 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 42e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/408/1N4005.spice.txt " +
+					"(Diodes Inc 1N4005.spice.txt, fetched 2026-10-28 in this run, sha256 " +
+					"4ec4209b0e04e12191a30538a71c43f128207749cc9d631bb15661b910fcec59). Card lines:\n" +
+					".MODEL DI_1N4005 D  ( IS=76.9e-12 RS=42e-3 BV=600 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/408/1N4005.spice.txt",
+				modelLine:
+					".MODEL DI_1N4005 D  ( IS=76.9e-12 RS=42e-3 BV=600 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+		},
+	},
+	{
+		// Diodes Inc rectifier diode; fetched whole in this run (one request, no scanning).
+		// Corpus: EQD Chelsea.
+		partIds: ["1N4006"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 76.9e-12,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/342/1N4006.spice.txt " +
+					"(Diodes Inc 1N4006.spice.txt, fetched 2026-10-28 in this run, sha256 " +
+					"62ce9d97c1e7c39ea0e3e6af3987f8e1f4463cdb2826e656630f9fbf5d08c8ed). Card lines:\n" +
+					".MODEL DI_1N4006 D  ( IS=76.9e-12 RS=42e-3 BV=800 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/342/1N4006.spice.txt",
+				modelLine:
+					".MODEL DI_1N4006 D  ( IS=76.9e-12 RS=42e-3 BV=800 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			emissionCoefficient: {
+				value: 1.45,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/342/1N4006.spice.txt " +
+					"(Diodes Inc 1N4006.spice.txt, fetched 2026-10-28 in this run, sha256 " +
+					"62ce9d97c1e7c39ea0e3e6af3987f8e1f4463cdb2826e656630f9fbf5d08c8ed). Card lines:\n" +
+					".MODEL DI_1N4006 D  ( IS=76.9e-12 RS=42e-3 BV=800 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/342/1N4006.spice.txt",
+				modelLine:
+					".MODEL DI_1N4006 D  ( IS=76.9e-12 RS=42e-3 BV=800 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+			},
+			seriesResistance: {
+				value: 42e-3,
+				basis: "manufacturer-model",
+				source:
+					"Manufacturer model file https://www.diodes.com/spice/download/342/1N4006.spice.txt " +
+					"(Diodes Inc 1N4006.spice.txt, fetched 2026-10-28 in this run, sha256 " +
+					"62ce9d97c1e7c39ea0e3e6af3987f8e1f4463cdb2826e656630f9fbf5d08c8ed). Card lines:\n" +
+					".MODEL DI_1N4006 D  ( IS=76.9e-12 RS=42e-3 BV=800 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
+				modelFileUrl: "https://www.diodes.com/spice/download/342/1N4006.spice.txt",
+				modelLine:
+					".MODEL DI_1N4006 D  ( IS=76.9e-12 RS=42e-3 BV=800 IBV=5.00u\n+ CJO=26.5p  M=0.333 N=1.45 TT=4.32u )",
 			},
 		},
 	},

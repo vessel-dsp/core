@@ -1372,6 +1372,202 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). B-bin, same family
+		// sheet and VBE row as BC546A above (B 200 ~ 450); IS identical (family row).
+		// Corpus: Clay Jones OD (Q1, Q2).
+		partIds: ["BC546B"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 1.6350012e-14,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family sheet " +
+					"BC546/547/548/549/550) p2, ELECTRICAL CHARACTERISTICS: 'VBE(on) Base-Emitter On " +
+					"Voltage, VCE = 5 V, IC = 2 mA: MIN 580 TYP 660 MAX 700 mV'",
+				derivation:
+					"Printed family VBE(on) TYP 0.66 V at VCE = 5 V, IC = 2 mA (active region, IC " +
+					"within the form-1 <= 20 mA gate); IS = IC * exp(-Vbe / Vt) with n = 1 (form 1): " +
+					"0.002 * exp(-0.66 / 0.025852) = 1.6350012e-14.",
+			},
+			forwardBeta: {
+				value: 300,
+				basis: "derived",
+				source:
+					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
+					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800' (family DC row @ 2 mA/5 V: " +
+					"MIN 110 MAX 800)",
+				derivation:
+					"Printed B-bin hFE 200-450; geometric midpoint (form 2, gains): " +
+					"sqrt(200 * 450) = 300.",
+			},
+		},
+	},
+	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). IS from the Central card; the card's
+		// BF 1.135k is a fit and is NOT adopted (2N2222A precedent); BF is the Fairchild hFE bin
+		// below. Fairchild-authored sheet via NAC Semi authorized-datasheet archive
+		// (distributor host, disclosed). Corpus: EHX Germanium OD.
+		partIds: ["2N5087"],
+		class: "bjt",
+		note:
+			"The model's BF 1.135k is a fit, unusually high, and is NOT adopted (BF stays " +
+			"the derived 447.21); IS is taken as printed (2N2222A precedent).",
+		params: {
+			saturationCurrent: {
+				value: 2.45e-15,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor SPICE model, https://my.centralsemi.com/docs/ENGINEERING/CSM/2N5087.LIB " +
+					"(fetched 2026-10-28 in this run). Quoted fragments (license limit, full card " +
+					"not copied): IS=2.45f BF=1.135k",
+				modelFileUrl: "https://my.centralsemi.com/docs/ENGINEERING/CSM/2N5087.LIB",
+				modelLine: "IS=2.45f BF=1.135k",
+			},
+			forwardBeta: {
+				value: 447.2135955,
+				basis: "derived",
+				source:
+					"Fairchild 2N5086/2N5087/MMBT5087 Rev. B1 Sept 2003 (Fairchild-authored, via NAC Semi Authorized Datasheets FAIRS25010-1): 'hFE DC Current Gain, IC = -100 uA, VCE = -5.0 V, 5087 MIN 250 MAX 800'",
+				derivation:
+					"Printed hFE bin 250-800 at IC = -100 uA, VCE = -5.0 V; geometric midpoint (form 2, gains): sqrt(250 * 800) = 447.2135955.",
+			},
+		},
+	},
+	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). IS from the Central card (card BF 297.85
+		// not adopted, 2N2222A precedent); BF is the Central hFE bin below, disclosed
+		// off-operating-point (150 mA bin; small-signal stages run ~1 mA -- PN2222A precedent).
+		// Corpus: Devi Ever Hyperion 2.
+		partIds: ["2N2907A"],
+		class: "bjt",
+		note:
+			"The model's BF 297.85 is a fit and is NOT adopted (BF stays the derived 173.21); " +
+			"IS is taken as printed (2N2222A precedent).",
+		params: {
+			saturationCurrent: {
+				value: 15.294e-15,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor SPICE model, https://my.centralsemi.com/docs/ENGINEERING/CSM/2N2907A.LIB " +
+					"(fetched 2026-10-28 in this run). Quoted fragments (license limit, full card " +
+					"not copied): IS=15.294E-15 BF=297.85",
+				modelFileUrl: "https://my.centralsemi.com/docs/ENGINEERING/CSM/2N2907A.LIB",
+				modelLine: "IS=15.294E-15 BF=297.85",
+			},
+			forwardBeta: {
+				value: 173.2050808,
+				basis: "derived",
+				source:
+					"Central Semiconductor 2N2906/2N2907/2N2906A/2N2907A sheet (my.centralsemi.com 2n2906.PDF): 'hFE, VCE = 10 V, IC = 150 mA, 2N2907A MIN 100 MAX 300'",
+				derivation:
+					"Printed hFE bin 100-300 at VCE = 10 V, IC = 150 mA; geometric midpoint (form 2, gains): sqrt(100 * 300) = 173.2050808.",
+			},
+		},
+	},
+	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). IS from the Central card (card BF 255.25
+		// not adopted); BF is the Central hFE bin below, disclosed off-operating-point (150 mA).
+		// The sheet's VBE(sat) 0.75-0.95 V at 150 mA is saturation at high current, excluded by
+		// the 2N2222A precedent. Corpus: ROG Thunderbird.
+		partIds: ["2N4403"],
+		class: "bjt",
+		note:
+			"The model's BF 255.25 is a fit and is NOT adopted (BF stays the derived 173.21); " +
+			"IS is taken as printed (2N2222A precedent).",
+		params: {
+			saturationCurrent: {
+				value: 16.832e-15,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor SPICE model, https://my.centralsemi.com/docs/ENGINEERING/CSM/2N4403.LIB " +
+					"(fetched 2026-10-28 in this run). Quoted fragments (license limit, full card " +
+					"not copied): IS=16.832E-15 BF=255.25",
+				modelFileUrl: "https://my.centralsemi.com/docs/ENGINEERING/CSM/2N4403.LIB",
+				modelLine: "IS=16.832E-15 BF=255.25",
+			},
+			forwardBeta: {
+				value: 173.2050808,
+				basis: "derived",
+				source:
+					"Central Semiconductor 2N4402/2N4403 sheet (my.centralsemi.com 2N4402.PDF): 'hFE, VCE = 2.0 V, IC = 150 mA, 2N4403 MIN 100 MAX 300'",
+				derivation:
+					"Printed hFE bin 100-300 at VCE = 2.0 V, IC = 150 mA; geometric midpoint (form 2, gains): sqrt(100 * 300) = 173.2050808.",
+			},
+		},
+	},
+	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). Non-A part only: no 2N2222A figure is
+		// used. IS from the Central non-A card (card BF 240 not adopted); BF is the Central non-A
+		// hFE bin below, disclosed off-operating-point (150 mA). The sheet's VBE(sat) 0.6-1.3 V at
+		// 150 mA is saturation, excluded. Corpus: Catalinbread Manx Loaghtan, ThroBak stRange Master.
+		partIds: ["2N2222"],
+		class: "bjt",
+		note:
+			"The model's BF 240 is a fit and is NOT adopted (BF stays the derived 173.21); " +
+			"IS is taken as printed (2N2222A precedent).",
+		params: {
+			saturationCurrent: {
+				value: 2.2e-15,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor SPICE model, https://my.centralsemi.com/docs/ENGINEERING/CSM/2N2222.LIB " +
+					"(fetched 2026-10-28 in this run). Quoted fragments (license limit, full card " +
+					"not copied): IS=2.20f BF=240",
+				modelFileUrl: "https://my.centralsemi.com/docs/ENGINEERING/CSM/2N2222.LIB",
+				modelLine: "IS=2.20f BF=240",
+			},
+			forwardBeta: {
+				value: 173.2050808,
+				basis: "derived",
+				source:
+					"Central Semiconductor 2N2221/2N2222 sheet (my.centralsemi.com 2N2221.PDF, non-A types only): 'hFE, VCE = 10 V, IC = 150 mA, 2N2222 MIN 100 MAX 300'",
+				derivation:
+					"Printed non-A hFE bin 100-300 at VCE = 10 V, IC = 150 mA; geometric midpoint (form 2, gains): sqrt(100 * 300) = 173.2050808.",
+			},
+		},
+	},
+	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). IS-only: the Central MPSA05-series
+		// hFE figures are MIN-only (100 at 10/100 mA) and VBE(ON) single-sided, so no BF derivation;
+		// the card's BF 163.91 is a fit and is NOT adopted (2N2222A precedent). BF falls back to
+		// the class default (reads high -- same disclosure as the 2N1308 IS-only row).
+		// Corpus: Revv Chat Breaker (x2).
+		partIds: ["MPSA06"],
+		class: "bjt",
+		params: {
+			saturationCurrent: {
+				value: 573.03e-15,
+				basis: "manufacturer-model",
+				source:
+					"Central Semiconductor SPICE model, https://my.centralsemi.com/docs/ENGINEERING/CSM/MPSA06.LIB " +
+					"(fetched 2026-10-28 in this run). Quoted fragments (license limit, full card " +
+					"not copied): IS=573.03E-15 BF=163.91",
+				modelFileUrl: "https://my.centralsemi.com/docs/ENGINEERING/CSM/MPSA06.LIB",
+				modelLine: "IS=573.03E-15 BF=163.91",
+			},
+		},
+	},
+	{
+		// Wave 9 (trailing-unknowns sweep, corpus-driven). BF-only: no PN4124-specific sheet exists
+		// (no PNP PN4124 anywhere; the number is taken as Fairchild plastic numbering for the NPN
+		// 2N4124 die -- DOD 280 Q1/Q2 are NPN positions; reviewer ruling invited). BF is the Central
+		// 2N4124 column below at small-signal current (no off-operating-point disclosure owed).
+		// No IS: the sheet's VBE(sat) is MAX-only (2N4126 precedent). Corpus: DOD 280 (x2 projects, x4).
+		partIds: ["PN4124"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 207.8460969,
+				basis: "derived",
+				source:
+					"Central Semiconductor 2N4123-2N4126 R1 (12-Jan-2016, my.centralsemi.com) p1, ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 1.0 V, IC = 2.0 mA, 2N4124 MIN 120 MAX 360' (2N4126 PNP column reads the same 120-360; polarity is structural)",
+				derivation:
+					"Printed hFE bin 120-360 at VCE = 1.0 V, IC = 2.0 mA; geometric midpoint (form 2, gains): sqrt(120 * 360) = 207.8460969.",
+			},
+		},
+	},
+	{
 		// Wave 5. A-bin of the BC546-550 family (vendored onsemi BC550/D sheet). Same
 		// family VBE row as the registered BC549C/BC550C/BC549B/BC547B/BC550 entries.
 		partIds: ["BC546A"],
