@@ -781,22 +781,31 @@ function findOpampLawDefaults(lawed: LawedNetlist): readonly OpampLawDefaultWarn
 	type Judgement = { stated: boolean; carried: { printed: number; circuit: number } | null };
 	const judged = new Map<string, Judgement>();
 	for (const resolution of lawed.resolutions) {
-		if (resolution.outcome !== "law" || resolution.law.kind !== "ideal-opamp") continue;
+		if (resolution.outcome !== "law") continue;
+		const kind = resolution.law.kind;
+		if (kind !== "ideal-opamp" && kind !== "power-amp") continue;
 		// A section of a package is lowered as `<device>#<index>`; the warning names the device.
 		const id = resolution.device.replace(/#\d+$/, "");
 		const law = resolution.law;
 		const section = judged.get(id) ?? { stated: true, carried: null };
-		section.stated = section.stated && law.outputSwingPrinted !== undefined;
-		if (
-			section.carried === null &&
-			law.outputSwingPrinted !== undefined &&
-			law.outputSwingCarried !== undefined &&
-			Math.abs(law.outputSwingCarried.circuitSupplyVolts - law.outputSwingPrinted.supplyVolts) > 1e-9
-		) {
+		if (law.kind === "power-amp") {
+			// A power-amp section states no swing pair by construction (no printable
+			// figure), so it always counts as unstated here, exactly like an op-amp
+			// without drops.
+			section.stated = false;
+		} else {
+			section.stated = section.stated && law.outputSwingPrinted !== undefined;
+			if (
+				section.carried === null &&
+				law.outputSwingPrinted !== undefined &&
+				law.outputSwingCarried !== undefined &&
+				Math.abs(law.outputSwingCarried.circuitSupplyVolts - law.outputSwingPrinted.supplyVolts) > 1e-9
+			) {
 			section.carried = {
 				printed: law.outputSwingPrinted.supplyVolts,
 				circuit: law.outputSwingCarried.circuitSupplyVolts,
 			};
+			}
 		}
 		judged.set(id, section);
 	}
@@ -866,8 +875,8 @@ function findOpampGainBandwidthDefaults(
 	for (const resolution of lawed.resolutions) {
 		if (resolution.outcome !== "law") continue;
 		const law = resolution.law;
-		if (law.kind !== "ideal-opamp" && law.kind !== "compandor") continue;
-		if (law.kind === "ideal-opamp" && law.gainBandwidthHz !== undefined) continue;
+		if (law.kind !== "ideal-opamp" && law.kind !== "compandor" && law.kind !== "power-amp") continue;
+		if (law.kind !== "compandor" && law.gainBandwidthHz !== undefined) continue;
 		if (law.railHigh === null || law.railLow === null) continue;
 		const id = resolution.device.replace(/#\d+$/, "");
 		sections.set(id, (sections.get(id) ?? 0) + 1);
@@ -907,7 +916,8 @@ function findOpampSupplyUndeclared(
 	const seen = new Set<string>();
 	const items: OpampSupplyUndeclaredItem[] = [];
 	for (const resolution of lawed.resolutions) {
-		if (resolution.outcome !== "law" || resolution.law.kind !== "ideal-opamp") continue;
+		if (resolution.outcome !== "law") continue;
+		if (resolution.law.kind !== "ideal-opamp" && resolution.law.kind !== "power-amp") continue;
 		const id = resolution.device.replace(/#\d+$/, "");
 		for (const pin of resolution.law.supplyUnresolved ?? []) {
 			const key = `${id}\n${pin.side}\n${pin.node}`;

@@ -1424,6 +1424,68 @@ export type DeviceLaw =
 			readonly intrinsicStandoffRatio: number;
 			/** Interbase resistance Rbb in ohms, B1 to B2 with the emitter open. */
 			readonly interbaseResistanceOhms: number;
+	  }
+	| {
+			/**
+			 * An LM386-style fixed-gain single-supply power amplifier: a differential pair
+			 * with emitter degeneration set by the printed on-chip resistor network, whose
+			 * gain is programmed by the impedance the pedal puts across pins 1 and 8.
+			 *
+			 * Closed form (exact in the infinite-transconductance limit, measured in
+			 * `packages/compiler/tests/power-amp.test.ts`): with Rfb the feedback resistor
+			 * (output to pin-1 node), Rdeg the degeneration resistor (pin-8 node to the
+			 * input-stage emitter node) and Rgs the gain-set resistor (pin 1 to pin 8),
+			 * Av(Z18) = 2·Rfb / (Rdeg + Rgs‖Z18), where Z18 is the external pin-1-to-8
+			 * impedance. Both signs: drive pin 3 for +Av, pin 2 for −Av. The factor of two
+			 * is the differential action (both sides contribute), not a fitted number.
+			 *
+			 * Lowered in `lower.ts` to existing stamps only (conductances for the printed
+			 * resistors, two linear `vccs` branches in series with the emitters so the
+			 * degeneration network carries the signal current, a Thevenin pair standing in
+			 * for the collector load, and one `ideal-opamp` follower for the low-impedance
+			 * output) with three private internal nodes, so no `Program`, `Stamp` or
+			 * runtime change was needed. `lower.ts` documents the derivation and the
+			 * house idealizations (transconductance, Thevenin values computed from
+			 * feedbackOhms); the entry supplies only printed or derived-cited figures.
+			 */
+			readonly kind: "power-amp";
+			readonly railHigh: number | null;
+			readonly railLow: number | null;
+			/**
+			 * Set by the lowering, only on a lowered law, and only when it applies: each supply terminal
+			 * this power amp declares on a node that no rail, source, regulator, charge pump or zener states
+			 * a voltage for. The rails above are then the circuit-wide supply for that side, not the
+			 * node's own voltage. Read by `opamp-supply-undeclared`.
+			 */
+			readonly supplyUnresolved?: readonly {
+				readonly side: "high" | "low";
+				readonly node: NodeId;
+			}[];
+			/**
+			 * Open-loop DC gain of the output follower, dimensionless: the house
+			 * ideal-opamp value (class default 1e5), not a part measurement. Error
+			 * contribution is of order 1/(A0 * beta) and far below the printed tolerances.
+			 */
+			readonly openLoopGain: number;
+			/** Feedback resistor, output to pin-1 node: 15 kΩ printed (TI SNAS545D p1, NJR p5-1). */
+			readonly feedbackOhms: number;
+			/** Gain-set resistor, pin 1 to pin 8: 1.35 kΩ printed (same figures). */
+			readonly gainSetOhms: number;
+			/** Degeneration resistor, pin-8 node to the input-stage emitter node: 150 Ω printed. */
+			readonly degenerationOhms: number;
+			/** Input shunt resistor, each input to ground: 50 kΩ printed (same figures). */
+			readonly inputShuntOhms: number;
+			/** Bypass-divider upper resistor, supply to pin 7: 15 kΩ printed (same figures). */
+			readonly bypassUpperOhms: number;
+			/**
+			 * Gain-bandwidth product in hertz for the output follower, or absent when no
+			 * source states one. Derived from the printed closed-loop bandwidth where a
+			 * row states it (LM386: 300 kHz TYP at gain 20 → product over the loop's
+			 * noise gain, shown in the entry); absent lowers to a `null` stamp, which the
+			 * consoles run on their class default of 1 MHz and which the
+			 * `opamp-gain-bandwidth-default` warning names.
+			 */
+			readonly gainBandwidthHz?: number;
 	  };
 
 /** A region the compiler does not solve. Exists only when the registry fills it. */

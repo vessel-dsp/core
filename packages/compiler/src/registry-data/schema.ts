@@ -23,6 +23,10 @@
 // - `charge-pump`: a switched-capacitor inverter section plus the entry-level loss term the
 //   `pumpDerivation` reads. `volts` is deliberately NOT a parameter: the rail is derived per
 //   circuit from the input node, and the `volts: 0` in each entry is an unused placeholder.
+// - `power-amp`: an LM386-style fixed-gain stage as one section: the five printed resistors
+//   (feedback, gain-set, degeneration, input shunt, bypass upper) plus the derived
+//   gain-bandwidth product and the house open-loop gain of the output follower. The swing
+//   pair is deliberately absent: no printable per-side figure exists (graphs only).
 // - `ujt`: the unijunction transistor's own two facts -- the tap fraction (intrinsic
 //   standoff ratio eta) and the bar resistance (interbase resistance Rbb). The emitter
 //   junction is a silicon diode by construction (law constants, like the JFET gate's
@@ -91,6 +95,15 @@ export const CLASS_PARAM_SCHEMAS = {
 	],
 	regulator: ["volts", "sourceOhms"],
 	"charge-pump": ["sourceOhms", "chargePumpLossVolts"],
+	"power-amp": [
+		"feedbackOhms",
+		"gainSetOhms",
+		"degenerationOhms",
+		"inputShuntOhms",
+		"bypassUpperOhms",
+		"gainBandwidthHz",
+		"openLoopGain",
+	],
 	ujt: ["intrinsicStandoffRatio", "interbaseResistanceOhms"],
 } as const;
 
@@ -144,6 +157,15 @@ export const REQUIRED_CLASS_PARAMS = {
 	opamp: ["openLoopGain", "gainBandwidthHz"],
 	regulator: ["volts"],
 	"charge-pump": ["sourceOhms", "chargePumpLossVolts"],
+	"power-amp": [
+		"feedbackOhms",
+		"gainSetOhms",
+		"degenerationOhms",
+		"inputShuntOhms",
+		"bypassUpperOhms",
+		"gainBandwidthHz",
+		"openLoopGain",
+	],
 	ujt: ["intrinsicStandoffRatio", "interbaseResistanceOhms"],
 } as const satisfies Record<PartClassName, readonly string[]>;
 

@@ -66,6 +66,7 @@ import {
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
 	opampRegistryRecords,
+	powerAmpRegistryRecords,
 	regulatorRegistryRecords,
 	ujtRegistryRecords,
 	zenerRegistryRecords,
@@ -755,6 +756,85 @@ for (const key of Object.keys(chargePumpStructureFor)) {
 	) {
 		throw new Error(`charge-pump wiring skeleton for ${key} is consumed by no registry record`);
 	}
+}
+
+/**
+ * A power-amp record's sections entry: one power-amp section spanning all eight pins.
+ *
+ * Pin order is the datasheet pin order both sheets agree on (TI Table 5-1, NJM p5-1):
+ * 1 GAIN, 2 -INPUT, 3 +INPUT, 4 GND, 5 OUT, 6 VS, 7 BYPASS, 8 GAIN. The terminal role
+ * groups accept the schematic symbol spellings (`gain1`, `vin-`, `vin+`, `gnd`, `vout`,
+ * `vs`, `bypass`, `gain8`, as drawn in the core schx catalog), the DipTrace library
+ * spellings (`IN-`, `IN+`, `OUT`, `POWER +`, `POWER -` -- folding makes the sign vanish,
+ * so those fall through to the pinout guard, which is exactly what it is for), plain
+ * `pin1`..`pin8`, and unambiguous functional aliases. A document the entry was not
+ * written against refuses by name instead of mis-wiring the gain network.
+ *
+ * The law carries the record's five printed resistors, the derived gain-bandwidth
+ * product where the record states one (absent stays absent and lowers to a `null` stamp,
+ * which the compile names), and the house ideal-opamp open-loop gain of the output
+ * follower (100000, the class default -- not a part figure, disclosed here and in the
+ * report with its error bound). Rails are the pedal's, substituted at lowering like
+ * every other railed section. The entry states no swing pair (no printable per-side
+ * figure exists) and no quiescent draw (TI/NJR TYP conflict, unneeded for the gain).
+ */
+export function powerAmpEntry(record: PartDataEntry): PartEntry {
+	if (record.class !== "power-amp") {
+		throw new Error(
+			`${record.partIds.join(",")}: a power-amp entry needs class "power-amp", not "${record.class}"`,
+		);
+	}
+	for (const name of [
+		"feedbackOhms",
+		"gainSetOhms",
+		"degenerationOhms",
+		"inputShuntOhms",
+		"bypassUpperOhms",
+	] as const) {
+		if (citedValueOf(record, name) === undefined) {
+			throw new Error(
+				`${record.partIds.join(",")}: a power-amp record states no ${name}`,
+			);
+		}
+	}
+	const gainBandwidthHz = citedValueOf(record, "gainBandwidthHz");
+	return {
+		partIds: entryIdsOf(record),
+		declaredTypes: [],
+		terminalRoleGroups: [
+			["gain1", "g1", "pin1", "power"],
+			["vin-", "vinminus", "in-", "inminus", "inverting", "minus", "inm", "pin2"],
+			["vin+", "vinplus", "in+", "inplus", "noninverting", "plus", "inp", "pin3"],
+			["gnd", "ground", "vee", "pin4", "power"],
+			["vout", "out", "output", "pin5"],
+			["vs", "vcc", "vplus", "v+", "supply", "pin6", "power"],
+			["bypass", "pin7", "power"],
+			["gain8", "g8", "pin8"],
+		],
+		...provisionalArmOf(record),
+		...citedArmOf(record),
+		model: {
+			kind: "sections",
+			sections: [
+				{
+					law: {
+						kind: "power-amp",
+						railHigh: null,
+						railLow: null,
+						openLoopGain: 100000,
+						feedbackOhms: citedValueOf(record, "feedbackOhms") as number,
+						gainSetOhms: citedValueOf(record, "gainSetOhms") as number,
+						degenerationOhms: citedValueOf(record, "degenerationOhms") as number,
+						inputShuntOhms: citedValueOf(record, "inputShuntOhms") as number,
+						bypassUpperOhms: citedValueOf(record, "bypassUpperOhms") as number,
+						...(gainBandwidthHz === undefined ? {} : { gainBandwidthHz }),
+					},
+					terminals: [0, 1, 2, 3, 4, 5, 6, 7],
+				},
+			],
+			pinout: ["gain1", "inverting", "noninverting", "gnd", "out", "vcc", "bypass", "gain8"],
+		},
+	};
 }
 
 const entries: readonly PartEntry[] = [
@@ -9671,6 +9751,13 @@ const entries: readonly PartEntry[] = [
 	...mosfetRegistryRecords.map((record) => fetLawEntry(record, "mosfet")),
 	...jfetRegistryRecords.map((record) => fetLawEntry(record, "jfet")),
 	...ujtRegistryRecords.map((record) => ujtLawEntry(record)),
+
+	// LM386-family fixed-gain power amps: the printed resistor networks plus the derived
+	// gain-bandwidth product become sections entries through the builder above -- one row
+	// per maker sheet, so the entries cannot drift from the records. Bare LM386 rides the
+	// TI row on the sheet's family title (owner ruling 2026-10-28); JRC386D rides the NJR row
+	// as the owner-decided marking of the NJM386D (2026-10-28; the sheet does not print it).
+	...powerAmpRegistryRecords.map((record) => powerAmpEntry(record)),
 ];
 
 // --- Op-amp gain-bandwidth product: stamped from the data registry ------------------------------

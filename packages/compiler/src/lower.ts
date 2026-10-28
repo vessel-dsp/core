@@ -76,6 +76,16 @@ export { LoweringError } from "./errors";
 
 export { stampControl } from "./stamp-partition";
 
+/**
+ * The transconductance of each power-amp input branch, in siemens: a house
+ * idealization, identical for every row, not a part figure. The closed-loop gain
+ * tends to 2*Rfb/Re as GM -> infinity with a relative error of order 1/(GM*Re)
+ * (under 0.01 dB at 100 S even at the smallest degeneration, 150 ohms), so the
+ * value only has to be large, never exact; the gain-bandwidth sweep in
+ * `packages/compiler/tests/power-amp.test.ts` measures the dependence.
+ */
+const POWER_AMP_TRANSCONDUCTANCE = 100;
+
 export function lowerRegion(
 	region: Region,
 	lawed: LawedNetlist,
@@ -1297,6 +1307,150 @@ export function lowerRegion(
 				// Two slots: the rectified current and the cell's transconductance. Both are
 				// sampled once per committed sample and held across the Newton loop.
 				stateCount += 2;
+				break;
+			}
+			case "power-amp": {
+				// An LM386-style fixed-gain power amp, built from the printed resistor
+				// network around two idealized transconductance branches. Terminal order
+				// is the entry's canonical pin order (1 GAIN, 2 IN-, 3 IN+, 4 GND, 5 OUT,
+				// 6 VS, 7 BYPASS, 8 GAIN), guaranteed by the sections expansion, which
+				// binds by role or by the pinout check and refuses anything else by name.
+				const [p1, p2m, p3p, pgnd, pout, pvs, pbyp, p8] = device.nodes;
+				if (
+					p1 === undefined ||
+					p2m === undefined ||
+					p3p === undefined ||
+					pgnd === undefined ||
+					pout === undefined ||
+					pvs === undefined ||
+					pbyp === undefined ||
+					p8 === undefined
+				) {
+					throw new LoweringError(
+						`power-amp ${device.id} requires eight terminals: gain1, inverting, noninverting, gnd, out, vcc, bypass, gain8`,
+						device.id,
+					);
+				}
+				for (const [name, value] of [
+					["feedbackOhms", law.feedbackOhms],
+					["gainSetOhms", law.gainSetOhms],
+					["degenerationOhms", law.degenerationOhms],
+					["inputShuntOhms", law.inputShuntOhms],
+					["bypassUpperOhms", law.bypassUpperOhms],
+				] as const) {
+					if (!(typeof value === "number" && Number.isFinite(value) && value > 0)) {
+						throw new LoweringError(
+							`power-amp ${device.id} has a non-positive ${name}: ${String(value)}`,
+							device.id,
+						);
+					}
+				}
+				// Small-signal derivation. Nodes: P1 (pin 1), P8 (pin 8), E (the
+					// minus-side emitter node, private), L (the single-ended load node,
+					// private). Two transconductance branches in series with the emitters,
+					// so the printed degeneration network carries the signal current --
+					// a high-impedance input pair would drop nothing across it and the
+					// gain could never switch with the pin-1-to-8 impedance:
+				//   I_A (Vs -> P1) = GM * (V3 - VP1),   I_B (L -> E) = GM * (V2 - VE).
+				// KCL at P1, E, P8 and L (S = 1/Rgs + Y18, Gd = 1/Rdeg, Re the series
+					// total Rdeg + Rgs‖Z18, follower V5 = VL), in the GM -> infinity limit
+					// where the branch inputs vanish (VP1 -> V3, VE -> V2):
+				//   V8 = (V3*S + V2*Gd) / (S + Gd),
+				//   VL = -Rth * (I_B - I_A | differential) = +Rth * Vd / Re for pin-3
+				//     drive and -Rth * Vd / Re for pin-2 drive, with Rth = 2*Rfb.
+				// Hence Av(Z18) = +2*Rfb/Re (pin 3) and -2*Rfb/Re (pin 2), exact: 20/200
+				// on the printed points (2*15k/1500, 2*15k/150). Finite GM leaves a
+				// relative error of order 1/(GM*Re), under 0.01 dB at GM = 100 S even at
+				// the smallest degeneration (150 ohms); the gain-bandwidth sweep in
+					// `packages/compiler/tests/power-amp.test.ts` measures the GM dependence.
+				// Rth is stamped as a Thevenin pair (4*Rfb to Vs and to ground): the AC
+					// load is 2*Rfb to AC ground either way, and the DC point centers on
+				// Vs/2, which is what the sheet's self-centering output claim states.
+				// The upper bypass resistor (Vs to pin 7) is stamped as printed; its lower
+				// half terminates on an unmodeled internal bias node, so pin 7 reads Vs
+				// instead of Vs/2 -- no stamp reads pin 7, and the external bypass
+				// capacitor still AC-grounds it in every application circuit.
+				const emitterMinus = allocateInternalNode();
+				const load = allocateInternalNode();
+				const rfb = law.feedbackOhms;
+				const rgs = law.gainSetOhms;
+				const rdeg = law.degenerationOhms;
+				const theveninEach = 4 * rfb;
+				stamps.push({
+					kind: "conductance",
+					a: p2m,
+					b: pgnd,
+					siemens: 1 / law.inputShuntOhms,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: p3p,
+					b: pgnd,
+					siemens: 1 / law.inputShuntOhms,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: p1,
+					b: p8,
+					siemens: 1 / rgs,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: p8,
+					b: emitterMinus,
+					siemens: 1 / rdeg,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: pout,
+					b: p1,
+					siemens: 1 / rfb,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: pvs,
+					b: pbyp,
+					siemens: 1 / law.bypassUpperOhms,
+				});
+				stamps.push({
+					kind: "vccs",
+					outP: pvs,
+					outN: p1,
+					inP: p3p,
+					inN: p1,
+					transconductance: POWER_AMP_TRANSCONDUCTANCE,
+				});
+				stamps.push({
+					kind: "vccs",
+					outP: load,
+					outN: emitterMinus,
+					inP: p2m,
+					inN: emitterMinus,
+					transconductance: POWER_AMP_TRANSCONDUCTANCE,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: load,
+					b: pvs,
+					siemens: 1 / theveninEach,
+				});
+				stamps.push({
+					kind: "conductance",
+					a: load,
+					b: GROUND,
+					siemens: 1 / theveninEach,
+				});
+				stamps.push({
+					kind: "ideal-opamp",
+					plus: load,
+					minus: pout,
+					output: pout,
+					sourceIndex: auxCount++,
+					railHigh: law.railHigh,
+					railLow: law.railLow,
+					openLoopGain: law.openLoopGain,
+					gainBandwidthHz: law.gainBandwidthHz ?? null,
+				});
 				break;
 			}
 			case "comparator": {

@@ -1173,7 +1173,14 @@ function sectionDevices(
 					}
 				: section.law.kind === "compandor"
 					? { ...section.law, railHigh, railLow }
-					: section.law;
+					: section.law.kind === "power-amp"
+						? {
+								...section.law,
+								railHigh,
+								railLow,
+								...(sectionUnresolved.length === 0 ? {} : { supplyUnresolved: sectionUnresolved }),
+							}
+						: section.law;
 		const sectionDevice: Device = {
 			...device,
 			id: `${device.id}#${index}`,
@@ -1615,6 +1622,12 @@ function canonicalRoles(
 	// path, which is correct but reported as an unreadable-role fallback.
 	if (kind === "d-flip-flop" && count === 8) {
 		return ["clock", "d", "set", "reset", "q", "q_bar", "vdd", "vss"];
+	}
+	// A power-amp section already carries its eight pins in the entry's canonical order
+	// (gain1, inverting, noninverting, gnd, out, vcc, bypass, gain8), so naming them states
+	// that order rather than leaving the section to depend on it.
+	if (kind === "power-amp" && count === 8) {
+		return ["gain1", "inverting", "noninverting", "gnd", "out", "vcc", "bypass", "gain8"];
 	}
 	return Array.from({ length: count }, () => null);
 }

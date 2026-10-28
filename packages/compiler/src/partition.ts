@@ -112,6 +112,11 @@ const NEWTON_BY_LAW_KIND: Readonly<
 	// exists this law is unproducible -- the entry below only satisfies the
 	// exhaustiveness the table's header demands.
 	ujt: true,
+	// A fixed-gain power amp lowers to linear stamps only (conductances, two linear
+	// vccs branches, a linear follower); the one rail-limited element is the follower,
+	// whose saturation is a mode switch like any railed op-amp. Conservative true:
+	// linear drive still converges in one pass, clipping takes Newton iterations.
+	"power-amp": true,
 };
 
 function lawNeedsNewton(law: DeviceLaw): boolean {

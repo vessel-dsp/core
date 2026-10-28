@@ -61,6 +61,7 @@ import { zenerRegistryRecords } from "./zener";
 import { jfetRegistryRecords } from "./jfet";
 import { ujtRegistryRecords } from "./ujt";
 import { regulatorRegistryRecords } from "./regulator";
+import { powerAmpRegistryRecords } from "./poweramp";
 import { chargePumpRegistryRecords } from "./charge-pump";
 
 export {
@@ -98,6 +99,7 @@ export { zenerRegistryRecords } from "./zener";
 export { jfetRegistryRecords } from "./jfet";
 export { ujtRegistryRecords } from "./ujt";
 export { regulatorRegistryRecords } from "./regulator";
+export { powerAmpRegistryRecords } from "./poweramp";
 export { chargePumpRegistryRecords } from "./charge-pump";
 
 const opampAsEntries: readonly PartDataEntry[] = definePartData(
@@ -140,6 +142,7 @@ export const partRegistryData: readonly PartDataEntry[] = assemblePartData([
 	regulatorRegistryRecords,
 	chargePumpRegistryRecords,
 	ujtRegistryRecords,
+	powerAmpRegistryRecords,
 ]);
 
 /** Find a stage-1 data entry by exact folded part id or alias. */

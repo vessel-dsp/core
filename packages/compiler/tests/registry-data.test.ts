@@ -24,6 +24,7 @@ import {
 	opampGainBandwidthAbsent,
 	opampOutputSwingAbsent,
 	opampRegistryRecords,
+	powerAmpRegistryRecords,
 	partRegistryData,
 	regulatorRegistryRecords,
 	requiredClassParams,
@@ -882,6 +883,10 @@ describe("wave-4 fill inventory", () => {
 		// LED work: the 1N4148 community record replaced by the owner's measured pair;
 		// five measured LED colour rows (red and green by packet spelling, blue, white and
 		// yellow by typed Color), Item 2's custom-LED full quad, and Item 1's derived VT/Rs.
+		// Power-amp (LM386, 2026-10-28): two rows, one per maker sheet (TI SNAS545D,
+		// NJR databook 5-1-5-5): the five printed resistors plus the derived 300 kHz
+		// unity-gain product; bare LM386 rides the TI row as a stated alias (owner ruling
+		// 2026-10-28); JRC386D rides the NJR row as the owner-decided NJM386D marking.
 		// 1S188FM (2026-10-28): one measured germanium diode row (owner bench D10/D11 of
 		// Boss OC-2 JP 07556, IS+n+Rs pooled at the engine VT), alias 1S-188FM per the
 		// OC-2 service-note legend; 1SS-188FM deliberately unregistered (silicon-prefix
@@ -897,7 +902,8 @@ describe("wave-4 fill inventory", () => {
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(26 + 74 + 22 + 2 + 35 + 28 + 7 + 8 + 1 + 5);
+		expect(powerAmpRegistryRecords).toHaveLength(2);
+		expect(partRegistryData).toHaveLength(26 + 74 + 22 + 2 + 35 + 28 + 7 + 8 + 1 + 5 + 2);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
@@ -991,11 +997,24 @@ describe("class schemas hold the backlog's parts", () => {
 		expect(classParamNames("opamp")).toEqual(
 			expect.arrayContaining(["openLoopGain", "gainBandwidthHz"]),
 		);
+		// Power amp (LM386): the printed resistor network plus the derived product.
+		expect(classParamNames("power-amp")).toEqual(
+			expect.arrayContaining([
+				"feedbackOhms",
+				"gainSetOhms",
+				"degenerationOhms",
+				"inputShuntOhms",
+				"bypassUpperOhms",
+				"gainBandwidthHz",
+				"openLoopGain",
+			]),
+		);
+		expect(classParamNames("power-amp")).toHaveLength(7);
 	});
 
 	it("accepts exactly the engine's parameter names, no more", () => {
 		expect(Object.keys(CLASS_PARAM_SCHEMAS).sort()).toEqual(
-			["bjt", "charge-pump", "diode", "jfet", "led", "mosfet", "opamp", "regulator", "ujt", "zener"].sort(),
+			["bjt", "charge-pump", "diode", "jfet", "led", "mosfet", "opamp", "power-amp", "regulator", "ujt", "zener"].sort(),
 		);
 		expect(classParamNames("bjt")).toHaveLength(5);
 		expect(classParamNames("regulator")).toHaveLength(2);
