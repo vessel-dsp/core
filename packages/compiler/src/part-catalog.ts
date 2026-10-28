@@ -4187,7 +4187,12 @@ const entries: readonly PartEntry[] = [
 			"CD4013",
 			"CD4013BE",
 			"uPD4013C",
-			"CD4013B"
+			"CD4013B",
+			// Motorola second source, same 4013 die: `boss-oc-2` IC6/IC7 are marked
+			// MC14013BCP on the Taiwan 1999 specimen (same precedent as SCL4013A
+			// riding the shared 4013 entry below).
+			"MC14013BCP",
+			"MC14013B"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [],
@@ -4195,26 +4200,40 @@ const entries: readonly PartEntry[] = [
 			"kind": "sections",
 			"sections": [
 				{
+					// One D-type flip-flop with asynchronous set/reset (4013 pin
+					// order: 1 Q1, 2 Q1-bar, 3 CLOCK1, 4 RESET1, 5 DATA1, 6 SET1,
+					// 7 VSS, 8 SET2, 9 DATA2, 10 RESET2, 11 CLOCK2, 12 Q2-bar,
+					// 13 Q2, 14 VDD). Section terminals are pin indices in
+					// canonical law order: clock, d, set, reset, q, q_bar, vdd,
+					// vss. The supply pins ride the stamp so the output high and
+					// the input threshold follow the pedal's own supply instead
+					// of a constant.
 					"law": {
-						"kind": "logic-divider",
-						"thresholdVolts": 2,
-						"highVolts": 5
+						"kind": "d-flip-flop"
 					},
 					"terminals": [
 						2,
+						4,
+						5,
+						3,
 						0,
+						1,
+						13,
 						6
 					]
 				},
 				{
 					"law": {
-						"kind": "logic-divider",
-						"thresholdVolts": 2,
-						"highVolts": 5
+						"kind": "d-flip-flop"
 					},
 					"terminals": [
 						10,
+						8,
+						7,
+						9,
 						12,
+						11,
+						13,
 						6
 					]
 				}
@@ -4228,8 +4247,9 @@ const entries: readonly PartEntry[] = [
 				"1set",
 				"gnd",
 				"2set",
-				"2reset",
+				// Pin order verified against the CD4013B datasheet (TI CD4013B, ON MC14013B: 1 Q1, 2 Q1-bar, 3 CLOCK1, 4 RESET1, 5 DATA1, 6 SET1, 7 VSS, 8 SET2, 9 DATA2, 10 RESET2, 11 CLOCK2, 12 Q2-bar, 13 Q2, 14 VDD). Positions 9 and 10 were transposed here; fixed 2026-10-26 because boss-oc-2 drives exactly that pair (D2 low at pin 9, R2 via R35 at pin 10).
 				"2data",
+				"2reset",
 				"2clock",
 				"2q_bar",
 				"2q",
@@ -6295,26 +6315,40 @@ const entries: readonly PartEntry[] = [
 			"kind": "sections",
 			"sections": [
 				{
+					// One D-type flip-flop with asynchronous set/reset (4013 pin
+					// order: 1 Q1, 2 Q1-bar, 3 CLOCK1, 4 RESET1, 5 DATA1, 6 SET1,
+					// 7 VSS, 8 SET2, 9 DATA2, 10 RESET2, 11 CLOCK2, 12 Q2-bar,
+					// 13 Q2, 14 VDD). Section terminals are pin indices in
+					// canonical law order: clock, d, set, reset, q, q_bar, vdd,
+					// vss. The supply pins ride the stamp so the output high and
+					// the input threshold follow the pedal's own supply instead
+					// of a constant.
 					"law": {
-						"kind": "logic-divider",
-						"thresholdVolts": 2,
-						"highVolts": 5
+						"kind": "d-flip-flop"
 					},
 					"terminals": [
 						2,
+						4,
+						5,
+						3,
 						0,
+						1,
+						13,
 						6
 					]
 				},
 				{
 					"law": {
-						"kind": "logic-divider",
-						"thresholdVolts": 2,
-						"highVolts": 5
+						"kind": "d-flip-flop"
 					},
 					"terminals": [
 						10,
+						8,
+						7,
+						9,
 						12,
+						11,
+						13,
 						6
 					]
 				}
@@ -6363,26 +6397,37 @@ const entries: readonly PartEntry[] = [
 			"kind": "sections",
 			"sections": [
 				{
+					// Same D-type flip-flop law; indices are in this entry's
+					// section-order pinout (1Q, 1QBAR, 1CLK, 1D, 1RESET, 1SET,
+					// 2Q, 2QBAR, 2CLK, 2D, 2RESET, 2SET, VDD, VSS), still in
+					// canonical law order: clock, d, set, reset, q, q_bar,
+					// vdd, vss.
 					"law": {
-						"kind": "logic-divider",
-						"thresholdVolts": 2,
-						"highVolts": 5
+						"kind": "d-flip-flop"
 					},
 					"terminals": [
 						2,
+						3,
+						5,
+						4,
 						0,
+						1,
+						12,
 						13
 					]
 				},
 				{
 					"law": {
-						"kind": "logic-divider",
-						"thresholdVolts": 2,
-						"highVolts": 5
+						"kind": "d-flip-flop"
 					},
 					"terminals": [
 						8,
+						9,
+						11,
+						10,
 						6,
+						7,
+						12,
 						13
 					]
 				}

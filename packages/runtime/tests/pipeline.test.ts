@@ -23,6 +23,9 @@ import {
 	beltonBrickReverb,
 	bridgeRectifier,
 	cd4013LogicDivider,
+	cd4013SrLatchReset,
+	cd4013SrLatchSet,
+	cd4013SrLatchSetOverride,
 	clippingOverdriveStage,
 	commonEmitterAmplifier,
 	commonEmitterAmplifierHalvedRe,
@@ -2983,36 +2986,85 @@ components:
 		expect(gainIlluminated).toBeCloseTo(optocouplerIlluminatedGain, 3);
 	});
 
-	it("compiles and active-models CD4013 logic divider under V2", () => {
+	it("compiles and active-models CD4013 D flip-flops under V2", () => {
 		const result = compile(cd4013LogicDivider, { registry: pedalPartCatalog });
 		expect(result.status).toBe("ok");
 		const mnaBlock = (result as any).program.blocks.find(
 			(b: any) => b.kind === "mna",
 		);
 		expect(mnaBlock).toBeDefined();
-		// Active CD4013 section should compile into active logic-divider stamps!
+		// Both CD4013 halves compile into active d-flip-flop stamps: the divider
+		// half and the parked half. Each stamp carries eight nodes, one aux row
+		// per driven output, and three state slots.
 		const flips = mnaBlock.stamps.filter(
-			(s: any) => s.kind === "logic-divider",
+			(s: any) => s.kind === "d-flip-flop",
 		);
-		expect(flips.length).toBe(1);
+		expect(flips.length).toBe(2);
+		for (const flip of flips) {
+			expect(flip.sourceIndex2).toBe(flip.sourceIndex + 1);
+		}
 
-		// Electrically verify frequency division (division by 2)
+		// Electrically verify frequency division (division by 2) at the VDD
+		// rail: the driven high is the 9 V supply, never the old 5 V constant.
 		const runtime = new ReferenceRuntime((result as any).program);
 		runtime.prepare(48000);
-		// We feed a fast alternating clock (0V, 5V, 0V, 5V...) on the input jack (node 1)
+		// We feed a fast alternating clock (0V, 9V, 0V, 9V...) on the input jack (node 1)
 		const length = 100;
 		const input = new Float64Array(length);
 		for (let i = 0; i < length; i++) {
-			input[i] = i % 10 < 5 ? 5.0 : 0.0; // Square-wave clock of period 10 samples
+			input[i] = i % 10 < 5 ? 9.0 : 0.0; // Square-wave clock of period 10 samples
 		}
 		const output = runtime.process(input);
 		// On each rising edge of the input (every 10 samples), output should toggle.
 		// So output period should be exactly 20 samples (half the frequency!).
 		// Let's assert output toggling has divided the clock rate!
-		expect(output[5]).toBeCloseTo(5.0, 1);
+		expect(output[5]).toBeCloseTo(9.0, 1);
 		expect(output[15]).toBeCloseTo(0.0, 1);
-		expect(output[25]).toBeCloseTo(5.0, 1);
+		expect(output[25]).toBeCloseTo(9.0, 1);
 		expect(output[35]).toBeCloseTo(0.0, 1);
+	});
+
+	it("holds Q high with SET asserted and the clock low", () => {
+		// The negative control: under a law that ignores SET/RESET, Q holds its
+		// initial low with no clock edge ever arriving, so this fails there and
+		// passes only where the asynchronous set is modelled.
+		const result = compile(cd4013SrLatchSet, { registry: pedalPartCatalog });
+		expect(result.status).toBe("ok");
+		const runtime = new ReferenceRuntime((result as any).program);
+		runtime.prepare(48000);
+		const output = runtime.process(new Float64Array(100));
+		expect(output[50]).toBeCloseTo(9.0, 1);
+		expect(output[99]).toBeCloseTo(9.0, 1);
+	});
+
+	it("holds Q low with RESET asserted and the clock low", () => {
+		const result = compile(cd4013SrLatchReset, { registry: pedalPartCatalog });
+		expect(result.status).toBe("ok");
+		const runtime = new ReferenceRuntime((result as any).program);
+		runtime.prepare(48000);
+		const output = runtime.process(new Float64Array(100));
+		expect(output[50]).toBeCloseTo(0.0, 1);
+		expect(output[99]).toBeCloseTo(0.0, 1);
+	});
+
+	it("async SET overrides a toggling clock", () => {
+		// D is grounded and the clock toggles: a law that ignores SET samples
+		// the grounded D (or toggles past it) instead of holding Q high.
+		const result = compile(cd4013SrLatchSetOverride, {
+			registry: pedalPartCatalog,
+		});
+		expect(result.status).toBe("ok");
+		const runtime = new ReferenceRuntime((result as any).program);
+		runtime.prepare(48000);
+		const length = 100;
+		const input = new Float64Array(length);
+		for (let i = 0; i < length; i++) {
+			input[i] = i % 10 < 5 ? 9.0 : 0.0;
+		}
+		const output = runtime.process(input);
+		for (const index of [5, 15, 25, 35, 55, 75, 95]) {
+			expect(output[index]).toBeCloseTo(9.0, 1);
+		}
 	});
 
 

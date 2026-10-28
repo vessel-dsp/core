@@ -71,6 +71,10 @@ const NEWTON_BY_LAW_KIND: Readonly<
 	// is committed before the first stamp and held for the whole Newton pass, so within
 	// a sample the divider is a constant voltage source. `stampNeedsNewton` agrees.
 	"logic-divider": false,
+	// Same step semantics as the toggle it replaces on 4013 halves: Q and /Q are
+	// committed before the first stamp (clock edge sampled, async set/reset applied)
+	// and held for the whole Newton pass.
+	"d-flip-flop": false,
 	diode: true,
 	bjt: true,
 	fet: true,

@@ -31,6 +31,7 @@ enum class StampKind {
     Switch,
     Selector,
     LogicDivider,
+    DFlipFlop,
     AnalogSwitch,
     DcSource,
     AcSource,
@@ -96,6 +97,15 @@ struct Stamp {
     NodeId clockNode = -1;
     NodeId qNode = -1;
     NodeId gndNode = -1;
+    // One D-type flip-flop with asynchronous set/reset: the supply pins ride
+    // the stamp (output high and input threshold follow the solved VDD/VSS),
+    // with one auxiliary row per driven output (sourceIndex, sourceIndex2).
+    NodeId dNode = -1;
+    NodeId setNode = -1;
+    NodeId resetNode = -1;
+    NodeId qBarNode = -1;
+    NodeId vddNode = -1;
+    NodeId vssNode = -1;
     NodeId cp1 = -1;
     NodeId cp2 = -1;
     NodeId vgg = -1;
@@ -126,6 +136,8 @@ struct Stamp {
 
     // Auxiliary / State Indices
     int32_t sourceIndex = -1;
+    // Second auxiliary row: the d-flip-flop drives Q and /Q on one row each.
+    int32_t sourceIndex2 = -1;
     int32_t stateIndex = -1;
     int32_t throwIndex = 0;
     int32_t throwCount = 1;

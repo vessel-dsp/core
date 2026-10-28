@@ -98,6 +98,28 @@ export const STAMP_SHAPES = {
 		newton: false,
 		dynamic: true,
 	},
+	// One D-FF: two driven outputs (Q, /Q), hence two auxiliary rows. State
+	// (Q, /Q, previous clock) advances once per sample like the divider's,
+	// but the stamp reads live node voltages (clock, D, supplies), so unlike
+	// the divider it is nonlinear partition-wise: calling it linear would run
+	// one pass from a zero start and emit that as the answer. Port rows cover
+	// every row the stamp writes (nodes and both aux rows).
+	"d-flip-flop": {
+		nodes: [
+			"clockNode",
+			"dNode",
+			"setNode",
+			"resetNode",
+			"qNode",
+			"qBarNode",
+			"vddNode",
+			"vssNode",
+		],
+		aux: 2,
+		ports: "nodes-and-aux",
+		newton: true,
+		dynamic: true,
+	},
 	// A VCCS is linear within a sample: transconductance couples the controlling input pair
 	// (inP, inN) to the output pair (outP, outN) across the Jacobian matrix.
 	vccs: {
@@ -215,7 +237,7 @@ export const STAMP_SHAPES = {
 } as const satisfies {
 	[K in Stamp["kind"]]: {
 		readonly nodes: readonly (keyof Extract<Stamp, { kind: K }> & string)[];
-		readonly aux: 0 | 1 | 3;
+		readonly aux: 0 | 1 | 2 | 3;
 		readonly ports: "none" | "nodes" | "nodes-and-aux" | "railed-opamp";
 		readonly newton: boolean | "railed-opamp";
 		readonly terminalNodes?: readonly (keyof Extract<Stamp, { kind: K }> &
@@ -230,7 +252,7 @@ export const STAMP_SHAPES = {
 
 type StampShape = {
 	readonly nodes: readonly string[];
-	readonly aux: 0 | 1 | 3;
+	readonly aux: 0 | 1 | 2 | 3;
 	readonly ports: "none" | "nodes" | "nodes-and-aux" | "railed-opamp";
 	readonly newton: boolean | "railed-opamp";
 	readonly terminalNodes?: readonly string[];

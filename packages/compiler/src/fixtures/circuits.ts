@@ -13178,18 +13178,23 @@ ${jacks}  - id: VCC
 `;
 
 /**
- * A CD4013 dual D flip-flop wired as a clock divider, lifted out of `pipeline.test.ts`.
+ * A CD4013 dual D flip-flop with the first half wired as a clock divider, lifted out of `pipeline.test.ts`.
  *
  * **Why it moved.** This was the only fixture in the repository reaching a device law that no
- * exported fixture reached: `logic-divider`. It lived as an inline template literal inside its
- * own test, and `report:fixture-parity --corpus` -- which indexes `circuits.ts` and nothing else
- * -- therefore reported "no fixture compiles to it under any known registry" about a law with a
- * working test. Seventeen fixtures were written inline that way; measured, this was the one whose
- * absence from here made a coverage report state a falsehood, which is why it is the one that
- * moved rather than all of them.
+ * exported fixture reached: `logic-divider`, now the `d-flip-flop` law. It lived as an inline
+ * template literal inside its own test, and `report:fixture-parity --corpus` -- which indexes
+ * `circuits.ts` and nothing else -- therefore reported "no fixture compiles to it under any known
+ * registry" about a law with a working test. Seventeen fixtures were written inline that way;
+ * measured, this was the one whose absence from here made a coverage report state a falsehood,
+ * which is why it is the one that moved rather than all of them.
  *
- * The document is unchanged: its test still compiles it under `pedalPartCatalog` and asserts the
- * same things, and this file is now the complete set of laws the fixtures can reach.
+ * Two corrections since the move. The `2reset`/`2data` terminal order follows the corrected
+ * CD4013 pinout (9 DATA2, 10 RESET2 per the TI CD4013B / ON MC14013B datasheets); the move
+ * carried the old transposed order and refused with `registry-arity-mismatch`. And `1data`
+ * shares a node with `1q_bar`: D tied to /Q is the divide-by-2 toggle configuration the law
+ * samples, while D grounded would hold Q at reset forever. VDD rides a 9 V rail so the driven
+ * high is a supply, never a constant; the parked second half sits on private nodes with its
+ * clock low.
  */
 export const cd4013LogicDivider = `schema: circuit-interchange/v3
 deviceInterface:
@@ -13243,6 +13248,25 @@ components:
         position:
           x: 0
           y: 0
+  - id: VCC
+    kind: rail
+    name: V_SUPPLY
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: -140
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: end
+        node: 9
+        position:
+          x: 0
+          y: -140
+    properties:
+      Voltage: "9"
+      Description: "Flip-flop supply: the driven high is this rail, never a constant."
   - id: FLIP_FLOP
     kind: ic
     name: "FLIP_FLOP"
@@ -13261,7 +13285,7 @@ components:
           x: 0
           y: 0
       - name: 1q_bar
-        node: 0
+        node: 3
         position:
           x: 0
           y: 0
@@ -13272,6 +13296,333 @@ components:
           y: 0
       - name: 1reset
         node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1data
+        node: 3
+        position:
+          x: 0
+          y: 0
+      - name: 1set
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: gnd
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2set
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2data
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2reset
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2clock
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2q_bar
+        node: 5
+        position:
+          x: 0
+          y: 0
+      - name: 2q
+        node: 4
+        position:
+          x: 0
+          y: 0
+      - name: vDD
+        node: 9
+        position:
+          x: 0
+          y: 0
+`;
+
+/**
+ * A CD4013 half wired as an SR latch: clock and D held low, SET tied high.
+ *
+ * Under the `d-flip-flop` law the asynchronous set overrides everything and Q
+ * sits at the VDD rail. Under the old toggle-only law SET is ignored and Q
+ * holds its initial low with no clock edge ever arriving -- so this fixture is
+ * the negative control: it fails if SET/RESET are ignored. The parked second
+ * half and the private /Q node match `cd4013LogicDivider`.
+ */
+export const cd4013SrLatchSet = `schema: circuit-interchange/v3
+deviceInterface:
+  controls:
+    - id: INPUT_JACK
+      label: "Input Jack"
+      kind: jack
+      role: "input"
+    - id: OUTPUT_JACK
+      label: "Output Jack"
+      kind: jack
+      role: "output"
+components:
+  - id: INPUT_JACK
+    kind: jack
+    name: "INPUT_JACK"
+    sourceTypeName: "Circuit.Jack"
+    origin:
+      x: -480
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: 0
+          y: 0
+      - name: sleeve
+        node: 0
+        position:
+          x: 0
+          y: 0
+  - id: OUTPUT_JACK
+    kind: jack
+    name: "OUTPUT_JACK"
+    sourceTypeName: "Circuit.Jack"
+    origin:
+      x: 480
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 2
+        position:
+          x: 0
+          y: 0
+      - name: sleeve
+        node: 0
+        position:
+          x: 0
+          y: 0
+  - id: VCC
+    kind: rail
+    name: V_SUPPLY
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: -140
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: end
+        node: 9
+        position:
+          x: 0
+          y: -140
+    properties:
+      Voltage: "9"
+      Description: "Flip-flop supply and the asserted SET level."
+  - id: FLIP_FLOP
+    kind: ic
+    name: "FLIP_FLOP"
+    sourceTypeName: "Circuit.IC"
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    properties:
+      PartNumber: "CD4013"
+    terminals:
+      - name: 1q
+        node: 2
+        position:
+          x: 0
+          y: 0
+      - name: 1q_bar
+        node: 3
+        position:
+          x: 0
+          y: 0
+      - name: 1clock
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1reset
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1data
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1set
+        node: 9
+        position:
+          x: 0
+          y: 0
+      - name: gnd
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2set
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2data
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2reset
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2clock
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2q_bar
+        node: 5
+        position:
+          x: 0
+          y: 0
+      - name: 2q
+        node: 4
+        position:
+          x: 0
+          y: 0
+      - name: vDD
+        node: 9
+        position:
+          x: 0
+          y: 0
+`;
+
+/**
+ * The reset mirror of `cd4013SrLatchSet`: RESET tied high, SET low, clock low.
+ *
+ * Q sits at ground. This passes under both the old and the new law, so on its
+ * own it proves only that the reset path exists and is wired; the set
+ * direction (`cd4013SrLatchSet`) and the override under clock
+ * (`cd4013SrLatchSetOverride`) are the discriminating pair.
+ */
+export const cd4013SrLatchReset = `schema: circuit-interchange/v3
+deviceInterface:
+  controls:
+    - id: INPUT_JACK
+      label: "Input Jack"
+      kind: jack
+      role: "input"
+    - id: OUTPUT_JACK
+      label: "Output Jack"
+      kind: jack
+      role: "output"
+components:
+  - id: INPUT_JACK
+    kind: jack
+    name: "INPUT_JACK"
+    sourceTypeName: "Circuit.Jack"
+    origin:
+      x: -480
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: 0
+          y: 0
+      - name: sleeve
+        node: 0
+        position:
+          x: 0
+          y: 0
+  - id: OUTPUT_JACK
+    kind: jack
+    name: "OUTPUT_JACK"
+    sourceTypeName: "Circuit.Jack"
+    origin:
+      x: 480
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 2
+        position:
+          x: 0
+          y: 0
+      - name: sleeve
+        node: 0
+        position:
+          x: 0
+          y: 0
+  - id: VCC
+    kind: rail
+    name: V_SUPPLY
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: -140
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: end
+        node: 9
+        position:
+          x: 0
+          y: -140
+    properties:
+      Voltage: "9"
+      Description: "Flip-flop supply and the asserted RESET level."
+  - id: FLIP_FLOP
+    kind: ic
+    name: "FLIP_FLOP"
+    sourceTypeName: "Circuit.IC"
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    properties:
+      PartNumber: "CD4013"
+    terminals:
+      - name: 1q
+        node: 2
+        position:
+          x: 0
+          y: 0
+      - name: 1q_bar
+        node: 3
+        position:
+          x: 0
+          y: 0
+      - name: 1clock
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1reset
+        node: 9
         position:
           x: 0
           y: 0
@@ -13295,12 +13646,12 @@ components:
         position:
           x: 0
           y: 0
-      - name: 2reset
+      - name: 2data
         node: 0
         position:
           x: 0
           y: 0
-      - name: 2data
+      - name: 2reset
         node: 0
         position:
           x: 0
@@ -13311,17 +13662,181 @@ components:
           x: 0
           y: 0
       - name: 2q_bar
-        node: 0
+        node: 5
         position:
           x: 0
           y: 0
       - name: 2q
-        node: 0
+        node: 4
         position:
           x: 0
           y: 0
       - name: vDD
+        node: 9
+        position:
+          x: 0
+          y: 0
+`;
+
+/**
+ * SET asserted while the clock toggles: the asynchronous set must override.
+ *
+ * D is grounded and the input jack drives CLOCK with a square wave. Under the
+ * `d-flip-flop` law Q stays at the VDD rail through every clock edge; under a
+ * law that ignores SET, Q toggles (or samples the grounded D) instead. This is
+ * the second discriminator beside `cd4013SrLatchSet`, and the one that exercises
+ * override rather than a quiescent level.
+ */
+export const cd4013SrLatchSetOverride = `schema: circuit-interchange/v3
+deviceInterface:
+  controls:
+    - id: INPUT_JACK
+      label: "Input Jack"
+      kind: jack
+      role: "input"
+    - id: OUTPUT_JACK
+      label: "Output Jack"
+      kind: jack
+      role: "output"
+components:
+  - id: INPUT_JACK
+    kind: jack
+    name: "INPUT_JACK"
+    sourceTypeName: "Circuit.Jack"
+    origin:
+      x: -480
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: 0
+          y: 0
+      - name: sleeve
         node: 0
+        position:
+          x: 0
+          y: 0
+  - id: OUTPUT_JACK
+    kind: jack
+    name: "OUTPUT_JACK"
+    sourceTypeName: "Circuit.Jack"
+    origin:
+      x: 480
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 2
+        position:
+          x: 0
+          y: 0
+      - name: sleeve
+        node: 0
+        position:
+          x: 0
+          y: 0
+  - id: VCC
+    kind: rail
+    name: V_SUPPLY
+    sourceTypeName: Circuit.Rail
+    origin:
+      x: 0
+      y: -140
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: terminal
+        role: end
+        node: 9
+        position:
+          x: 0
+          y: -140
+    properties:
+      Voltage: "9"
+      Description: "Flip-flop supply and the asserted SET level."
+  - id: FLIP_FLOP
+    kind: ic
+    name: "FLIP_FLOP"
+    sourceTypeName: "Circuit.IC"
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    properties:
+      PartNumber: "CD4013"
+    terminals:
+      - name: 1q
+        node: 2
+        position:
+          x: 0
+          y: 0
+      - name: 1q_bar
+        node: 3
+        position:
+          x: 0
+          y: 0
+      - name: 1clock
+        node: 1
+        position:
+          x: 0
+          y: 0
+      - name: 1reset
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1data
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 1set
+        node: 9
+        position:
+          x: 0
+          y: 0
+      - name: gnd
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2set
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2data
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2reset
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2clock
+        node: 0
+        position:
+          x: 0
+          y: 0
+      - name: 2q_bar
+        node: 5
+        position:
+          x: 0
+          y: 0
+      - name: 2q
+        node: 4
+        position:
+          x: 0
+          y: 0
+      - name: vDD
+        node: 9
         position:
           x: 0
           y: 0

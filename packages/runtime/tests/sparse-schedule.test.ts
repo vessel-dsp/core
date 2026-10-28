@@ -105,8 +105,8 @@ describe("operating-point pivot validation", () => {
 	});
 
 	it("the probe never touches live solver state", () => {
-		// The motivating case is a logic-divider: on a firing guard it toggles
-		// Q and rewrites its clock memory inside `applyStamp` itself (capacitor
+		// The motivating case is a d-flip-flop: on a firing guard it commits Q
+		// and /Q and rewrites its clock memory inside `applyStamp` itself (capacitor
 		// history lives in `advanceReactiveState` and cannot catch this). The
 		// guard fires exactly once -- on the first stamp pass after prepare,
 		// before any `process()` call -- so the probe must run there, against
@@ -123,10 +123,10 @@ describe("operating-point pivot validation", () => {
 		const block = result.program.blocks.find(
 			(candidate) =>
 				candidate.kind === "mna" &&
-				candidate.stamps.some((stamp) => stamp.kind === "logic-divider"),
+				candidate.stamps.some((stamp) => stamp.kind === "d-flip-flop"),
 		);
 		if (block === undefined || block.kind !== "mna") {
-			throw new Error("divider fixture should reach a logic-divider stamp");
+			throw new Error("divider fixture should reach a d-flip-flop stamp");
 		}
 		const runtime = new ReferenceRuntime(result.program);
 		runtime.prepare(48_000);

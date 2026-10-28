@@ -322,6 +322,7 @@ StampKind parseStampKind(const std::string& s) {
     if (s == "switch") return StampKind::Switch;
     if (s == "selector") return StampKind::Selector;
     if (s == "logic-divider") return StampKind::LogicDivider;
+    if (s == "d-flip-flop") return StampKind::DFlipFlop;
     if (s == "analog-switch") return StampKind::AnalogSwitch;
     if (s == "dc-source") return StampKind::DcSource;
     if (s == "ac-source") return StampKind::AcSource;
@@ -413,6 +414,12 @@ Stamp parseStamp(const JsonValue& obj) {
     st.clockNode = obj.getInt("clockNode", -1);
     st.qNode = obj.getInt("qNode", -1);
     st.gndNode = obj.getInt("gndNode", -1);
+    st.dNode = obj.getInt("dNode", -1);
+    st.setNode = obj.getInt("setNode", -1);
+    st.resetNode = obj.getInt("resetNode", -1);
+    st.qBarNode = obj.getInt("qBarNode", -1);
+    st.vddNode = obj.getInt("vddNode", -1);
+    st.vssNode = obj.getInt("vssNode", -1);
     st.cp1 = obj.getInt("cp1", -1);
     st.cp2 = obj.getInt("cp2", -1);
     st.vgg = obj.getInt("vgg", -1);
@@ -440,6 +447,7 @@ Stamp parseStamp(const JsonValue& obj) {
     st.outputMinus = obj.getInt("outputMinus", -1);
 
     st.sourceIndex = obj.getInt("sourceIndex", -1);
+    st.sourceIndex2 = obj.getInt("sourceIndex2", -1);
     st.stateIndex = obj.getInt("stateIndex", -1);
     st.throwIndex = obj.getInt("throwIndex", 0);
     st.throwCount = obj.getInt("throwCount", 1);

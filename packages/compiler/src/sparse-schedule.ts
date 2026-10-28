@@ -130,6 +130,22 @@ export function provablyNonzeroEntries(
 				pair(row, stamp.gndNode);
 				break;
 			}
+			case "d-flip-flop": {
+				// Each driven output pairs its own auxiliary row. A degenerate side
+				// (output on the VSS pin, as a fixture ties an unused half) pairs
+				// nothing, the same guard the divider carries for its one row.
+				if (stamp.qNode !== stamp.vssNode) {
+					const row = auxRow(stamp.sourceIndex);
+					pair(row, stamp.qNode);
+					pair(row, stamp.vssNode);
+				}
+				if (stamp.qBarNode !== stamp.vssNode) {
+					const rowBar = auxRow(stamp.sourceIndex2);
+					pair(rowBar, stamp.qBarNode);
+					pair(rowBar, stamp.vssNode);
+				}
+				break;
+			}
 			case "analog-switch": {
 				// **The channel only.** `g = gOff + (gOn - gOff) * sigmoid` is bounded below by
 				// `gOff = 1/offOhms > 0` at every control voltage, and `stampConductance` writes

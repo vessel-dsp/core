@@ -1356,6 +1356,7 @@ const IMPLEMENTED_OPERATORS: Readonly<Record<OperatorKind, true>> = {
 	vccs: true,
 	optocoupler: true,
 	"logic-divider": true,
+	"d-flip-flop": true,
 	"analog-switch": true,
 	ota: true,
 	compandor: true,
@@ -7150,6 +7151,88 @@ export class ReferenceRuntime {
 				(matrix[stamp.gndNode] as number[])[row] -= 1;
 				(matrix[row] as number[])[row] -= 1.0; // 1.0 Ohm output impedance for numeric stability
 				rhs[row] = Q * stamp.highVolts;
+				break;
+			}
+			case "d-flip-flop": {
+				const stateIdx = stamp.stateIndex;
+
+				// Same once-per-sample guard as `logic-divider`: the edge is
+				// detected against the previous *sample's* clock voltage, never
+				// against a Newton iteration's, so one sample commits Q and /Q
+				// exactly once however the solver converges.
+				const dffKey = `${block.id}_dff_${stamp.stateIndex}`;
+				if (
+					this.elapsedSamples !==
+					(this.lastShiftedSample.get(dffKey) ?? -1)
+				) {
+					this.lastShiftedSample.set(dffKey, this.elapsedSamples);
+
+					// The supply is read solved, every sample: the driven high is
+					// the VDD pin's voltage and the input threshold is the CMOS
+					// half-supply of the solved VDD/VSS span. No volt constant.
+					const vSup =
+						(solution[stamp.vddNode] ?? 0.0) -
+						(solution[stamp.vssNode] ?? 0.0);
+					const vThr = (solution[stamp.vssNode] ?? 0.0) + vSup / 2;
+					const vClkPrev = state[stateIdx + 2] ?? 0.0;
+					const vClk =
+						(solution[stamp.clockNode] ?? 0.0) -
+						(solution[stamp.vssNode] ?? 0.0);
+					const vD =
+						(solution[stamp.dNode] ?? 0.0) -
+						(solution[stamp.vssNode] ?? 0.0);
+					const vSet =
+						(solution[stamp.setNode] ?? 0.0) -
+						(solution[stamp.vssNode] ?? 0.0);
+					const vReset =
+						(solution[stamp.resetNode] ?? 0.0) -
+						(solution[stamp.vssNode] ?? 0.0);
+
+					// TI CD4013B / ON MC14013B truth table: async SET/RESET are
+					// active-high and override the clock; both high drive Q and
+					// /Q high together; otherwise a rising clock edge samples D.
+					const setHigh = vSet >= vThr;
+					const resetHigh = vReset >= vThr;
+					if (setHigh && resetHigh) {
+						state[stateIdx] = 1.0;
+						state[stateIdx + 1] = 1.0;
+					} else if (setHigh) {
+						state[stateIdx] = 1.0;
+						state[stateIdx + 1] = 0.0;
+					} else if (resetHigh) {
+						state[stateIdx] = 0.0;
+						state[stateIdx + 1] = 1.0;
+					} else if (vClkPrev < vThr && vClk >= vThr) {
+						const q = vD >= vThr ? 1.0 : 0.0;
+						state[stateIdx] = q;
+						state[stateIdx + 1] = 1.0 - q;
+					}
+					state[stateIdx + 2] = vClk;
+				}
+
+				const Q = state[stateIdx] ?? 0.0;
+				const Qbar = state[stateIdx + 1] ?? 1.0;
+				const vSupOut =
+					(solution[stamp.vddNode] ?? 0.0) -
+					(solution[stamp.vssNode] ?? 0.0);
+				const vSsOut = solution[stamp.vssNode] ?? 0.0;
+
+				// Stamp both outputs as DC voltage sources against the VSS pin,
+				// one auxiliary row each, 1.0 Ohm output impedance as above.
+				const rowQ = block.nodeCount + stamp.sourceIndex;
+				(matrix[rowQ] as number[])[stamp.qNode] += 1;
+				(matrix[stamp.qNode] as number[])[rowQ] += 1;
+				(matrix[rowQ] as number[])[stamp.vssNode] -= 1;
+				(matrix[stamp.vssNode] as number[])[rowQ] -= 1;
+				(matrix[rowQ] as number[])[rowQ] -= 1.0;
+				rhs[rowQ] = vSsOut + Q * vSupOut;
+				const rowQbar = block.nodeCount + stamp.sourceIndex2;
+				(matrix[rowQbar] as number[])[stamp.qBarNode] += 1;
+				(matrix[stamp.qBarNode] as number[])[rowQbar] += 1;
+				(matrix[rowQbar] as number[])[stamp.vssNode] -= 1;
+				(matrix[stamp.vssNode] as number[])[rowQbar] -= 1;
+				(matrix[rowQbar] as number[])[rowQbar] -= 1.0;
+				rhs[rowQbar] = vSsOut + Qbar * vSupOut;
 				break;
 			}
 			case "analog-switch": {

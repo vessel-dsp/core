@@ -488,6 +488,7 @@ static const std::unordered_set<std::string> SUPPORTED_OPERATORS = {
     "vccs",
     "optocoupler",
     "logic-divider",
+    "d-flip-flop",
     "analog-switch",
     "ota",
     "compandor",
@@ -1061,6 +1062,22 @@ inline void collectTouchedCells(const Block& block, int32_t size, const std::vec
                 addMat(row, s.gndNode); addMat(s.gndNode, row);
                 addMat(row, row);
                 addRhs(row);
+                break;
+            }
+            case StampKind::DFlipFlop: {
+                // One row per driven output; the set drives the selective
+                // per-iterate copy, so every cell the execution case writes
+                // must be named here or the Jacobian goes stale mid-solve.
+                int32_t rowQ = block.nodeCount + s.sourceIndex;
+                addMat(rowQ, s.qNode); addMat(s.qNode, rowQ);
+                addMat(rowQ, s.vssNode); addMat(s.vssNode, rowQ);
+                addMat(rowQ, rowQ);
+                addRhs(rowQ);
+                int32_t rowQbar = block.nodeCount + s.sourceIndex2;
+                addMat(rowQbar, s.qBarNode); addMat(s.qBarNode, rowQbar);
+                addMat(rowQbar, s.vssNode); addMat(s.vssNode, rowQbar);
+                addMat(rowQbar, rowQbar);
+                addRhs(rowQbar);
                 break;
             }
             case StampKind::Optocoupler: {
@@ -4262,6 +4279,68 @@ void Engine::applyStamp(
             matrix[stamp.gndNode * size + row] -= 1.0;
             matrix[row * size + row] -= 1.0;
             rhs[row] = Q * stamp.highVolts;
+            break;
+        }
+
+        case StampKind::DFlipFlop: {
+            // One D-type flip-flop with asynchronous set/reset. Same once-per-sample
+            // guard as LogicDivider: the edge is detected against the previous
+            // sample's clock, so one sample commits Q and /Q exactly once. The
+            // supply is read solved every sample -- driven high is the VDD pin's
+            // voltage, input threshold the CMOS half-supply of the solved span.
+            int32_t stateIdx = stamp.stateIndex;
+            std::string dffKey = block.id + "_dff_" + std::to_string(stateIdx);
+            auto dffIt = lastShiftedSample_.find(dffKey);
+            int64_t dffLast = (dffIt != lastShiftedSample_.end()) ? dffIt->second : -1;
+            if (static_cast<int64_t>(elapsedSamples_) != dffLast) {
+                lastShiftedSample_[dffKey] = static_cast<int64_t>(elapsedSamples_);
+                double vSup = solution[stamp.vddNode] - solution[stamp.vssNode];
+                double vThr = solution[stamp.vssNode] + vSup / 2.0;
+                double vClkPrev = state[stateIdx + 2];
+                double vClk = solution[stamp.clockNode] - solution[stamp.vssNode];
+                double vD = solution[stamp.dNode] - solution[stamp.vssNode];
+                double vSet = solution[stamp.setNode] - solution[stamp.vssNode];
+                double vReset = solution[stamp.resetNode] - solution[stamp.vssNode];
+                // TI CD4013B / ON MC14013B truth table: async SET/RESET are
+                // active-high and override the clock; both high drive Q and /Q
+                // high together; otherwise a rising clock edge samples D.
+                bool setHigh = vSet >= vThr;
+                bool resetHigh = vReset >= vThr;
+                if (setHigh && resetHigh) {
+                    state[stateIdx] = 1.0;
+                    state[stateIdx + 1] = 1.0;
+                } else if (setHigh) {
+                    state[stateIdx] = 1.0;
+                    state[stateIdx + 1] = 0.0;
+                } else if (resetHigh) {
+                    state[stateIdx] = 0.0;
+                    state[stateIdx + 1] = 1.0;
+                } else if (vClkPrev < vThr && vClk >= vThr) {
+                    double q = (vD >= vThr) ? 1.0 : 0.0;
+                    state[stateIdx] = q;
+                    state[stateIdx + 1] = 1.0 - q;
+                }
+                state[stateIdx + 2] = vClk;
+            }
+
+            double Q = state[stateIdx];
+            double Qbar = state[stateIdx + 1];
+            double vSupOut = solution[stamp.vddNode] - solution[stamp.vssNode];
+            double vSsOut = solution[stamp.vssNode];
+            int32_t rowQ = block.nodeCount + stamp.sourceIndex;
+            matrix[rowQ * size + stamp.qNode] += 1.0;
+            matrix[stamp.qNode * size + rowQ] += 1.0;
+            matrix[rowQ * size + stamp.vssNode] -= 1.0;
+            matrix[stamp.vssNode * size + rowQ] -= 1.0;
+            matrix[rowQ * size + rowQ] -= 1.0;
+            rhs[rowQ] = vSsOut + Q * vSupOut;
+            int32_t rowQbar = block.nodeCount + stamp.sourceIndex2;
+            matrix[rowQbar * size + stamp.qBarNode] += 1.0;
+            matrix[stamp.qBarNode * size + rowQbar] += 1.0;
+            matrix[rowQbar * size + stamp.vssNode] -= 1.0;
+            matrix[stamp.vssNode * size + rowQbar] -= 1.0;
+            matrix[rowQbar * size + rowQbar] -= 1.0;
+            rhs[rowQbar] = vSsOut + Qbar * vSupOut;
             break;
         }
 

@@ -1134,6 +1134,30 @@ export function lowerRegion(
 				stateCount += 2;
 				break;
 			}
+			case "d-flip-flop": {
+				const terminals = dFlipFlopTerminals(device);
+				const auxBase = auxCount;
+				auxCount += 2;
+				stamps.push({
+					kind: "d-flip-flop",
+					clockNode: terminals.clock,
+					dNode: terminals.d,
+					setNode: terminals.set,
+					resetNode: terminals.reset,
+					qNode: terminals.q,
+					qBarNode: terminals.qBar,
+					vddNode: terminals.vdd,
+					vssNode: terminals.vss,
+					sourceIndex: auxBase,
+					sourceIndex2: auxBase + 1,
+					stateIndex: stateCount,
+				});
+				// Three state slots: Q, /Q, previous clock. /Q is committed
+				// (not derived) so the SET-and-RESET-high datasheet state,
+				// where both outputs sit high together, survives the sample.
+				stateCount += 3;
+				break;
+			}
 			case "analog-switch": {
 				const a = device.nodes[0];
 				const b = device.nodes[1];
@@ -2291,8 +2315,69 @@ function inverterTerminals(device: Device): {
 	};
 }
 
-function optocouplerTerminals(device: Device): OptocouplerNodes {
-	const resolved =
+type DFlipFlopNodes = {
+	readonly clock: NodeId;
+	readonly d: NodeId;
+	readonly set: NodeId;
+	readonly reset: NodeId;
+	readonly q: NodeId;
+	readonly qBar: NodeId;
+	readonly vdd: NodeId;
+	readonly vss: NodeId;
+};
+
+/**
+ * The eight D-FF terminals by declared role, falling back to the canonical
+ * positional order (clock, d, set, reset, q, q_bar, vdd, vss) a registry
+ * section already lands in. Role-first like `optocouplerTerminals`: a section
+ * carries the canonical roles, and a directly-declared device states its own.
+ */
+function dFlipFlopTerminals(device: Device): DFlipFlopNodes {
+	const wanted = [
+		"clock",
+		"d",
+		"set",
+		"reset",
+		"q",
+		"q_bar",
+		"vdd",
+		"vss",
+	] as const;
+	const roles = device.identity.terminalRoles;
+	const resolved = wanted.map((role) => {
+		const found = roles.flatMap((candidate, index) =>
+			candidate === role ? [index] : [],
+		);
+		if (found.length !== 1) {
+			return null;
+		}
+		return device.nodes[found[0] as number] ?? null;
+	});
+	if (resolved.every((node): node is NodeId => node !== null)) {
+		const [clock, d, set, reset, q, qBar, vdd, vss] = resolved;
+		return { clock, d, set, reset, q, qBar, vdd, vss };
+	}
+	const positional = device.nodes.slice(0, 8);
+	if (positional.length !== 8 || positional.some((node) => node === undefined)) {
+		throw new LoweringError(
+			`d-flip-flop ${device.id} requires 8 terminals: clock, d, set, reset, q, q_bar, vdd, vss`,
+			device.id,
+		);
+	}
+	const [clock, d, set, reset, q, qBar, vdd, vss] = positional as unknown as readonly [
+		NodeId,
+		NodeId,
+		NodeId,
+		NodeId,
+		NodeId,
+		NodeId,
+		NodeId,
+		NodeId,
+	];
+	return { clock, d, set, reset, q, qBar, vdd, vss };
+}
+
+function optocouplerTerminals(device: Device): OptocouplerNodes {	const resolved =
 		declaredOptocouplerNodes(device) ?? namedOptocouplerNodes(device);
 	if (resolved !== null) {
 		return resolved;

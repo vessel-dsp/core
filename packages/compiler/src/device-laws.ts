@@ -1608,6 +1608,14 @@ function canonicalRoles(
 	if (kind === "optocoupler" && count === 4) {
 		return ["anode", "cathode", "end", "end"];
 	}
+	// A D-FF section's nodes are already in the law's canonical order -- clock, d,
+	// set, reset, q, q_bar, vdd, vss -- so naming them states what is true rather
+	// than inferring it, the same reason the `bjt`/`fet` rows above exist. Without
+	// this the section arrives unlabelled and `lower.ts` falls to the positional
+	// path, which is correct but reported as an unreadable-role fallback.
+	if (kind === "d-flip-flop" && count === 8) {
+		return ["clock", "d", "set", "reset", "q", "q_bar", "vdd", "vss"];
+	}
 	return Array.from({ length: count }, () => null);
 }
 
@@ -3503,6 +3511,14 @@ function resolveDevice(
 					thresholdVolts: device.parameters.thresholdVolts ?? 2.0,
 					highVolts: device.parameters.highVolts ?? 5.0,
 				},
+			};
+		case "d-flip-flop":
+			// Parameterless: the VDD/VSS pins ride the stamp and the runtime reads
+			// the solved supply every sample. See the `d-flip-flop` DeviceLaw row.
+			return {
+				outcome: "law",
+				device: device.id,
+				law: { kind: "d-flip-flop" },
 			};
 		case "analog-switch":
 			return {

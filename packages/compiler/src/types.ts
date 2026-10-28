@@ -65,6 +65,7 @@ export type DeviceKind =
 	| "clock-driver"
 	| "optocoupler"
 	| "logic-divider"
+	| "d-flip-flop"
 	| "analog-switch"
 	| "compandor"
 	| "bbd"
@@ -1273,6 +1274,22 @@ export type DeviceLaw =
 			readonly highVolts: number;
 	  }
 	| {
+			/**
+			 * One D-type flip-flop with asynchronous set/reset, the second source of
+			 * truth a 4013 half always had beside its toggle behaviour: TI CD4013B
+			 * / ON MC14013B datasheet truth table (rising CLOCK samples D; SET and
+			 * RESET are active-high and override the clock; SET and RESET both high
+			 * drive Q and /Q high together).
+			 *
+			 * Parameterless by construction: the supply pins ride the stamp, so the
+			 * output high is the VDD pin's solved voltage and the input threshold is
+			 * the CMOS half-supply of the solved VDD/VSS span -- never a constant.
+			 * A law carrying its own volts would freeze one pedal's supply into
+			 * every other pedal's program.
+			 */
+			readonly kind: "d-flip-flop";
+	  }
+	| {
 			readonly kind: "analog-switch";
 			readonly onOhms: number;
 			readonly offOhms: number;
@@ -2062,6 +2079,26 @@ export type Stamp =
 			readonly thresholdVolts: number;
 			readonly highVolts: number;
 			readonly sourceIndex: number;
+			readonly stateIndex: number;
+	  }
+	| {
+			/**
+			 * The `d-flip-flop` law lowered: one D-type flip-flop with asynchronous
+			 * set/reset. Two auxiliary rows (Q, /Q) and three state slots (Q, /Q,
+			 * previous clock). The threshold and the driven high are read from the
+			 * solved VDD/VSS pins every sample, so nothing here is a volt constant.
+			 */
+			readonly kind: "d-flip-flop";
+			readonly clockNode: NodeId;
+			readonly dNode: NodeId;
+			readonly setNode: NodeId;
+			readonly resetNode: NodeId;
+			readonly qNode: NodeId;
+			readonly qBarNode: NodeId;
+			readonly vddNode: NodeId;
+			readonly vssNode: NodeId;
+			readonly sourceIndex: number;
+			readonly sourceIndex2: number;
 			readonly stateIndex: number;
 	  }
 	| {

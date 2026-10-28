@@ -67,6 +67,7 @@ const activeStampKinds: ReadonlySet<string> = new Set([
 	"vccs",
 	"nand-gate",
 	"logic-divider",
+	"d-flip-flop",
 	"clock-driver",
 	"inverter",
 ]);
