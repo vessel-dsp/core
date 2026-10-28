@@ -875,4 +875,37 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 7 (corpus-driven). Full channel: IDSS and VGS(off) ranges printed (no TYP
+		// for either), so both inputs are range midpoints (form 2, arithmetic) and Beta
+		// follows by the square law (form 3); J201 precedent. Gate terms stay class
+		// defaults (reverse IGSS only, never forward). B/C ranks not carried (rank
+		// discipline). Corpus: Mad Professor Blueberry Bass OD (BF244A x2).
+		partIds: ["BF244A"],
+		class: "jfet",
+		params: {
+			thresholdVolts: {
+				value: -4.25,
+				basis: "derived",
+				source:
+					"Fairchild BF244A/B/C datasheet: 'Gate-Source Cutoff Voltage VGSS(off), " +
+					"VDS = 15 V, ID = 10 nA: 244A MIN -0.5 MAX -8.0 V' (no TYP; B/C ranks differ)",
+				derivation:
+					"Printed 244A VGSS(off) range -0.5 to -8.0 V; arithmetic midpoint " +
+					"(form 2, volts are not gains): -(0.5 + 8.0) / 2 = -4.25 V.",
+			},
+			transconductance: {
+				value: 2.3529412e-4,
+				basis: "derived",
+				source:
+					"Same sheet: 'Zero-Gate Voltage Drain Current IDSS, VDS = 15 V, VGS = 0: " +
+					"244A MIN 2.0 MAX 6.5 mA' (no TYP)",
+				derivation:
+					"Square law (form 3) with the printed IDSS range midpoint 4.25 mA and " +
+					"the derived Vt0 -4.25 V: Beta = IDSS / Vt0^2 = 4.25e-3 / 4.25^2 = " +
+					"2.3529412e-4 S. The printed yfs TYP figures are zero-bias small-signal " +
+					"figures, not the square-law Beta, and are not used.",
+			},
+		},
+	},
 ]);

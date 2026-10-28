@@ -1964,4 +1964,27 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Wave 7 (corpus-driven top-up). No saturationCurrent: the only VBE figures
+		// are VBE(sat) rows (0.6-1.2 V at 150 mA, MAX 2.0 V at 500 mA) -- saturation
+		// at high current, excluded by the 2N2222A precedent. IS falls back to default.
+		// Operating-point caveat: the sole hFE bin is at IC = 150 mA while
+		// small-signal stages run ~1 mA (same disclosure pattern as the KTC3198
+		// high-current note). Corpus: EHX Germanium 4 Big Muff.
+		partIds: ["PN2222A"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 173.2050808,
+				basis: "derived",
+				source:
+					"Fairchild PN2222A datasheet (Rev. 1.1.0, July 2014), ELECTRICAL " +
+					"CHARACTERISTICS: 'hFE DC Current Gain, IC = 150 mA, VCE = 10 V, " +
+					"MIN 100 MAX 300' (all other hFE rows MIN-only: 35/50/75/35/50/40)",
+				derivation:
+					"Printed hFE bin 100-300 at IC = 150 mA, VCE = 10 V; geometric midpoint " +
+					"(form 2, gains): sqrt(100 * 300) = 173.2050808.",
+			},
+		},
+	},
 ]);
