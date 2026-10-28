@@ -49,6 +49,7 @@ import { parseLedIndicatorColour } from "@vessel-dsp/core";
 import { GROUND } from "./types";
 import type {
 	BjtLawDefaultWarning,
+	DiodeLawDefaultWarning,
 	OpampGainBandwidthDefaultWarning,
 	OpampSupplyUndeclaredItem,
 	OpampSupplyUndeclaredWarning,
@@ -243,6 +244,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findRailsWithoutVoltage(netlist),
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist, options.registry ?? emptyRegistry),
+		...findDiodeLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findRegistryProvisionalValues(netlist, lawed, options.registry ?? emptyRegistry),
 		...findLedColourUnmatched(netlist, lawed),
 		...findRegistryOverrideApplied(netlist, lawed, options.registry ?? emptyRegistry),
@@ -449,6 +451,53 @@ function findBjtLawDefaults(
 				`(IS ${SILICON_SATURATION_CURRENT} A, BF ${SILICON_FORWARD_BETA}), ` +
 				`which are not any part's values: ${listed.join("; ")}. Harmless for a saturated ` +
 				"switch; decisive for a biased stage.",
+		},
+	];
+}
+
+/** Diodes stamped with the diode law's own defaults. See `DiodeLawDefaultWarning`. */
+function findDiodeLawDefaults(
+	netlist: Netlist,
+	registry: PartRegistry,
+): readonly DiodeLawDefaultWarning[] {
+	// The same test as the BJT finder: a parameter the document types or the registry
+	// states for the exact part is not a default. LEDs share the diode device kind
+	// but run on their colour defaults (a different claim), so they are excluded;
+	// zeners and tube diodes are different kinds and never reach this filter.
+	const missingOf = (device: Netlist["devices"][number]) =>
+		[
+			device.parameters.saturationCurrent === undefined &&
+			!registryStates(registry, device.identity.partNumber, "diode", "saturationCurrent")
+				? "IS"
+				: null,
+			device.parameters.emissionCoefficient === undefined &&
+			!registryStates(registry, device.identity.partNumber, "diode", "emissionCoefficient")
+				? "N"
+				: null,
+			device.parameters.seriesResistance === undefined &&
+			!registryStates(registry, device.identity.partNumber, "diode", "seriesResistance")
+				? "RS"
+				: null,
+		].filter((name) => name !== null);
+	const defaulted = netlist.devices.filter(
+		(device) =>
+			device.kind === "diode" && device.isLed !== true && missingOf(device).length > 0,
+	);
+	if (defaulted.length === 0) return [];
+	const listed = defaulted.map((device) => {
+		const part = device.identity.partNumber;
+		return `${device.id}${part === null ? "" : ` (${part})`} without ${missingOf(device).join("/")}`;
+	});
+	return [
+		{
+			code: "diode-law-default-parameters" as const,
+			device: null,
+			devices: defaulted.map((device) => device.id),
+			detail:
+				`${defaulted.length} diode(s) run on the diode law's own defaults ` +
+				`(IS 2.52e-9 A, N 1.752, RS 1.0 ohm), ` +
+				`which are not any part's values: ${listed.join("; ")}. Harmless for a hard-switched ` +
+				"or reverse-blocking diode; decisive for one biased at its knee.",
 		},
 	];
 }

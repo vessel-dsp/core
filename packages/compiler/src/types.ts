@@ -3413,6 +3413,36 @@ export type BjtLawDefaultWarning = {
 };
 
 /**
+ * Diodes whose law runs on the diode law's own `saturationCurrent`/
+ * `emissionCoefficient`/`seriesResistance`, because the source types none of them.
+ * One warning per document, naming every such device.
+ *
+ * **Why it is named.** The defaults (IS 2.52e-9 A, N 1.752, RS 1.0 ohm in
+ * `device-laws.ts`) are a 1N4148-ish silicon signal diode, not any part's values:
+ * against the measured 1S188FM germanium they read about 400 mV high at 1 mA.
+ * For a diode used as a hard switch or reverse blocker they barely matter; for
+ * one biased at its knee -- a clamp, a limiter, a rectifier -- they decide the
+ * behaviour (`boss-oc-2`'s D10/D11 octave clamps, 2026-10-28). LEDs are not named:
+ * they run on their colour defaults, a different claim.
+ *
+ * **What it does not claim.** Not that the source is wrong, and never a guess at
+ * chemistry: the warning is the same for every unregistered part, whether silicon,
+ * germanium or Schottky. The claim is only that the stamped values came from the
+ * consumer, not the source.
+ *
+ * **Per parameter, and registry-aware**, as `BjtLawDefaultWarning`: a device is
+ * named only for a parameter that really runs on the class default -- one the
+ * document does not type and the registry record for its exact part does not
+ * state (`PartEntry.citedParams`).
+ */
+export type DiodeLawDefaultWarning = {
+	readonly code: "diode-law-default-parameters";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	readonly detail: string;
+};
+
+/**
  * A device whose law runs on at least one provisional `community` registry value,
  * because no datasheet, manufacturer model or owner measurement states it.
  *
@@ -3891,6 +3921,7 @@ export type CompileWarning =
 	| RailWithoutVoltageWarning
 	| FetLawDefaultWarning
 	| BjtLawDefaultWarning
+	| DiodeLawDefaultWarning
 	| RegistryProvisionalValueWarning
 	| LegacyDeviceParameterWarning
 	| LedColourUnmatchedWarning

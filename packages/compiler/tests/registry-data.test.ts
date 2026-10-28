@@ -880,17 +880,21 @@ describe("wave-4 fill inventory", () => {
 		// LED work: the 1N4148 community record replaced by the owner's measured pair;
 		// five measured LED colour rows (red and green by packet spelling, blue, white and
 		// yellow by typed Color), Item 2's custom-LED full quad, and Item 1's derived VT/Rs.
+		// 1S188FM (2026-10-28): one measured germanium diode row (owner bench D10/D11 of
+		// Boss OC-2 JP 07556, IS+n+Rs pooled at the engine VT), alias 1S-188FM per the
+		// OC-2 service-note legend; 1SS-188FM deliberately unregistered (silicon-prefix
+		// spelling in the DS-2 source, no Ge mark).
 		expect(opampRegistryRecords).toHaveLength(24);
 		expect(zenerRegistryRecords).toHaveLength(35);
 		expect(jfetRegistryRecords).toHaveLength(28);
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 		expect(bjtRegistryRecords).toHaveLength(67);
-		expect(diodeRegistryRecords).toHaveLength(18);
+		expect(diodeRegistryRecords).toHaveLength(19);
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
-		expect(partRegistryData).toHaveLength(24 + 67 + 18 + 2 + 35 + 28 + 7 + 8 + 1 + 5);
+		expect(partRegistryData).toHaveLength(24 + 67 + 19 + 2 + 35 + 28 + 7 + 8 + 1 + 5);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {

@@ -12,15 +12,19 @@ import { compile } from "../src/compile";
 import {
 	bjtTypedParameters,
 	derive,
+	diodeClipper,
 	emitterFollower,
 	jfetFollower,
+	ledClipper,
 } from "../src/fixtures/circuits";
-import { bjtLawEntry, fetLawEntry } from "../src/part-catalog";
+import { bjtLawEntry, diodeLawEntry, fetLawEntry, pedalPartCatalog } from "../src/part-catalog";
 import { emptyRegistry, type PartEntry, type PartRegistry } from "../src/registry";
 import type { PartDataEntry } from "../src/registry-data/loader";
+import type { Program, Stamp } from "../src/types";
 
 const SYNTH_BJT = "SYNTH-NPN-7";
 const SYNTH_FET = "SYNTH-JFET-7";
+const SYNTH_DIODE = "SYNTH-D-7";
 
 const bjtWithPart = derive(
 	emitterFollower,
@@ -165,5 +169,153 @@ describe("fet-law-default-parameters follows what the registry states", () => {
 			],
 		};
 		expect(warningNamed(jfetWithPart, registry, "fet-law-default-parameters")).toEqual([]);
+	});
+});
+
+const diodeWithPart = derive(
+	diodeClipper,
+	'      Description: "Clipping diode."\n  - id: D2',
+	`      PartNumber: ${SYNTH_DIODE}\n      Description: "Clipping diode."\n  - id: D2`,
+);
+
+const diodeBothWithPart = diodeClipper.replaceAll(
+	'Description: "Clipping diode."',
+	`PartNumber: ${SYNTH_DIODE}\n      Description: "Clipping diode."`,
+);
+
+const d1Listing = (detail: string) =>
+	detail.match(/D1 \([^)]*\) without [A-Z/]*/)?.[0] ?? "(no D1 listing)";
+
+function diodeRegistry(params: PartDataEntry["params"]): PartRegistry {
+	return {
+		entries: [diodeLawEntry({ partIds: [SYNTH_DIODE], class: "diode", params })],
+	};
+}
+
+// diodeLawEntry requires the IS+n forward pair together, so a record stating N
+// alone is hand-built: citedParams names exactly what the record states.
+function diodeNOnlyRegistry(): PartRegistry {
+	const entry: PartEntry = {
+		partIds: [SYNTH_DIODE],
+		declaredTypes: [],
+		terminalRoleGroups: [],
+		citedParams: ["emissionCoefficient"],
+		model: {
+			kind: "law",
+			law: {
+				kind: "diode",
+				saturationCurrent: 5e-6,
+				emissionCoefficient: 1.08,
+				thermalVoltage: 0.025852,
+				breakdownVolts: 0,
+				seriesResistance: 1.0,
+				isLed: false,
+			},
+		},
+	};
+	return { entries: [entry] };
+}
+
+function diodeWarningNamed(source: string, registry: PartRegistry) {
+	const result = compile(source, { registry });
+	if (result.status !== "ok") {
+		throw new Error(`did not compile: ${JSON.stringify(result.reasons)}`);
+	}
+	return result.warnings.filter((warning) => warning.code === "diode-law-default-parameters");
+}
+
+function diodeStampsOf(program: Program): Array<Extract<Stamp, { kind: "diode" }>> {
+	return program.blocks.flatMap((block) =>
+		block.kind === "mna"
+			? block.stamps.filter(
+					(s): s is Extract<Stamp, { kind: "diode" }> => s.kind === "diode",
+				)
+			: [],
+	);
+}
+
+function build(source: string, registry: PartRegistry = emptyRegistry) {
+	const result = compile(source, { registry });
+	if (result.status !== "ok") {
+		throw new Error(`fixture did not compile: ${JSON.stringify(result)}`);
+	}
+	return result;
+}
+
+describe("diode-law-default-parameters follows what the registry states", () => {
+	test("a record that states IS, N and RS leaves nothing on the default", () => {
+		const registry = diodeRegistry({
+			saturationCurrent: cited(5e-6),
+			emissionCoefficient: cited(1.08),
+			seriesResistance: cited(45),
+		});
+		expect(diodeWarningNamed(diodeBothWithPart, registry)).toEqual([]);
+	});
+
+	test("a record that states N alone still names IS and RS, and only those", () => {
+		const named = diodeWarningNamed(diodeWithPart, diodeNOnlyRegistry());
+		expect(named).toHaveLength(1);
+		const [warning] = named;
+		if (warning?.code !== "diode-law-default-parameters") throw new Error("unreachable");
+		expect(warning.devices).toEqual(["D1", "D2"]);
+		expect(d1Listing(warning.detail)).toBe(`D1 (${SYNTH_DIODE}) without IS/RS`);
+	});
+
+	test("a part the registry does not hold is named for IS/N/RS", () => {
+		const named = diodeWarningNamed(diodeWithPart, emptyRegistry);
+		expect(named).toHaveLength(1);
+		const [warning] = named;
+		if (warning?.code !== "diode-law-default-parameters") throw new Error("unreachable");
+		expect(warning.devices).toEqual(["D1", "D2"]);
+		expect(warning.detail).toMatch(/without IS\/N\/RS/u);
+		expect(warning.detail).toMatch(/\(SYNTH-D-7\)/u);
+	});
+
+	test("the document typing a parameter covers it, whatever the record states", () => {
+		const typed = derive(
+			diodeWithPart,
+			`      PartNumber: ${SYNTH_DIODE}\n`,
+			`      PartNumber: ${SYNTH_DIODE}\n      SaturationCurrent: "5 uA"\n`,
+		);
+		const registry = diodeNOnlyRegistry();
+		const named = diodeWarningNamed(typed, registry);
+		expect(named).toHaveLength(1);
+		const [warning] = named;
+		if (warning?.code !== "diode-law-default-parameters") throw new Error("unreachable");
+		expect(d1Listing(warning.detail)).toBe(`D1 (${SYNTH_DIODE}) without RS`);
+	});
+
+	test("LEDs never raise it: they run on colour defaults, a different claim", () => {
+		expect(diodeWarningNamed(ledClipper, emptyRegistry)).toEqual([]);
+	});
+});
+
+describe("1S188FM registry entry and the open 1SS-188FM spelling", () => {
+	const bothWithPart = (spelling: string) =>
+		diodeClipper.replaceAll(
+			'Description: "Clipping diode."',
+			`PartNumber: ${spelling}\n      Description: "Clipping diode."`,
+		);
+	test("the entry and its hyphen alias stamp the measured law with no warning", () => {
+		for (const spelling of ["1S188FM", "1S-188FM"]) {
+			const result = build(bothWithPart(spelling), pedalPartCatalog);
+			expect(
+				result.warnings.filter((warning) => warning.code === "diode-law-default-parameters"),
+			).toEqual([]);
+			const stamps = new Map(diodeStampsOf(result.program).map((s) => [s.device, s]));
+			expect(stamps.get("D1")?.saturationCurrent).toBe(5.4e-6);
+			expect(stamps.get("D1")?.emissionCoefficient).toBe(1.079);
+			expect(stamps.get("D1")?.seriesResistance).toBe(45.9);
+		}
+	});
+
+	test("1SS-188FM has no record: it warns and stamps silicon", () => {
+		const result = build(bothWithPart("1SS-188FM"), pedalPartCatalog);
+		const named = result.warnings.filter(
+			(warning) => warning.code === "diode-law-default-parameters",
+		);
+		expect(named).toHaveLength(1);
+		const stamps = new Map(diodeStampsOf(result.program).map((s) => [s.device, s]));
+		expect(stamps.get("D1")?.saturationCurrent).toBe(2.52e-9);
 	});
 });

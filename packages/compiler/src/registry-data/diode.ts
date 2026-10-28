@@ -16,8 +16,10 @@
 // Wave-1/2 verdict (empty by verdict, not by omission) is superseded for the eleven
 // parts below plus 1N914: every entry was read from a manufacturer-published model file
 // in this run. No entry is derived from a datasheet here (form 4 needs two printed
-// typical (If, Vf) points and never met). Typed aliases: none -- a `DI_` model-name
-// prefix is not an equivalence claim, and no file below states one.
+// typical (If, Vf) points and never met). Typed aliases: one -- `1S-188FM` on the
+// 1S188FM record below is the hyphenated spelling the BOSS OC-2 service notes print
+// for these same diodes (legend row L, Ge symbol); a `DI_` model-name prefix would
+// not be an equivalence claim, and no file below states one.
 //
 // MEASURED ENTRIES (first landed 2026-10-20): the `measured` basis in `loader.ts`
 // is for the owner's bench values -- generic LED colour defaults and the diodes with
@@ -908,6 +910,109 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 				author: "Nexperia (model of its own BAT85, not of the Vishay BAT85S)",
 				retrievedDate: "2026-10-20",
 				whyNoBetterSource: BAT85S_WHY_NO_BETTER_SOURCE,
+			},
+		},
+	},
+	{
+		// Owner bench 2026-10-28 (measured basis): 1S188FM germanium point-contact
+		// diodes, two samples (D10 and D11 of Boss OC-2 JP 07556, Taiwan ~1999),
+		// UNI-T UT107, four currents each from 30 uA to 0.92 mA with the in-circuit
+		// 47k parallel path corrected. Pooled IS+n+Rs fit at the engine VT 0.025852 V
+		// (arithmetic means of the per-sample refits: D10 5.89e-6/1.0813/44.6,
+		// D11 4.96e-6/1.0759/47.1). Anchors: 0.182/0.188 V at 0.92 mA, 0.052/0.056 V
+		// at 30 uA. Three parameters from four points per diode, so n and Rs are
+		// correlated and the 300k point is interval-carried: the row is anchored
+		// from ~87 uA up, and extrapolation below ~30 uA is unvalidated. Rs carries
+		// ~40 mV of 182 mV at the top point (kept, not defaulted). thermalVoltage
+		// stays omitted (0.025852 default, which is what the refit used).
+		// Alias 1S-188FM: the hyphenated spelling the BOSS OC-2 service notes print
+		// for these same diodes (legend row L: D10-D11 1S-188FM with the Ge symbol;
+		// the matcher folds hyphens anyway, so this records the observed spelling).
+		// Deliberately NOT aliased: 1SS-188FM (boss-ds-2 D14/D15). The DS-2 source
+		// prints it in the silicon-prefix family beside 1SS-133 with no Ge mark,
+		// while the OC-2 legend distinguishes Ge 1S-188FM from silicon 1SS133;
+		// Datasheet4U has no 1SS188 or 1S188FM page either way. Giving the DS-2
+		// clip pair a 182 mV Ge knee on a spelling guess would re-voice that pedal,
+		// so it keeps the silicon default (loudly, per diode-law-default-parameters)
+		// until a DS-2 unit is measured.
+		partIds: ["1S188FM"],
+		aliases: ["1S-188FM"],
+		class: "diode",
+		params: {
+			saturationCurrent: {
+				value: 5.4e-6,
+				basis: "measured",
+				source:
+					"Owner bench 2026-10-28 (measured by Joseph Cheng, the project owner), " +
+					"D10 and D11 (1S188FM) of Boss OC-2 JP 07556 in circuit with the board " +
+					"unpowered, UNI-T UT107 (V_D on the 2 V range, 1 mV; V_R on the 20 V " +
+					"range, 10 mV); 9 V alkaline at 9.52 V start and end; series R metered " +
+					"(10.07k, 47.2k, 98.3k, 0.30 M); 18 C; 47k parallel path (R45 through " +
+					"the conducting Q8) corrected; fit 30 uA to 0.92 mA, max log residual " +
+					"0.007 (upper three points); 2 samples; pooled IS+n+Rs refit at the " +
+					"engine VT 0.025852 V (per-sample D10 5.89e-6/1.0813/44.6, D11 " +
+					"4.96e-6/1.0759/47.1; row is the arithmetic mean); evidence " +
+					"packet-study/boss-oc-2/capture/d10-iv/2026-10-28-d10-d11-iv.json sha256 " +
+					"a28f4ad8df940a8df98490600956eeeb207693cd907444a4709117db0ea75b7a.",
+				measurementInstrument:
+					"UNI-T UT107, 3.5 digit; V_D on the 2 V range (1 mV), V_R on the " +
+					"20 V range (10 mV)",
+				measurementConditions:
+					"18 C; 9 V alkaline at 9.52 V; series R metered (10.07k, 47.2k, " +
+					"98.3k, 0.30 M); in circuit with the board unpowered; 47k parallel " +
+					"path (R45 through the conducting Q8) corrected; fit 30 uA-0.92 mA",
+				measurementSampleCount: 2,
+				measurementDate: "2026-10-28",
+				measurementEvidencePath:
+					"packet-study/boss-oc-2/capture/d10-iv/2026-10-28-d10-d11-iv.json",
+				measurementEvidenceSha256:
+					"a28f4ad8df940a8df98490600956eeeb207693cd907444a4709117db0ea75b7a",
+			},
+			emissionCoefficient: {
+				value: 1.079,
+				basis: "measured",
+				source:
+					"Owner bench 2026-10-28, same sitting and pooled refit as the " +
+					"saturationCurrent record (IS+n+Rs together at the engine VT " +
+					"0.025852 V; per-sample n 1.0813/1.0759, row is the mean). Evidence " +
+					"packet-study/boss-oc-2/capture/d10-iv/2026-10-28-d10-d11-iv.json " +
+					"sha256 a28f4ad8df940a8df98490600956eeeb207693cd907444a4709117db0ea75b7a.",
+				measurementInstrument:
+					"UNI-T UT107, 3.5 digit; V_D on the 2 V range (1 mV), V_R on the " +
+					"20 V range (10 mV)",
+				measurementConditions:
+					"18 C; 9 V alkaline at 9.52 V; series R metered (10.07k, 47.2k, " +
+					"98.3k, 0.30 M); in circuit with the board unpowered; 47k parallel " +
+					"path (R45 through the conducting Q8) corrected; fit 30 uA-0.92 mA",
+				measurementSampleCount: 2,
+				measurementDate: "2026-10-28",
+				measurementEvidencePath:
+					"packet-study/boss-oc-2/capture/d10-iv/2026-10-28-d10-d11-iv.json",
+				measurementEvidenceSha256:
+					"a28f4ad8df940a8df98490600956eeeb207693cd907444a4709117db0ea75b7a",
+			},
+			seriesResistance: {
+				value: 45.9,
+				basis: "measured",
+				source:
+					"Owner bench 2026-10-28, same sitting and pooled refit as the " +
+					"saturationCurrent record (per-sample Rs 44.6/47.1 ohm, row is the " +
+					"mean; Rs carries ~40 mV of 182 mV at the 0.92 mA anchor). Evidence " +
+					"packet-study/boss-oc-2/capture/d10-iv/2026-10-28-d10-d11-iv.json " +
+					"sha256 a28f4ad8df940a8df98490600956eeeb207693cd907444a4709117db0ea75b7a.",
+				measurementInstrument:
+					"UNI-T UT107, 3.5 digit; V_D on the 2 V range (1 mV), V_R on the " +
+					"20 V range (10 mV)",
+				measurementConditions:
+					"18 C; 9 V alkaline at 9.52 V; series R metered (10.07k, 47.2k, " +
+					"98.3k, 0.30 M); in circuit with the board unpowered; 47k parallel " +
+					"path (R45 through the conducting Q8) corrected; fit 30 uA-0.92 mA",
+				measurementSampleCount: 2,
+				measurementDate: "2026-10-28",
+				measurementEvidencePath:
+					"packet-study/boss-oc-2/capture/d10-iv/2026-10-28-d10-d11-iv.json",
+				measurementEvidenceSha256:
+					"a28f4ad8df940a8df98490600956eeeb207693cd907444a4709117db0ea75b7a",
 			},
 		},
 	},
