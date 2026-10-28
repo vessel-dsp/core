@@ -4118,6 +4118,69 @@ const entries: readonly PartEntry[] = [
 		}
 	},
 
+// --- CMOS 7-Stage Ripple Counter (CD4024BE) - chained toggle-divider modeling ---------------------------------------
+// TI CD4024B is a 7-stage ripple-carry binary counter (TI SCHS030D product page: "ripple-carry binary
+// counters ... the state of a counter advances one count on the negative transition of each input pulse").
+// Pin assignment from ON Semi MC14024B (pin-for-pin CD4024B replacement): 1 CLOCK, 2 RESET, 3 Q7, 4 Q6,
+// 5 Q5, 6 Q4, 7 VSS, 8 NC, 9 Q3, 10 NC, 11 Q2, 12 Q1, 13 NC, 14 VDD. CD4024BE is the PDIP-14 orderable
+// (TI addendum: marking CD4024BE). Corpus user EQD Bit Commander U3 wires CLOCK (pin 1, from R12),
+// RESET grounded (pin 2), VSS/VDD (pins 7/14), and two divided outputs to pots: Q1 (pin 12, CLK/2)
+// and Q2 (pin 11, CLK/4). Each section is one rising-edge toggle (see Engine.cpp LogicDivider), so Q2's
+// section clocks from Q1's pin, chaining two /2 stages. Only the wired stages are modeled; threshold 2
+// V / high 5 V mirror the studied CD4013 entry (same CMOS family). Unused Q3-Q7 stay out.
+	{
+		"partIds": [
+			"CD4024BE"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"clock",
+				"reset",
+				"q7",
+				"q6",
+				"q5",
+				"q4",
+				"vss",
+				"nc",
+				"q3",
+				"nc",
+				"q2",
+				"q1",
+				"nc",
+				"vdd"
+			],
+			"sections": [
+				{
+					"law": {
+						"kind": "logic-divider",
+						"thresholdVolts": 2,
+						"highVolts": 5
+					},
+					"terminals": [
+						0,
+						11,
+						6
+					]
+				},
+				{
+					"law": {
+						"kind": "logic-divider",
+						"thresholdVolts": 2,
+						"highVolts": 5
+					},
+					"terminals": [
+						11,
+						10,
+						6
+					]
+				}
+			]
+		}
+	},
+
 // --- CMOS Dual D-Type Flip-Flops (CD4013, CD4013BE, uPD4013C) - Active frequency divider modeling! --------------------------
 	{
 		"partIds": [
