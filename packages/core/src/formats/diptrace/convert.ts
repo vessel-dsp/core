@@ -42,6 +42,7 @@ import {
 
 export type DipTraceDiagnosticCode =
 	| "supply-assumed"
+	| "rail-port-on-regulator-output"
 	| "audio-proposed"
 	| "audio-ports-unresolved"
 	| "bypass-none"
@@ -691,6 +692,63 @@ export function convertDipTrace(
 	const audioOutCandidates: string[] = [];
 	let railCount = 0;
 
+	// Regulator-output nets (connectivity only): the net ids holding the OUT
+	// pin of a part the classifier reads as a regulator (letter IC/U with the
+	// exact GND/IN/OUT pin-name tuple; OUT is the same token the classifier
+	// maps to the `positive` terminal role). A supply symbol on one of these
+	// nets sits downstream of the regulator, so it must not assert the board
+	// supply. A pre-pass because NetPort branches emit inline in RefDes-group
+	// order while a regulator may sort later; a post-pass would build rails
+	// first and then mutate kind, properties and diagnostics while repairing
+	// railCount retroactively, splitting one decision across two sites.
+	const regulatorOutputNets = new Map<string, string[]>();
+	for (const part of model.parts) {
+		const partEv = evidenceOf(part, model);
+		if (
+			(partEv.letter === "IC" || partEv.letter === "U") &&
+			orderedTuple([...partEv.pinNames].sort()) ===
+				orderedTuple(["GND", "IN", "OUT"])
+		) {
+			const outPin = part.pins.find((pin) => pin.name === "OUT");
+			if (outPin === undefined) {
+				continue;
+			}
+			for (const net of model.nets) {
+				if (
+					net.members.some(
+						(member) =>
+							member.partId === part.id && member.pinId === outPin.pinId,
+					)
+				) {
+					const drivers = regulatorOutputNets.get(net.id) ?? [];
+					drivers.push(part.refDes);
+					regulatorOutputNets.set(net.id, drivers);
+				}
+			}
+		}
+	}
+
+	// Regulator RefDes list driving any net a part's pins sit on (empty when
+	// the part shares no net with a regulator output). Reads pin membership
+	// only: never net names, port labels, values or part numbers.
+	const regulatorsDrivingPart = (part: DipTracePart): string[] => {
+		const drivers = new Set<string>();
+		for (const pin of part.pins) {
+			for (const net of model.nets) {
+				if (
+					net.members.some(
+						(member) => member.partId === part.id && member.pinId === pin.pinId,
+					)
+				) {
+					for (const refDes of regulatorOutputNets.get(net.id) ?? []) {
+						drivers.add(refDes);
+					}
+				}
+			}
+		}
+		return [...drivers].sort();
+	};
+
 	const notePadMismatch = (part: DipTracePart) => {
 		for (const mismatch of findDipTracePadLabelMismatches({
 			...model,
@@ -772,6 +830,19 @@ export function convertDipTrace(
 				return makeComponent("ground", componentId, part.refDes, "Circuit.Ground", terminals, properties, emitter);
 			}
 			if (SUPPLY_RAIL_LIB_NAMES.has(ev.libraryName)) {
+				const drivers = regulatorsDrivingPart(part);
+				if (drivers.length > 0) {
+					const terminals = buildTerminals(part, netOf, null, emitter, componentId, collectUnmapped);
+					finishUnmapped();
+					diagnostics.push({
+						code: "rail-port-on-regulator-output",
+						message:
+							`${componentId}: supply-symbol NetPort "${ev.libraryName}" sits on a regulator output net ` +
+							`(driven by ${drivers.join(", ")}); kept as an annotation port, no supply asserted`,
+						componentId,
+					});
+					return makeComponent("port", componentId, part.refDes, "Circuit.Port", terminals, properties, emitter);
+				}
 				railCount += 1;
 				properties.Voltage = {
 					raw: `${emitter.supplyVolts} V`,
@@ -810,6 +881,19 @@ export function convertDipTrace(
 				return makeComponent("ground", componentId, part.refDes, "Circuit.Ground", terminals, properties, emitter);
 			}
 			if (audioLabel === "PWR") {
+				const drivers = regulatorsDrivingPart(part);
+				if (drivers.length > 0) {
+					const terminals = buildTerminals(part, netOf, null, emitter, componentId, collectUnmapped);
+					finishUnmapped();
+					diagnostics.push({
+						code: "rail-port-on-regulator-output",
+						message:
+							`${componentId}: supply-labelled NetPort "${audioLabel}" sits on a regulator output net ` +
+							`(driven by ${drivers.join(", ")}); kept as an annotation port, no supply asserted`,
+						componentId,
+					});
+					return makeComponent("port", componentId, part.refDes, "Circuit.Port", terminals, properties, emitter);
+				}
 				railCount += 1;
 				properties.Voltage = {
 					raw: `${emitter.supplyVolts} V`,
@@ -863,6 +947,19 @@ export function convertDipTrace(
 				return null;
 			}
 			if (label === "PWR") {
+				const drivers = regulatorsDrivingPart(part);
+				if (drivers.length > 0) {
+					const terminals = buildTerminals(part, netOf, null, emitter, componentId, collectUnmapped);
+					finishUnmapped();
+					diagnostics.push({
+						code: "rail-port-on-regulator-output",
+						message:
+							`${componentId}: supply-labelled connector "${label}" sits on a regulator output net ` +
+							`(driven by ${drivers.join(", ")}); kept as an annotation port, no supply asserted`,
+						componentId,
+					});
+					return makeComponent("port", componentId, part.refDes, "Circuit.Port", terminals, properties, emitter);
+				}
 				railCount += 1;
 				properties.Voltage = {
 					raw: `${emitter.supplyVolts} V`,
