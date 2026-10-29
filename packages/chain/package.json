@@ -58,7 +58,7 @@
   },
   "dependencies": {
     "@vessel-dsp/compiler": "0.18.1",
-    "@vessel-dsp/core": "0.17.0",
+    "@vessel-dsp/core": "0.17.1",
     "@vessel-dsp/runtime": "0.15.1"
   },
   "publishConfig": {

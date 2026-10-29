@@ -64,7 +64,7 @@
 		"test": "bun test tests"
 	},
 	"dependencies": {
-		"@vessel-dsp/core": "0.17.0",
+		"@vessel-dsp/core": "0.17.1",
 		"js-yaml": "^4.1.0"
 	},
 	"devDependencies": {
