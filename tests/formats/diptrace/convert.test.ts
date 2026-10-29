@@ -1,13 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { convertDipTrace } from "../../../packages/core/src/formats/diptrace/convert";
 import { parseDipTraceSchematic } from "../../../packages/core/src/formats/diptrace/parser";
+import type {
+	DipTraceLibrarySection,
+	DipTraceModel,
+} from "../../../packages/core/src/formats/diptrace/parser";
 import {
 	detectCircuitFormat,
 	parseCircuitDocument,
 	parseCircuitDocumentFile,
 } from "../../../packages/core/src/formats/document";
-import { parseVdspCircuitDocument } from "../../../packages/core/src/formats/document";
+import {
+	parseVdspCircuitDocument,
+	parseVdspCircuitDocumentWithTopology,
+} from "../../../packages/core/src/formats/document";
 import { serializeInterchangeYaml } from "../../../packages/core/src/formats/interchange/serializer";
+import { getPinNode } from "../../../packages/core/src/model/connectivity";
 
 const FIXTURE_URL = new URL(
 	"../../fixtures/diptrace/minimal.dchxml",
@@ -27,7 +35,7 @@ describe("diptrace layer-B conversion", () => {
 	test("emits one component per schematic part with audio and supply", async () => {
 		const result = await loadDocument();
 		expect(result.refusal).toBeNull();
-		expect(result.document?.components.length).toBe(11);
+		expect(result.document?.components.length).toBe(10);
 		expect(result.document?.audio).toEqual({
 			input: "Connector1",
 			output: "Connector2",
@@ -77,16 +85,31 @@ describe("diptrace layer-B conversion", () => {
 		).toEqual(["1:ccw", "2:wiper", "3:cw"]);
 	});
 
-	test("splits multi-part RefDes groups instead of asserting a pin order", async () => {
+	test("merges a multi-unit IC package into one numbered ic", async () => {
 		const result = await loadDocument();
 		const ids = (result.document?.components ?? []).map(
 			(component) => component.id,
 		);
-		expect(ids).toContain("IC1A");
-		expect(ids).toContain("IC1B");
-		expect(ids).not.toContain("IC1");
+		expect(ids).toContain("IC1");
+		expect(ids).not.toContain("IC1A");
+		expect(ids).not.toContain("IC1B");
+		const merged = result.document?.components.find(
+			(component) => component.id === "IC1",
+		);
+		expect(merged?.kind).toBe("ic");
+		expect(merged?.terminals.map((terminal) => terminal.name)).toEqual([
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7",
+			"8",
+		]);
 		const codes = codesOf(result);
-		expect(codes).toContain("multipart-sections-split");
+		expect(codes).toContain("multipart-sections-merged");
+		expect(codes).not.toContain("multipart-sections-split");
 	});
 
 	test("reports the lettered-pad disagreement as a diagnostic", async () => {
@@ -132,7 +155,7 @@ describe("diptrace layer-B conversion", () => {
 			output: "Connector2",
 			bypass: "none",
 		});
-		expect(back.components.length).toBe(11);
+		expect(back.components.length).toBe(10);
 	});
 
 	test("document dispatch reaches diptrace by extension and content", async () => {
@@ -151,7 +174,7 @@ describe("diptrace layer-B conversion", () => {
 		const byFile = parseCircuitDocumentFile(source, {
 			filename: "amp.dchxml",
 		});
-		expect(byFile.components.length).toBe(11);
+		expect(byFile.components.length).toBe(10);
 	});
 
 	test("content sniff reads the root Type, with or without a BOM", async () => {
@@ -180,5 +203,274 @@ describe("diptrace layer-B conversion", () => {
 				(component) => component.id === "R1",
 			),
 		).toBe(true);
+	});
+});
+
+import {
+	SYN_CONNECTOR_SECTION,
+	dualOpampModel,
+	quadOpampModel,
+	syntheticNet,
+	syntheticPart,
+	syntheticSection,
+	toYaml,
+} from "./merge-fixtures";
+
+describe("diptrace IC package merge", () => {
+	test("a dual TL072 merges into one numbered ic", () => {
+		const converted = convertDipTrace(dualOpampModel({}), { name: "synthetic-dual" });
+		expect(converted.refusal).toBeNull();
+		const merged = converted.document?.components.find(
+			(component) => component.id === "IC1",
+		);
+		expect(merged?.kind).toBe("ic");
+		expect(merged?.terminals.map((terminal) => terminal.name)).toEqual([
+			"1", "2", "3", "4", "5", "6", "7", "8",
+		]);
+		expect(merged?.terminals.some((terminal) => terminal.role !== undefined)).toBe(false);
+		expect(
+			(converted.document?.components ?? []).some(
+				(component) => component.id === "IC1A" || component.id === "IC1B",
+			),
+		).toBe(false);
+		expect(codesOf(converted)).toContain("multipart-sections-merged");
+	});
+	test("a quad TL074 merges into one 14-terminal ic", () => {
+		const converted = convertDipTrace(quadOpampModel(), { name: "synthetic-quad" });
+		expect(converted.refusal).toBeNull();
+		const merged = converted.document?.components.find(
+			(component) => component.id === "IC1",
+		);
+		expect(merged?.kind).toBe("ic");
+		expect(merged?.terminals.map((terminal) => terminal.name)).toEqual([
+			"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14",
+		]);
+		expect(codesOf(converted)).toContain("multipart-sections-merged");
+	});
+	test("mixed or empty values stay split with the decline diagnostic", () => {
+		const converted = convertDipTrace(
+			dualOpampModel({ values: ["TL072", ""] }),
+			{ name: "synthetic-mixed" },
+		);
+		expect(converted.refusal).toBeNull();
+		const ids = (converted.document?.components ?? []).map(
+			(component) => component.id,
+		);
+		expect(ids).toContain("IC1A");
+		expect(ids).toContain("IC1B");
+		expect(ids).not.toContain("IC1");
+		expect(codesOf(converted)).not.toContain("multipart-sections-merged");
+		const decline = converted.diagnostics.find(
+			(diagnostic) => diagnostic.code === "multipart-merge-declined",
+		);
+		expect(decline?.componentId).toBe("IC1");
+	});
+	test("units under different RefDes never merge", () => {
+		const first = dualOpampModel({ tag: "a", refDes: "IC1" });
+		const second = dualOpampModel({ tag: "b", refDes: "IC2", audio: false });
+		const library = [...first.library];
+		for (const section of second.library) {
+			if (
+				!library.some(
+					(entry) => entry.style === section.style && entry.sectionId === section.sectionId,
+				)
+			) {
+				library.push(section);
+			}
+		}
+		const model: DipTraceModel = {
+			sourceType: "DipTrace-Schematic",
+			version: "1",
+			units: "mm",
+			library,
+			parts: [...first.parts, ...second.parts],
+			nets: [...first.nets, ...second.nets],
+		};
+		const converted = convertDipTrace(model, { name: "synthetic-two-duals" });
+		expect(converted.refusal).toBeNull();
+		for (const refDes of ["IC1", "IC2"]) {
+			const merged = converted.document?.components.find(
+				(component) => component.id === refDes,
+			);
+			expect(merged?.kind).toBe("ic");
+			expect(merged?.terminals.map((terminal) => terminal.name)).toEqual([
+				"1", "2", "3", "4", "5", "6", "7", "8",
+			]);
+		}
+		expect(codesOf(converted)).not.toContain("multipart-merge-declined");
+	});
+	test("a placed unit with no library section declines and stays split", () => {
+		const converted = convertDipTrace(
+			dualOpampModel({ librarySectionB: false }),
+			{ name: "synthetic-no-section" },
+		);
+		expect(converted.refusal).toBeNull();
+		const ids = (converted.document?.components ?? []).map(
+			(component) => component.id,
+		);
+		expect(ids).toContain("IC1A");
+		expect(ids).toContain("IC1B");
+		const decline = converted.diagnostics.find(
+			(diagnostic) => diagnostic.code === "multipart-merge-declined",
+		);
+		expect(decline?.componentId).toBe("IC1");
+		expect(codesOf(converted)).not.toContain("multipart-sections-merged");
+	});
+	test("a shared pad on different nets declines and stays split", () => {
+		const converted = convertDipTrace(
+			dualOpampModel({
+				padsA: ["1", "2", "3", "5"],
+				padsB: ["5", "6", "7", "8"],
+				netA3: "nShared",
+			}),
+			{ name: "synthetic-pad-conflict" },
+		);
+		expect(converted.refusal).toBeNull();
+		const ids = (converted.document?.components ?? []).map(
+			(component) => component.id,
+		);
+		expect(ids).toContain("IC1A");
+		expect(ids).toContain("IC1B");
+		const decline = converted.diagnostics.find(
+			(diagnostic) => diagnostic.code === "multipart-merge-declined",
+		);
+		expect(decline?.componentId).toBe("IC1");
+		expect(codesOf(converted)).not.toContain("multipart-sections-merged");
+	});
+	test("a shared pad on one net folds into a single pin", () => {
+		const converted = convertDipTrace(
+			dualOpampModel({
+				padsA: ["1", "2", "3", "5"],
+				padsB: ["5", "6", "7", "8"],
+				netA3: "nAOUT",
+			}),
+			{ name: "synthetic-pad-shared" },
+		);
+		expect(converted.refusal).toBeNull();
+		const merged = converted.document?.components.find(
+			(component) => component.id === "IC1",
+		);
+		expect(merged?.terminals.map((terminal) => terminal.name)).toEqual([
+			"1", "2", "3", "5", "6", "7", "8",
+		]);
+		expect(codesOf(converted)).not.toContain("multipart-merge-declined");
+		expect(codesOf(converted)).not.toContain("terminal-name-collision");
+	});
+	test("a spare library section contributes its pads as unconnected pins", () => {
+		const converted = convertDipTrace(
+			dualOpampModel({ sparePads: ["9", "10", "11", "12"] }),
+			{ name: "synthetic-spare" },
+		);
+		expect(converted.refusal).toBeNull();
+		const merged = converted.document?.components.find(
+			(component) => component.id === "IC1",
+		);
+		expect(merged?.terminals.map((terminal) => terminal.name)).toEqual([
+			"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
+		]);
+		expect(codesOf(converted)).toContain("multipart-sections-merged");
+	});
+	test("dual-gang pots and switch fragments are untouched", () => {
+		const potSectionA = syntheticSection("SYN-POT", "0", "POT", ["1", "3", "2"]);
+		const potSectionB = syntheticSection("SYN-POT", "1", "POT", ["4", "6", "5"]);
+		const switchSection = syntheticSection("SYN-SW", "0", "SW", ["1"]);
+		const library: DipTraceLibrarySection[] = [
+			potSectionA,
+			potSectionB,
+			switchSection,
+			SYN_CONNECTOR_SECTION,
+		];
+		const model: DipTraceModel = {
+			sourceType: "DipTrace-Schematic",
+			version: "1",
+			units: "mm",
+			library,
+			parts: [
+				syntheticPart(library, "0", "SYN-POT", "0", "P1", "GAIN A", ["nA", "nB", "nC"]),
+				syntheticPart(library, "1", "SYN-POT", "1", "P1", "GAIN B", ["nD", "nE", "nF"]),
+				syntheticPart(library, "2", "SYN-SW", "0", "SW1", "", ["nG"]),
+				syntheticPart(library, "3", "SYN-SW", "1", "SW1", "", ["nH"]),
+				syntheticPart(library, "4", "SYN-SW", "2", "SW1", "", ["nI"]),
+				syntheticPart(library, "5", "SYN-CNCT", "0", "Connector1", "IN", ["nA"]),
+				syntheticPart(library, "6", "SYN-CNCT", "0", "Connector2", "OUT", ["nD"]),
+			],
+			nets: [
+				syntheticNet("nA", [["0", "0"], ["5", "0"]]),
+				syntheticNet("nB", [["0", "1"]]),
+				syntheticNet("nC", [["0", "2"]]),
+				syntheticNet("nD", [["1", "0"], ["6", "0"]]),
+				syntheticNet("nE", [["1", "1"]]),
+				syntheticNet("nF", [["1", "2"]]),
+				syntheticNet("nG", [["2", "0"]]),
+				syntheticNet("nH", [["3", "0"]]),
+				syntheticNet("nI", [["4", "0"]]),
+			],
+		};
+		const converted = convertDipTrace(model, { name: "synthetic-gangs" });
+		expect(converted.refusal).toBeNull();
+		const byId = new Map(
+			(converted.document?.components ?? []).map((component) => [component.id, component]),
+		);
+		expect(byId.get("P1A")?.kind).toBe("potentiometer");
+		expect(byId.get("P1B")?.kind).toBe("potentiometer");
+		expect(byId.get("SW1")?.kind).toBe("switch");
+		expect(byId.get("SW1")?.terminals.length).toBe(3);
+		expect(codesOf(converted)).toContain("dual-gang-split");
+		expect(codesOf(converted)).toContain("switch-fragments-merged");
+		expect(codesOf(converted)).not.toContain("multipart-sections-merged");
+		expect(codesOf(converted)).not.toContain("multipart-merge-declined");
+		const gangSplit = converted.diagnostics.find(
+			(diagnostic) =>
+				diagnostic.code === "dual-gang-split" && diagnostic.componentId === "P1A",
+		);
+		expect(gangSplit).toBeDefined();
+	});
+	test("a merged package keeps which net each pad number lands on", () => {
+		const model = dualOpampModel({ padsB: ["9", "6", "7", "8"] });
+		const converted = convertDipTrace(model, { name: "synthetic-swapped" });
+		expect(converted.refusal).toBeNull();
+		// Pads are not merge evidence: the package still merges.
+		expect(codesOf(converted)).toContain("multipart-sections-merged");
+		// Two pads share a node exactly when the source puts them on one net.
+		const yaml = toYaml(converted.document);
+		const parsed = parseVdspCircuitDocumentWithTopology(yaml);
+		const padNode = new Map<string, number>();
+		for (const component of parsed.document.components) {
+			if (component.id !== "IC1") {
+				continue;
+			}
+			for (const terminal of component.terminals) {
+				const node = getPinNode(parsed.connectivity, {
+					componentId: component.id,
+					terminalName: terminal.name,
+				});
+				if (node !== undefined) {
+					padNode.set(terminal.name, node);
+				}
+			}
+		}
+		const padNet = new Map<string, string | null>();
+		for (const part of model.parts) {
+			if (part.refDes !== "IC1") {
+				continue;
+			}
+			for (const pin of part.pins) {
+				if (!padNet.has(pin.padNumber)) {
+					padNet.set(pin.padNumber, pin.netId);
+				}
+			}
+		}
+		const pads = [...padNode.keys()];
+		expect(pads.length).toBeGreaterThan(0);
+		for (let a = 0; a < pads.length; a++) {
+			for (let b = a + 1; b < pads.length; b++) {
+				const padA = pads[a]!;
+				const padB = pads[b]!;
+				const netA = padNet.get(padA);
+				const netB = padNet.get(padB);
+				const sameNet = netA !== null && netA === netB;
+				expect(padNode.get(padA) === padNode.get(padB)).toBe(sameNet);
+			}
+		}
 	});
 });

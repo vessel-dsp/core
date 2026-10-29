@@ -67,6 +67,8 @@ export type DipTraceDiagnosticCode =
 	| "unmapped-pin-name"
 	| "switch-fragments-merged"
 	| "multipart-sections-split"
+	| "multipart-sections-merged"
+	| "multipart-merge-declined"
 	| "dual-gang-split"
 	| "dual-gang-roles-by-analogy"
 	| "switch-position-defaulted"
@@ -1617,6 +1619,318 @@ export function convertDipTrace(
 		return makeComponent("unsupported", componentId, part.refDes, "Circuit.Unsupported", terminals, properties, emitter);
 	};
 
+	// Suffixes for one-component-per-part splits (shared by the legacy split
+	// below and by IC groups declined from the package merge).
+	const splitSuffix = (index: number): string => {
+		const letters = "ABCDEFGH";
+		return letters[index] ?? `P${index + 1}`;
+	};
+
+	// Legacy split: one component per schematic part with a suffixed id.
+	// `code` is null for IC groups declined from the package merge (the
+	// decline diagnostic names the reason instead of this generic split one).
+	const emitSplitParts = (
+		refDes: string,
+		group: DipTracePart[],
+		code: DipTraceDiagnosticCode | null,
+	): void => {
+		group.forEach((part, index) => {
+			const componentId = `${refDes}${splitSuffix(index)}`;
+			if (code !== null) {
+				// The dual-gang wording is unchanged (that path is untouched);
+				// only the IC split wording names the merge it falls outside of.
+				const message =
+					code === "dual-gang-split"
+						? `${componentId}: RefDes ${refDes} holds ${group.length} schematic parts; ` +
+							`emitted as one component per part so no package pin order is asserted`
+						: `${componentId}: RefDes ${refDes} holds ${group.length} schematic parts ` +
+							`outside the IC package merge; emitted as one component per part so no package pin order is asserted`;
+				diagnostics.push({ code, message, componentId });
+			}
+			const component = classifySingle(part, componentId);
+			if (component !== null) {
+				components.push(component);
+			}
+		});
+	};
+
+	// Would this unit classify as kind ic? Typed-field mirror of the kind
+	// dispatch inside classifySingle for letter IC/U: every earlier kind
+	// mapping (whole library identities, the single-pin connector shapes, the
+	// LDR shape) and every non-ic outcome of the IC branch (op-amp
+	// signature, power-amp, regulator, logic-unmodelled) excludes. Anything
+	// not excluded reaches the IC branch's final ic return, so the merge
+	// below can union the pads without re-reading roles, pinouts or prose.
+	const isMergeableIcUnit = (part: DipTracePart): boolean => {
+		const ev = evidenceOf(part, model);
+		if (
+			RESISTOR_LIB_NAMES.has(ev.libraryName) ||
+			CAPACITOR_LIB_NAMES.has(ev.libraryName) ||
+			ev.libraryName === "Pole_CAP" ||
+			DIODE_LIB_NAMES.has(ev.libraryName) ||
+			DIODE_FAMILY_LIB_NAMES.has(ev.libraryName) ||
+			LED_LIB_NAMES.has(ev.libraryName) ||
+			BJT_POLARITY_LIB_NAMES.has(ev.libraryName) ||
+			ev.libraryName === "BJT" ||
+			ev.libraryName === "MPSA14" ||
+			JFET_LIB_NAMES.has(ev.libraryName) ||
+			MOSFET_LIB_NAMES.has(ev.libraryName) ||
+			ev.libraryName === "POT" ||
+			ev.libraryName === "TRIMPOT" ||
+			ev.libraryName === "PNPN PUT V2" ||
+			ev.libraryName === "VTL5C2" ||
+			ev.libraryName === "LDR"
+		) {
+			return false;
+		}
+		if (
+			part.pins.length === 1 &&
+			(ev.libraryName === "CNCT" ||
+				ev.libraryName === "Untitled" ||
+				ev.libraryName === "OUT" ||
+				ev.libraryName === "Connector")
+		) {
+			return false;
+		}
+		if (ev.letter === "U" && ev.libraryName === "" && part.value === "LDR") {
+			return false;
+		}
+		const pinNameSet = new Set(ev.pinNames);
+		const hasOpampSignature = [...OPAMP_SIGNATURE_NAMES].every((name) =>
+			pinNameSet.has(name),
+		);
+		const isPowerAmp =
+			POWER_AMP_LIB_NAMES.has(ev.libraryName) ||
+			POWER_AMP_PART_IDS.has(part.value.trim());
+		if (hasOpampSignature && !isPowerAmp) {
+			return false;
+		}
+		if (isPowerAmp) {
+			return false;
+		}
+		if (
+			orderedTuple([...ev.pinNames].sort()) ===
+			orderedTuple(["GND", "IN", "OUT"])
+		) {
+			return false;
+		}
+		if (
+			part.value.trim() === "CD4024BE" ||
+			part.value.trim() === "42TM011R"
+		) {
+			return false;
+		}
+		return true;
+	};
+
+	// Merge one IC/U multi-unit package into a single ic component. Returns
+	// true when the group is handled here (merged, or declined with the
+	// split output kept); false when the group is not an IC package and the
+	// legacy split below applies untouched.
+	const tryMergeIcPackage = (
+		refDes: string,
+		group: DipTracePart[],
+	): boolean => {
+		if (!group.every(isMergeableIcUnit)) {
+			return false;
+		}
+		const decline = (reason: string): boolean => {
+			emitSplitParts(refDes, group, null);
+			diagnostics.push({
+				code: "multipart-merge-declined",
+				message: `${refDes}: not merged (${reason}); emitted as one component per part`,
+				componentId: refDes,
+			});
+			return true;
+		};
+		const styles = new Set(group.map((part) => part.style));
+		if (styles.size !== 1) {
+			return decline(
+				`units differ in ComponentStyle (${[...styles].join(", ")})`,
+			);
+		}
+		const sections = group.map((part) => part.section);
+		if (new Set(sections).size !== sections.length) {
+			return decline(`units share a ComponentPart (${sections.join(", ")})`);
+		}
+		const first = group[0];
+		if (first === undefined) {
+			return false;
+		}
+		if (
+			first.value.trim().length === 0 ||
+			!group.every((part) => part.value === first.value)
+		) {
+			const values = group.map((part) =>
+				part.value.length > 0 ? `"${part.value}"` : "(empty)",
+			);
+			return decline(
+				`units state different or empty values (${values.join(", ")})`,
+			);
+		}
+		for (const part of group) {
+			const placed = model.library.some(
+				(section) =>
+					section.style === part.style && section.sectionId === part.section,
+			);
+			if (!placed) {
+				return decline(
+					`placed unit ${part.partRefDes} has no library section for style "${part.style}" part "${part.section}"`,
+				);
+			}
+		}
+		// Net identity per schematic pin, for the shared-pad check below.
+		const netOf = new Map<string, string>();
+		for (const net of model.nets) {
+			for (const member of net.members) {
+				netOf.set(`${member.partId}\0${member.pinId}`, net.id);
+			}
+		}
+		// One pad token on two units must name one net; two nets decline.
+		// Duplicate pads within one unit keep the legacy rename below.
+		const padUnits = new Map<string, Set<number>>();
+		const padNets = new Map<string, Set<string>>();
+		group.forEach((part, unitIndex) => {
+			for (const pin of part.pins) {
+				const units = padUnits.get(pin.padNumber) ?? new Set<number>();
+				units.add(unitIndex);
+				padUnits.set(pin.padNumber, units);
+				const net = netOf.get(`${part.id}\0${pin.pinId}`);
+				if (net !== undefined) {
+					const nets = padNets.get(pin.padNumber) ?? new Set<string>();
+					nets.add(net);
+					padNets.set(pin.padNumber, nets);
+				}
+			}
+		});
+		for (const [pad, nets] of padNets) {
+			if ((padUnits.get(pad)?.size ?? 0) > 1 && nets.size > 1) {
+				return decline(`pad "${pad}" appears on units with different nets`);
+			}
+		}
+		// Per-unit diagnostics still hold for the merged package.
+		for (const part of group) {
+			notePadMismatch(part);
+			noteLibraryPinMissing(part);
+		}
+		const style = first.style;
+		const placedSections = new Set<string>();
+		for (const part of model.parts) {
+			if (part.style === style) {
+				placedSections.add(part.section);
+			}
+		}
+		const taken = new Set<string>();
+		const seenPadNet = new Map<string, string | null>();
+		type PendingTerminal = {
+			name: string;
+			position: Point;
+			pad: string;
+			unit: number;
+			pin: string;
+		};
+		const pending: PendingTerminal[] = [];
+		group.forEach((part, unitIndex) => {
+			const resolveNet = netOfPin(part);
+			for (const index of sortedPinIndices(part.pins)) {
+				const pin = part.pins[index];
+				if (pin === undefined) {
+					continue;
+				}
+				const net = netOf.get(`${part.id}\0${pin.pinId}`) ?? null;
+				const seen = seenPadNet.get(pin.padNumber);
+				// Same pad, same net folds into one pin (shared power pads
+				// deduplicated by pad number). A second net on the same unit
+				// keeps the legacy rename; across units it declined above.
+				// Empty pad tokens never fold: the pad is unstated.
+				if (
+					pin.padNumber.length > 0 &&
+					seen !== undefined &&
+					seen === net
+				) {
+					continue;
+				}
+				const position = resolveNet(pin.pinId) ?? floaterPosition(emitter);
+				pending.push({
+					name: uniqueTerminalName(
+						taken,
+						pin.padNumber,
+						pin.pinId,
+						emitter,
+						refDes,
+					),
+					position,
+					pad: pin.padNumber,
+					unit: unitIndex,
+					pin: pin.pinId,
+				});
+				if (seen === undefined) {
+					seenPadNet.set(pin.padNumber, net);
+				}
+			}
+		});
+		// Spare library sections of the same style (placed by no part in the
+		// document) contribute their pads as unconnected pins.
+		for (const section of model.library) {
+			if (section.style !== style || placedSections.has(section.sectionId)) {
+				continue;
+			}
+			for (const pin of section.pins) {
+				const pad = pin.padNumber.length > 0 ? pin.padNumber : pin.pinId;
+				if (pad.length > 0 && seenPadNet.has(pad)) {
+					continue;
+				}
+				pending.push({
+					name: uniqueTerminalName(taken, pad, pin.pinId, emitter, refDes),
+					position: floaterPosition(emitter),
+					pad,
+					unit: group.length,
+					pin: pin.pinId,
+				});
+				if (pad.length > 0 && !seenPadNet.has(pad)) {
+					seenPadNet.set(pad, null);
+				}
+			}
+		}
+		pending.sort((a, b) => {
+			const ka = padSortKey(a.pad);
+			const kb = padSortKey(b.pad);
+			if (ka[0] !== kb[0]) {
+				return ka[0] - kb[0];
+			}
+			if (ka[1] !== kb[1]) {
+				return ka[1] < kb[1] ? -1 : 1;
+			}
+			if (a.unit !== b.unit) {
+				return a.unit - b.unit;
+			}
+			return a.pin < b.pin ? -1 : a.pin > b.pin ? 1 : 0;
+		});
+		const terminals: Terminal[] = pending.map(({ name, position }) => ({
+			name,
+			position,
+		}));
+		const properties = baseProperties(
+			first,
+			evidenceOf(first, model).libraryName,
+		);
+		properties.PartNumber = first.value;
+		components.push(
+			makeComponent("ic", refDes, refDes, "Circuit.IC", terminals, properties, emitter),
+		);
+		// The split below would consume one origin per unit; burn the
+		// difference so later components keep their sequence numbers.
+		emitter.componentSeq.next += group.length - 1;
+		diagnostics.push({
+			code: "multipart-sections-merged",
+			message:
+				`${refDes}: ${group.length} parts share RefDes, style and PartNumber; ` +
+				`merged into one ic with terminals named by pad number in pad order`,
+			componentId: refDes,
+		});
+		return true;
+	};
+
 	// Emit one component per schematic part, except switch fragments sharing a
 	// RefDes (each a single pin of one physical switch: a one-terminal switch
 	// is not a device, so the RefDes group is merged).
@@ -1679,26 +1993,23 @@ export function convertDipTrace(
 			}
 			continue;
 		}
-		// Multi-part groups (IC sections, dual-gang pots): one component per
-		// part with a suffixed id. Merging sections would assert a package pin
-		// order the source never states; the registry arity guard then binds
-		// full-package entries loudly instead of mis-wiring silently.
-		const letters = "ABCDEFGH";
-		group.forEach((part, index) => {
-			const suffix = letters[index] ?? `P${index + 1}`;
-			const componentId = `${refDes}${suffix}`;
-			diagnostics.push({
-				code: refDesLetter(refDes) === "P" ? "dual-gang-split" : "multipart-sections-split",
-				message:
-					`${componentId}: RefDes ${refDes} holds ${group.length} schematic parts; ` +
-					`emitted as one component per part so no package pin order is asserted`,
-				componentId,
-			});
-			const component = classifySingle(part, componentId);
-			if (component !== null) {
-				components.push(component);
-			}
-		});
+		// Multi-part groups: IC/U packages merge above into one component per
+		// package; what remains split here (dual-gang pots, switch groups,
+		// op-amp pairs that already execute, declined IC groups with their own
+		// diagnostic) emits one component per part with a suffixed id and
+		// asserts no package pin order.
+		const letter = refDesLetter(refDes);
+		if (
+			(letter === "IC" || letter === "U") &&
+			tryMergeIcPackage(refDes, group)
+		) {
+			continue;
+		}
+		emitSplitParts(
+			refDes,
+			group,
+			refDesLetter(refDes) === "P" ? "dual-gang-split" : "multipart-sections-split",
+		);
 	}
 
 	// Audio ports: exactly one IN and one OUT proposal, or a named refusal.

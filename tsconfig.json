@@ -49,6 +49,7 @@
 		"packages/player/**/*",
 		"tests/player/**/*",
 		"tests/simulation.test.ts",
-		"tests/diptrace-taper-convention.test.ts"
+		"tests/diptrace-taper-convention.test.ts",
+		"tests/formats/diptrace/merge-tone.test.ts"
 	]
 }
