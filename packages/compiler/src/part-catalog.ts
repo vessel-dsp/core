@@ -3878,11 +3878,83 @@ const entries: readonly PartEntry[] = [
 	// registry-data record (`registry-data/opamp.ts`), which types the printed +-12.8 V (RL = 2 kOhm, VS = +-15 V)
 	// as a `proportional` pair for OP07CP, OP07DP and OP07DN, and lists the bare `OP07` id absent (the
 	// sheet's characteristics apply to the C and D grades only).
+	// The pin table below is cited per id: the bare OP07 from the ADI OP07 Rev. G sheet (family
+	// title; epoxy 8-lead PDIP), OP07CP/OP07DP from TI SLOS099H (PDIP orderables in the
+	// addendum, DIP pinout in Table 5-1). OP07DN is printed in no quotable sheet and rides
+	// the table-less entry after this one.
 	{
 		"partIds": [
 			"OP07",
 			"OP07CP",
-			"OP07DP",
+			"OP07DP"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			],
+			"packagePinNumbers": {
+				"numbers": [
+					"3",
+					"2",
+					"6"
+				],
+				"packagePins": [
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8"
+				],
+				"source": "ADI OP07 Rev. G (2002-2011) PIN CONFIGURATION Figure 1 p1: VOS TRIM 1, -IN 2, +IN 3, V- 4, NC 5, OUT 6, V+ 7, VOS TRIM 8 (epoxy 8-lead PDIP; family title OP07); TI SLOS099H Rev. H (Sept 1983, rev Mar 2023) Table 5-1 Pin Functions p3: IN+ 3, IN- 2, OUT 6, V- 4, V+ 7 (OFFSET N1 1, N2 8, NC 5) + Package Option Addendum p12: OP07CP, OP07DP PDIP (P) 8"
+			}
+		}
+	},
+
+	// OP07DN: same law data as the entry above, verbatim, but no pin table. OP07DN is printed
+	// in no sheet quotable here (TI SLOS099H Rev. H names OP07CP and OP07DP in its addendum
+	// but not OP07DN; the ADI Rev. G sheet grades are E and C only), so no table may claim
+	// it. A numbered OP07DN package keeps refusing, exactly as before.
+	{
+		"partIds": [
 			"OP07DN"
 		],
 		"declaredTypes": [],
@@ -3934,20 +4006,98 @@ const entries: readonly PartEntry[] = [
 // 'LM741CN/NOPB | Active | Production | PDIP (P) | 8', part marking 'LM 741CN'.
 // The specs sit under the LM741C column family; open-loop gain stays the house
 // 100000 and no GBW row is quoted (see opampGainBandwidthAbsent).
+// The pin table below is cited per id: LM741 and LM741CN from the National LM741
+// Aug 2000 DS009341 Dual-In-Line diagram (caption names LM741J/LM741J/883/LM741CN);
+// TL071 from ST TL071 Sept 2008 Rev 3 (N DIP8); TL071CP from TI SLOS080W Rev. W
+// Table 4-1 (P PDIP column) plus the p36 addendum orderable; NJM5534D/NJM5534M from
+// the NJR NJM5534 sheet (JRC databook folio 4-235; shared D/M diagram); NE5534 from
+// TI SLOS070D Rev. D Pin Functions (P PDIP). UA741, uA741, TL071CN, bare NJM5534 and
+// JRC5534 are printed on no quotable sheet and ride the table-less entry after this
+// one. All tables agree: signal pins 2/3/6 of the 8-pin DIP; aux pins (offset null,
+// balance, compensation, NC) stay unmodelled, exactly as for role-named documents.
 	{
 		"partIds": [
 			"LM741",
-			"UA741",
-			"uA741",
 			"TL071",
 			"TL071CP",
-			"TL071CN",
-			"NJM5534",
 			"NJM5534D",
 			"NE5534",
 			"NJM5534M",
-			"JRC5534",
 			"LM741CN"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"vin+",
+				"in+",
+				"pin3"
+			],
+			[
+				"vin-",
+				"in-",
+				"pin2"
+			],
+			[
+				"vout",
+				"out",
+				"pin6"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 100000
+					},
+					"terminals": [
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"pinout": [
+				"vin+",
+				"vin-",
+				"vout"
+			],
+			"packagePinNumbers": {
+				"numbers": [
+					"3",
+					"2",
+					"6"
+				],
+				"packagePins": [
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8"
+				],
+				"source": "National LM741 Aug 2000 DS009341 Connection Diagrams Dual-In-Line (Order Number LM741J, LM741J/883, LM741CN) p1: 1 OFFSET NULL, 2 INVERTING INPUT, 3 NON-INVERTING INPUT, 4 V-, 5 OFFSET NULL, 6 OUTPUT, 7 V+, 8 NC; ST TL071 Sept 2008 Rev 3 Pin connections Top view N DIP8 p1: 1 Offset null 1, 2 Inverting input, 3 Non-inverting input, 4 VCC-, 5 Offset null 2, 6 Output, 7 VCC+, 8 N.C.; TI SLOS080W Rev. W Table 4-1 Pin Functions TL071x P PDIP column p3: IN- 2, IN+ 3, OUT 6, VCC- 4, VCC+ 7 (NC 1, 5, 8) + Addendum p36: TL071CP PDIP (P) 8; NJR NJM5534 (JRC databook folio 4-235) PIN CONFIGURATION NJM5534D/NJM5534M + PIN FUNCTION: 1 BALANCE, 2 -INPUT, 3 +INPUT, 4 V-, 5 COMPENSATION, 6 OUTPUT, 7 V+, 8 BALANCE/COMPENSATION; TI SLOS070D Rev. D Pin Functions p3 (P PDIP): BALANCE 1, IN- 2, IN+ 3, VCC- 4, COMP 5, OUT 6, VCC+ 7, COMP/BAL 8 (title ids NE5534/SA5534)"
+			}
+		}
+	},
+
+	// Single-op-amp ids with no quotable pin sheet: UA741/uA741 (no uA741-family sheet on
+	// this box), TL071CN (printed nowhere in TI SLOS080W), bare NJM5534 (the NJR sheet's
+	// diagram names only NJM5534D/NJM5534M) and JRC5534 (no owner decision extends the
+	// JRC4558D marking precedent to it). Same law data as the entry above, verbatim, but
+	// no table: a numbered package of these ids keeps refusing, exactly as before.
+	{
+		"partIds": [
+			"UA741",
+			"uA741",
+			"TL071CN",
+			"NJM5534",
+			"JRC5534"
 		],
 		"declaredTypes": [],
 		"terminalRoleGroups": [
@@ -6323,6 +6473,116 @@ const entries: readonly PartEntry[] = [
 				"noninverting",
 				"vplus",
 				"vminus"
+			]
+		}
+	},
+
+// --- MC33178 dual 8-pin package entry (MXR Badass Modified U1, ARM overdrive U2) -----------
+//
+// The entry above stays untouched: it serves the mxr-carbon-copy per-half 5-terminal
+// splits. This second entry carries the same ids with the 8-pin dual pinout, so
+// `registryEntryFor` picks it for 8-terminal documents (pinout length 8) and the old
+// entry for the 5-terminal ones. The MXRmod U2A 4-terminal declined split is out of
+// scope and keeps refusing.
+// From the Motorola MC33178/D Rev 0 (1996) sheet: PIN CONNECTIONS DUAL P SUFFIX
+// PLASTIC PACKAGE CASE 626 / D SUFFIX PLASTIC PACKAGE CASE 751 (Top View), p1:
+// 1 Output 1, 2-3 Inputs 1, 4 VEE, 5-6 Inputs 2, 7 Output 2, 8 VCC. The ORDERING
+// INFORMATION prints MC33178D (SO-8) and MC33178P (Plastic DIP); the bare MC33178 is
+// the family root in the title -- one dual pinout for all three ids.
+// Law: OPEN-LOOP gain from the sheet's own DC ELECTRICAL CHARACTERISTICS table p2
+// (VCC = +15 V, VEE = -15 V, TA = 25C): 'Large Signal Voltage Gain (VO = -10 V to
+// +10 V, RL = 600 Ohm) AVOL, TA = +25C: MIN 50k TYP 200k' -- used as
+// `openLoopGain: 200000`, NOT the old entry's unsourced 100000. GBW and swing stay
+// untyped although the sheet prints TYP figures (AC table p3: GBW MIN 2.5 TYP 5.0 MHz;
+// DC table p2: VO+ TYP +12 V / VO- TYP -12 V at RL = 300 Ohm, VCC = +15 V, VEE = -15 V):
+// the three ids are shared with the 5-terminal entry, so registry typing would restamp
+// mxr-carbon-copy's halves and move a canonical packet. The ids already sit in
+// `opampGainBandwidthAbsent` / `opampOutputSwingAbsent`, left byte-identical here.
+	{
+		"partIds": [
+			"MC33178",
+			"MC33178P",
+			"MC33178D"
+		],
+		"declaredTypes": [],
+		"terminalRoleGroups": [
+			[
+				"OUT_A_pin1"
+			],
+			[
+				"INVERTING_A_pin2"
+			],
+			[
+				"NONINVERTING_A_pin3"
+			],
+			[
+				"V_MINUS_pin4"
+			],
+			[
+				"NONINVERTING_B_pin5"
+			],
+			[
+				"INVERTING_B_pin6"
+			],
+			[
+				"OUT_B_pin7"
+			],
+			[
+				"V_PLUS_pin8"
+			]
+		],
+		"model": {
+			"kind": "sections",
+			"pinout": [
+				"OUT_A",
+				"IN_A_MINUS",
+				"IN_A_PLUS",
+				"VEE",
+				"IN_B_PLUS",
+				"IN_B_MINUS",
+				"OUT_B",
+				"VCC"
+			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "Motorola MC33178/D Rev 0 (1996) PIN CONNECTIONS DUAL P SUFFIX PLASTIC PACKAGE CASE 626 / D SUFFIX PLASTIC PACKAGE CASE 751 (Top View) p1: 1 Output 1, 2 Inputs 1 -, 3 Inputs 1 +, 4 VEE, 5 Inputs 2 +, 6 Inputs 2 -, 7 Output 2, 8 VCC"
+			},
+			"sections": [
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						2,
+						1,
+						0
+					]
+				},
+				{
+					"law": {
+						"kind": "ideal-opamp",
+						"railHigh": null,
+						"railLow": null,
+						"openLoopGain": 200000
+					},
+					"terminals": [
+						4,
+						5,
+						6
+					]
+				}
 			]
 		}
 	},
@@ -8889,14 +9149,17 @@ const entries: readonly PartEntry[] = [
 	// the passes below; the swing pair stays absent per the D4 freeze). GBW rows and catalog
 	// entries are 1:1 by part id, so no entry splits.
 
-	// ADI AD712 dual precision BiFET op-amp, from the ADI AD712 datasheet Rev. B
-	// (SPECIFICATIONS at VS = +-15 V @ TA = +25C): OPEN-LOOP GAIN MIN 150 TYP 400 V/mV
-	// (J/A/S grades; K/B/T and C print MIN 200 TYP 400 -- TYP 400 in every grade, so the
-	// bare id carries it). Used as `openLoopGain: 400000`. The sheet's frequency row reads
+	// ADI AD712 dual precision BiFET op-amp, from the ADI AD712 datasheet Rev. I
+	// (SPECIFICATIONS at VS = +-15 V @ TA = +25C, p4): OPEN-LOOP GAIN
+	// VOUT = -10 V to +10 V: MIN 150 TYP 400 V/mV (first grade group) and MIN 200
+	// TYP 400 (second group) -- TYP 400 in every grade, so the bare id carries it. Used as `openLoopGain: 400000`. The sheet's frequency row reads
 	// 'Small Signal Bandwidth 3.0 MIN 4.0 TYP MHz' with no closed-loop gain stated and never
 	// uses the term gain-bandwidth, so no GBW figure is transcribed (see
-	// `opampGainBandwidthAbsent`). Pinout: 'pinned out in a standard op amp configuration'
-	// (dual DIP-8 order, same pin-numbered role convention as the LM833 entry above).
+	// `opampGainBandwidthAbsent`). Pinout: the CONNECTION DIAGRAM Figure 1 below (AMP
+	// NO. 1: 1 OUTPUT, 2 INVERTING, 3 NONINVERTING; AMP NO. 2: 5 NONINVERTING,
+	// 6 INVERTING, 7 OUTPUT; 4 V-, 8 V+) covers the 8-Lead PDIP (N), SOIC_N (R) and
+	// CERDIP (Q) packages with one diagram -- grades differ in specs, not in the package.
+	// The bare AD712 is the family name in the sheet title.
 	{
 		"partIds": [
 			"AD712"
@@ -8940,6 +9203,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "ADI AD712 datasheet Rev. I (1986-2018) CONNECTION DIAGRAM Figure 1 (8-Lead PDIP N-Suffix, SOIC_N R-Suffix, CERDIP Q-Suffix) p1: 1 OUTPUT, 2 INVERTING INPUT, 3 NONINVERTING INPUT, 4 V-, 5 NONINVERTING INPUT, 6 INVERTING INPUT, 7 OUTPUT, 8 V+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -9590,6 +9866,8 @@ const entries: readonly PartEntry[] = [
 	// `openLoopGain: 200000` (bare id takes the commercial C-grade column, disclosed;
 	// TL072C precedent). No GBW figure (package/grade split; see
 	// `opampGainBandwidthAbsent`). Single-DIP shape mirrors the LM741/TL071 entry.
+	// Pin table from the ST TL081 sheet below (June 2008 Rev 3): signal pins 2/3/6 of
+	// the 8-pin DIP; offset-null pins and NC stay unmodelled.
 	{
 		"partIds": [
 			"TL081"
@@ -9633,7 +9911,25 @@ const entries: readonly PartEntry[] = [
 				"vin+",
 				"vin-",
 				"vout"
-			]
+			],
+			"packagePinNumbers": {
+				"numbers": [
+					"3",
+					"2",
+					"6"
+				],
+				"packagePins": [
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8"
+				],
+				"source": "ST TL081 June 2008 Rev 3 Pin connections (top view) N DIP8 p1: 1 Offset null 1, 2 Inverting input, 3 Non-inverting input, 4 VCC-, 5 Offset null 2, 6 Output, 7 VCC+, 8 N.C. (title covers TL081, TL081A, TL081B)"
+			}
 		}
 	},
 
@@ -9825,7 +10121,11 @@ const entries: readonly PartEntry[] = [
 	// 'Large Signal Voltage Gain AV: MIN 50 (LM201A) / 25 (LM301A) TYP 160 V/mV' both grades
 	// share the TYP. Used as `openLoopGain: 160000`. LM301AN is the PDIP-8 orderable. No GBW
 	// row exists (see `opampGainBandwidthAbsent`; same AOL-only shape as LM308).
-	// Single-DIP shape mirrors the LM741/TL071 entry.
+	// Single-DIP shape mirrors the LM741/TL071 entry. Pin table: the onsemi PIN
+	// CONNECTIONS prints pins 1 Balance, 2-3 Inputs, 4 VEE, 5 Balance, 6 Output, 7 VCC,
+	// 8 Compensation with the PDIP-8 N marking LMx01AN (x = 2 or 3); the 2/3 polarity
+	// (2 inverting, 3 non-inverting) is read off TI SNOSBS0D Fig. 49 (CDIP/PDIP). Balance,
+	// compensation and NC stay unmodelled.
 	{
 		"partIds": [
 			"LM301AN"
@@ -9869,7 +10169,25 @@ const entries: readonly PartEntry[] = [
 				"vin+",
 				"vin-",
 				"vout"
-			]
+			],
+			"packagePinNumbers": {
+				"numbers": [
+					"3",
+					"2",
+					"6"
+				],
+				"packagePins": [
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8"
+				],
+				"source": "onsemi LM301A/D Rev. 12 (July 2025) PIN CONNECTIONS (Top View) p1: 1 Balance, 2 Inputs, 3 Inputs, 4 VEE, 5 Balance, 6 Output, 7 VCC, 8 Compensation (PDIP-8 N SUFFIX CASE 626 marking LMx01AN, x = 2 or 3); TI SNOSBS0D (Sept 1979, rev Mar 2013) Figure 49 CDIP and PDIP Packages p17: 1 BALANCE/COMPENSATION, 2 INPUT (-), 3 INPUT (+), 4 V-, 5 BALANCE, 6 OUTPUT, 7 V+, 8 COMPENSATION"
+			}
 		}
 	},
 
@@ -9878,6 +10196,8 @@ const entries: readonly PartEntry[] = [
 	// kOhm: MIN 50 TYP 320 kV/V' both grades. Used as `openLoopGain: 320000`. CA3130EZ is
 	// the 8 Ld PDIP orderable. No GBW figure (compensation-dependent fT; see
 	// `opampGainBandwidthAbsent`). Single-DIP shape mirrors the LM741/TL071 entry.
+	// Pin table from the same FN817 sheet: signal pins 2/3/6; offset-null pins and
+	// strobe stay unmodelled.
 	{
 		"partIds": [
 			"CA3130EZ"
@@ -9921,12 +10241,36 @@ const entries: readonly PartEntry[] = [
 				"vin+",
 				"vin-",
 				"vout"
-			]
+			],
+			"packagePinNumbers": {
+				"numbers": [
+					"3",
+					"2",
+					"6"
+				],
+				"packagePins": [
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8"
+				],
+				"source": "Renesas FN817 Rev. 6.00 (Aug 1, 2005) Pinout CA3130, CA3130A (PDIP, SOIC) TOP VIEW p1: 1 OFFSET NULL, 2 INV. INPUT, 3 NON-INV. INPUT, 4 V-, 5 OFFSET NULL, 6 OUTPUT, 7 V+, 8 STROBE (Ordering Information: CA3130EZ 8 Ld PDIP)"
+			}
 		}
 	},
 
-	// Bare "4559" dual (Mojo Rook IC1, 8 pins): no 4559-family sheet cited, so the sections
-	// carry the house 100000, disclosed as unsourced (TL062/LM741-single precedent), with no
+	// Bare "4559" dual (Mojo Rook IC1, 8 pins): the JRC NJM4558/NJM4559 sheet below
+	// prints NJM4559D (DIP8) and NJM4559M (DMP8) under one shared Top View diagram with
+	// the PIN FUNCTION list transcribed in the table -- pin numbering identical for both
+	// (suffix is package). The bare "4559" id itself is NOT a printed orderable: it is the
+	// family number, carried the way the bare TLC2262 rides its family sheet. The SIP8
+	// NJM4559L uses a different diagram (excluded; the corpus doc is 8-terminal DIP 1..8).
+	// A Raytheon-marked 4559 is not covered by this JRC sheet. The sections carry the
+	// house 100000, disclosed as unsourced (TL062/LM741-single precedent), with no
 	// GBW figure (see `opampGainBandwidthAbsent`; same verdict as bare 4558). Standard dual
 	// order, same pin-numbered role convention as the NJM4580 entry.
 	{
@@ -9972,6 +10316,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "JRC NJM4558/NJM4559 Ver.2013-11-05 (New Japan Radio Co., Ltd.) PIN CONFIGURATION (Top View) + PIN FUNCTION p1: 1 A OUTPUT, 2 A -INPUT, 3 A +INPUT, 4 V-, 5 B +INPUT, 6 B -INPUT, 7 B OUTPUT, 8 V+"
+			},
 			"sections": [
 				{
 					"law": {

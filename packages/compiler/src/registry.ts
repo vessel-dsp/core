@@ -174,12 +174,26 @@ export type MacroPartModel = {
  * Absent means the entry states none, and numbered documents keep refusing against it, as
  * before. Present, `numbers` must be a whole-digit bijection as long as `pinout`, and
  * `source` must name the maker table transcribed.
+ *
+ * An entry may also state `packagePins`: the maker's full physical package pin set beside
+ * the signal-pin `numbers` (a single op-amp's three signal pins of an 8-pin DIP). The
+ * device then binds as a numbered SUBSET: every terminal bare and whole-digit, every pin
+ * inside the stated package set, the set distinct, and every signal pin the table names
+ * present. Pads the pinout does not name -- supplies (the circuit's, as for role-named
+ * documents today), offset null, balance, compensation, strobe, NC -- stay unmodelled.
  */
 export type PackagePinNumbers = {
 	/** Per `pinout` position: the package pin number, as whole digit strings. */
 	readonly numbers: readonly string[];
 	/** The maker pin table transcribed: datasheet plus table/figure and page. */
 	readonly source: string;
+	/**
+	 * The maker's full physical package pin set, as whole digit strings, when the entry's
+	 * `numbers` name only a signal subset of it. Absent means `numbers` is the whole
+	 * package and binds by exact bijection; present means a numbered subset binds by
+	 * containment (see `packagePinBinding`). Every signal pin must sit inside it.
+	 */
+	readonly packagePins?: readonly string[];
 };
 
 export type PartModel =
@@ -258,14 +272,23 @@ export function pinoutMatches(
  * Returns, per `pinout` position, the device-terminal index whose pin number equals the entry's
  * stated package pin for that position. Non-null means the device is a fully numbered package
  * the entry's own pin table addresses: every terminal bare (no role token), every terminal
- * name a whole digit string, the entry stating `packagePinNumbers`, lengths equal, and the two
- * number sets a bijection. Anything else is null, and the caller falls back to the role and
+ * name a whole digit string, the entry stating `packagePinNumbers`, and the two number sets
+ * agreeing. Anything else is null, and the caller falls back to the role and
  * positional rungs exactly as before.
  *
- * A non-bijective numbering against a stated table -- a duplicated or missing pin -- is null
- * here and must stay a refusal downstream, never a positional guess: the entry asserts what the
- * numbers mean, so a numbering that is not those numbers disagrees with the entry. A merely
- * reordered numbering still binds, correctly, because pin numbers are absolute.
+ * Two agreements, by entry shape. An entry without `packagePins` states a whole-package
+ * table: the device length must equal the table length and the two number sets must be a
+ * bijection. An entry WITH `packagePins` states a signal subset of a physical package (a
+ * single op-amp's three signal pins of an 8-pin DIP): the device's pins must be distinct
+ * and all inside the stated package set, and must contain every signal pin the table names.
+ * Pads the pinout does not name stay unmodelled, exactly as they are for role-named
+ * documents today (rails come from the circuit).
+ *
+ * A non-agreeing numbering against a stated table -- a duplicated or missing pin, or a pin
+ * outside the stated package -- is null here and must stay a refusal downstream, never a
+ * positional guess: the entry asserts what the numbers mean, so a numbering that is not
+ * those numbers disagrees with the entry. A merely reordered numbering still binds,
+ * correctly, because pin numbers are absolute.
  */
 export function packagePinBinding(
 	model: Extract<PartModel, { kind: "sections" | "sections-core" }>,
@@ -278,13 +301,6 @@ export function packagePinBinding(
 	const { numbers } = stated;
 	const roles = identity.terminalRoles;
 	const pins = identity.terminalPinNumbers;
-	if (
-		numbers.length !== model.pinout.length ||
-		roles.length !== numbers.length ||
-		pins.length !== numbers.length
-	) {
-		return null;
-	}
 	if (!roles.every((role) => role === null)) {
 		return null;
 	}
@@ -295,6 +311,33 @@ export function packagePinBinding(
 		return null;
 	}
 	if (new Set(pins).size !== pins.length) {
+		return null;
+	}
+	const full = stated.packagePins;
+	if (full === undefined) {
+		if (
+			numbers.length !== model.pinout.length ||
+			roles.length !== numbers.length ||
+			pins.length !== numbers.length
+		) {
+			return null;
+		}
+		const atPin = new Map(pins.map((pin, index) => [pin, index] as const));
+		const positions: number[] = [];
+		for (const number of numbers) {
+			const position = atPin.get(number);
+			if (position === undefined) {
+				return null;
+			}
+			positions.push(position);
+		}
+		return positions;
+	}
+	if (numbers.length !== model.pinout.length) {
+		return null;
+	}
+	const inPackage = new Set(full);
+	if (!pins.every((pin) => inPackage.has(pin))) {
 		return null;
 	}
 	const atPin = new Map(pins.map((pin, index) => [pin, index] as const));
@@ -310,15 +353,15 @@ export function packagePinBinding(
 }
 
 /**
- * Whether this device attempts a pin-number binding it cannot have: fully numbered with the
- * entry's length, but not a bijection onto the entry's stated table.
+ * Whether this device attempts a pin-number binding it cannot have: fully numbered with
+ * the entry's length, but not a bijection onto the entry's stated table.
  *
  * `packagePinBinding` answers null for this case among others (no table, not numbered, wrong
  * length); this names the one case where null means disagreement rather than absence, so the
  * caller refuses by name instead of guessing positionally. A document that numbers every pin
- * has committed to the package numbering the entry states, and a non-bijective numbering --
- * duplicated or missing pins -- is that commitment disagreeing, not a declaration order the
- * positional fallback may read.
+ * has committed to the package numbering the entry states, and a non-agreeing numbering --
+ * duplicated or missing pins, or (for a subset entry) a pin outside the stated package --
+ * is that commitment disagreeing, not a declaration order the positional fallback may read.
  */
 export function attemptsPinBinding(
 	model: Extract<PartModel, { kind: "sections" | "sections-core" }>,
@@ -328,12 +371,19 @@ export function attemptsPinBinding(
 	if (stated === undefined) {
 		return false;
 	}
+	if (
+		!identity.terminalRoles.every((role) => role === null) ||
+		!identity.terminalPinNumbers.every((pin) => pin !== null)
+	) {
+		return false;
+	}
+	if (stated.packagePins !== undefined) {
+		return true;
+	}
 	return (
 		stated.numbers.length === model.pinout.length &&
 		identity.terminalRoles.length === stated.numbers.length &&
-		identity.terminalPinNumbers.length === stated.numbers.length &&
-		identity.terminalRoles.every((role) => role === null) &&
-		identity.terminalPinNumbers.every((pin) => pin !== null)
+		identity.terminalPinNumbers.length === stated.numbers.length
 	);
 }
 
@@ -341,7 +391,8 @@ export function attemptsPinBinding(
  * Loud at load when a `sections` entry's stated package pin numbers are not a whole-digit
  * bijection as long as its pinout, or name no maker table: a duplicated, missing, or
  * non-numeric pin in the table would bind packages wrongly rather than refuse them, so a bad
- * table throws here instead of shipping.
+ * table throws here instead of shipping. A stated `packagePins` set must itself be
+ * whole-digit and distinct, and must contain every signal pin the table names.
  */
 export function validatePackagePinNumbers(entries: readonly PartEntry[]): void {
 	for (const entry of entries) {
@@ -368,6 +419,24 @@ export function validatePackagePinNumbers(entries: readonly PartEntry[]): void {
 			throw new Error(
 				`${label}: package pin numbers state no maker table -- a pin table without a source is refused`,
 			);
+		}
+		if (stated.packagePins !== undefined) {
+			if (
+				!stated.packagePins.every((number) => /^\d+$/u.test(number)) ||
+				new Set(stated.packagePins).size !== stated.packagePins.length
+			) {
+				throw new Error(
+					`${label}: package pin set must be whole-digit and distinct, ` +
+						`saw [${stated.packagePins.join(", ")}]`,
+				);
+			}
+			const inPackage = new Set(stated.packagePins);
+			if (!stated.numbers.every((number) => inPackage.has(number))) {
+				throw new Error(
+					`${label}: package pin numbers name a signal pin outside the stated package set ` +
+						`[${stated.packagePins.join(", ")}], saw [${stated.numbers.join(", ")}]`,
+				);
+			}
 		}
 	}
 }

@@ -459,6 +459,14 @@ describe("package-pin binding: every stated table executes (row 22)", () => {
 	const duals: TableCase[] = [];
 	const quads: TableCase[] = [];
 	const others: { label: string; numbers: string[] }[] = [];
+	type SingleCase = {
+		label: string;
+		part: string;
+		numbers: string[];
+		packagePins: string[];
+		aol: number;
+	};
+	const singles: SingleCase[] = [];
 	for (const entry of pedalPartCatalog.entries) {
 		const model = entry.model;
 		if (model.kind !== "sections") continue;
@@ -466,6 +474,28 @@ describe("package-pin binding: every stated table executes (row 22)", () => {
 		if (stated === undefined) continue;
 		const part = entry.partIds[0];
 		if (part === undefined) continue;
+		if (stated.packagePins !== undefined) {
+			if (
+				model.sections.length !== 1 ||
+				model.pinout.length !== 3 ||
+				stated.numbers.length !== 3 ||
+				!model.sections.every((section) => section.law.kind === "ideal-opamp")
+			) {
+				throw new Error(`new subset-table shape needs its own control: ${part}`);
+			}
+			const only = model.sections[0];
+			singles.push({
+				label: part,
+				part,
+				numbers: [...stated.numbers],
+				packagePins: [...stated.packagePins],
+				aol:
+					only !== undefined && only.law.kind === "ideal-opamp"
+						? only.law.openLoopGain
+						: 100000,
+			});
+			continue;
+		}
 		if (!model.sections.every((section) => section.law.kind === "ideal-opamp")) {
 			others.push({ label: part, numbers: [...stated.numbers] });
 			continue;
@@ -643,6 +673,162 @@ ${extra}`;
 			};
 			expect(result.status).toBe("ok");
 			expect(droppedChips(result.warnings).length).toBe(1);
+		});
+	}
+
+	function singleDoc(extra: string, outNode: number): string {
+		return `schema: circuit-interchange/v4
+audio:
+  input: IN
+  output: OUT
+  bypass: none
+metadata:
+  name: "Synthetic single opamp"
+  description: "One section wired gain-of-11 non-inverting."
+  partNumber: ""
+source:
+  format: vdsp
+components:
+${jack("IN", "Circuit.Input", 1)}
+${jack("OUT", "Circuit.Output", outNode)}
+${ground()}
+${rail()}
+${veeRail()}
+${resistor("Rg", 2, 0, "10k", 10000)}
+${resistor("Rf", 3, 2, "100k", 100000)}
+${resistor("Rload", outNode, 0, "100k", 100000)}
+${extra}`;
+	}
+
+	// Subset tables: a sections entry stating packagePins (the full physical package
+	// beside the signal-pin numbers) binds any fully numbered package that is a subset
+	// of the package containing every signal pin. The corpus singles declare 5 pads
+	// [2,3,4,6,7] or 7 pads [1,2,3,4,6,7,8]; the full 1-8 package binds too. Aux pads
+	// ride dedicated quiet nodes; supplies are the circuit's, exactly as for role-named
+	// documents today (rails come from the circuit, not the table).
+	const SINGLE_SIGNAL_NODES: Record<string, number> = { "2": 2, "3": 1, "6": 3 };
+	const singleNodes = (names: readonly string[]): number[] =>
+		names.map((name, i) => SINGLE_SIGNAL_NODES[name] ?? 20 + i);
+	const SINGLE_SHAPES: Record<string, string[]> = {
+		"5-pad": ["2", "3", "4", "6", "7"],
+		"7-pad": ["1", "2", "3", "4", "6", "7", "8"],
+		full: ["1", "2", "3", "4", "5", "6", "7", "8"],
+	};
+
+	for (const table of singles) {
+		for (const [shape, names] of Object.entries(SINGLE_SHAPES)) {
+			it(`${table.label} ${shape}: numbered subset from its own table executes and matches the twin`, () => {
+				const nodes = singleNodes(names);
+				const merged = compileOk(singleDoc(mergedIc(table.part, names, nodes), 3));
+				const twin = compileOk(
+					singleDoc(opampSection("IC", 1, 2, 3, table.part, table.aol), 3),
+				);
+				expect(droppedChips(merged.warnings)).toEqual([]);
+				expect(droppedChips(twin.warnings)).toEqual([]);
+				const tMerged = tone(merged.program);
+				const tTwin = tone(twin.program);
+				expect(Math.abs(tMerged.gain - tTwin.gain)).toBeLessThan(1e-6);
+				expect(Math.abs(tMerged.phase - tTwin.phase)).toBeLessThan(1e-6);
+			});
+		}
+
+		it(`${table.label}: pad outside the stated package refuses by name`, () => {
+			const names = ["2", "3", "4", "6", "9"];
+			const result = compile(singleDoc(mergedIc(table.part, names, singleNodes(names)), 3), {
+				registry: pedalPartCatalog,
+			}) as unknown as {
+				status: string;
+				warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+			};
+			expect(result.status).toBe("ok");
+			const dropped = droppedChips(result.warnings);
+			expect(dropped.length).toBe(1);
+			expect(dropped[0]?.reason).toBe("registry-arity-mismatch");
+		});
+
+		it(`${table.label}: missing signal pad refuses by name`, () => {
+			const names = ["1", "2", "3", "4", "5"];
+			const result = compile(singleDoc(mergedIc(table.part, names, singleNodes(names)), 3), {
+				registry: pedalPartCatalog,
+			}) as unknown as {
+				status: string;
+				warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+			};
+			expect(result.status).toBe("ok");
+			const dropped = droppedChips(result.warnings);
+			expect(dropped.length).toBe(1);
+			expect(dropped[0]?.reason).toBe("registry-arity-mismatch");
+		});
+
+		it(`${table.label}: swapped signal pads bind by pad number, not by declaration role`, () => {
+			// Pads 2 and 6 trade nodes: pad "2" takes the OUT net, pad "6" the feedback
+			// net. The document's own pad statement binds, so the result equals the twin
+			// with those roles swapped (a ~unity follower into the output jack), not the
+			// original gain-of-11 twin.
+			const names = ["2", "3", "4", "6", "7"];
+			const swapped = compileOk(singleDoc(mergedIc(table.part, names, [3, 1, 20, 2, 21]), 3));
+			const twinSwapped = compileOk(
+				singleDoc(opampSection("IC", 1, 3, 2, table.part, table.aol), 3),
+			);
+			const twinOrig = compileOk(
+				singleDoc(opampSection("IC", 1, 2, 3, table.part, table.aol), 3),
+			);
+			expect(droppedChips(swapped.warnings)).toEqual([]);
+			const tSwapped = tone(swapped.program);
+			const tTwinSwapped = tone(twinSwapped.program);
+			const tTwinOrig = tone(twinOrig.program);
+			expect(Math.abs(tSwapped.gain - tTwinSwapped.gain)).toBeLessThan(1e-6);
+			expect(Math.abs(tSwapped.phase - tTwinSwapped.phase)).toBeLessThan(1e-6);
+			expect(Math.abs(tSwapped.gain - tTwinOrig.gain)).toBeGreaterThan(0.5);
+		});
+
+		it(`${table.label}: mutant signal number refuses instead of executing`, () => {
+			const entry = pedalPartCatalog.entries.find(
+				(candidate) =>
+					candidate.partIds[0] === table.label &&
+					candidate.model.kind === "sections" &&
+					candidate.model.packagePinNumbers?.packagePins !== undefined,
+			);
+			if (
+				entry?.model.kind !== "sections" ||
+				entry.model.packagePinNumbers?.packagePins === undefined
+			) {
+				throw new Error(`${table.label} subset entry missing`);
+			}
+			// Move one signal pin off the 5-pad shape (3 -> 1): the table drives the
+			// binding, so the numbered subset no longer contains it and refuses.
+			const mutantNumbers = [...entry.model.packagePinNumbers.numbers];
+			mutantNumbers[0] = "1";
+			const tableSource = entry.model.packagePinNumbers.source;
+			const tablePackage = [...(entry.model.packagePinNumbers.packagePins as readonly string[])];
+			const mutant = {
+				entries: pedalPartCatalog.entries.map((candidate) =>
+					candidate === entry
+						? {
+								...candidate,
+								model: {
+									...entry.model,
+									packagePinNumbers: {
+										numbers: mutantNumbers,
+										packagePins: tablePackage,
+										source: tableSource,
+									},
+								},
+							}
+						: candidate,
+				),
+			};
+			const names = ["2", "3", "4", "6", "7"];
+			const result = compile(singleDoc(mergedIc(table.part, names, singleNodes(names)), 3), {
+				registry: mutant,
+			}) as unknown as {
+				status: string;
+				warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+			};
+			expect(result.status).toBe("ok");
+			const dropped = droppedChips(result.warnings);
+			expect(dropped.length).toBe(1);
+			expect(dropped[0]?.reason).toBe("registry-arity-mismatch");
 		});
 	}
 
