@@ -43,6 +43,8 @@ import {
 	type MacroPartModel,
 	type PartRegistry,
 	type PartSection,
+	attemptsPinBinding,
+	packagePinBinding,
 	pinoutMatches,
 	registryEntryFor,
 	registryLawFor,
@@ -650,6 +652,7 @@ function quiescentSupplyDraw(
 				declaredType: null,
 				terminalRoles: ["end", "end"],
 				declaredTerminalRoles: [null, null],
+				terminalPinNumbers: [null, null],
 				declaredWindings: null,
 			},
 		},
@@ -941,6 +944,9 @@ export function declaredRegulatorTerminals(
 						section.law.kind,
 						nodes.length,
 					),
+					// A section's terminals are law slots, not package pins: the parent's pin
+					// numbers describe the package and would misalign here by length.
+					terminalPinNumbers: nodes.map(() => null),
 				},
 			},
 			{ outcome: "law", device: sectionId, law: section.law },
@@ -1070,12 +1076,40 @@ function sectionDevices(
 	if (device.kind === "ota" && !cleanRoleResolution) {
 		return null;
 	}
+	// **Bind by package pin number before falling back to declaration order.** A fully
+	// numbered package (every terminal bare, every name a whole digit string) against an
+	// entry that states its own pin numbers binds through that table: pin numbers are
+	// absolute, so a package drawn in any terminal order lands on the same nodes, and a
+	// signal-grouped entry (uPC4558) cannot be miswired by positional order. A numbering
+	// that is not the table's numbers refuses below instead of guessing positionally.
+	const pinPositions = packagePinBinding(model, device.identity);
 	let canonicalNodeAt: (index: number) => number | null | undefined;
 	if (cleanRoleResolution) {
 		canonicalNodeAt = (index) => {
 			const position = positions[index];
 			return position === null ? null : device.nodes[position];
 		};
+	} else if (pinPositions !== null) {
+		canonicalNodeAt = (index) => device.nodes[pinPositions[index] as number];
+	} else if (attemptsPinBinding(model, device.identity)) {
+		// **Numbered against a stated table, but not its numbers.** The entry asserts what each
+		// pin number means, so a fully numbered package that is not those numbers disagrees
+		// with the entry -- duplicated or missing pins -- and guessing declaration order
+		// would wire a pin to a slot the maker table never assigned it. Refused by name.
+		return [
+			[
+				device,
+				{
+					outcome: "law",
+					device: device.id,
+					law: { kind: "open" },
+					openReason: "registry-arity-mismatch",
+					insteadOfRefusal:
+						`part ${identity.partId} states package pins ${model.packagePinNumbers?.numbers.join(",") ?? ""} but this component numbers its ${device.nodes.length} terminals ` +
+						`${device.identity.terminalPinNumbers.map((pin) => pin ?? "?").join(",")}, which do not map one-to-one onto those pins`,
+				},
+			] as const,
+		];
 	} else if (!pinoutMatches(model.pinout, roles)) {
 		// **Opened and named, not refused.** The part *is* registered -- this is an arity
 		// disagreement between a real entry and a real document, not an unknown chip -- so the
@@ -1192,6 +1226,8 @@ function sectionDevices(
 				// describe it -- and `canonicalRoles` above already states each section pin's
 				// role exactly. Carrying the parent's array would misalign it by length.
 				declaredTerminalRoles: canonicalRoles(law.kind, nodes.length),
+				// Law slots, not package pins: the parent's pin numbers stay with the package.
+				terminalPinNumbers: nodes.map(() => null),
 			},
 		};
 		return [
@@ -2403,6 +2439,7 @@ function pumpSectionDevices(
 					...device.identity,
 					terminalRoles: canonicalRoles("voltage-source", 2),
 					declaredTerminalRoles: canonicalRoles("voltage-source", 2),
+					terminalPinNumbers: [null, null],
 				},
 			};
 			return [

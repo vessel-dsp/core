@@ -110,6 +110,20 @@ export type DeviceIdentity = {
 	 */
 	readonly declaredTerminalRoles: readonly (string | null)[];
 	/**
+	 * The terminal's package pin number, or null where its name is not one.
+	 *
+	 * The raw terminal *name* when it is a whole digit string (`"1"`..`"28"`), else null.
+	 * This is not a name reading: no substring, no fold, no role inference -- a digit string
+	 * is a package position designator, the same ontological class as a node id, and only a
+	 * whole-value match counts. `"pin1"` and `"1OUT"` are not pin numbers (null here); their
+	 * role tokens stay the only reading of them.
+	 *
+	 * Read solely by the registry `sections` pin binding, and only when every terminal of the
+	 * device carries one: a fully numbered package against an entry that states its own pin
+	 * numbers binds by pin, absolutely, instead of by declaration order.
+	 */
+	readonly terminalPinNumbers: readonly (string | null)[];
+	/**
 	 * The coupled coils this component **declares**, as terminal indices in coil order, or null
 	 * where it declares none.
 	 *

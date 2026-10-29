@@ -53,7 +53,7 @@
 // every device it was carried for.
 
 import type { PartEntry, PartRegistry } from "./registry";
-import { foldPartId, opampOutputSwingOf } from "./registry";
+import { foldPartId, opampOutputSwingOf, validatePackagePinNumbers } from "./registry";
 import type { DeviceLaw } from "./types";
 import {
 	bjtRegistryRecords,
@@ -833,6 +833,13 @@ export function powerAmpEntry(record: PartDataEntry): PartEntry {
 				},
 			],
 			pinout: ["gain1", "inverting", "noninverting", "gnd", "out", "vcc", "bypass", "gain8"],
+			packagePinNumbers: {
+				numbers: ["1", "2", "3", "4", "5", "6", "7", "8"],
+				source:
+					"TI LM386 SNAS545D Rev D pin functions (equivalent schematic p1, Table 5-1: " +
+					"1 GAIN, 2 -INPUT, 3 +INPUT, 4 GND, 5 OUT, 6 VS, 7 BYPASS, 8 GAIN) and NJR NJM386 " +
+					"databook p5-1 Equivalent Circuit, identically placed",
+			},
 		},
 	};
 }
@@ -877,6 +884,19 @@ const entries: readonly PartEntry[] = [
 				"vcc",
 				"vee"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"7",
+				"6",
+				"5",
+				"8",
+				"4"
+				],
+				"source": "Renesas R03DS0145EJ0200 Rev.2.00 PIN CONFIGURATION (Top View), UPC4558G2: 1 OUT1, 2 -II1, 3 +IN1, 4 V-, 5 IN2, 6 II2, 7 OUT2, 8 V+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -982,6 +1002,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "Nisshinbo NJM4558 datasheet PIN CONFIGURATION (Top View) + PIN FUNCTION: 1 A OUTPUT, 2 A -INPUT, 3 A +INPUT, 4 V-, 5 B +INPUT, 6 B -INPUT, 7 B OUTPUT, 8 V+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -1047,6 +1080,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_A",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"7",
+				"6",
+				"5",
+				"4",
+				"3",
+				"2",
+				"1",
+				"8"
+				],
+				"source": "TI SLOS078N Fig. 5-2 TL062x D/JG/P/PS/PW 8-pin (Top View): 1OUT-1, 1IN-minus-2, 1IN-plus-3, VCC-minus-4, 2IN-plus-5, 2IN-minus-6, 2OUT-7, VCC-plus-8"
+			},
 			"sections": [
 				{
 					"law": {
@@ -1160,6 +1206,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_A",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"7",
+				"6",
+				"5",
+				"4",
+				"3",
+				"2",
+				"1",
+				"8"
+				],
+				"source": "TI SLOS080W Fig. 4-5 / Table 4-3 Pin Functions TL072x: 1OUT-1, 1IN-minus-2, 1IN-plus-3, VCC-minus-4, 2IN-plus-5, 2IN-minus-6, 2OUT-7, VCC-plus-8"
+			},
 			"sections": [
 				{
 					"law": {
@@ -1414,7 +1473,20 @@ const entries: readonly PartEntry[] = [
 				null,
 				null,
 				null
-			]
+			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SLOS076 TL022C D/P package TOP VIEW (popular dual pinout): 1OUT-1, 1IN-minus-2, 2OUT-7, VCC-8 with 1IN-plus-3, GND-4, 2IN-plus-5, 2IN-minus-6"
+			}
 		}
 	},
 
@@ -7625,6 +7697,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SLOS481B Pin Functions table p3 (D/SOIC, DGK/MSOP, P/PDIP): 1 OUT1, 2 IN1-minus, 3 IN1-plus, 4 VCC-minus, 5 IN2-plus, 6 IN2-minus, 7 OUT2, 8 VCC-plus"
+			},
 			"sections": [
 				{
 					"law": {
@@ -7725,6 +7810,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "NJR NJM4580D sheet Ver.2012-09-14 PIN FUNCTION table p1 (DIP-8 TOP VIEW): 1 A OUTPUT, 2 A -INPUT, 3 A +INPUT, 4 V-, 5 B +INPUT, 6 B -INPUT, 7 B OUTPUT, 8 V+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -7812,6 +7910,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SBOS058B Table 4-1 Pin Functions OPA2134 p3 (D/SOIC and P/PDIP, Fig. 4-2): OUT A-1, -IN A-2, +IN A-3, V-minus-4, +IN B-5, -IN B-6, OUT B-7, V-plus-8"
+			},
 			"sections": [
 				{
 					"law": {
@@ -7903,6 +8014,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SNOSBU4D Fig. 2 Connection Diagram Dual-In-Line Package (Top View) p1: 1 OUTPUT A, 2 INVERTING INPUT A, 3 NON-INVERTING INPUT A, 4 V-, 5 NON-INVERTING INPUT B, 6 INVERTING INPUT B, 7 OUTPUT B, 8 V+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -8072,6 +8196,25 @@ const entries: readonly PartEntry[] = [
 				"IN_D_MINUS",
 				"OUT_D"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8",
+				"9",
+				"10",
+				"11",
+				"12",
+				"13",
+				"14"
+				],
+				"source": "TI SLOS066AE Table 5-1 Pin Functions N (PDIP) p3, standard quad order: 1OUT-1, 1IN-minus-2, 1IN-plus-3, VCC-plus-4, 2IN-plus-5, 2IN-minus-6, 2OUT-7, 3OUT-8, 3IN-minus-9, 3IN-plus-10, VCC-minus-11, 4IN-plus-12, 4IN-minus-13, 4OUT-14"
+			},
 			"sections": [
 				{
 					"law": {
@@ -8347,6 +8490,25 @@ const entries: readonly PartEntry[] = [
 				"IN_D_MINUS",
 				"OUT_D"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8",
+				"9",
+				"10",
+				"11",
+				"12",
+				"13",
+				"14"
+				],
+				"source": "onsemi MC33171/D Rev.14 PIN CONNECTIONS quad diagram p2 incl. PDIP-14, standard quad order: Output 1-1, Inputs 1, VCC, Inputs 2, Output 2, Output 3, Inputs 3, VEE, Inputs 4, Output 4"
+			},
 			"sections": [
 				{
 					"law": {
@@ -8459,6 +8621,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SLOS080W Table 4-3 Pin Functions TL072x: 1OUT-1, 1IN-minus-2, 1IN-plus-3, VCC-minus-4, 2IN-plus-5, 2IN-minus-6, 2OUT-7, VCC-plus-8"
+			},
 			"sections": [
 				{
 					"law": {
@@ -8540,6 +8715,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SBOS855E section 5 Pin Functions OPA1678: OUT A-1, -IN A-2, +IN A-3, V-minus-4, +IN B-5, -IN B-6, OUT B-7, V-plus-8"
+			},
 			"sections": [
 				{
 					"law": {
@@ -8844,6 +9032,25 @@ const entries: readonly PartEntry[] = [
 				"IN_D_MINUS",
 				"OUT_D"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8",
+				"9",
+				"10",
+				"11",
+				"12",
+				"13",
+				"14"
+				],
+				"source": "TI SLOS013C Pin Functions table, standard quad order: 1OUT-1, 1IN-minus-2, 1IN-plus-3, VCC-plus-4, 2IN-plus-5, 2IN-minus-6, 2OUT-7, 3OUT-8, 3IN-minus-9, 3IN-plus-10, VCC-minus-11, 4IN-plus-12, 4IN-minus-13, 4OUT-14"
+			},
 			"sections": [
 				{
 					"law": {
@@ -9091,6 +9298,25 @@ const entries: readonly PartEntry[] = [
 				"IN_D_MINUS",
 				"OUT_D"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8",
+				"9",
+				"10",
+				"11",
+				"12",
+				"13",
+				"14"
+				],
+				"source": "TI SLOS080W Table 4-6 Pin Functions TL074x, standard quad order: 1OUT-1, 1IN-minus-2, 1IN-plus-3, VCC-plus-4, 2IN-plus-5, 2IN-minus-6, 2OUT-7, 3OUT-8, 3IN-minus-9, 3IN-plus-10, VCC-minus-11, 4IN-plus-12, 4IN-minus-13, 4OUT-14"
+			},
 			"sections": [
 				{
 					"law": {
@@ -10033,3 +10259,7 @@ export const gateOnlyFetPartIds: ReadonlySet<string> = new Set(
 export const pedalPartCatalog: PartRegistry = {
 	entries: withDatasheetOutputSwing(withDatasheetGainBandwidth(entries)),
 };
+
+// A stated package pin table that is not a whole-digit bijection as long as its pinout would
+// bind packages wrongly rather than refuse them: loud at load, naming the entry.
+validatePackagePinNumbers(pedalPartCatalog.entries);

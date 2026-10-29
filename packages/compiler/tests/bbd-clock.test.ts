@@ -53,7 +53,7 @@ function makeDevice(
 		kind,
 		nodes: nodes as readonly NodeId[],
 		control: null,
-		identity: { partNumber, declaredType, terminalRoles: roles, declaredTerminalRoles: [], declaredWindings: null },
+		identity: { partNumber, declaredType, terminalRoles: roles, declaredTerminalRoles: [], terminalPinNumbers: roles.map(() => null), declaredWindings: null },
 		parameters,
 	};
 }
@@ -1345,6 +1345,7 @@ describe("UJT relaxation-oscillator clock derivation", () => {
 				declaredType: options.declaredType ?? null,
 				terminalRoles: roles,
 				declaredTerminalRoles: options.declaredRoles ?? roles.map(() => null),
+				terminalPinNumbers: roles.map(() => null),
 				declaredWindings: null,
 			},
 			parameters: options.parameters ?? {},

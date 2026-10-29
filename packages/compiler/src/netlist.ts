@@ -631,6 +631,7 @@ function voltagePortRails(
 						: null,
 				terminalRoles: [terminalRoleToken(String(terminal.name))],
 				declaredTerminalRoles: [declaredRole(terminal)],
+				terminalPinNumbers: [terminalPinNumber(String(terminal.name))],
 				declaredWindings: null,
 			},
 		});
@@ -985,6 +986,9 @@ export function readNetlist(
 				terminalRoleToken(String(terminal.name)),
 			),
 			declaredTerminalRoles: roles,
+			terminalPinNumbers: terminals.map((terminal) =>
+				terminalPinNumber(String(terminal.name)),
+			),
 			declaredWindings: declaredWindings(component, terminals),
 		});
 
@@ -5047,6 +5051,19 @@ function terminalRoleToken(name: string): string | null {
 }
 
 /**
+ * A terminal's package pin number, or null where its name is not one.
+ *
+ * Whole digit strings only, compared whole downstream: `"1"` is pin 1 and `"pin1"`,
+ * `"1OUT"`, `""` are not pins (null). The one reading of a digit string is its number --
+ * no fold, no role inference -- which is what keeps this on the right side of the rule
+ * against reading authored prose.
+ */
+function terminalPinNumber(name: string): string | null {
+	const trimmed = name.trim();
+	return /^\d+$/u.test(trimmed) ? trimmed : null;
+}
+
+/**
  * The taper a control declares for itself, or null when it declares none.
  *
  * Same vocabulary as a component's, because a panel control and the pot it drives are
@@ -5896,6 +5913,7 @@ function outputJackLoads(
 				declaredType: null,
 				terminalRoles: [null, null],
 				declaredTerminalRoles: [null, null],
+				terminalPinNumbers: [null, null],
 				declaredWindings: null,
 			},
 		});
@@ -6139,6 +6157,7 @@ function controllerPinDevice(pin: ControllerPinSpec, controls: readonly Control[
 			declaredType: null,
 			terminalRoles: ["common", ...throws.map(() => "throw")],
 			declaredTerminalRoles: ["common", ...throws.map(() => "throw")],
+			terminalPinNumbers: [null, ...throws.map(() => null)],
 			declaredWindings: null,
 		},
 	};

@@ -32,6 +32,7 @@ function device(
 			declaredType: null,
 			terminalRoles: roles,
 			declaredTerminalRoles: [],
+			terminalPinNumbers: roles.map(() => null),
 			declaredWindings: null,
 		},
 	};

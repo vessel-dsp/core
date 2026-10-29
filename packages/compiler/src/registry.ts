@@ -10,7 +10,12 @@
 //   - the catalog can be artifact-owned data, matching the ownership boundary --
 //     this repo owns the compiler, vessel-dsp/artifacts owns what an MN3007 is.
 
-import type { DeviceLaw, MacroModel, PartIdentity } from "./types";
+import type {
+	DeviceIdentity,
+	DeviceLaw,
+	MacroModel,
+	PartIdentity,
+} from "./types";
 
 /**
  * One section of a multi-section part: a law plus which of the device's terminals it uses.
@@ -155,6 +160,28 @@ export type MacroPartModel = {
 	readonly parameterReferenceVolts: number | null;
 };
 
+/**
+ * A `sections` entry's package pin numbers, per `pinout` position, as its maker's pin table
+ * prints them.
+ *
+ * A whole-value digit-string statement, never a role guess: position `i` of the entry's
+ * `pinout` is package pin `numbers[i]`. A document whose terminals are named exactly by those
+ * numbers (bare digits, no roles) binds through this table instead of by declaration order,
+ * so a package drawn in any terminal order lands on the same nodes. The pinout order itself
+ * is untouched -- a signal-grouped entry keeps its grouping, and the table is what makes that
+ * safe, because a package pin number is absolute while a declaration position is not.
+ *
+ * Absent means the entry states none, and numbered documents keep refusing against it, as
+ * before. Present, `numbers` must be a whole-digit bijection as long as `pinout`, and
+ * `source` must name the maker table transcribed.
+ */
+export type PackagePinNumbers = {
+	/** Per `pinout` position: the package pin number, as whole digit strings. */
+	readonly numbers: readonly string[];
+	/** The maker pin table transcribed: datasheet plus table/figure and page. */
+	readonly source: string;
+};
+
 export type PartModel =
 	| { readonly kind: "law"; readonly law: DeviceLaw }
 	| {
@@ -162,6 +189,8 @@ export type PartModel =
 			readonly sections: readonly PartSection[];
 			/** The declaration order `sections[*].terminals` index into. See `PartPinout`. */
 			readonly pinout: PartPinout;
+			/** The package pin number per `pinout` position, index-aligned. See `PackagePinNumbers`. */
+			readonly packagePinNumbers?: PackagePinNumbers;
 	  }
 	| { readonly kind: "macro"; readonly macro: MacroPartModel }
 	| {
@@ -179,6 +208,8 @@ export type PartModel =
 			readonly sections: readonly PartSection[];
 			/** The declaration order `sections[*].terminals` index into. See `PartPinout`. */
 			readonly pinout: PartPinout;
+			/** The package pin number per `pinout` position, index-aligned. See `PackagePinNumbers`. */
+			readonly packagePinNumbers?: PackagePinNumbers;
 			/** The sampled core, resolved as a macro against the whole device. */
 			readonly core: MacroPartModel;
 	  };
@@ -219,6 +250,126 @@ export function pinoutMatches(
 	return pinout.every(
 		(role, index) => role === null || foldToken(role) === terminalRoles[index],
 	);
+}
+
+/**
+ * The `sections` entry positions' device-terminal indices, bound by package pin number, or null.
+ *
+ * Returns, per `pinout` position, the device-terminal index whose pin number equals the entry's
+ * stated package pin for that position. Non-null means the device is a fully numbered package
+ * the entry's own pin table addresses: every terminal bare (no role token), every terminal
+ * name a whole digit string, the entry stating `packagePinNumbers`, lengths equal, and the two
+ * number sets a bijection. Anything else is null, and the caller falls back to the role and
+ * positional rungs exactly as before.
+ *
+ * A non-bijective numbering against a stated table -- a duplicated or missing pin -- is null
+ * here and must stay a refusal downstream, never a positional guess: the entry asserts what the
+ * numbers mean, so a numbering that is not those numbers disagrees with the entry. A merely
+ * reordered numbering still binds, correctly, because pin numbers are absolute.
+ */
+export function packagePinBinding(
+	model: Extract<PartModel, { kind: "sections" | "sections-core" }>,
+	identity: DeviceIdentity,
+): readonly number[] | null {
+	const stated = model.packagePinNumbers;
+	if (stated === undefined) {
+		return null;
+	}
+	const { numbers } = stated;
+	const roles = identity.terminalRoles;
+	const pins = identity.terminalPinNumbers;
+	if (
+		numbers.length !== model.pinout.length ||
+		roles.length !== numbers.length ||
+		pins.length !== numbers.length
+	) {
+		return null;
+	}
+	if (!roles.every((role) => role === null)) {
+		return null;
+	}
+	if (!pins.every((pin): pin is string => pin !== null)) {
+		return null;
+	}
+	if (new Set(numbers).size !== numbers.length) {
+		return null;
+	}
+	if (new Set(pins).size !== pins.length) {
+		return null;
+	}
+	const atPin = new Map(pins.map((pin, index) => [pin, index] as const));
+	const positions: number[] = [];
+	for (const number of numbers) {
+		const position = atPin.get(number);
+		if (position === undefined) {
+			return null;
+		}
+		positions.push(position);
+	}
+	return positions;
+}
+
+/**
+ * Whether this device attempts a pin-number binding it cannot have: fully numbered with the
+ * entry's length, but not a bijection onto the entry's stated table.
+ *
+ * `packagePinBinding` answers null for this case among others (no table, not numbered, wrong
+ * length); this names the one case where null means disagreement rather than absence, so the
+ * caller refuses by name instead of guessing positionally. A document that numbers every pin
+ * has committed to the package numbering the entry states, and a non-bijective numbering --
+ * duplicated or missing pins -- is that commitment disagreeing, not a declaration order the
+ * positional fallback may read.
+ */
+export function attemptsPinBinding(
+	model: Extract<PartModel, { kind: "sections" | "sections-core" }>,
+	identity: DeviceIdentity,
+): boolean {
+	const stated = model.packagePinNumbers;
+	if (stated === undefined) {
+		return false;
+	}
+	return (
+		stated.numbers.length === model.pinout.length &&
+		identity.terminalRoles.length === stated.numbers.length &&
+		identity.terminalPinNumbers.length === stated.numbers.length &&
+		identity.terminalRoles.every((role) => role === null) &&
+		identity.terminalPinNumbers.every((pin) => pin !== null)
+	);
+}
+
+/**
+ * Loud at load when a `sections` entry's stated package pin numbers are not a whole-digit
+ * bijection as long as its pinout, or name no maker table: a duplicated, missing, or
+ * non-numeric pin in the table would bind packages wrongly rather than refuse them, so a bad
+ * table throws here instead of shipping.
+ */
+export function validatePackagePinNumbers(entries: readonly PartEntry[]): void {
+	for (const entry of entries) {
+		const model = entry.model;
+		if (model.kind !== "sections" && model.kind !== "sections-core") {
+			continue;
+		}
+		const stated = model.packagePinNumbers;
+		if (stated === undefined) {
+			continue;
+		}
+		const label = entry.partIds[0] ?? entry.declaredTypes[0] ?? "<unnamed>";
+		if (
+			stated.numbers.length !== model.pinout.length ||
+			!stated.numbers.every((number) => /^\d+$/u.test(number)) ||
+			new Set(stated.numbers).size !== stated.numbers.length
+		) {
+			throw new Error(
+				`${label}: package pin numbers must be whole-digit and one per pinout position, ` +
+					`saw [${stated.numbers.join(", ")}] against a ${model.pinout.length}-position pinout`,
+			);
+		}
+		if (stated.source.trim() === "") {
+			throw new Error(
+				`${label}: package pin numbers state no maker table -- a pin table without a source is refused`,
+			);
+		}
+	}
 }
 
 import type { FirmwareEvidence } from "./firmware-class";

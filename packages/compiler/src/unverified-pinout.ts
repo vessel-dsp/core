@@ -4,7 +4,7 @@ import {
 	mayCarryRegistrySections,
 	requiresIdentification,
 } from "./identify";
-import { foldToken, pinoutMatches, terminalWithRole } from "./registry";
+import { foldToken, packagePinBinding, pinoutMatches, terminalWithRole } from "./registry";
 import type { PartEntry, PartRegistry } from "./registry";
 import type { CompileWarning, Device, Netlist } from "./types";
 
@@ -66,6 +66,15 @@ function bindsByUnverifiedOrder(device: Device, entry: PartEntry): boolean {
 		positions.every((position) => position !== null) &&
 		new Set(positions).size === positions.length;
 	if (boundByRole) {
+		return false;
+	}
+	// **Bound by package pin number, not by declaration order.** The entry's own pin table
+	// states what each pin number means, so the mapping is verified and nothing about the
+	// declaration order is left unchecked.
+	if (
+		(entry.model.kind === "sections" || entry.model.kind === "sections-core") &&
+		packagePinBinding(entry.model, device.identity) !== null
+	) {
 		return false;
 	}
 	if (!pinoutMatches(entry.model.pinout, roles)) {

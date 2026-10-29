@@ -41,7 +41,7 @@ function device(
 		nodes: nodes as readonly NodeId[],
 		parameters: {},
 		control: null,
-		identity: { partNumber: null, declaredType: null, terminalRoles: roles, declaredTerminalRoles: [], declaredWindings: null },
+		identity: { partNumber: null, declaredType: null, terminalRoles: roles, declaredTerminalRoles: [], terminalPinNumbers: roles.map(() => null), declaredWindings: null },
 	};
 }
 

@@ -5448,6 +5448,7 @@ describe("unreadable terminal roles", () => {
 				declaredType: "Circuit.OpAmp",
 				terminalRoles: declared.map(() => null),
 				declaredTerminalRoles: [...declared],
+				terminalPinNumbers: declared.map(() => null),
 				declaredWindings: null,
 			},
 		});
