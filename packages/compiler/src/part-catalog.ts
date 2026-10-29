@@ -8384,6 +8384,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SLOS177D (Feb 1997, rev Mar 2001) TLC2262C D, P, or PW PACKAGE (TOP VIEW) p3: 1 1OUT, 2 1IN-, 3 1IN+, 4 VDD-/GND, 5 2IN+, 6 2IN-, 7 2OUT, 8 VDD+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -9672,6 +9685,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "TI SLOS069C (Feb 1971, rev Aug 2010) MC1458 D, P, or PS PACKAGE (TOP VIEW) p1: 1 1OUT, 2 1IN-, 3 1IN+, 4 VCC-, 5 2IN+, 6 2IN-, 7 2OUT, 8 VCC+"
+			},
 			"sections": [
 				{
 					"law": {
@@ -9750,6 +9776,19 @@ const entries: readonly PartEntry[] = [
 				"OUT_B",
 				"VCC"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+				"1",
+				"2",
+				"3",
+				"4",
+				"5",
+				"6",
+				"7",
+				"8"
+				],
+				"source": "Renesas FN1050 Rev 6.00 (Mar 4, 2005) Pinout CA3240, CA3240A (PDIP) TOP VIEW p1: 1 OUTPUT (A), 2 INV. INPUT (A), 3 NON-INV. INPUT (A), 4 V-, 5 NON-INV. INPUT (B), 6 INV. INPUT (B), 7 OUTPUT (B), 8 V+"
+			},
 			"sections": [
 				{
 					"law": {

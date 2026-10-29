@@ -83,7 +83,16 @@ const resistor = (id: string, na: number, nb: number, raw: string, value: number
 		`Resistance:\n        raw: "${raw}"\n        value: ${value}\n        unit: ""`,
 	);
 
-function opampSection(id: string, inn: number, inw: number, out: number, part: string): string {
+function opampSection(
+  id: string,
+  inn: number,
+  inw: number,
+  out: number,
+  part: string,
+  aol?: number,
+  sp = 5,
+  sn = 6,
+): string {
 	return `  - id: ${id}
     kind: opamp
     name: ${id}
@@ -114,18 +123,18 @@ function opampSection(id: string, inn: number, inw: number, out: number, part: s
           y: 0
       - name: "v+"
         role: supplyPositive
-        node: 5
+        node: ${sp}
         position:
           x: 0
           y: 20
       - name: "v-"
         role: supplyNegative
-        node: 6
+        node: ${sn}
         position:
           x: 0
           y: -20
     properties:
-      PartNumber: ${part}`;
+      PartNumber: ${part}${aol === undefined ? "" : `\n      Aol: "${aol}"`}`;
 }
 
 // Merged 8-terminal numbered ic: terminal names are package pin numbers, nodes ride along.
@@ -341,8 +350,7 @@ describe("package-pin binding: numbered whole packages execute", () => {
 	});
 });
 
-describe("package-pin binding: LM386 power-amp entry", () => {
-	const lm386Doc = (names: readonly string[]) =>
+const lm386Doc = (names: readonly string[]) =>
 		`schema: circuit-interchange/v3
 metadata:
   name: "LM386 numbered control"
@@ -368,6 +376,7 @@ ${component("RL", "resistor", "Circuit.Resistor", [{ name: "a", node: 2 }, { nam
 wires: []
 `;
 
+describe("package-pin binding: LM386 power-amp entry", () => {
 	it("8-terminal numbered LM386 executes", () => {
 		const { warnings } = compileOk(lm386Doc(["1", "2", "3", "4", "5", "6", "7", "8"]));
 		expect(droppedChips(warnings)).toEqual([]);
@@ -430,4 +439,221 @@ describe("package-pin binding: table validation", () => {
 		// Signal-grouped entry: section B lives on package pins 5,6,7, not positions 3,4,5.
 		expect(bound).toEqual([0, 1, 2, 6, 5, 4, 7, 3]);
 	});
+});
+
+describe("package-pin binding: every stated table executes (row 22)", () => {
+	// Table-driven over the catalog: every sections entry stating packagePinNumbers builds
+	// its numbered package from the table's own numbers and EXECUTES. Where every section is
+	// an ideal-opamp law, the numbered package renders the same tone as the canonical
+	// kind:opamp twin carrying the entry's own open-loop gains (the twin takes the class
+	// default otherwise, so each section's Aol rides along explicitly to isolate the mapping).
+	type TableCase = {
+		label: string;
+		part: string;
+		numbers: string[];
+		aols: number[];
+		terminals: number[][];
+		pinCount: number;
+	};
+
+	const duals: TableCase[] = [];
+	const quads: TableCase[] = [];
+	const others: { label: string; numbers: string[] }[] = [];
+	for (const entry of pedalPartCatalog.entries) {
+		const model = entry.model;
+		if (model.kind !== "sections") continue;
+		const stated = model.packagePinNumbers;
+		if (stated === undefined) continue;
+		const part = entry.partIds[0];
+		if (part === undefined) continue;
+		if (!model.sections.every((section) => section.law.kind === "ideal-opamp")) {
+			others.push({ label: part, numbers: [...stated.numbers] });
+			continue;
+		}
+		const table: TableCase = {
+			label: part,
+			part,
+			numbers: [...stated.numbers],
+			aols: model.sections.map((section) =>
+				section.law.kind === "ideal-opamp" ? section.law.openLoopGain : 100000,
+			),
+			terminals: model.sections.map((section) => [...section.terminals]),
+			pinCount: model.pinout.length,
+		};
+		if (table.pinCount === 8 && table.terminals.length === 2) duals.push(table);
+		else if (table.pinCount === 14 && table.terminals.length === 4) quads.push(table);
+		else others.push({ label: part, numbers: [...stated.numbers] });
+	}
+
+	for (const table of duals) {
+		it(`${table.label}: numbered package from its own table executes and matches the twin`, () => {
+			const atNode: Record<string, number> = {};
+			PIN_NAMES.forEach((pin, i) => {
+				atNode[pin] = PAD_NODES[i] as number;
+			});
+			// Quote the part id: a bare number-portion id (4580) would otherwise parse
+			// as a YAML number rather than a part-number string.
+			const qpart = `"${table.part}"`;
+			const nodes = table.numbers.map((pin) => atNode[pin] as number);
+			const merged = compileOk(doc(mergedIc(qpart, table.numbers, nodes)));
+			const twin = compileOk(
+				doc(
+					`${opampSection("ICA", 1, 2, 3, qpart, table.aols[0])}\n${opampSection("ICB", 3, 4, 4, qpart, table.aols[1])}`,
+				),
+			);
+			expect(droppedChips(merged.warnings)).toEqual([]);
+			expect(droppedChips(twin.warnings)).toEqual([]);
+			const tMerged = tone(merged.program);
+			const tTwin = tone(twin.program);
+			expect(Math.abs(tMerged.gain - tTwin.gain)).toBeLessThan(1e-6);
+			expect(Math.abs(tMerged.phase - tTwin.phase)).toBeLessThan(1e-6);
+		});
+
+		it(`${table.label}: duplicated pin on one node refuses instead of executing`, () => {
+			const names = [...table.numbers];
+			names[1] = names[0] as string;
+			const atNode: Record<string, number> = {};
+			PIN_NAMES.forEach((pin, i) => {
+				atNode[pin] = PAD_NODES[i] as number;
+			});
+			const nodes = names.map((pin) => atNode[pin] as number);
+			const result = compile(doc(mergedIc(`"${table.part}"`, names, nodes)), {
+				registry: pedalPartCatalog,
+			}) as unknown as {
+				status: string;
+				warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+			};
+			expect(result.status).toBe("ok");
+			expect(droppedChips(result.warnings).length).toBe(1);
+		});
+	}
+
+	function followerDoc(extra: string, outNode: number): string {
+		return `schema: circuit-interchange/v4
+audio:
+  input: IN
+  output: OUT
+  bypass: none
+metadata:
+  name: "Synthetic quad followers"
+  description: "Each section a follower chained into the next."
+  partNumber: ""
+source:
+  format: vdsp
+components:
+${jack("IN", "Circuit.Input", 1)}
+${jack("OUT", "Circuit.Output", outNode)}
+${ground()}
+${rail()}
+${veeRail()}
+${resistor("Rload", outNode, 0, "100k", 100000)}
+${extra}`;
+	}
+
+	for (const table of quads) {
+		// Nodes per pinout position from the entry's own section terminal indices: each
+		// section [noninv, inv, out] becomes a follower link in a chain from IN; positions
+		// no section names take dedicated undeclared supply nodes on both sides alike.
+		const chain = [1, 10, 11, 12, 13];
+		const outNode = 13;
+		const referenced = new Set(table.terminals.flat());
+		const nodeAtPos: number[] = [];
+		table.terminals.forEach((terms, i) => {
+			nodeAtPos[terms[0] as number] = chain[i] as number;
+			nodeAtPos[terms[1] as number] = chain[i + 1] as number;
+			nodeAtPos[terms[2] as number] = chain[i + 1] as number;
+		});
+		let supply = 20;
+		table.numbers.forEach((_, pos) => {
+			if (!referenced.has(pos)) {
+				nodeAtPos[pos] = supply;
+				supply += 1;
+			}
+		});
+		const supplyNodes = table.numbers
+			.map((_, pos) => pos)
+			.filter((pos) => !referenced.has(pos))
+			.map((pos) => nodeAtPos[pos] as number);
+
+		it(`${table.label}: numbered package from its own table executes and matches the twin`, () => {
+			const nodes = table.numbers.map((_, pos) => nodeAtPos[pos] as number);
+			const qpart = `"${table.part}"`;
+			const merged = compileOk(
+				followerDoc(
+					component(
+						"IC1",
+						"ic",
+						"Circuit.IC",
+						table.numbers.map((name, pos) => ({ name, node: nodes[pos] as number })),
+						`PartNumber: ${qpart}`,
+					),
+					outNode,
+				),
+			);
+			const twin = compileOk(
+				followerDoc(
+					table.terminals
+						.map((_, i) =>
+							opampSection(
+								`IC${i}`,
+								chain[i] as number,
+								chain[i + 1] as number,
+								chain[i + 1] as number,
+								qpart,
+								table.aols[i],
+								supplyNodes[0] as number,
+								supplyNodes[1] as number,
+							),
+						)
+						.join("\n"),
+					outNode,
+				),
+			);
+			expect(droppedChips(merged.warnings)).toEqual([]);
+			expect(droppedChips(twin.warnings)).toEqual([]);
+			const tMerged = tone(merged.program);
+			const tTwin = tone(twin.program);
+			expect(Math.abs(tMerged.gain - tTwin.gain)).toBeLessThan(1e-6);
+			expect(Math.abs(tMerged.phase - tTwin.phase)).toBeLessThan(1e-6);
+		});
+
+		it(`${table.label}: duplicated pin on one node refuses instead of executing`, () => {
+			const names = [...table.numbers];
+			names[1] = names[0] as string;
+			const byName: Record<string, number> = {};
+			table.numbers.forEach((pin, pos) => {
+				byName[pin] = nodeAtPos[pos] as number;
+			});
+			const nodes = names.map((pin) => byName[pin] as number);
+			const result = compile(
+				followerDoc(
+					component(
+						"IC1",
+						"ic",
+						"Circuit.IC",
+						names.map((name, i) => ({ name, node: nodes[i] as number })),
+						`PartNumber: "${table.part}"`,
+					),
+					outNode,
+				),
+				{ registry: pedalPartCatalog },
+			) as unknown as {
+				status: string;
+				warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+			};
+			expect(result.status).toBe("ok");
+			expect(droppedChips(result.warnings).length).toBe(1);
+		});
+	}
+
+	// Non-opamp tables: today only the LM386 power-amp builder. Its numbered package
+	// executes in the minimal gain-20 application from its own numbers.
+	for (const table of others) {
+		it(`${table.label}: numbered package from its own table executes`, () => {
+			if (table.numbers.length !== 8)
+				throw new Error(`new table shape needs its own control: ${table.label}`);
+			const { warnings } = compileOk(lm386Doc(table.numbers));
+			expect(droppedChips(warnings)).toEqual([]);
+		});
+	}
 });
