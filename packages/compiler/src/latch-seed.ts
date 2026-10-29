@@ -291,16 +291,7 @@ function ledIndicatedOnMember(
 			if (start === member.collector) {
 				return [[]];
 			}
-			// On a cathode-side chain the LED's forward current runs with the walk
-			// (LED terminal toward the collector); on an anode-side chain it runs
-			// against the walk (collector toward the LED terminal).
-			return ledSeriesChains(
-				netlist,
-				led.id,
-				start,
-				member.collector,
-				terminal === "anode",
-			);
+			return ledSeriesChains(netlist, led.id, start, member.collector);
 		};
 		for (const member of [a, b] as const) {
 			for (const terminal of ["cathode", "anode"] as const) {
@@ -363,16 +354,20 @@ function isSingleResistor(
  * run. The start node is an endpoint and exempt; the target is an endpoint and
  * exempt. Revisits are refused, so every walk terminates.
  *
- * Each diode on a returned path must be able to carry the LED's forward current
- * in the walk direction (see `diodeCarriesLedCurrent`); a path with a blocking
- * diode is not returned.
+ * Diode orientation is deliberately not checked. The typed diode law cannot tell
+ * an undeclared zener from an ordinary diode: `boss-oc-2`'s `D2` is an RD5.1
+ * zener sitting in reverse in the CHECK branch, known as a zener only by its part
+ * number (which this detector must not read), with `parameters` empty and the
+ * plain diode source type. Refusing a reverse diode on absence of evidence would
+ * refuse that real branch, and a declared `breakdownVolts` would admit it anyway,
+ * so no orientation test can ever block a link. The no-branch, unanimity and
+ * precedence rules carry the specificity instead.
  */
 function ledSeriesChains(
 	netlist: Pick<Netlist, "devices">,
 	excludedId: string,
 	start: NodeId,
 	target: NodeId,
-	reversedCurrent: boolean,
 ): readonly (readonly string[])[] {
 	const adjacency = new Map<NodeId, { readonly to: NodeId; readonly id: string }[]>();
 	for (const device of netlist.devices) {
@@ -424,22 +419,6 @@ function ledSeriesChains(
 			if (link.to !== target && degree(link.to) !== 2) {
 				continue;
 			}
-			const device = netlist.devices.find(
-				(candidate) => String(candidate.id) === link.id,
-			);
-			if (device === undefined) {
-				continue;
-			}
-			if (device.kind === "diode") {
-				// The walk runs LED terminal to collector on both sides, but the
-				// current runs with the walk only on the cathode side.
-				const [from, to] = reversedCurrent
-					? ([link.to, node] as const)
-					: ([node, link.to] as const);
-				if (!diodeCarriesLedCurrent(device, from, to)) {
-					continue;
-				}
-			}
 			if (link.to === target) {
 				out.push([...path, link.id]);
 				continue;
@@ -451,53 +430,6 @@ function ledSeriesChains(
 	};
 	walk(start, [], new Set<NodeId>([start]));
 	return out;
-}
-
-/**
- * Whether a diode can carry the LED's forward current across one chain step, from
- * node `from` to node `to`. The walk direction is the current direction on a
- * cathode-side chain (LED terminal toward the collector); on an anode-side chain
- * the current runs the other way (collector toward the LED terminal), so callers
- * pass the endpoints swapped and the same forward/reverse test applies.
- *
- * A diode conducts forward, or in reverse when it is a zener with a declared
- * breakdown (`parameters.breakdownVolts`, the typed diode law — never the part
- * number or description text, which this detector must not read). Where the typed
- * data cannot decide, the diode is accepted either way:
- *
- * - the anode/cathode orientation is absent or repeated (`ledTerminalNode` finds
- *   no single role), so forward and reverse are meaningless;
- * - there is no declared breakdown, so the typed data cannot tell an undeclared
- *   zener from an ordinary diode. `boss-oc-2`'s `D2` is exactly this: an RD5.1
- *   zener in reverse in the CHECK branch, known as a zener only by its part
- *   number, with `parameters` empty and `declaredType` the plain diode source
- *   type. Refusing it on absence of evidence would refuse the real branch, so
- *   the walk admits it and the no-branch, unanimity and precedence rules carry
- *   the specificity instead.
- */
-function diodeCarriesLedCurrent(
-	device: Device,
-	from: NodeId,
-	to: NodeId,
-): boolean {
-	const anode = ledTerminalNode(device, "anode");
-	const cathode = ledTerminalNode(device, "cathode");
-	if (anode === null || cathode === null) {
-		return true;
-	}
-	const forward = from === anode && to === cathode;
-	if (forward) {
-		return true;
-	}
-	const reverse = from === cathode && to === anode;
-	if (!reverse) {
-		return true;
-	}
-	const breakdown = device.parameters.breakdownVolts ?? 0;
-	if (breakdown > 0) {
-		return true;
-	}
-	return true;
 }
 
 /** This detector's rail set: ground plus every asserted supply node.

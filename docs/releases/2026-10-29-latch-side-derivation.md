@@ -61,12 +61,12 @@ branch 2-to-1). A one-resistor cathode chain still votes (existing behavior);
 longer chains vote `cathode-chain` / `anode-chain`. Polarity unchanged:
 cathode-side chain → that member is ON; anode-side chain → the other member.
 
-Current-carrying: a diode conducts forward, or in reverse when it is a zener
-with a declared breakdown (`parameters.breakdownVolts`, the typed diode law —
-never the part number). Where the typed data cannot decide, the diode is
-accepted either way, and the code says so: orientation absent/repeated, or no
-declared breakdown so the typed data cannot tell an undeclared zener from an
-ordinary diode. `boss-oc-2`'s D2 is exactly this — an RD5.1 zener in reverse in
+Diode orientation is not checked, and the code says so (an earlier draft
+carried a `diodeCarriesLedCurrent` test that admitted every case, so it was
+removed as dead logic rather than left claiming a check). The typed diode law
+(`parameters.breakdownVolts`, never the part number) cannot tell an undeclared
+zener from an ordinary diode, and a declared breakdown would admit a reverse
+diode anyway, so no orientation rule could ever block a link. `boss-oc-2`'s D2 is exactly this — an RD5.1 zener in reverse in
 the CHECK branch, known as a zener only by its part number, with empty
 `parameters` and the plain diode source type — and refusing it on absence of
 evidence would refuse the real branch. The no-branch, unanimity and precedence
