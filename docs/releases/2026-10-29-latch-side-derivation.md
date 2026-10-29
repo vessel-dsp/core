@@ -163,12 +163,11 @@ DIRECT-only 600 Hz **−18.5 dBm** (study −18.52), OCT1-only 300 Hz **−19.8 
 mirrored by the steering.
 
 **BD-2 ×2 (changed, LED check).** Engaged (`SW1=1`): LED Vak 1.95 V (lit;
-series current ≈ (6.063−0.88)/1.2 k ≈ 4.3 mA through R39/D11); Q16 ON
-(Vb 0.675, Vc 0.128), Q15 OFF (Vc 5.379). Bypassed: Vak 1.48 V; dark by
-circuit argument — forward conduction would need the D11 node above the 6.543 V
-cathode while sinking current downhill from it, which has no solution, so only
-leakage flows (diode-law ratio to engaged ≈ 1e−8). Before: engaged Vak 1.48 V,
-Q15 ON — check fails. Keeley build identical down to the millivolt.
+settled diode-law current 4.86 mA through the CHECK branch); Q16 ON
+(Vb 0.675, Vc 0.128), Q15 OFF (Vc 5.379). Bypassed: Vak 1.48 V, settled
+diode-law current 21.2 µA against 4.86 mA engaged (≈ 0.4 %) — dark.
+Before: engaged Vak 1.48 V, Q15 ON — check fails. Keeley build identical
+down to the millivolt (engaged 4.86 mA, bypassed 21.2 µA).
 
 **MT-2 (changed, no LED: bias-level check).** Engaged (`SW_EFFECT=1`): Q006 ON
 (Vb 0.579, Vc 0.016), Q005 OFF (Vc 5.973); gated JFET gates Q002@69 5.22 V,
@@ -190,7 +189,7 @@ supported but cannot be audio-confirmed on this packet.
 | dm-2 (conn, LED dark in model) | render −25.46 dBm THD 0.012 vs bypassed −21.28 dBm THD 0.0001 (4.2 dB + coloration: effect shows) | LED dark both (27 mV; footswitch-contact-driven branch, pre-existing, program-identical) |
 | sd-1 (conn, LED agrees) | Vak 1.75 V lit (cathode on Q3c); Q3 ON | Vak 0.88 V dark; mirrored |
 | dm-3 (LED) | Vak 1.71 V lit; Q10 ON | Vak 0.69 V dark; mirrored |
-| lm-2 (LED) | Vak 1.97 V lit; Q5 ON | Vak 1.51 V; dark by diode-law ratio (≈ 1e−8 of engaged current — below any conduction threshold) |
+| lm-2 (LED) | Vak 1.97 V lit (5.84 mA); Q5 ON | Vak 1.51 V, 29.6 µA (≈ 0.5 % of engaged) — dark |
 | ph-1r (LED) | Vak 1.72 V lit; Q7 ON | Vak 0.88 V dark; mirrored |
 
 No packet's new side looks wrong. The two audio-inert controls (cs-3 sine
