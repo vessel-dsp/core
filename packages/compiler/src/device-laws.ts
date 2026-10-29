@@ -1244,11 +1244,41 @@ function sectionDevices(
 	// against the core model, binding its ports to the same boundary nodes the
 	// sections share. The core keeps the package id; the sections took `#index`.
 	if (model.kind === "sections-core") {
+		// Numbered rung for the core, and the only table-derived-roles site: when the
+		// entry states `packagePinNumbers` and this device is the fully numbered package
+		// that table binds (`pinPositions`, computed for the sections arm above), the
+		// core resolves against table-derived roles -- per `pinout` position through the
+		// binding onto the device terminal -- instead of the document's all-null roles.
+		// Every consumer below reads those roles whole (`terminalWithRole` for audioIn,
+		// audioOut, audioOut2 and the parameter port; `cascadedAudioOut` for a cascade;
+		// the VCO/clock derivation's role scan; the refusal diagnostic), so one derived
+		// device covers them all with no per-consumer patch. A document naming even one
+		// terminal keeps null-free roles, `pinPositions` is null, and resolves by role
+		// exactly as before; a numbered document against an entry with no table, or with
+		// a numbering that is not the table's, keeps `pinPositions` null and behaves
+		// exactly as before (the sections arm already refused the latter by name).
+		// The names matched are the compiler's own vocabulary -- the entry's `pinout`
+		// against the core's port aliases, compared whole by `terminalWithRole` -- never
+		// a reading of terminal text or prose.
+		let coreDevice = device;
+		if (pinPositions !== null) {
+			const tableRoles: (string | null)[] = device.identity.terminalRoles.map(() => null);
+			model.pinout.forEach((name, position) => {
+				const terminal = pinPositions[position];
+				if (terminal !== undefined && name !== null) {
+					tableRoles[terminal] = foldToken(name);
+				}
+			});
+			coreDevice = {
+				...device,
+				identity: { ...device.identity, terminalRoles: tableRoles },
+			};
+		}
 		return [
 			...sectioned,
 			[
-				device,
-				resolveMacro(device, identity.partId, model.core, registry, netlist),
+				coreDevice,
+				resolveMacro(coreDevice, identity.partId, model.core, registry, netlist),
 			] as const,
 		];
 	}

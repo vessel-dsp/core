@@ -843,3 +843,262 @@ ${extra}`;
 		});
 	}
 });
+
+describe("package-pin binding: PT2399 sections-core entry", () => {
+	// The table-driven loop above only iterates `kind: "sections"` models, so the
+	// PT2399 `sections-core` table is not picked up by it: 38 sections tables in
+	// that loop before and after this row, plus this one sections-core table. Its
+	// control lives here instead: the numbered package is built from the table's
+	// own numbers, and the true answer comes from the role-named twin. The
+	// sections arm binds the numbered package by pad number and the numbered rung
+	// in `sectionDevices` derives the core's roles from the same binding, so the
+	// numbered package executes the same program as the twin.
+	const pt2399Entry = pedalPartCatalog.entries.find(
+		(candidate) =>
+			candidate.model.kind === "sections-core" &&
+			candidate.model.packagePinNumbers !== undefined,
+	);
+	if (pt2399Entry === undefined) {
+		throw new Error("PT2399 sections-core package pin table entry missing");
+	}
+	const pt2399Model = pt2399Entry.model;
+	if (pt2399Model.kind !== "sections-core") {
+		throw new Error("PT2399 sections-core package pin table entry missing");
+	}
+	if (pt2399Model.packagePinNumbers === undefined) {
+		throw new Error("PT2399 sections-core package pin table entry missing");
+	}
+	const pt2399Numbers = [...pt2399Model.packagePinNumbers.numbers];
+	const pt2399Source = pt2399Model.packagePinNumbers.source;
+	const pt2399Part = `"${pt2399Entry.partIds[0]}"`;
+	// Maker's printed pin functions, pin 1 to pin 16, as the role-named twin spells them.
+	const PT2399_PRINTED = [
+		"VCC",
+		"REF",
+		"AGND",
+		"DGND",
+		"CLK_O",
+		"VCO",
+		"CC1",
+		"CC0",
+		"OP1-OUT",
+		"OP1-IN",
+		"OP2-IN",
+		"OP2-OUT",
+		"LPF2-IN",
+		"LPF2-OUT",
+		"LPF1-OUT",
+		"LPF1-IN",
+	];
+	// Distinct nodes per pinout position; the delay core's audio ports ride the
+	// input/output jacks, supplies and grounds ride the rails, and a passive link
+	// resistor keeps the harness linkable with the chip compiled open.
+	const PT2399_NODES = [101, 102, 0, 0, 30, 31, 32, 33, 34, 35, 36, 24, 38, 39, 20, 41];
+
+	function pt2399Terminals(
+		names: readonly string[],
+		nodes: readonly number[],
+		role: string | null,
+	): string {
+		return names
+			.map(
+				(name, i) =>
+					`      - name: "${name}"${role === null ? "" : `\n        role: ${role}`}\n        node: ${nodes[i] as number}\n        position:\n          x: 0\n          y: 0`,
+			)
+			.join("\n");
+	}
+
+	function pt2399Doc(
+		names: readonly string[],
+		nodes: readonly number[],
+		role: string | null,
+	): string {
+		return `schema: circuit-interchange/v4
+audio:
+  input: IN
+  output: OUT
+  bypass: none
+metadata:
+  name: "PT2399 numbered control"
+  description: "Role-named twin against the table's own numbers."
+  partNumber: ""
+source:
+  format: vdsp
+components:
+${jack("IN", "Circuit.Input", 20)}
+${jack("OUT", "Circuit.Output", 24)}
+${ground()}
+${resistor("RLINK", 20, 24, "100k", 100000)}
+  - id: IC1
+    kind: ic
+    name: IC1
+    sourceTypeName: Circuit.IC
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+${pt2399Terminals(names, nodes, role)}
+    properties:
+      PartNumber: ${pt2399Part}
+      DelayMs: "400"
+`;
+	}
+
+	const roleNames = PT2399_PRINTED.map((printed, i) => `pin${i + 1}_${printed}`);
+	const numberedIdentity = {
+		partNumber: pt2399Entry.partIds[0] as string,
+		declaredType: null,
+		terminalRoles: Array<string | null>(16).fill(null),
+		declaredTerminalRoles: Array<string | null>(16).fill(null),
+		terminalPinNumbers: [...pt2399Numbers],
+		declaredWindings: null,
+	} as const;
+
+	// Canonical JSON of a program with object keys sorted, so whole-program
+	// equality is order-independent. Both documents below declare id IC1, so the
+	// section ids (IC1#n) and block ids (analog:0, macro:IC1) are identical and no
+	// device-id normalisation is needed.
+	function canon(value: unknown): unknown {
+		if (Array.isArray(value)) return value.map(canon);
+		if (value !== null && typeof value === "object") {
+			const out: Record<string, unknown> = {};
+			for (const key of Object.keys(value).sort()) {
+				out[key] = canon((value as Record<string, unknown>)[key]);
+			}
+			return out;
+		}
+		return value;
+	}
+	function canonProgram(program: Program): string {
+		return JSON.stringify(canon(program));
+	}
+	function composedCore(program: Program) {
+		return program.blocks.find(
+			(block): block is Extract<Program["blocks"][number], { kind: "composed" }> =>
+				block.kind === "composed",
+		);
+	}
+	function mutantRegistry(numbers: readonly string[]) {
+		return {
+			entries: pedalPartCatalog.entries.map((candidate) =>
+				candidate === pt2399Entry
+					? {
+							...candidate,
+							model: {
+								...pt2399Model,
+								packagePinNumbers: { numbers: [...numbers], source: pt2399Source },
+							},
+						}
+					: candidate,
+			),
+		};
+	}
+
+	it("states an index-aligned 1-to-16 table quoted to the maker sheet", () => {
+		expect(pt2399Numbers.length).toBe(pt2399Model.pinout.length);
+		expect(pt2399Numbers).toEqual(
+			Array.from({ length: pt2399Model.pinout.length }, (_, i) => `${i + 1}`),
+		);
+		expect(pt2399Source).toContain("Princeton");
+		expect(pt2399Source).toContain("PIN DESCRIPTION");
+	});
+
+	it("numbered package executes the same program as the role-named twin", () => {
+		const twin = compileOk(pt2399Doc(roleNames, PT2399_NODES, "pin"));
+		const numbered = compileOk(pt2399Doc(pt2399Numbers, PT2399_NODES, null));
+		expect(droppedChips(twin.warnings)).toEqual([]);
+		expect(droppedChips(numbered.warnings)).toEqual([]);
+		// The core block is present on both, running the same algorithm.
+		expect(twin.program.requiredModels).toEqual(["digital-delay-line"]);
+		expect(numbered.program.requiredModels).toEqual(["digital-delay-line"]);
+		expect(composedCore(twin.program)?.modelId).toBe("digital-delay-line");
+		expect(composedCore(numbered.program)?.modelId).toBe("digital-delay-line");
+		expect(numbered.program.requiredOperators).toEqual(twin.program.requiredOperators);
+		expect(numbered.program.order).toEqual(twin.program.order);
+		expect(numbered.program.blocks).toEqual(twin.program.blocks);
+		expect(canonProgram(numbered.program)).toBe(canonProgram(twin.program));
+	});
+
+	it("duplicated pin on one node refuses by name instead of binding", () => {
+		const names = [...pt2399Numbers];
+		names[1] = names[0] as string;
+		const nodes = [...PT2399_NODES];
+		nodes[1] = nodes[0];
+		const result = compile(pt2399Doc(names, nodes, null), {
+			registry: pedalPartCatalog,
+		}) as unknown as {
+			status: string;
+			warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+		};
+		expect(result.status).toBe("ok");
+		const dropped = droppedChips(result.warnings);
+		expect(dropped.length).toBe(1);
+		expect(dropped[0]?.device).toBe("IC1");
+	});
+
+	it("a numbering that is not the table's refuses by name instead of binding", () => {
+		const names = [...pt2399Numbers];
+		names[15] = "17";
+		const result = compile(pt2399Doc(names, [...PT2399_NODES], null), {
+			registry: pedalPartCatalog,
+		}) as unknown as {
+			status: string;
+			warnings: Array<{ code?: unknown; reason?: unknown; device?: unknown }>;
+		};
+		expect(result.status).toBe("ok");
+		const dropped = droppedChips(result.warnings);
+		expect(dropped.length).toBe(1);
+		expect(dropped[0]?.device).toBe("IC1");
+		expect(dropped[0]?.reason).toBe("registry-arity-mismatch");
+	});
+
+	it("permuted declaration order executes the same program (numbers are absolute)", () => {
+		const twin = compileOk(pt2399Doc(roleNames, PT2399_NODES, "pin"));
+		const order = [15, 0, 7, 3, 11, 5, 1, 9, 13, 2, 6, 10, 14, 4, 8, 12];
+		const names = order.map((i) => pt2399Numbers[i] as string);
+		const nodes = order.map((i) => PT2399_NODES[i] as number);
+		const permuted = compileOk(pt2399Doc(names, nodes, null));
+		expect(droppedChips(permuted.warnings)).toEqual([]);
+		expect(canonProgram(permuted.program)).toBe(canonProgram(twin.program));
+	});
+
+	it("a mutant table (two stamped numbers swapped) breaks the twin equality", () => {
+		const mutantNumbers = [...pt2399Numbers];
+		const at12 = mutantNumbers.indexOf("12");
+		const at15 = mutantNumbers.indexOf("15");
+		[mutantNumbers[at12], mutantNumbers[at15]] = [
+			mutantNumbers[at15] as string,
+			mutantNumbers[at12] as string,
+		];
+		const reference = packagePinBinding(pt2399Model, { ...numberedIdentity });
+		expect(reference).toEqual(
+			Array.from({ length: pt2399Model.pinout.length }, (_, i) => i),
+		);
+		const bound = packagePinBinding(
+			{
+				...pt2399Model,
+				packagePinNumbers: { numbers: mutantNumbers, source: pt2399Source },
+			},
+			{ ...numberedIdentity },
+		);
+		// The table drives the binding: the core's audio-out and audio-in pinout
+		// positions trade the device terminals the true table assigns them.
+		expect(bound).not.toEqual(reference);
+		expect(bound?.[11]).toBe(reference?.[14]);
+		expect(bound?.[14]).toBe(reference?.[11]);
+		// And the equality control fails under the mutant: the same numbered
+		// document against the mutant registry renders a different program.
+		const twin = compileOk(pt2399Doc(roleNames, PT2399_NODES, "pin"));
+		const mutated = compileOk(
+			pt2399Doc(pt2399Numbers, PT2399_NODES, null),
+			mutantRegistry(mutantNumbers),
+		);
+		expect(droppedChips(mutated.warnings)).toEqual([]);
+		expect(canonProgram(mutated.program)).not.toBe(canonProgram(twin.program));
+		// Unmutated, the equality holds (byte-identical restore of the table).
+		const numbered = compileOk(pt2399Doc(pt2399Numbers, PT2399_NODES, null));
+		expect(canonProgram(numbered.program)).toBe(canonProgram(twin.program));
+	});
+});

@@ -2915,6 +2915,34 @@ const entries: readonly PartEntry[] = [
 				"lpf1out",
 				"lpf1in"
 			],
+			"packagePinNumbers": {
+				"numbers": [
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+					"6",
+					"7",
+					"8",
+					"9",
+					"10",
+					"11",
+					"12",
+					"13",
+					"14",
+					"15",
+					"16"
+				],
+				"source": "Princeton PT2399 datasheet V1.9 (Mar 2022) PIN DESCRIPTION p3: " +
+					"1 VCC, 2 REF, 3 AGND, 4 DGND, 5 CLK_O, 6 VCO, 7 CC1, 8 CC0, " +
+					"9 OP1-OUT, 10 OP1-IN, 11 OP2-IN, 12 OP2-OUT, 13 LPF2-IN, " +
+					"14 LPF2-OUT, 15 LPF1-OUT, 16 LPF1-IN; PIN CONFIGURATION figure p3 " +
+					"shows the same order (left 1-8 VCC..CC0, right 16-9 LPF1-IN..OP1-OUT); " +
+					"ORDER INFORMATION p3 covers PT2399 (16-pin DIP 300mil), PT2399S " +
+					"(16-pin SOP 300mil) and PT2399-SN (16-pin SOP 150mil) under the " +
+					"one configuration"
+			},
 			"sections": [
 				{
 					"law": {
