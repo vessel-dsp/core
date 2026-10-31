@@ -1321,7 +1321,7 @@ export function readNetlist(
 					}
 				} catch (error) {
 					throw new NetlistError(
-						`component ${owner.id}: TaperTable ${error instanceof Error ? error.message : String(error)}`,
+						`component ${owner.id}: ${error instanceof Error ? error.message : String(error)}`,
 						String(owner.id),
 						error,
 					);
