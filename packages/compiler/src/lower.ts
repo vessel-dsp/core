@@ -535,6 +535,16 @@ export function lowerRegion(
 					gateSaturationCurrent: law.gateSaturationCurrent,
 					gateOnsetVolts: law.gateOnsetVolts,
 					gateScaleVolts: law.gateScaleVolts,
+					// The body diode rides inside the fet stamp (one history key, one
+					// limiter) rather than as a separate diode device. A JFET law
+					// carries neither field, so its stamp keeps its previous shape
+					// bit-identically; a MOSFET stamp carries the pair.
+					...(law.bodySaturationCurrent !== undefined
+						? { bodySaturationCurrent: law.bodySaturationCurrent }
+						: {}),
+					...(law.bodyEmissionCoefficient !== undefined
+						? { bodyEmissionCoefficient: law.bodyEmissionCoefficient }
+						: {}),
 				});
 				break;
 			}

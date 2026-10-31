@@ -203,6 +203,51 @@ describe("discrete registry wiring", () => {
 		expect(law.thresholdVolts).toBe(2);
 		expect(law.transconductance).toBe(1e-3);
 		expect(law.gateSaturationCurrent).toBe(0);
+		// The body diode rides the class defaults with no record: ngspice's own
+		// MOS bulk-diode pair, so the runtime and the emitted deck agree.
+		expect(law.bodySaturationCurrent).toBe(1e-14);
+		expect(law.bodyEmissionCoefficient).toBe(1);
+	});
+
+	test("a registry MOSFET body value reaches the stamp", () => {
+		const registry: PartRegistry = {
+			entries: [
+				fetLawEntry(
+					{
+						partIds: [SYNTH_MOSFET],
+						class: "mosfet",
+						params: {
+							bodySaturationCurrent: {
+								value: 3e-14,
+								basis: "datasheet",
+								source: "synthetic record",
+							},
+							bodyEmissionCoefficient: {
+								value: 1.5,
+								basis: "datasheet",
+								source: "synthetic record",
+							},
+						},
+					},
+					"mosfet",
+				),
+			],
+		};
+		const law = stampOf(mosfetWithPart, "Q1", registry);
+		expect(law.kind).toBe("fet");
+		if (law.kind !== "fet") throw new Error("unreachable");
+		expect(law.bodySaturationCurrent).toBe(3e-14);
+		expect(law.bodyEmissionCoefficient).toBe(1.5);
+	});
+
+	test("a JFET law carries no body-diode fields", () => {
+		// The diode is a MOSFET structure. A JFET law must not grow the fields,
+		// so its program shape stays exactly what it was.
+		const law = stampOf(jfetWithPart, "Q1", jfetRegistry);
+		expect(law.kind).toBe("fet");
+		if (law.kind !== "fet") throw new Error("unreachable");
+		expect("bodySaturationCurrent" in law).toBe(false);
+		expect("bodyEmissionCoefficient" in law).toBe(false);
 	});
 
 	test("a registry diode forward value reaches the stamp", () => {
@@ -299,6 +344,9 @@ describe("wave-1 record builders", () => {
 		expect(filled.channelLengthModulation).toBe(bare.channelLengthModulation);
 		expect(filled.subthresholdVolts).toBe(bare.subthresholdVolts);
 		expect(filled.gateSaturationCurrent).toBe(bare.gateSaturationCurrent);
+		// BS170 states no body parameters: both fill the class body defaults.
+		expect(filled.bodySaturationCurrent).toBe(bare.bodySaturationCurrent);
+		expect(filled.bodyEmissionCoefficient).toBe(bare.bodyEmissionCoefficient);
 	});
 
 	test("shipped BJT data reaches the stamp", () => {

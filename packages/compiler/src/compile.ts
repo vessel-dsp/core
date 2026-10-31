@@ -13,6 +13,8 @@ import {
 	findUnimplementedDeviceLaws,
 	JFET_DEFAULT_THRESHOLD_VOLTS,
 	JFET_DEFAULT_TRANSCONDUCTANCE,
+	MOSFET_BODY_EMISSION_COEFFICIENT,
+	MOSFET_BODY_SATURATION_CURRENT,
 	SILICON_FORWARD_BETA,
 	SILICON_SATURATION_CURRENT,
 } from "./device-laws";
@@ -373,7 +375,7 @@ function registryStates(
 	return false;
 }
 
-/** JFETs stamped with the fet law's own defaults. See `FetLawDefaultWarning`. */
+/** FETs stamped with the fet law's own defaults. See `FetLawDefaultWarning`. */
 function findFetLawDefaults(
 	netlist: Netlist,
 	registry: PartRegistry,
@@ -381,35 +383,75 @@ function findFetLawDefaults(
 	// A parameter the document types, or the registry states for the exact part, does not
 	// run on the class default. A registered part whose record states neither Vt0 nor Beta
 	// (`2SK30A` states only its gate) still does, and is named for exactly those.
+	//
+	// A MOSFET's body-diode pair is checked the same way: a part the document does not
+	// type and whose record states no body parameters (no shipped record does today)
+	// runs on the `MOSFET_BODY_*` class defaults and is named for exactly those. A
+	// JFET has no body diode and is never named for it.
 	const missingOf = (device: Netlist["devices"][number]) =>
 		[
+			device.kind === "jfet" &&
 			device.parameters.thresholdVolts === undefined &&
 			!registryStates(registry, device.identity.partNumber, "fet", "thresholdVolts")
 				? "Vt0"
 				: null,
+			device.kind === "jfet" &&
 			device.parameters.transconductance === undefined &&
 			!registryStates(registry, device.identity.partNumber, "fet", "transconductance")
 				? "Beta"
 				: null,
+			device.kind === "mosfet" &&
+			!registryStates(registry, device.identity.partNumber, "fet", "bodySaturationCurrent")
+				? "bodyIS"
+				: null,
+			device.kind === "mosfet" &&
+			!registryStates(
+				registry,
+				device.identity.partNumber,
+				"fet",
+				"bodyEmissionCoefficient",
+			)
+				? "bodyN"
+				: null,
 		].filter((name) => name !== null);
 	const defaulted = netlist.devices.filter(
-		(device) => device.kind === "jfet" && missingOf(device).length > 0,
+		(device) =>
+			(device.kind === "jfet" || device.kind === "mosfet") &&
+			missingOf(device).length > 0,
 	);
 	if (defaulted.length === 0) return [];
-	const listed = defaulted.map((device) => {
-		const part = device.identity.partNumber;
-		return `${device.id}${part === null ? "" : ` (${part})`} without ${missingOf(device).join("/")}`;
-	});
+	const jfetDefaulted = defaulted.filter((device) => device.kind === "jfet");
+	const mosfetDefaulted = defaulted.filter((device) => device.kind === "mosfet");
+	const listed = (devices: typeof defaulted): string =>
+		devices
+			.map((device) => {
+				const part = device.identity.partNumber;
+				return `${device.id}${part === null ? "" : ` (${part})`} without ${missingOf(device).join("/")}`;
+			})
+			.join("; ");
+	const sentences: string[] = [];
+	if (jfetDefaulted.length > 0) {
+		sentences.push(
+			`${jfetDefaulted.length} JFET(s) run on the fet law's own defaults ` +
+				`(Vt0 ${JFET_DEFAULT_THRESHOLD_VOLTS} V, Beta ${JFET_DEFAULT_TRANSCONDUCTANCE * 1e3} mS), ` +
+				`which are not any part's values: ${listed(jfetDefaulted)}. Harmless for a switch that is ` +
+				"fully on or off; decisive for one biased near its knee.",
+		);
+	}
+	if (mosfetDefaulted.length > 0) {
+		sentences.push(
+			`${mosfetDefaulted.length} MOSFET(s) run their body diode on the fet law's own body defaults ` +
+				`(bodyIS ${MOSFET_BODY_SATURATION_CURRENT} A, bodyN ${MOSFET_BODY_EMISSION_COEFFICIENT}), ` +
+				`which are not any part's values: ${listed(mosfetDefaulted)}. Harmless for a switch that is ` +
+				"fully on or off; decisive for a branch biased at its knee, like a diode-connected clipper.",
+		);
+	}
 	return [
 		{
 			code: "fet-law-default-parameters" as const,
 			device: null,
 			devices: defaulted.map((device) => device.id),
-			detail:
-				`${defaulted.length} JFET(s) run on the fet law's own defaults ` +
-				`(Vt0 ${JFET_DEFAULT_THRESHOLD_VOLTS} V, Beta ${JFET_DEFAULT_TRANSCONDUCTANCE * 1e3} mS), ` +
-				`which are not any part's values: ${listed.join("; ")}. Harmless for a switch that is ` +
-				"fully on or off; decisive for one biased near its knee.",
+			detail: sentences.join(" "),
 		},
 	];
 }

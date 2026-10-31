@@ -174,6 +174,18 @@ export const SILICON_FORWARD_BETA = 100;
 export const JFET_DEFAULT_THRESHOLD_VOLTS = -2;
 export const JFET_DEFAULT_TRANSCONDUCTANCE = 1e-3;
 /**
+ * A discrete MOSFET's body-diode class defaults, stamped when the registry
+ * record for the exact part types no body parameters (no shipped record does
+ * today). The values are ngspice's own MOS bulk-diode defaults (IS 1e-14 A,
+ * N 1) by value, deliberately: the deck emitter carries the same pair on its
+ * explicit diode, so the two consoles agree by construction rather than by a
+ * fit. A silicon PN junction either way; the name is separate from
+ * `SILICON_SATURATION_CURRENT` so the body default reads beside the fet law.
+ * Named by `fet-law-default-parameters`, never stamped silently.
+ */
+export const MOSFET_BODY_SATURATION_CURRENT = 1e-14;
+export const MOSFET_BODY_EMISSION_COEFFICIENT = 1;
+/**
  * A winding's DC resistance, in the three states the source can be in.
  *
  * **Absent is not zero.** Every real winding has copper resistance, so zero is physically
@@ -3430,6 +3442,13 @@ function resolveDevice(
 			// number only. This shares the `fet` law kind with JFET entries; part
 			// ids are disjoint across the two classes, so a lookup by exact folded
 			// part id cannot cross from one to the other.
+			//
+			// **MOSFET is decided by the declared `kind`, read here.** This `case`
+			// is the law selection the compiler already makes from the device's
+			// typed kind: `kind: mosfet` lowers here, `kind: jfet` to the case
+			// above. No part-number prose is read (a `2N7000` string never decides
+			// anything), and the registry class is not consulted for the decision
+			// either -- it only refines the numbers once the kind has decided.
 			const catalogued = registryLawFor(
 				registry,
 				device.identity.partNumber,
@@ -3454,6 +3473,14 @@ function resolveDevice(
 					gateSaturationCurrent: entry?.gateSaturationCurrent ?? 0,
 					gateOnsetVolts: entry?.gateOnsetVolts ?? 0,
 					gateScaleVolts: entry?.gateScaleVolts ?? 1,
+					// The body diode. Read from the registry entry only (a MOSFET
+					// gate/body refinement is never a per-device document value, the
+					// same rule the gate terms above follow), else the class
+					// defaults, which `fet-law-default-parameters` names.
+					bodySaturationCurrent:
+						entry?.bodySaturationCurrent ?? MOSFET_BODY_SATURATION_CURRENT,
+					bodyEmissionCoefficient:
+						entry?.bodyEmissionCoefficient ?? MOSFET_BODY_EMISSION_COEFFICIENT,
 				},
 			};
 		}

@@ -485,6 +485,8 @@ Stamp parseStamp(const JsonValue& obj) {
     st.gateSaturationCurrent = obj.getDouble("gateSaturationCurrent", 0.0);
     st.gateOnsetVolts = obj.getDouble("gateOnsetVolts", 0.5);
     st.gateScaleVolts = obj.getDouble("gateScaleVolts", 0.06);
+    st.bodySaturationCurrent = obj.getDouble("bodySaturationCurrent", 0.0);
+    st.bodyEmissionCoefficient = obj.getDouble("bodyEmissionCoefficient", 0.0);
     st.mu = obj.getDouble("mu", 100.0);
     st.kg1 = obj.getDouble("kg1", 1000.0);
     st.kp = obj.getDouble("kp", 500.0);

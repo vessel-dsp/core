@@ -45,6 +45,8 @@ struct OpAmpHistory {
 struct FetHistory {
     double vgs = 0.0;
     double vds = 0.0;
+    // The body diode's own previous across, under the fet's single history key.
+    double vsd = 0.0;
 };
 
 struct BlockScratch {
