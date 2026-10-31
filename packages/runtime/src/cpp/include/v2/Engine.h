@@ -210,6 +210,12 @@ public:
 
     void setControl(std::string_view controlId, double position);
     double getControl(std::string_view controlId) const;
+    /**
+     * A program control's declared taper table by id, or null where the control names
+     * no program control or declares no table. Cold paths only (prepare, setControl,
+     * composed-op setup); the sample loop reads the prepare-resolved table instead.
+     */
+    const std::vector<TaperTablePoint>* taperTableForControl(const std::string& controlId) const;
 
     /**
      * Retarget one `dc-source` stamp's `volts` and `sourceOhms` between block
@@ -369,6 +375,10 @@ private:
     std::unordered_map<std::string, double> controlPositions_;
     std::unordered_map<std::string, int32_t> controlIndexByName_;
     std::vector<double> controlValues_;
+    // A declared taper table per control value above, or null where the program control
+    // declares none. Resolved beside `controlValues_` so the sample loop pays no lookup;
+    // stamps keep their denormalized kind and the table joins it here.
+    std::vector<const std::vector<TaperTablePoint>*> controlTaperTables_;
     std::unordered_map<std::string, size_t> blockIndexById_;
 
     // Per-block state & scratch

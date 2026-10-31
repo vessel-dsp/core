@@ -19,9 +19,11 @@
 import {
 	type ParsedQuantity,
 	type PropertyValue,
+	TAPER_TABLE_PROPERTY_KEY,
 	componentDevices,
 	deviceTerminalRoles,
 	parseInterchangeYamlWithTopology,
+	taperTableFieldsOf,
 } from "@vessel-dsp/core";
 import { load as loadYaml } from "js-yaml";
 import { StageRefusal } from "./errors";
@@ -56,6 +58,7 @@ import {
 	type NetlistBypass,
 	type NodeId,
 	type TaperKind,
+	type TaperTable,
 	type TapLaw,
 } from "./types";
 
@@ -1295,6 +1298,36 @@ export function readNetlist(
 					"linear. An audio pot rendered linear is audible across the whole sweep.",
 			});
 		}
+		// A declared measured table wins over the taper kind above. The kind stays on the
+		// control as the maker's letter; the table is the law every consumer executes.
+		// An invalid table refuses the document by name (stage 1): falling back to the
+		// kind, or to linear, would play a curve the source did not state.
+		let taperTable: TaperTable | undefined;
+		if (owner !== undefined) {
+			const raw = (owner.properties as Record<string, unknown>)[
+				TAPER_TABLE_PROPERTY_KEY
+			];
+			if (raw !== undefined) {
+				try {
+					const fields = taperTableFieldsOf({ TaperTable: raw });
+					if (fields.taperTable !== undefined) {
+						taperTable = {
+							points: fields.taperTable.points.map((point) => ({
+								position: point.position,
+								fraction: point.fraction,
+							})),
+							source: fields.taperTable.source,
+						};
+					}
+				} catch (error) {
+					throw new NetlistError(
+						`component ${owner.id}: TaperTable ${error instanceof Error ? error.message : String(error)}`,
+						String(owner.id),
+						error,
+					);
+				}
+			}
+		}
 		const discretePositions = discretePositionsForControl(
 			id,
 			owner,
@@ -1369,6 +1402,7 @@ export function readNetlist(
 			id,
 			taper:
 				declaredTapers.get(id) ?? componentTaper?.taper ?? "linear",
+			...(taperTable !== undefined ? { taperTable } : {}),
 			defaultPosition,
 			positions: discretePositions,
 			role:

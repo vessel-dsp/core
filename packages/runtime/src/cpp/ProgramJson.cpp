@@ -1013,6 +1013,31 @@ Control parseControl(const JsonValue& obj) {
     Control c;
     c.id = obj.getString("id");
     c.taper = readTaperKind(obj, "control \"" + c.id + "\"");
+    // A declared measured table, winning over `taper` where present. The compiler refuses a
+    // malformed table, so the loader reads leniently: fewer than 2 well-formed points is
+    // absent rather than a refusal, which keeps a newer compiler's program loadable here.
+    if (const auto* table = obj.find("taperTable"); table != nullptr && table->isObject()) {
+        if (const auto* source = table->find("source"); source != nullptr && source->isString()) {
+            c.taperTableSource = source->stringValue;
+        }
+        if (const auto* points = table->find("points"); points != nullptr && points->isArray()) {
+            for (const auto& el : points->arrayValue) {
+                if (!el.isObject()) continue;
+                const auto* position = el.find("position");
+                const auto* fraction = el.find("fraction");
+                if (position == nullptr || fraction == nullptr || !position->isNumber() || !fraction->isNumber()) {
+                    continue;
+                }
+                TaperTablePoint point;
+                point.position = position->numberValue;
+                point.fraction = fraction->numberValue;
+                c.taperTable.push_back(point);
+            }
+        }
+        if (c.taperTable.size() < 2) {
+            c.taperTable.clear();
+        }
+    }
     c.defaultPosition = obj.getDouble("defaultPosition", 0.5);
     c.role = obj.getOptionalString("role");
     c.momentary = obj.getBool("momentary", false);

@@ -9,9 +9,10 @@
 // cannot reach the output" -- see `executionOrder`. The blocks themselves all stay in the
 // program.
 //
-// The program carries its controls -- including each one's taper -- because taper is
-// emitted rather than evaluated at compile time. It deliberately carries **no sample
-// rate**: a program is valid at any rate and is given one at initialization.
+// The program carries its controls -- including each one's taper and, where the source
+// declares one, its measured taper table -- because taper is emitted rather than evaluated
+// at compile time. It deliberately carries **no sample rate**: a program is valid at any
+// rate and is given one at initialization.
 
 import { StageRefusal } from "./errors";
 import { portFullScaleVolts } from "./port-full-scale";

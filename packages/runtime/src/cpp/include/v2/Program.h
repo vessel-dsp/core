@@ -20,6 +20,12 @@ enum class TaperKind {
     SCurve
 };
 
+/** One measured taper-table point: the fraction of the track at a control position. */
+struct TaperTablePoint {
+    double position = 0.0;
+    double fraction = 0.0;
+};
+
 enum class StampKind {
     Conductance,
     ControlledConductance,
@@ -555,6 +561,14 @@ struct Block {
 struct Control {
     ControlId id;
     TaperKind taper = TaperKind::Linear;
+    /**
+     * A declared measured table, winning over `taper` where non-empty. Empty on every
+     * program whose source declares no table, which keeps those programs on the same
+     * code path as before this field existed.
+     */
+    std::vector<TaperTablePoint> taperTable;
+    /** Provenance for the table above: where its points were read. Never evaluated. */
+    std::string taperTableSource;
     double defaultPosition = 0.5;
     std::optional<std::string> role;
     /** Derived by the compiler: a contact a chip times by its presses. */

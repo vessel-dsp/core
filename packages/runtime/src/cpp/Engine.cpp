@@ -1405,6 +1405,19 @@ void Engine::prepare(const EngineOptions& options) {
         }
     }
 
+    // A program control's declared table beside each resolved control value above; null
+    // where the control declares none (or names no program control at all). A declared
+    // table wins over the stamp's denormalized kind wherever the sample loop reads one.
+    controlTaperTables_.assign(controlValues_.size(), nullptr);
+    for (const auto& ctrl : program_.controls) {
+        auto it = controlIndexByName_.find(ctrl.id);
+        if (it != controlIndexByName_.end() && it->second >= 0 &&
+            static_cast<size_t>(it->second) < controlTaperTables_.size() &&
+            ctrl.taperTable.size() >= 2) {
+            controlTaperTables_[static_cast<size_t>(it->second)] = &ctrl.taperTable;
+        }
+    }
+
     orderedBlockIndices_.clear();
     for (const auto& blockId : program_.order) {
         auto it = blockIndexById_.find(blockId);
@@ -1462,7 +1475,7 @@ void Engine::prepare(const EngineOptions& options) {
                     maxDelaySeconds = std::max(maxDelaySeconds, maxClockDelay);
 
                     double pos = getControl(cc.controlId);
-                    double frac = taperFraction(cc.taper, pos);
+                    double frac = controlTaperFraction(cc.taper, taperTableForControl(cc.controlId), pos);
                     double r = cc.ohmsAtControlMin + frac * (cc.ohmsAtControlMax - cc.ohmsAtControlMin);
                     initialDelaySeconds = cc.offsetSeconds + cc.stages * cc.formulaConstant * r * cc.farads;
                 }
@@ -2256,7 +2269,7 @@ void Engine::setControl(std::string_view controlId, double position) {
                 // first sample after a switch plays a length the knob left behind.
                 if (options_.sampleRate > 0.0) {
                     const auto& cc = *block.clockControl;
-                    double frac = taperFraction(cc.taper, position);
+                    double frac = controlTaperFraction(cc.taper, taperTableForControl(cc.controlId), position);
                     double r = cc.ohmsAtControlMin + frac * (cc.ohmsAtControlMax - cc.ohmsAtControlMin);
                     double delaySec = cc.offsetSeconds + cc.stages * cc.formulaConstant * r * cc.farads;
                     for (size_t posIdx = 0; posIdx < block.positions.size(); ++posIdx) {
@@ -2278,6 +2291,15 @@ double Engine::getControl(std::string_view controlId) const {
         return it->second;
     }
     return 0.5;
+}
+
+const std::vector<TaperTablePoint>* Engine::taperTableForControl(const std::string& controlId) const {
+    for (const auto& ctrl : program_.controls) {
+        if (ctrl.id == controlId) {
+            return ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr;
+        }
+    }
+    return nullptr;
 }
 
 int32_t Engine::setSupply(int32_t blockIndex, int32_t sourceIndex, double volts, double sourceOhms) {
@@ -3321,6 +3343,15 @@ void Engine::applyStamp(
         return getControl(st.control);
     };
 
+    // A declared taper table for the stamp's control, or null. Resolved at prepare beside
+    // the control values, so the sample loop reads it by index like the position itself.
+    auto readTaperTable = [&](const Stamp& st) -> const std::vector<TaperTablePoint>* {
+        if (st.controlIndex >= 0 && st.controlIndex < static_cast<int32_t>(controlTaperTables_.size())) {
+            return controlTaperTables_[st.controlIndex];
+        }
+        return nullptr;
+    };
+
     BlockScratch* scratchPtr = (blockIndex >= 0 && blockIndex < static_cast<int32_t>(blockScratch_.size())) ? &blockScratch_[blockIndex] : nullptr;
 
     switch (stamp.kind) {
@@ -3330,7 +3361,7 @@ void Engine::applyStamp(
 
         case StampKind::ControlledConductance: {
             double pos = readControl(stamp);
-            double frac = taperFraction(stamp.taper, pos);
+            double frac = controlTaperFraction(stamp.taper, readTaperTable(stamp), pos);
             double share = (stamp.side == "lower") ? frac : (1.0 - frac);
             // Declared end resistance, same arithmetic as the TS console: the wiper
             // travels between the two residuals, so each half is
@@ -3348,7 +3379,7 @@ void Engine::applyStamp(
 
         case StampKind::ControlledResistance: {
             double pos = readControl(stamp);
-            double frac = taperFraction(stamp.taper, pos);
+            double frac = controlTaperFraction(stamp.taper, readTaperTable(stamp), pos);
             double ohms = std::max(stamp.minOhms + frac * (stamp.maxOhms - stamp.minOhms), 1e-3);
             stampConductance(matrix, size, stamp.a, stamp.b, 1.0 / ohms);
             break;
@@ -5011,10 +5042,11 @@ bool Engine::composedDcTransfer(size_t blockIdx, double tap, double& gain, doubl
                     double g = term.gain;
                     if (term.swept) {
                         TaperKind taper = TaperKind::Linear;
+                        const std::vector<TaperTablePoint>* table = nullptr;
                         for (const auto& ctrl : program_.controls) {
-                            if (ctrl.id == term.sweepControl) { taper = ctrl.taper; break; }
+                            if (ctrl.id == term.sweepControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
                         }
-                        g = term.sweepMin + taperFraction(taper, getControl(term.sweepControl)) * (term.sweepMax - term.sweepMin);
+                        g = term.sweepMin + controlTaperFraction(taper, table, getControl(term.sweepControl)) * (term.sweepMax - term.sweepMin);
                     }
                     double value = tapValue;
                     if (term.source.kind == PrimitiveOp::Source::Kind::Const) value = term.source.value;
@@ -5271,10 +5303,11 @@ void Engine::processComposedBlock(size_t blockIdx) {
             }
             if (line.hasSweep) {
                 TaperKind taper = TaperKind::Linear;
+                const std::vector<TaperTablePoint>* table = nullptr;
                 for (const auto& ctrl : program_.controls) {
-                    if (ctrl.id == line.sweepControl) { taper = ctrl.taper; break; }
+                    if (ctrl.id == line.sweepControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
                 }
-                scale = taperFraction(taper, getControl(line.sweepControl));
+                scale = controlTaperFraction(taper, table, getControl(line.sweepControl));
                 driven = true;
             } else if (block.parameter.has_value() && block.parameter->referenceVolts > 0.0) {
                 double volts = 0.0;
@@ -5343,10 +5376,11 @@ void Engine::processComposedBlock(size_t blockIdx) {
             if (lIt == lines.end()) return;
             auto& line = lIt->second;
             TaperKind taper = TaperKind::Linear;
+            const std::vector<TaperTablePoint>* table = nullptr;
             for (const auto& ctrl : program_.controls) {
-                if (ctrl.id == op.gateControl) { taper = ctrl.taper; break; }
+                if (ctrl.id == op.gateControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
             }
-            const bool gate = op.gateMin + taperFraction(taper, getControl(op.gateControl)) * (op.gateMax - op.gateMin) >= 0.5;
+            const bool gate = op.gateMin + controlTaperFraction(taper, table, getControl(op.gateControl)) * (op.gateMax - op.gateMin) >= 0.5;
             const bool rising = gate && !line.holdGateWas;
             line.holdGateWas = gate;
             // Same state machine as the TS console's `holdLoop`.
@@ -5394,10 +5428,11 @@ void Engine::processComposedBlock(size_t blockIdx) {
                         // Same reading as the TS console: the knob's position through its
                         // own taper, spread across the declared range.
                         TaperKind taper = TaperKind::Linear;
+                        const std::vector<TaperTablePoint>* table = nullptr;
                         for (const auto& ctrl : program_.controls) {
-                            if (ctrl.id == term.sweepControl) { taper = ctrl.taper; break; }
+                            if (ctrl.id == term.sweepControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
                         }
-                        gain = term.sweepMin + taperFraction(taper, getControl(term.sweepControl)) * (term.sweepMax - term.sweepMin);
+                        gain = term.sweepMin + controlTaperFraction(taper, table, getControl(term.sweepControl)) * (term.sweepMax - term.sweepMin);
                     }
                     double value = readSource(term.source);
                     if (term.source.kind == PrimitiveOp::Source::Kind::Input) value -= inputDc;

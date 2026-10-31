@@ -398,9 +398,37 @@ export type TaperKind =
 	| "reverse-linear"
 	| "s-curve";
 
+/**
+ * One measured point of a taper table: the fraction of the track at a control position.
+ *
+ * Both in 0..1. Positions across a table are strictly increasing from 0 to 1 inclusive;
+ * fractions are monotone non-decreasing. The compiler refuses a table that is not.
+ */
+export type TaperTablePoint = {
+	readonly position: number;
+	readonly fraction: number;
+};
+
+/**
+ * A measured fraction-versus-position table declared on a control's component.
+ *
+ * The maker's letter stays on `Control.taper`; this is the measured law, and it wins
+ * wherever either runtime maps a position to a fraction. `source` cites where the
+ * points were read (a session record, a datasheet section) and says so when the
+ * positions came from eyeballed marks. Absent on every program whose source declares
+ * no table, which is what keeps those programs byte-identical to the ones the
+ * previous compiler emitted.
+ */
+export type TaperTable = {
+	readonly points: readonly TaperTablePoint[];
+	readonly source: string;
+};
+
 export type Control = {
 	readonly id: ControlId;
 	readonly taper: TaperKind;
+	/** A declared measured law, winning over {@link Control.taper} where present. */
+	readonly taperTable?: TaperTable;
 	/** Position in 0..1. Units never cross this boundary. */
 	readonly defaultPosition: number;
 	/**

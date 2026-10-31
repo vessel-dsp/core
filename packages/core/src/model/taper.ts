@@ -91,6 +91,34 @@ export const TAPER_PROPERTY_KEY = "Taper";
 export const SUPERSEDED_TAPER_PROPERTY_KEYS: readonly string[] = ["Sweep"];
 
 /**
+ * The canonical property key for a measured taper table on a potentiometer component.
+ *
+ * Beside {@link TAPER_PROPERTY_KEY}, not instead of it: a document carrying both keeps the
+ * taper kind as the maker's letter and the table as the measured law, and the table wins
+ * wherever a consumer maps a control position to a fraction of the track. There is no
+ * superseded spelling: a table is a typed field and is never read from prose or a name.
+ */
+export const TAPER_TABLE_PROPERTY_KEY = "TaperTable";
+
+/** One measured point: the fraction of the track at a control position, both 0..1. */
+export type TaperTablePoint = {
+	readonly position: number;
+	readonly fraction: number;
+};
+
+/**
+ * A measured fraction-versus-position table with its source citation.
+ *
+ * 2 to 9 points, positions strictly increasing from 0 to 1 inclusive, fractions monotone
+ * non-decreasing within 0..1. The source says where the points were read (a session record,
+ * a datasheet section) and, where the positions came from eyeballed marks, that they did.
+ */
+export type TaperTable = {
+	readonly points: readonly TaperTablePoint[];
+	readonly source: string;
+};
+
+/**
  * Values that state the *absence* of a taper rather than a taper.
  *
  * A source that does not mark its pots is a real and common situation, and the honest declaration
@@ -151,6 +179,106 @@ export type TaperIssue = Readonly<{
 	componentId: string;
 }>;
 
+/**
+ * Validate a declared taper table (`TaperTable` on a potentiometer component).
+ *
+ * Returns null when valid (or absent: no table is not a defect, it is the state of every
+ * document written before the field existed). Otherwise returns the reason it is not --
+ * the caller turns that into a refusal that names the fault, never a silent linear.
+ *
+ * A table is `{points: [{position, fraction}...], source}`: 2 to 9 points, positions
+ * strictly increasing from 0 to 1 inclusive, fractions monotone non-decreasing within
+ * 0..1, and a non-empty source citation. Whole values compared whole: no folding, no
+ * aliases, no reading a curve out of a name.
+ */
+export function invalidTaperTableReason(value: unknown): string | null {
+	if (value === undefined) return null;
+	if (value === null || typeof value !== "object" || Array.isArray(value)) {
+		return "TaperTable must be a mapping with points and a source, not an array or a scalar";
+	}
+	const record = value as Record<string, unknown>;
+	const { points, source } = record;
+	if (typeof source !== "string" || source.trim().length === 0) {
+		return "TaperTable needs a non-empty source citation naming where its points were read";
+	}
+	if (!Array.isArray(points)) {
+		return "TaperTable.points must be a list of {position, fraction} points";
+	}
+	if (points.length < 2 || points.length > 9) {
+		return `TaperTable.points needs 2 to 9 points, got ${points.length}`;
+	}
+	for (let index = 0; index < points.length; index += 1) {
+		const point = points[index] as unknown;
+		if (point === null || typeof point !== "object" || Array.isArray(point)) {
+			return `TaperTable.points[${index}] must be a {position, fraction} mapping`;
+		}
+		const { position, fraction } = point as Record<string, unknown>;
+		if (typeof position !== "number" || !Number.isFinite(position)) {
+			return `TaperTable.points[${index}].position must be a finite number in 0..1, got ${String(position)}`;
+		}
+		if (typeof fraction !== "number" || !Number.isFinite(fraction)) {
+			return `TaperTable.points[${index}].fraction must be a finite number in 0..1, got ${String(fraction)}`;
+		}
+		if (position < 0 || position > 1) {
+			return `TaperTable.points[${index}].position ${position} is outside 0..1`;
+		}
+		if (fraction < 0 || fraction > 1) {
+			return `TaperTable.points[${index}].fraction ${fraction} is outside 0..1`;
+		}
+		if (index === 0 && position !== 0) {
+			return `TaperTable.points must start at position 0, got ${position}`;
+		}
+		if (index === points.length - 1 && position !== 1) {
+			return `TaperTable.points must end at position 1, got ${position}`;
+		}
+		if (index > 0) {
+			const previous = (points[index - 1] as Record<string, unknown>) as {
+				position: number;
+				fraction: number;
+			};
+			if (position <= (previous.position as number)) {
+				return `TaperTable.points must be strictly increasing in position, got ${previous.position} then ${position} at index ${index}`;
+			}
+			if (fraction < (previous.fraction as number)) {
+				return `TaperTable.points must be monotone non-decreasing in fraction, got ${previous.fraction} then ${fraction} at index ${index}`;
+			}
+		}
+	}
+	return null;
+}
+
+/**
+ * Read a declared taper table off a component's properties.
+ *
+ * Returns the table when present and valid, null when absent, and throws an `Error`
+ * carrying the fault when present but invalid -- the caller turns that into a refusal
+ * (stage 1) or an admission diagnostic, never a linear fallback.
+ */
+export function taperTableFieldsOf(params: {
+	readonly TaperTable?: unknown;
+}): { readonly taperTable?: TaperTable } {
+	const reason = invalidTaperTableReason(params.TaperTable);
+	if (reason !== null) {
+		throw new Error(reason);
+	}
+	if (params.TaperTable === undefined) {
+		return {};
+	}
+	const table = params.TaperTable as {
+		points: readonly { position: number; fraction: number }[];
+		source: string;
+	};
+	return {
+		taperTable: {
+			points: table.points.map((point) => ({
+				position: point.position,
+				fraction: point.fraction,
+			})),
+			source: table.source.trim(),
+		},
+	};
+}
+
 const TAPER_BEARING_KINDS: ReadonlySet<string> = new Set([
 	"potentiometer",
 	"variable-resistor",
@@ -185,8 +313,10 @@ export function collectTaperIssues(
 	}
 
 	const declared = properties[TAPER_PROPERTY_KEY];
-	if (declared === undefined) return issues;
-	if (typeof declared !== "string") {
+	if (declared === undefined) {
+		// No taper kind is not a defect -- but a table standing beside it still has to
+		// be well-formed, so the table check below runs either way.
+	} else if (typeof declared !== "string") {
 		issues.push({
 			code: "taper-not-a-string",
 			severity: "warning",
@@ -194,35 +324,50 @@ export function collectTaperIssues(
 			componentId: component.id,
 		});
 		return issues;
+	} else {
+		const verdict = classifyTaper(declared);
+		switch (verdict.status) {
+			case "canonical":
+				break;
+			case "absence":
+				issues.push({
+					code: "taper-states-absence",
+					severity: "warning",
+					message: `"${declared}" says no taper is known rather than naming a law; omit the "${TAPER_PROPERTY_KEY}" property instead`,
+					componentId: component.id,
+				});
+				return issues;
+			case "not-a-law":
+				issues.push({
+					code: "taper-not-a-law",
+					severity: "warning",
+					message: `"${declared}" names a package or a travel range, not a resistance law; a trimmer still has a taper, and this states neither`,
+					componentId: component.id,
+				});
+				return issues;
+			default:
+				issues.push({
+					code: "taper-unrecognized",
+					severity: "warning",
+					message: `"${declared}" is not a taper law. A manufacturer letter code is a printed marking whose meaning is a convention, not a definition -- record it as source provenance and declare the law here, one of: ${POTENTIOMETER_TAPERS.join(", ")}`,
+					componentId: component.id,
+				});
+				return issues;
+		}
 	}
 
-	const verdict = classifyTaper(declared);
-	switch (verdict.status) {
-		case "canonical":
-			return issues;
-		case "absence":
-			issues.push({
-				code: "taper-states-absence",
-				severity: "warning",
-				message: `"${declared}" says no taper is known rather than naming a law; omit the "${TAPER_PROPERTY_KEY}" property instead`,
-				componentId: component.id,
-			});
-			return issues;
-		case "not-a-law":
-			issues.push({
-				code: "taper-not-a-law",
-				severity: "warning",
-				message: `"${declared}" names a package or a travel range, not a resistance law; a trimmer still has a taper, and this states neither`,
-				componentId: component.id,
-			});
-			return issues;
-		default:
-			issues.push({
-				code: "taper-unrecognized",
-				severity: "warning",
-				message: `"${declared}" is not a taper law. A manufacturer letter code is a printed marking whose meaning is a convention, not a definition -- record it as source provenance and declare the law here, one of: ${POTENTIOMETER_TAPERS.join(", ")}`,
-				componentId: component.id,
-			});
-			return issues;
+	// A malformed table is named here; the compiler refuses it outright (stage 1), so a
+	// bad table can neither warn its way through nor render as a silent linear.
+	const tableReason = invalidTaperTableReason(
+		(properties as Record<string, unknown>)[TAPER_TABLE_PROPERTY_KEY],
+	);
+	if (tableReason !== null) {
+		issues.push({
+			code: "taper-table-invalid",
+			severity: "warning",
+			message: `"${TAPER_TABLE_PROPERTY_KEY}" on ${component.id} is not a usable table: ${tableReason}`,
+			componentId: component.id,
+		});
 	}
+	return issues;
 }

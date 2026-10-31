@@ -221,6 +221,24 @@ V2_EXPORT double v2_testonly_taper_fraction(const char* name, double position) {
     return taperFraction(kind, position);
 }
 
+// Test-only: the taper-table law exactly as the console evaluates it, over caller-supplied
+// parallel position/fraction arrays. Builds the same point vector the loader hands the
+// engine and calls the engine's own `taperTableFraction`, so the comparison grades the
+// shipped code path rather than a second copy of it. Returns NaN for fewer than 2 points,
+// the same shape the loader drops to absent, so a comparison can never read a refused
+// table as a number.
+V2_EXPORT double v2_testonly_taper_table_fraction(const double* positions, const double* fractions, int32_t count, double position) {
+    if (positions == nullptr || fractions == nullptr || count < 2) {
+        return std::numeric_limits<double>::quiet_NaN();
+    }
+    std::vector<TaperTablePoint> points;
+    points.reserve(static_cast<size_t>(count));
+    for (int32_t i = 0; i < count; i += 1) {
+        points.push_back(TaperTablePoint{positions[i], fractions[i]});
+    }
+    return taperTableFraction(points, position);
+}
+
 V2_EXPORT void v2_engine_reset(void* handle) {
     if (!handle) return;
     auto* ctx = static_cast<V2WasmContext*>(handle);
