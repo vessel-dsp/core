@@ -4,6 +4,7 @@ import { describe, expect, it } from "bun:test";
 import { compile } from "../src/compile";
 import { findBistableLatches } from "../src/latch-seed";
 import { NetlistError, isUserPanelControl, parseQuantity, readNetlist } from "../src/netlist";
+import { emptyRegistry } from "../src/registry";
 import { GROUND } from "../src/types";
 import {
 	bypassEngagedFixture,
@@ -28,6 +29,11 @@ import {
 	potSCurveTaper,
 	potSourceUnmarkedTaper,
 	potSteppedTaper,
+	potTaperTable,
+	potTaperTableNonMonotone,
+	potTaperTableOutOfRange,
+	potTaperTableTwoPoint,
+	potTaperTableUnsorted,
 	potUnknownTaperCode,
 	powerTransformerVoltageDerived,
 	quotedNodeDivider,
@@ -243,6 +249,50 @@ describe("readNetlist", () => {
 			const source = derive(potSCurveTaper, 'Taper: "s-curve"', `Taper: "${code}"`);
 			expect(readNetlist(source).controls[0]?.taper).toBe("linear");
 			expect(taperWarnings(source)).toEqual([code]);
+		}
+	});
+
+	it("carries a declared taper table on the control beside the taper kind", () => {
+		// The fixture keeps `Taper: "log"` (the maker's letter) while `TaperTable`
+		// carries five measured-style points that match no named law.
+		const netlist = readNetlist(potTaperTable);
+		expect(netlist.controls[0]?.taper).toBe("logarithmic");
+		expect(netlist.controls[0]?.taperTable).toEqual({
+			points: [
+				{ position: 0, fraction: 0 },
+				{ position: 0.25, fraction: 0.05 },
+				{ position: 0.5, fraction: 0.5 },
+				{ position: 0.75, fraction: 0.95 },
+				{ position: 1, fraction: 1 },
+			],
+			source: "synthetic fixture: five measured-style points, not a vendor curve",
+		});
+		// A two-point corner-to-corner table rides the same field.
+		expect(readNetlist(potTaperTableTwoPoint).controls[0]?.taperTable).toEqual({
+			points: [
+				{ position: 0, fraction: 0 },
+				{ position: 1, fraction: 1 },
+			],
+			source: "synthetic fixture: the identity as a table",
+		});
+	});
+
+	it("refuses an invalid taper table by name instead of rendering a kind", () => {
+		// Each refusal names the component and the fault; none of them compiles, so no
+		// bad table can warn its way through or render as a silent linear.
+		for (const [source, fault] of [
+			[potTaperTableUnsorted, "strictly increasing in position"],
+			[potTaperTableOutOfRange, "outside 0..1"],
+			[potTaperTableNonMonotone, "monotone non-decreasing in fraction"],
+		] as const) {
+			const compiled = compile(source, { registry: emptyRegistry });
+			expect(compiled.status).toBe("unsupported");
+			if (compiled.status !== "unsupported") throw new Error("expected a refusal");
+			expect(compiled.reasons).toHaveLength(1);
+			expect(compiled.reasons[0]?.stage).toBe("netlist");
+			expect(compiled.reasons[0]?.device).toBe("VR1");
+			expect(compiled.reasons[0]?.reason).toContain("TaperTable");
+			expect(compiled.reasons[0]?.reason).toContain(fault);
 		}
 	});
 

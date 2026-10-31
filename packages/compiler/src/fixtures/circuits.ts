@@ -6831,6 +6831,85 @@ export const potSteppedTaper = potWithTaper("stepped");
  */
 export const potSCurveTaper = potWithTaper("s-curve");
 
+/**
+ * A declared measured table beside the maker's letter, and the table wins.
+ *
+ * The component keeps `Taper: "log"` (whatever the source printed) while `TaperTable`
+ * carries five measured-style points that match no named law. Every consumer maps the
+ * position through the table: at 0.5 the render reads 0.5 of the track (the table's
+ * midpoint), not 0.175 (the log law's noon). The source citation says what the points
+ * are: a synthetic stand-in, not a vendor curve.
+ */
+export const potTaperTable = derive(
+	potWithoutPanelTaper,
+	'      ControlId: "Level"',
+	`      ControlId: "Level"
+      Taper: "log"
+      TaperTable:
+        source: "synthetic fixture: five measured-style points, not a vendor curve"
+        points:
+          - position: 0
+            fraction: 0
+          - position: 0.25
+            fraction: 0.05
+          - position: 0.5
+            fraction: 0.5
+          - position: 0.75
+            fraction: 0.95
+          - position: 1
+            fraction: 1`,
+);
+
+/**
+ * A two-point table from corner to corner. The control-position mapping through this
+ * table is the identity, so a program carrying it renders bit-identically to the same
+ * program with no table: the table path reproduces the kind path exactly.
+ */
+export const potTaperTableTwoPoint = derive(
+	potWithoutPanelTaper,
+	'      ControlId: "Level"',
+	`      ControlId: "Level"
+      Taper: "linear"
+      TaperTable:
+        source: "synthetic fixture: the identity as a table"
+        points:
+          - position: 0
+            fraction: 0
+          - position: 1
+            fraction: 1`,
+);
+
+/** A table whose positions run backwards: refused by name, never read as linear. */
+export const potTaperTableUnsorted = derive(
+	potTaperTable,
+	`          - position: 0.25
+            fraction: 0.05
+          - position: 0.5
+            fraction: 0.5`,
+	`          - position: 0.5
+            fraction: 0.5
+          - position: 0.25
+            fraction: 0.05`,
+);
+
+/** A table with a fraction outside 0..1: refused by name, never read as linear. */
+export const potTaperTableOutOfRange = derive(
+	potTaperTable,
+	`          - position: 0.75
+            fraction: 0.95`,
+	`          - position: 0.75
+            fraction: 1.2`,
+);
+
+/** A table whose fractions step backwards: refused by name, never read as linear. */
+export const potTaperTableNonMonotone = derive(
+	potTaperTable,
+	`          - position: 0.75
+            fraction: 0.95`,
+	`          - position: 0.75
+            fraction: 0.4`,
+);
+
 /** A pot wired as a two-terminal rheostat, which lowering cannot stamp. */
 // Through `derive`, not `String.replace`: a replace that stops matching **silently returns its
 // input**, and this fixture then becomes a copy of `potDivider` and compiles. That happened the

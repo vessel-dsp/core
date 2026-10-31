@@ -3,8 +3,8 @@
 
 import { describe, expect, it } from "bun:test";
 import { compile, emptyRegistry, type Program } from "@vessel-dsp/compiler";
-import { potDivider, potSCurveTaper } from "@vessel-dsp/compiler/fixtures/circuits";
-import { IMPLEMENTED_TAPER_NAMES, taperFraction, unrecognisedTapers } from "../src/taper";
+import { potDivider, potSCurveTaper, potTaperTable, potTaperTableTwoPoint } from "@vessel-dsp/compiler/fixtures/circuits";
+import { IMPLEMENTED_TAPER_NAMES, controlTaperFraction, taperFraction, taperTableFraction, unrecognisedTapers } from "../src/taper";
 
 describe("taperFraction", () => {
 	it("is the identity for a linear taper", () => {
@@ -36,6 +36,88 @@ describe("taperFraction", () => {
 		expect(taperFraction("reverse-linear", 0.5)).toBeCloseTo(0.5, 12);
 		expect(taperFraction("reverse-linear", 1)).toBe(0);
 		expect(taperFraction("reverse-logarithmic", 0.5)).toBeCloseTo(0.825, 6);
+	});
+});
+
+// A table is arithmetic on declared points, not agreement with a named law: the synthetic
+// five-point table below matches no taper kind on purpose.
+describe("taperTableFraction: linear interpolation between the declared points", () => {
+	// The synthetic five-point table from the potTaperTable fixture: no named law, so
+	// every value here is arithmetic on the table rather than agreement with a curve.
+	const POINTS = [
+		{ position: 0, fraction: 0 },
+		{ position: 0.25, fraction: 0.05 },
+		{ position: 0.5, fraction: 0.5 },
+		{ position: 0.75, fraction: 0.95 },
+		{ position: 1, fraction: 1 },
+	] as const;
+	const points = [...POINTS];
+
+	it("reproduces its own points to 1e-6, both stops included", () => {
+		for (const { position, fraction } of POINTS) {
+			expect(Math.abs(taperTableFraction(points, position) - fraction)).toBeLessThan(1e-6);
+		}
+	});
+
+	it("is piecewise linear: midpoints of each segment read the segment mean", () => {
+		expect(taperTableFraction(points, 0.125)).toBeCloseTo(0.025, 12);
+		expect(taperTableFraction(points, 0.375)).toBeCloseTo(0.275, 12);
+		// The dense middle segment climbs 0.45 over 0.25 of travel.
+		expect(taperTableFraction(points, 0.625)).toBeCloseTo(0.725, 12);
+		expect(taperTableFraction(points, 0.875)).toBeCloseTo(0.975, 12);
+	});
+
+	it("clamps outside 0..1, like every other taper", () => {
+		expect(taperTableFraction(points, -1)).toBe(0);
+		expect(taperTableFraction(points, 2)).toBe(1);
+	});
+
+	it("a 2-point corner-to-corner table is the identity, exactly where linear is", () => {
+		const identity = [
+			{ position: 0, fraction: 0 },
+			{ position: 1, fraction: 1 },
+		];
+		for (let step = 0; step <= 10_000; step += 1) {
+			const position = step / 10_000 - 0.00005;
+			expect(Object.is(taperTableFraction(identity, position), taperFraction("linear", position))).toBe(true);
+		}
+	});
+});
+
+describe("controlTaperFraction: a declared table wins over the taper kind", () => {
+	const table = {
+		points: [
+			{ position: 0, fraction: 0 },
+			{ position: 0.25, fraction: 0.05 },
+			{ position: 0.5, fraction: 0.5 },
+			{ position: 0.75, fraction: 0.95 },
+			{ position: 1, fraction: 1 },
+		],
+		source: "synthetic",
+	};
+
+	it("reads the table when one is declared, whatever the kind says", () => {
+		const control = { taper: "logarithmic" as const, taperTable: table };
+		// The log law's noon is 0.175; the table's is 0.5. The render must read 0.5.
+		expect(controlTaperFraction(control, "linear", 0.5)).toBeCloseTo(0.5, 12);
+		expect(controlTaperFraction(control, "logarithmic", 0.5)).toBeCloseTo(0.5, 12);
+	});
+
+	it("is exactly taperFraction with no table, so a table-less program cannot move", () => {
+		for (const taper of ["linear", "logarithmic", "reverse-logarithmic", "reverse-linear", "s-curve"] as const) {
+			const control = { taper };
+			for (let step = -100; step <= 10_100; step += 1) {
+				const position = step / 10_000;
+				expect(
+					Object.is(controlTaperFraction(control, taper, position), taperFraction(control.taper, position)),
+				).toBe(true);
+			}
+		}
+		// An absent control falls back to the stamp's kind, as it always has.
+		for (let step = 0; step <= 1_000; step += 1) {
+			const position = step / 1_000;
+			expect(Object.is(controlTaperFraction(undefined, "reverse-linear", position), taperFraction("reverse-linear", position))).toBe(true);
+		}
 	});
 });
 

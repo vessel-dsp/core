@@ -9,11 +9,11 @@
 // that needs the compiled console skips by name when `src/wasm/` is absent.
 
 import { describe, expect, it } from "bun:test";
-import { compile, emptyRegistry, type Program } from "@vessel-dsp/compiler";
-import { hybridDelayPedal, potDivider, potSCurveTaper } from "@vessel-dsp/compiler/fixtures/circuits";
+import { compile, emptyRegistry, type Program, type TaperTable } from "@vessel-dsp/compiler";
+import { hybridDelayPedal, potDivider, potSCurveTaper, potTaperTable, potTaperTableTwoPoint } from "@vessel-dsp/compiler/fixtures/circuits";
 import { fixtureRegistry } from "@vessel-dsp/compiler/fixtures/registry";
 import { ReferenceRuntime, RuntimeError } from "../src/reference-runtime";
-import { taperFraction } from "../src/taper";
+import { taperFraction, taperTableFraction } from "../src/taper";
 import { getV2WasmModule, V2WasmEngine } from "../src/v2-wasm-engine";
 import { wasmBinaryPresent } from "./wasm-presence";
 
@@ -275,5 +275,146 @@ describe("a taper neither console implements is refused by name, not read as lin
 		} as unknown as Program;
 		(await V2WasmEngine.create(absent)).destroy();
 		expect(() => new ReferenceRuntime(absent).prepare(RATE)).not.toThrow();
+	});
+});
+
+describe("a declared taper table on both consoles", () => {
+	// The synthetic five-point table: linear between points is the engine convention, so a
+	// dense sweep that agrees bit for bit proves both consoles run the same interpolant.
+	const TABLE: TaperTable = {
+		points: [
+			{ position: 0, fraction: 0 },
+			{ position: 0.25, fraction: 0.05 },
+			{ position: 0.5, fraction: 0.5 },
+			{ position: 0.75, fraction: 0.95 },
+			{ position: 1, fraction: 1 },
+		],
+		source: "synthetic",
+	};
+
+	const renderTs = (program: Program, position: number): ArrayLike<number> => {
+		const runtime = new ReferenceRuntime(program);
+		runtime.prepare(RATE);
+		runtime.setControl(program.controls[0]?.id as string, position);
+		return runtime.process(sine(1000, 200));
+	};
+
+	const renderWasm = async (program: Program, position: number): Promise<Float32Array> => {
+		const engine = await V2WasmEngine.create(program);
+		engine.prepare({ sampleRate: RATE });
+		engine.setControl(program.controls[0]?.id as string, position);
+		const input = Float32Array.from(sine(1000, 200));
+		const output = new Float32Array(input.length);
+		engine.processBlock(input, output);
+		engine.destroy();
+		return output;
+	};
+
+	it("TypeScript console: the five-point table reproduces its own points to 1e-6", () => {
+		for (const { position, fraction } of TABLE.points) {
+			expect(Math.abs(taperTableFraction(TABLE.points, position) - fraction)).toBeLessThan(1e-6);
+		}
+	});
+
+	it.skipIf(!wasmBinaryPresent)("the C++ console evaluates the table bit-identically over a dense sweep", async () => {
+		// The s-curve proof, repeated for the table: the same interpolant on both consoles,
+		// reached through the test-only export that calls the engine's own function.
+		const mod = await getV2WasmModule();
+		const count = TABLE.points.length;
+		const pPos = mod._malloc(count * 8);
+		const pFrac = mod._malloc(count * 8);
+		mod.HEAPF64.set(TABLE.points.map((point) => point.position), pPos / 8);
+		mod.HEAPF64.set(TABLE.points.map((point) => point.fraction), pFrac / 8);
+		const x = grid();
+		const ts = x.map((value) => taperTableFraction(TABLE.points, value));
+		const cpp = x.map((value) => mod._v2_testonly_taper_table_fraction(pPos, pFrac, count, value) as number);
+		mod._free(pPos);
+		mod._free(pFrac);
+		// Only + - * / on both sides, in the same order: identical doubles, not a bound.
+		expect(countDiffering(ts, cpp)).toBe(0);
+	});
+
+	it.skipIf(!wasmBinaryPresent)("the comparison would have caught a different interpolant", async () => {
+		const mod = await getV2WasmModule();
+		const count = TABLE.points.length;
+		const pPos = mod._malloc(count * 8);
+		const pFrac = mod._malloc(count * 8);
+		mod.HEAPF64.set(TABLE.points.map((point) => point.position), pPos / 8);
+		mod.HEAPF64.set(TABLE.points.map((point) => point.fraction), pFrac / 8);
+		const x = grid();
+		const tsLinear = x.map((value) => taperFraction("linear", value));
+		const cppTable = x.map((value) => mod._v2_testonly_taper_table_fraction(pPos, pFrac, count, value) as number);
+		mod._free(pPos);
+		mod._free(pFrac);
+		expect(countDiffering(tsLinear, cppTable)).toBeGreaterThan(0.9 * x.length);
+	});
+
+	it.skipIf(!wasmBinaryPresent)("fewer than 2 points is NaN, never a number", async () => {
+		const mod = await getV2WasmModule();
+		expect(Number.isNaN(mod._v2_testonly_taper_table_fraction(0, 0, 0, 0.5))).toBe(true);
+		expect(Number.isNaN(mod._v2_testonly_taper_table_fraction(0, 0, 1, 0.5))).toBe(true);
+	});
+
+	it("a pot divider follows the table end to end, and the table wins over the kind", () => {
+		// The fixture declares `Taper: "log"` beside the table: at half rotation the log
+		// law reads 0.175 and the table reads 0.5, so 0.5 proves the table won.
+		const program = programFor(potTaperTable);
+		expect(program.controls[0]?.taper).toBe("logarithmic");
+		for (const [position, fraction] of [[0, 0], [0.25, 0.05], [0.5, 0.5], [0.75, 0.95], [1, 1]] as const) {
+			expect(Math.abs(tsGain(program, position) - fraction)).toBeLessThan(5e-4);
+		}
+	});
+
+	it.skipIf(!wasmBinaryPresent)("C++ console: the same divider follows the same table", async () => {
+		const program = programFor(potTaperTable);
+		for (const [position, fraction] of [[0, 0], [0.25, 0.05], [0.5, 0.5], [0.75, 0.95], [1, 1]] as const) {
+			expect(Math.abs((await wasmGain(program, position)) - fraction)).toBeLessThan(5e-4);
+		}
+	});
+
+	it("a mutated table moves the render, so the check can see a wrong table", () => {
+		const program = programFor(potTaperTable);
+		const moved = {
+			...program,
+			controls: program.controls.map((control) => ({
+				...control,
+				taperTable: {
+					source: "mutated",
+					points: TABLE.points.map((point) =>
+						point.position === 0.5 ? { ...point, fraction: 0.6 } : point,
+					),
+				},
+			})),
+		} as Program;
+		expect(Math.abs(tsGain(moved, 0.5) - tsGain(program, 0.5))).toBeGreaterThan(0.05);
+	});
+
+	it("a 2-point corner-to-corner table renders bit-identically to no table", () => {
+		const tabled = programFor(potTaperTableTwoPoint);
+		const plain = programFor(potDivider);
+		for (const position of [0, 0.125, 0.3, 0.5, 0.7, 0.875, 1]) {
+			const a = renderTs(tabled, position);
+			const b = renderTs(plain, position);
+			expect(a.length).toBe(b.length);
+			let differing = 0;
+			for (let index = 0; index < a.length; index += 1) {
+				if (!Object.is(a[index], b[index])) differing += 1;
+			}
+			expect(differing).toBe(0);
+		}
+	});
+
+	it.skipIf(!wasmBinaryPresent)("C++ console: the same bit-identity holds", async () => {
+		const tabled = programFor(potTaperTableTwoPoint);
+		const plain = programFor(potDivider);
+		for (const position of [0.3, 0.5, 0.7]) {
+			const a = await renderWasm(tabled, position);
+			const b = await renderWasm(plain, position);
+			let differing = 0;
+			for (let index = 0; index < a.length; index += 1) {
+				if (!Object.is(a[index], b[index])) differing += 1;
+			}
+			expect(differing).toBe(0);
+		}
 	});
 });
