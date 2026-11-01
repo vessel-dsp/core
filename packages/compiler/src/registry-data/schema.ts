@@ -7,8 +7,10 @@
 // the resolution narrowings in `device-laws.ts`; no name here is invented:
 // 
 // - `bjt`: `device-laws.ts` `case "bjt"` stamps `polarity` plus these five numerics.
-// - `jfet` / `mosfet`: both lower to the shared `fet` law; the seven numerics below are the
-//   law's numeric fields (`gateSaturationCurrent: 0` is the MOSFET's insulated gate).
+// - `jfet` / `mosfet`: both lower to the shared `fet` law; the JFET's seven numerics
+//   below are the law's numeric fields (`gateSaturationCurrent: 0` is the MOSFET's
+//   insulated gate), and a MOSFET entry additionally carries the body-diode pair
+//   (`bodySaturationCurrent`, `bodyEmissionCoefficient`), which a JFET never has.
 // - `diode` / `zener` / `led`: all three lower to the `diode` law; a zener adds a reverse
 //   knee (`breakdownVolts`), an LED adds `isLed`, and a Schottky is a diode with a low
 //   forward knee -- all fit these five numeric names. Silicon records omit
@@ -65,6 +67,8 @@ export const CLASS_PARAM_SCHEMAS = {
 		"gateSaturationCurrent",
 		"gateOnsetVolts",
 		"gateScaleVolts",
+		"bodySaturationCurrent",
+		"bodyEmissionCoefficient",
 	],
 	diode: [
 		"saturationCurrent",

@@ -362,7 +362,17 @@ export function fetLawEntry(
 			`${record.partIds.join(",")}: a ${cls} record states no parameters`,
 		);
 	}
-	const channelDefaults =
+	const channelDefaults: {
+		readonly thresholdVolts: number;
+		readonly transconductance: number;
+		readonly channelLengthModulation: number;
+		readonly subthresholdVolts: number;
+		readonly gateSaturationCurrent: number;
+		readonly gateOnsetVolts: number;
+		readonly gateScaleVolts: number;
+		readonly bodySaturationCurrent?: number;
+		readonly bodyEmissionCoefficient?: number;
+	} =
 		cls === "jfet"
 			? {
 					thresholdVolts: -2,
@@ -381,6 +391,12 @@ export function fetLawEntry(
 					gateSaturationCurrent: 0,
 					gateOnsetVolts: 0,
 					gateScaleVolts: 1,
+					// The body-diode defaults by value (see `device-laws.ts`): 1e-14 A
+					// and 1.0, ngspice's own MOS bulk-diode defaults, so the runtime
+					// and the emitted deck agree by construction. A drift between the
+					// two copies is caught by the sparse-record test.
+					bodySaturationCurrent: 1e-14,
+					bodyEmissionCoefficient: 1,
 				};
 	return {
 		partIds: entryIdsOf(record),
@@ -414,6 +430,22 @@ export function fetLawEntry(
 				gateScaleVolts:
 					citedValueOf(record, "gateScaleVolts") ??
 					channelDefaults.gateScaleVolts,
+				// A JFET has no body diode and carries neither field, so its entry
+				// keeps its previous shape exactly. A MOSFET entry always carries
+				// both (cited record value when the record types it, else the class
+				// default above).
+				...(cls === "mosfet"
+					? {
+							bodySaturationCurrent:
+								citedValueOf(record, "bodySaturationCurrent") ??
+								channelDefaults.bodySaturationCurrent ??
+								1e-14,
+							bodyEmissionCoefficient:
+								citedValueOf(record, "bodyEmissionCoefficient") ??
+								channelDefaults.bodyEmissionCoefficient ??
+								1,
+						}
+					: {}),
 			},
 		},
 	};

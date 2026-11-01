@@ -3786,15 +3786,18 @@ void Engine::applyStamp(
 
             double prevVgs = stamp.thresholdVolts;
             double prevVds = 0.0;
+            double prevVsd = 0.0;
             if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->fetHistory.size())) {
                 prevVgs = scratchPtr->fetHistory[stampIdx].vgs;
                 prevVds = scratchPtr->fetHistory[stampIdx].vds;
+                prevVsd = scratchPtr->fetHistory[stampIdx].vsd;
             } else {
                 uint64_t fetKey = packHistoryKey3(blockIndex, stamp.gate, stamp.drain, stamp.source);
                 auto it = fetHistory_.find(fetKey);
                 if (it != fetHistory_.end()) {
                     prevVgs = it->second.vgs;
                     prevVds = it->second.vds;
+                    prevVsd = it->second.vsd;
                 }
             }
 
@@ -3804,12 +3807,9 @@ void Engine::applyStamp(
             if (vgs != rawVgs || vds != rawVds) {
                 limitedIterate_ = true;
             }
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->fetHistory.size())) {
-                scratchPtr->fetHistory[stampIdx] = FetHistory{ vgs, vds };
-            } else {
-                uint64_t fetKey = packHistoryKey3(blockIndex, stamp.gate, stamp.drain, stamp.source);
-                fetHistory_[fetKey] = FetHistory{ vgs, vds };
-            }
+            // The body diode's own previous across, under the fet's single history
+            // key. Written back with vgs/vds at the end of the case.
+            double vsd = prevVsd;
 
             double beta = stamp.transconductance;
             double lambda = stamp.channelLengthModulation;
@@ -3919,6 +3919,50 @@ void Engine::applyStamp(
                 };
                 stampJunction(sNode, vgs);
                 stampJunction(d, vgs - vds);
+            }
+
+            // The MOSFET body diode, source-to-drain. Mirrors `reference-runtime.ts`:
+            // a discrete MOSFET is a four-terminal structure with its body tied to
+            // the source, so the diode is always present (n-channel anode at the
+            // source, p-channel mirrored via the physical nodes). A JFET has none:
+            // both stamp fields are absent (0) and this block contributes nothing,
+            // which is what this stamp did for every FET before.
+            //
+            // Stamped inside the fet solve (the fet's single history key, the shared
+            // junction damping) rather than as a separate diode device, so the
+            // program shape for a JFET is unchanged and a MOSFET program carries
+            // the diode parameters in its own stamp.
+            if (stamp.bodySaturationCurrent > 0.0 && stamp.bodyEmissionCoefficient > 0.0) {
+                double bodyIs = stamp.bodySaturationCurrent;
+                double bodyScale = stamp.bodyEmissionCoefficient * 0.025852;
+                int32_t bodyAnode = (stamp.channel == "n") ? sNode : d;
+                int32_t bodyCathode = (stamp.channel == "n") ? d : sNode;
+                double rawBody = solution[bodyAnode] - solution[bodyCathode];
+                double acrossBody = limitJunction(rawBody, vsd, bodyScale, bodyIs);
+                if (acrossBody != rawBody) {
+                    limitedIterate_ = true;
+                }
+                vsd = acrossBody;
+                // Plain exponential (no series resistance: the bulk resistance is
+                // not in the source), capped like every other junction so an
+                // undamped first iterate cannot overflow.
+                double exponential = std::exp(std::min(acrossBody / bodyScale, JUNCTION_EXPONENT_LIMIT));
+                double bodyCurrent = bodyIs * (exponential - 1.0);
+                // No added conductance floor: the channel already stamps its own
+                // 1e-12 floor between the same two nodes, and a floor here would
+                // perturb every MOSFET render at 1e-12 even where the diode never
+                // conducts.
+                double bodyConductance = (bodyIs * exponential) / bodyScale;
+                double bodyEquivalent = bodyCurrent - bodyConductance * acrossBody;
+                stampConductance(matrix, size, bodyAnode, bodyCathode, bodyConductance);
+                rhs[bodyAnode] -= bodyEquivalent;
+                rhs[bodyCathode] += bodyEquivalent;
+            }
+            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->fetHistory.size())) {
+                scratchPtr->fetHistory[stampIdx] = FetHistory{ vgs, vds, vsd };
+            } else {
+                uint64_t fetKey = packHistoryKey3(blockIndex, stamp.gate, stamp.drain, stamp.source);
+                fetHistory_[fetKey] = FetHistory{ vgs, vds, vsd };
             }
             break;
         }

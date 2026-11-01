@@ -192,6 +192,11 @@ struct Stamp {
     double gateSaturationCurrent = 0.0;
     double gateOnsetVolts = 0.5;
     double gateScaleVolts = 0.06;
+    // MOSFET body diode, source-to-drain (n-channel anode at the source). Absent
+    // (0) on every program predating the field -- including all JFET stamps, which
+    // never carry it -- so the old behaviour is bit-identical without it.
+    double bodySaturationCurrent = 0.0;
+    double bodyEmissionCoefficient = 0.0;
     double mu = 100.0;
     double kg1 = 1000.0;
     double kp = 500.0;

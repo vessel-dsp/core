@@ -16,6 +16,7 @@ import {
 	emitterFollower,
 	jfetFollower,
 	ledClipper,
+	mosfetFollower,
 } from "../src/fixtures/circuits";
 import { bjtLawEntry, diodeLawEntry, fetLawEntry, pedalPartCatalog } from "../src/part-catalog";
 import { emptyRegistry, type PartEntry, type PartRegistry } from "../src/registry";
@@ -169,6 +170,68 @@ describe("fet-law-default-parameters follows what the registry states", () => {
 			],
 		};
 		expect(warningNamed(jfetWithPart, registry, "fet-law-default-parameters")).toEqual([]);
+	});
+});
+
+const SYNTH_MOSFET = "SYNTH-NMOS-7";
+const mosfetWithPart = derive(
+	mosfetFollower,
+	'      Description: "Clock driver chip."',
+	`      PartNumber: ${SYNTH_MOSFET}\n      Description: "Clock driver chip."`,
+);
+
+function mosfetRegistry(params: PartDataEntry["params"]): PartRegistry {
+	return {
+		entries: [fetLawEntry({ partIds: [SYNTH_MOSFET], class: "mosfet", params }, "mosfet")],
+	};
+}
+
+describe("fet-law-default-parameters names a MOSFET body on the default", () => {
+	test("a record that states the body pair leaves nothing on the default", () => {
+		const registry = mosfetRegistry({
+			bodySaturationCurrent: cited(3e-14),
+			bodyEmissionCoefficient: cited(1.5),
+		});
+		expect(warningNamed(mosfetWithPart, registry, "fet-law-default-parameters")).toEqual([]);
+	});
+
+	test("a record that states bodyIS alone still names bodyN, and only it", () => {
+		const registry = mosfetRegistry({ bodySaturationCurrent: cited(3e-14) });
+		const named = warningNamed(mosfetWithPart, registry, "fet-law-default-parameters");
+		expect(named).toHaveLength(1);
+		const [warning] = named;
+		if (warning?.code !== "fet-law-default-parameters") throw new Error("unreachable");
+		expect(warning.devices).toEqual(["Q1"]);
+		expect(warning.detail).toMatch(/without bodyN/u);
+		expect(warning.detail).not.toMatch(/bodyIS\/bodyN/u);
+	});
+
+	test("a part the registry does not hold is named for bodyIS/bodyN", () => {
+		const named = warningNamed(mosfetWithPart, emptyRegistry, "fet-law-default-parameters");
+		expect(named).toHaveLength(1);
+		const [warning] = named;
+		if (warning?.code !== "fet-law-default-parameters") throw new Error("unreachable");
+		expect(warning.detail).toMatch(/without bodyIS\/bodyN/u);
+	});
+
+	test("a MOSFET is never named for Vt0/Beta, and a JFET never for the body", () => {
+		// The channel defaults are a JFET-only question; the body is MOSFET-only.
+		// An unregistered MOSFET names exactly the body pair.
+		const mosfetNamed = warningNamed(
+			mosfetWithPart,
+			emptyRegistry,
+			"fet-law-default-parameters",
+		);
+		const [mosfetWarning] = mosfetNamed;
+		if (mosfetWarning?.code !== "fet-law-default-parameters")
+			throw new Error("unreachable");
+		expect(mosfetWarning.detail).not.toMatch(/Vt0|Beta/u);
+		// The JFET cases above name Vt0/Beta and never the body pair.
+		const jfetNamed = warningNamed(jfetWithPart, emptyRegistry, "fet-law-default-parameters");
+		const [jfetWarning] = jfetNamed;
+		if (jfetWarning?.code !== "fet-law-default-parameters")
+			throw new Error("unreachable");
+		expect(jfetWarning.detail).not.toMatch(/body/u);
 	});
 });
 

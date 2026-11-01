@@ -790,6 +790,14 @@ const NEWTON_RESIDUAL_TOLERANCE = 1e-9;
  */
 const JUNCTION_EXPONENT_LIMIT = 60;
 /**
+ * Room-temperature thermal voltage, in volts, for junctions the source cannot
+ * type one for. The diode law carries its own `thermalVoltage` on the stamp;
+ * the fet body diode has no per-part thermal figure (no shipped registry record
+ * types one), so it reads this engine constant -- the same 0.025852 V the
+ * compiler's `THERMAL_VOLTAGE` names -- rather than inventing a per-law value.
+ */
+const BODY_THERMAL_VOLTS = 0.025_852;
+/**
  * The reverse current at which a zener's declared breakdown voltage is taken to hold, in amps.
  *
  * A datasheet does not state a breakdown voltage on its own; it states one **at a test current**
@@ -1824,7 +1832,7 @@ export class ReferenceRuntime {
 	 * Previous-iterate FET channel voltages, which both FET limiters need.
 	 * Keyed the same way as `bjtHistory`.
 	 */
-	private readonly fetHistory = new Map<number, { vgs: number; vds: number }>();
+	private readonly fetHistory = new Map<number, { vgs: number; vds: number; vsd: number }>();
 	/**
 	 * One composed block's delay lines, by line id (board-p3 row 4). Same ring
 	 * discipline the retired macro state kept, but allocated from the composition's
@@ -7820,6 +7828,7 @@ export class ReferenceRuntime {
 				const history = this.fetHistory.get(fetKey) ?? {
 					vgs: stamp.thresholdVolts,
 					vds: 0,
+					vsd: 0,
 				};
 				const vgs = limitFetGate(rawVgs, history.vgs, stamp.thresholdVolts);
 				// The drain limiter damps overshoot **in conduction**, which is the only
@@ -7843,7 +7852,10 @@ export class ReferenceRuntime {
 					this.limitedIterate = true;
 					this.limitedBy = `fet g=${stamp.gate} d=${stamp.drain} s=${stamp.source}${vgs !== rawVgs ? " gate" : ""}${vds !== rawVds ? " drain" : ""}`;
 				}
-				this.fetHistory.set(fetKey, { vgs, vds });
+				// The body diode's own previous across, under the fet's single history
+				// key. Carried through the same entry (not a second map) so the stamp
+				// keeps one history key and the program shape is unchanged.
+				let vsd = history.vsd ?? 0;
 				const beta = stamp.transconductance;
 				const lambda = stamp.channelLengthModulation;
 
@@ -8017,6 +8029,55 @@ export class ReferenceRuntime {
 					stampJunction(sNode, vgs);
 					stampJunction(d, vgs - vds);
 				}
+
+				// The MOSFET body diode, source-to-drain. A discrete MOSFET is a
+				// four-terminal structure with its body tied to the source, so the
+				// diode is always present: n-channel anode at the source, cathode
+				// at the drain (p-channel mirrored, via the physical nodes rather
+				// than the channel-signed frame above, so one code path covers
+				// both). A JFET has none: both stamp fields are absent and this
+				// block contributes nothing, which is exactly what this law did
+				// for every FET before.
+				//
+				// Stamped inside the fet solve (the fet's single history key, the
+				// shared `limitJunction` damping) rather than as a separate diode
+				// device, so the program shape for a JFET is unchanged and a
+				// MOSFET program carries the diode parameters in its own stamp.
+				if (
+					(stamp.bodySaturationCurrent ?? 0) > 0 &&
+					(stamp.bodyEmissionCoefficient ?? 0) > 0
+				) {
+					const bodyIs = stamp.bodySaturationCurrent as number;
+					const bodyScale =
+						(stamp.bodyEmissionCoefficient as number) * BODY_THERMAL_VOLTS;
+					const bodyAnode = stamp.channel === "n" ? stamp.source : stamp.drain;
+					const bodyCathode = stamp.channel === "n" ? stamp.drain : stamp.source;
+					const rawBody =
+						(solution[bodyAnode] ?? 0) - (solution[bodyCathode] ?? 0);
+					const acrossBody = limitJunction(rawBody, vsd, bodyScale, bodyIs);
+					if (acrossBody !== rawBody) {
+						this.limitedIterate = true;
+						this.limitedBy = `fet-body a=${bodyAnode} k=${bodyCathode}`;
+					}
+					vsd = acrossBody;
+					// Plain exponential (no series resistance: the bulk resistance is
+					// not in the source), capped like every other junction so an
+					// undamped first iterate cannot overflow.
+					const exponential = Math.exp(
+						Math.min(acrossBody / bodyScale, JUNCTION_EXPONENT_LIMIT),
+					);
+					const bodyCurrent = bodyIs * (exponential - 1);
+					// No added conductance floor: the channel already stamps its
+					// own 1e-12 floor between the same two nodes, and a floor
+					// here would perturb every MOSFET render at 1e-12 even where
+					// the diode never conducts.
+					const bodyConductance = (bodyIs * exponential) / bodyScale;
+					const bodyEquivalent = bodyCurrent - bodyConductance * acrossBody;
+					stampConductance(matrix, bodyAnode, bodyCathode, bodyConductance);
+					rhs[bodyAnode] = (rhs[bodyAnode] ?? 0) - bodyEquivalent;
+					rhs[bodyCathode] = (rhs[bodyCathode] ?? 0) + bodyEquivalent;
+				}
+				this.fetHistory.set(fetKey, { vgs, vds, vsd });
 				break;
 			}
 			case "tube-diode": {

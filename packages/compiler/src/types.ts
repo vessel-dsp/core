@@ -822,6 +822,24 @@ export type DeviceLaw =
 			readonly gateSaturationCurrent: number;
 			readonly gateOnsetVolts: number;
 			readonly gateScaleVolts: number;
+			/**
+			 * Body-diode conduction, source-to-drain: `I = bodySaturationCurrent *
+			 * (exp(Vsd / (bodyEmissionCoefficient * Vt)) - 1)` with the anode at
+			 * the source for an n-channel device (at the drain for p-channel, via
+			 * the same channel-signed frame the gate uses). A discrete MOSFET is
+			 * a four-terminal structure with its body tied to the source, so this
+			 * diode is always present; a JFET has none.
+			 *
+			 * **Absent or zero disables it.** A JFET law carries neither field, so
+			 * every JFET program stamps and renders exactly as before. A MOSFET
+			 * law always carries both (registry record when it types them, else
+			 * the `MOSFET_BODY_*` class defaults in `device-laws.ts`, which the
+			 * `fet-law-default-parameters` warning names). On the law rather
+			 * than as runtime constants for the same reason the gate terms are:
+			 * when the diode starts drawing current is a property of the device.
+			 */
+			readonly bodySaturationCurrent?: number;
+			readonly bodyEmissionCoefficient?: number;
 	  }
 	| {
 			/**
@@ -1952,6 +1970,13 @@ export type Stamp =
 			readonly gateSaturationCurrent: number;
 			readonly gateOnsetVolts: number;
 			readonly gateScaleVolts: number;
+			/**
+			 * See the `fet` device law. Absent on a JFET stamp (which keeps its
+			 * previous shape bit-identically); present on a MOSFET stamp, where
+			 * the runtime stamps the body diode inside the fet solve.
+			 */
+			readonly bodySaturationCurrent?: number;
+			readonly bodyEmissionCoefficient?: number;
 	  }
 	| {
 			readonly kind: "triode";
