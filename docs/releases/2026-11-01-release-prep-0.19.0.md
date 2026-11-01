@@ -1,6 +1,7 @@
 # Release prep: core 0.18.0 / compiler 0.19.0 / runtime 0.16.0 / chain 0.1.23 / player 0.2.21 (2026-11-01, taper table + fet body diode)
 
-**Status: PREPARED, NOT PUSHED, NOT TAGGED.** Prepared 2026-11-01 on branch
+**Status: PUSHED, NOT TAGGED.** Pushed 2026-11-01 to origin main as `07377ac`
+(fast-forward from `69f6c2a`). Prepared 2026-11-01 on branch
 `indiejoseph/core-release-0190` at the prep commit `766128a` (see report):
 main `3a266f1` plus this prep. Built and verified in the release clone. Do not tag from any
 other state. Publication order is `v0.18.0`, then `compiler-v0.19.0`,
