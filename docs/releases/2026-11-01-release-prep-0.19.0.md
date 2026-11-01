@@ -1,6 +1,22 @@
 # Release prep: core 0.18.0 / compiler 0.19.0 / runtime 0.16.0 / chain 0.1.23 / player 0.2.21 (2026-11-01, taper table + fet body diode)
 
-**Status: PUSHED, NOT TAGGED.** Pushed 2026-11-01 to origin main as `07377ac`
+**Status: PUBLISHED.** All five tags pushed and published 2026-11-01:
+
+| tag | run id | conclusion | npm live at |
+|---|---|---|---|
+| `v0.18.0` | 41299172208 | success | 2026-11-01T10:51:30Z |
+| `compiler-v0.19.0` | 41299331820 | success | 2026-11-01T10:55:42Z |
+| `runtime-v0.16.0` | 41299646203 | success | 2026-11-01T11:03:31Z |
+| `chain-v0.1.23` | 41300210503 | success | 2026-11-01T11:07:34Z |
+| `player-v0.2.21` | 41300517484 | success | 2026-11-01T11:11:57Z |
+
+Acceptance (`tmp/release-0190/npm-check`, empty dir): `npm i
+@vessel-dsp/{core@0.18.0,compiler@0.19.0,runtime@0.16.0,chain@0.1.23,player@0.2.21}`;
+`npm ls --all` clean -- one copy of each, all deduped, no nested older core.
+Installed CI wasm `5f9754f1...` vs local build `d8ed5644...`: differing hash
+is expected (CI emcc 3.1.74 differs from local) and is not a failure.
+
+Pushed 2026-11-01 to origin main as `07377ac`
 (fast-forward from `69f6c2a`). Prepared 2026-11-01 on branch
 `indiejoseph/core-release-0190` at the prep commit `766128a` (see report):
 main `3a266f1` plus this prep. Built and verified in the release clone. Do not tag from any
