@@ -10,7 +10,9 @@
 #include "v2/Program.h"
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <string>
+#include <vector>
 
 namespace vessel_dsp::v2 {
 
@@ -76,6 +78,48 @@ inline double taperFraction(TaperKind taper, double position) {
         return sCurveFraction(x);
     }
     return x;
+}
+
+/**
+ * A declared taper table evaluated at `position`, clamped to 0..1.
+ *
+ * **The engine convention is linear interpolation between bracketing points**, the same
+ * sentence `taperTableFraction` in `packages/runtime/src/taper.ts` states: the points
+ * are the claims and the shape between them is not. The scan takes the first segment
+ * whose end knot sits at or past `x` -- at an interior knot the left segment wins with
+ * `t = 1` -- in the same order as the TypeScript console, so the two agree bit for bit
+ * with only `+ - * /`. Precondition: at least 2 points (the loader drops anything
+ * shorter, and the compiler refuses it); the test-only export below returns NaN there.
+ */
+inline double taperTableFraction(const TaperTablePoint* points, size_t count, double position) {
+    double x = std::min(1.0, std::max(0.0, position));
+    // The TypeScript console's loop, statement for statement (`i < length - 2` is `i + 2 < count`
+    // in unsigned arithmetic, with no underflow at any count): at an interior knot the left
+    // segment wins with `t = 1` on both consoles.
+    size_t i = 0;
+    while (i + 2 < count && x > points[i + 1].position) i += 1;
+    const TaperTablePoint& lower = points[i];
+    const TaperTablePoint& upper = points[i + 1];
+    double t = (x - lower.position) / (upper.position - lower.position);
+    return lower.fraction + t * (upper.fraction - lower.fraction);
+}
+
+inline double taperTableFraction(const std::vector<TaperTablePoint>& points, double position) {
+    return taperTableFraction(points.data(), points.size(), position);
+}
+
+/**
+ * The fraction of the track at `position` for a control that may declare a table.
+ *
+ * A declared table wins over the taper kind; with no table (null, or fewer than 2
+ * points, which the compiler never emits) this is exactly `taperFraction`, so a
+ * program without a table renders bit-identically to today's program.
+ */
+inline double controlTaperFraction(TaperKind taper, const std::vector<TaperTablePoint>* table, double position) {
+    if (table != nullptr && table->size() >= 2) {
+        return taperTableFraction(*table, position);
+    }
+    return taperFraction(taper, position);
 }
 
 } // namespace vessel_dsp::v2

@@ -42,7 +42,7 @@ import {
 	resampleStageSpec,
 } from "./resample";
 import type { SupplyAddress, SupplyInfo } from "./supply";
-import { IMPLEMENTED_TAPER_NAMES, taperFraction, unrecognisedTapers } from "./taper";
+import { IMPLEMENTED_TAPER_NAMES, controlTaperFraction, unrecognisedTapers } from "./taper";
 
 /**
  * What the solver did, so that failing to solve is never silent.
@@ -2798,7 +2798,11 @@ export class ReferenceRuntime {
 								clock.stages * clock.formulaConstant * maxR * clock.farads;
 							maxDelaySeconds = Math.max(maxDelaySeconds, maxClockDelay);
 							const pos = this.positions.get(clock.controlId) ?? 0.5;
-							const frac = taperFraction(clock.taper, pos);
+							const frac = controlTaperFraction(
+								this.controlsById.get(clock.controlId),
+								clock.taper,
+								pos,
+							);
 							const r =
 								clock.ohmsAtControlMin +
 								frac * (clock.ohmsAtControlMax - clock.ohmsAtControlMin);
@@ -3274,7 +3278,11 @@ export class ReferenceRuntime {
 				block.clockControl.controlId === id
 			) {
 				const cc = block.clockControl;
-				const frac = taperFraction(cc.taper, position);
+				const frac = controlTaperFraction(
+					this.controlsById.get(cc.controlId),
+					cc.taper,
+					position,
+				);
 				const r =
 					cc.ohmsAtControlMin +
 					frac * (cc.ohmsAtControlMax - cc.ohmsAtControlMin);
@@ -4532,8 +4540,9 @@ export class ReferenceRuntime {
 			if (sweep.read === "scanned") {
 				const control = this.controlsById.get(sweep.controlId);
 				return {
-					paramScale: taperFraction(
-						control?.taper ?? "linear",
+					paramScale: controlTaperFraction(
+						control,
+						"linear",
 						this.positions.get(sweep.controlId) ?? 0.5,
 					),
 					tapped: null,
@@ -4635,8 +4644,9 @@ export class ReferenceRuntime {
 							sweep === undefined
 								? term.gain
 								: sweep.min +
-									taperFraction(
-										this.controlsById.get(sweep.controlId)?.taper ?? "linear",
+									controlTaperFraction(
+										this.controlsById.get(sweep.controlId),
+										"linear",
 										this.positions.get(sweep.controlId) ?? 0.5,
 									) *
 										(sweep.max - sweep.min);
@@ -4876,8 +4886,9 @@ export class ReferenceRuntime {
 				}
 				const gateLevel =
 					op.gate.min +
-					taperFraction(
-						this.controlsById.get(op.gate.controlId)?.taper ?? "linear",
+					controlTaperFraction(
+						this.controlsById.get(op.gate.controlId),
+						"linear",
 						this.positions.get(op.gate.controlId) ?? 0,
 					) *
 						(op.gate.max - op.gate.min);
@@ -5009,8 +5020,9 @@ export class ReferenceRuntime {
 						sweep === undefined
 							? term.gain
 							: sweep.min +
-								taperFraction(
-									this.controlsById.get(sweep.controlId)?.taper ?? "linear",
+								controlTaperFraction(
+									this.controlsById.get(sweep.controlId),
+									"linear",
 									this.positions.get(sweep.controlId) ?? 0.5,
 								) *
 									(sweep.max - sweep.min);
@@ -6814,7 +6826,7 @@ export class ReferenceRuntime {
 			case "controlled-conductance": {
 				const control = this.controlsById.get(stamp.control);
 				const position = this.positions.get(stamp.control) ?? 0.5;
-				const fraction = taperFraction(control?.taper ?? stamp.taper, position);
+				const fraction = controlTaperFraction(control, stamp.taper, position);
 				// `fraction` is how far the wiper sits from the grounded end, so the
 				// element BELOW the wiper carries that share and the element above
 				// carries the rest. Getting this backwards inverts every knob in the
@@ -6840,7 +6852,7 @@ export class ReferenceRuntime {
 			case "controlled-resistance": {
 				const control = this.controlsById.get(stamp.control);
 				const position = this.positions.get(stamp.control) ?? 0.5;
-				const fraction = taperFraction(control?.taper ?? stamp.taper, position);
+				const fraction = controlTaperFraction(control, stamp.taper, position);
 				// One element sweeping min..max, where a pot's half sweeps a share of a
 				// fixed total. Floored for the same reason: a zero-resistance element is
 				// a short the matrix cannot express.

@@ -8,7 +8,9 @@
 //
 // Two front ends therefore cannot disagree about a knob's curve, because neither owns it.
 
-import type { Program, TaperKind } from "@vessel-dsp/compiler";
+import type { Program, TaperKind, TaperTable, TaperTablePoint } from "@vessel-dsp/compiler";
+
+export type { TaperTable, TaperTablePoint };
 
 /**
  * The tapers this runtime implements: the whole of `TaperKind`, and nothing else.
@@ -128,6 +130,61 @@ function sCurveFraction(x: number): number {
 	const h01 = -2 * t3 + 3 * t2;
 	const h11 = t3 - t2;
 	return h00 * y0 + h10 * h * m0 + h01 * y1 + h11 * h * m1;
+}
+
+/**
+ * A declared taper table evaluated at `position`, clamped to 0..1.
+ *
+ * **The engine convention is linear interpolation between bracketing points**, stated
+ * here so both consoles can be held to it: no smoothing, no curve fitting. The points
+ * themselves are the claims (measured or printed); the shape between them is not, so
+ * the cheapest interpolant that reproduces every point is the honest one.
+ *
+ * The scan takes the first segment whose end knot sits at or past `x`, so at an
+ * interior knot the left segment wins with `t = 1` -- and the C++ console in
+ * `src/cpp/include/v2/Taper.h` takes the same side of every knot in the same order,
+ * which is what makes the two bit-identical with only `+ - * /` (no libm, like the
+ * s-curve). Precondition: at least 2 points, strictly increasing positions from 0 to 1
+ * inclusive; the compiler refuses anything else and the loader drops anything shorter.
+ */
+export function taperTableFraction(
+	points: readonly TaperTablePoint[],
+	position: number,
+): number {
+	const x = Math.min(1, Math.max(0, position));
+	let index = 0;
+	while (
+		index < points.length - 2 &&
+		x > (points[index + 1] as TaperTablePoint).position
+	) {
+		index += 1;
+	}
+	const lower = points[index] as TaperTablePoint;
+	const upper = points[index + 1] as TaperTablePoint;
+	const t = (x - lower.position) / (upper.position - lower.position);
+	return lower.fraction + t * (upper.fraction - lower.fraction);
+}
+
+/**
+ * The fraction of the track at `position` for a control that may declare a table.
+ *
+ * A declared table wins over the taper kind: the kind stays on the control as the
+ * maker's letter and the table is the measured law. With no table (absent, or shorter
+ * than 2 points, which the compiler never emits) this is exactly `taperFraction`,
+ * so a program without a table renders bit-identically to today's program.
+ */
+export function controlTaperFraction(
+	control:
+		| { readonly taper: TaperKind; readonly taperTable?: TaperTable }
+		| undefined,
+	fallbackTaper: TaperKind,
+	position: number,
+): number {
+	const table = control?.taperTable;
+	if (table !== undefined && table.points.length >= 2) {
+		return taperTableFraction(table.points, position);
+	}
+	return taperFraction(control?.taper ?? fallbackTaper, position);
 }
 
 /**

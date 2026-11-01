@@ -98,10 +98,19 @@ export {
 	POTENTIOMETER_TAPERS,
 	SUPERSEDED_TAPER_PROPERTY_KEYS,
 	TAPER_PROPERTY_KEY,
+	TAPER_TABLE_PROPERTY_KEY,
 	classifyTaper,
 	collectTaperIssues,
+	invalidTaperTableReason,
+	taperTableFieldsOf,
 } from "./model/taper";
-export type { PotentiometerTaper, TaperIssue, TaperVerdict } from "./model/taper";
+export type {
+	PotentiometerTaper,
+	TaperIssue,
+	TaperTable,
+	TaperTablePoint,
+	TaperVerdict,
+} from "./model/taper";
 export {
 	WINDING_ROLES,
 	validateComponentWindings,

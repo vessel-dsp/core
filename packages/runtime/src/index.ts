@@ -50,7 +50,8 @@ export {
 	type SettleOptions,
 } from "./settle";
 export { supplyGroundConflicts, type SupplyGroundConflict } from "./supply-ground";
-export { taperFraction } from "./taper";
+export { controlTaperFraction, taperFraction, taperTableFraction } from "./taper";
+export type { TaperTable, TaperTablePoint } from "./taper";
 export { V2WasmEngine } from "./v2-wasm-engine";
 export * from "./calibrate";
 export { admissionVerdict, predictedWorstCaseNs } from "./admission";
