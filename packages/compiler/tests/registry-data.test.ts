@@ -887,6 +887,13 @@ describe("wave-4 fill inventory", () => {
 		// NJR databook 5-1-5-5): the five printed resistors plus the derived 300 kHz
 		// unity-gain product; bare LM386 rides the TI row as a stated alias (owner ruling
 		// 2026-10-28); JRC386D rides the NJR row as the owner-decided NJM386D marking.
+		// Newmarket germanium reference table (2026-11-02): 26 BF-only BJT rows from the
+		// one-page PNP table (ACY17-22/39/40, OC44N/OC45N, OC72, NKT11/12/213/214/216/217/
+		// 219/223/224/271/272/274/281, 2N1305/1307; two-sided bins only, 1 kHz rows by the
+		// 2N2222A precedent) and AC128's BF re-sourced to the vendored Valvo sheet's TYP 90
+		// (community card BF removed, community IS kept). Out: OC76/OC77/2N1303/2N1309
+		// (MIN-only), AC176 and OC75 (original-manufacturer rows kept). NKT275 is not on the table: it gets a
+		// community row instead (Amplified Parts two-specimen DCA75 raw data, IS+BF pooled).
 		// 1S188FM (2026-10-28): one measured germanium diode row (owner bench D10/D11 of
 		// Boss OC-2 JP 07556, IS+n+Rs pooled at the engine VT), alias 1S-188FM per the
 		// OC-2 service-note legend; 1SS-188FM deliberately unregistered (silicon-prefix
@@ -897,13 +904,13 @@ describe("wave-4 fill inventory", () => {
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 
-		expect(bjtRegistryRecords).toHaveLength(74);
+		expect(bjtRegistryRecords).toHaveLength(101);
 		expect(diodeRegistryRecords).toHaveLength(22);
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
 		expect(powerAmpRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(26 + 74 + 22 + 2 + 35 + 28 + 7 + 8 + 1 + 5 + 2);
+		expect(partRegistryData).toHaveLength(26 + 101 + 22 + 2 + 35 + 28 + 7 + 8 + 1 + 5 + 2);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
@@ -963,6 +970,66 @@ describe("wave-4 fill inventory", () => {
 		expect(zenerFolded.size).toBeGreaterThan(30);
 		expect(new Set([...zenerCatalogPartIds])).toEqual(zenerFolded);
 		expect(new Set([...gateOnlyFetPartIds])).toEqual(new Set(["2sk30a", "2sk30atm"]));
+	});
+});
+
+describe("Newmarket germanium reference table rows (2026-11-02)", () => {
+	const bjtById = new Map(
+		bjtRegistryRecords.flatMap((record) => record.partIds.map((id) => [id, record] as const)),
+	);
+	const bf = (id: string) => bjtById.get(id)?.params.forwardBeta;
+
+	it("carries every two-sided hFE bin as a derived geometric midpoint, BF-only", () => {
+		const expected: Record<string, number> = {
+			ACY17: Math.sqrt(50 * 150),
+			ACY22: Math.sqrt(30 * 300),
+			ACY40: Math.sqrt(30 * 70),
+			OC44N: Math.sqrt(40 * 225),
+			OC45N: Math.sqrt(25 * 125),
+			OC72: Math.sqrt(45 * 120),
+			NKT11: Math.sqrt(90 * 220),
+			NKT12: Math.sqrt(45 * 180),
+			NKT216: Math.sqrt(15 * 45),
+			NKT217: Math.sqrt(50 * 150),
+			NKT223: Math.sqrt(50 * 200),
+			NKT271: Math.sqrt(50 * 250),
+			NKT274: Math.sqrt(82 * 250),
+			NKT281: Math.sqrt(60 * 175),
+			"2N1305": Math.sqrt(40 * 200),
+			"2N1307": Math.sqrt(60 * 300),
+		};
+		for (const [id, value] of Object.entries(expected)) {
+			const param = bf(id);
+			expect(param?.basis).toBe("derived");
+			expect(param?.value).toBeCloseTo(value, 6);
+			expect(param?.source).toContain("Newmarket");
+			expect(bjtById.get(id)?.params.saturationCurrent).toBeUndefined();
+		}
+	});
+
+	it("re-sources AC128's BF to the Valvo printed TYP and keeps the community IS", () => {
+		expect(bf("AC128")?.basis).toBe("datasheet");
+		expect(bf("AC128")?.value).toBe(90);
+		expect(bf("AC128")?.source).toContain("Valvo");
+		expect(bjtById.get("AC128")?.params.saturationCurrent?.basis).toBe("community");
+	});
+
+	it("gives NKT275 a provisional two-specimen community row, IS and BF", () => {
+		const record = bjtById.get("NKT275");
+		expect(record?.params.forwardBeta?.basis).toBe("community");
+		expect(record?.params.forwardBeta?.value).toBeCloseTo(Math.sqrt(53.6911282492335 * 143.468411103812), 6);
+		expect(record?.params.saturationCurrent?.basis).toBe("community");
+		expect(record?.params.saturationCurrent?.value).toBeCloseTo(1.778757e-6, 12);
+		expect(record?.params.forwardBeta?.sourceKind).toBe("published-measurement");
+		expect(record?.params.forwardBeta?.url).toContain("amplifiedparts.com");
+	});
+
+	it("leaves the MIN-only rows and the parts with original-manufacturer rows alone", () => {
+		for (const id of ["OC76", "OC77", "2N1303", "2N1309"]) {
+			expect(bjtById.has(id)).toBe(false);
+		}
+		expect(bf("OC75")?.source).toContain("Mullard");
+		expect(bf("AC176")?.source).toContain("Siemens");
 	});
 });
 

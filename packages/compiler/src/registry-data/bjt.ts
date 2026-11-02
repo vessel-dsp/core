@@ -1085,8 +1085,11 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		},
 	},
 	{
-		// Wave 4 community. Germanium PNP: Jim Hagerman's published AC128 SPICE model
-		// (paper + card). Provisional single sample: germanium varies enormously specimen
+		// IS: wave 4 community, Jim Hagerman's published AC128 SPICE model (paper + card).
+		// BF: the original Valvo sheet's printed TYP (2026-11-02; the vendored 8.63 scan
+		// prints B = 90 (55...175) at UCB = 0, IE = 50 mA, so the community card's BF = 90
+		// record was removed as the loader rule requires -- same number, datasheet basis).
+		// Provisional single sample for IS: germanium varies enormously specimen
 		// to specimen, and the Holmes/Whitehead DAFx-2017 extraction of their own AC128
 		// specimen reads IS = 20.66u, BF = 229.6 (same order of IS, hotter gain) --
 		// disclosed as the corroborating one-sample. Polarity is structural (PNP).
@@ -1121,29 +1124,26 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 					"VCE, ICM and small-signal hfe, no Vbe/DC-hFE), the Valvo Datenbuch 1969-70 " +
 					"reprint (URL now 404), alldatasheet/GPD/NJSEMI AC128 sheets (non-original " +
 					"manufacturers and/or 1-4 pp short-form). No original-manufacturer AC128 sheet " +
-					"with active-region Vbe + DC hFE bin is readable online. The Holmes/Whitehead " +
-					"specimen corroborates the IS order.",
+					"with active-region Vbe + DC hFE bin is readable online. The vendored Valvo 8.63 " +
+					"scan (AC128/datasheets/ac128-valvo-1963-scan.pdf, read 2026-11-02) prints only " +
+					"MAX-only -UBE limits (<= 300 mV at IE = 50 mA, <= 450 mV at 300 mA), above the " +
+					"form-1 20 mA gate and limits rather than values, so no datasheet IS. The " +
+					"Holmes/Whitehead specimen corroborates the IS order.",
 			},
 			forwardBeta: {
 				value: 90,
-				basis: "community",
+				basis: "datasheet",
 				source:
-					"Jim Hagerman, 'AC128 Ge PNP Transistor SPICE Model' paper, 01/16/20, " +
-					"http://www.hagtech.com/pdf/ac128model.pdf (read 2026-10-19): 'Straight from " +
-					"data sheet we can read typical forward gain: BF = 90'; verbatim model card:\n" +
-					".MODEL AC128 PNP + ( + BF = 90 + IS = 17u + RE = 220m + BR = 100m + VAF = 30 + " +
-					"ISE = 190n + TF = 106n + TR = 10u + CJC = 100p + )",
-				sourceKind: "published-spice-model",
-				url: "http://www.hagtech.com/pdf/ac128model.pdf",
-				quote:
-					".MODEL AC128 PNP + ( + BF = 90 + IS = 17u + RE = 220m + BR = 100m + VAF = 30 + " +
-					"ISE = 190n + TF = 106n + TR = 10u + CJC = 100p + )",
-				author: "Jim Hagerman",
-				retrievedDate: "2026-10-19",
-				whyNoBetterSource:
-					"Same search as the IS record: no DC hFE bin in any located " +
-					"original-manufacturer material; the card's BF = 90 is the published value " +
-					"(the Holmes/Whitehead specimen reads 229.6 -- hot specimen, disclosed).",
+					"AC128/datasheets/ac128-valvo-1963-scan.pdf (Valvo 'AC 128 " +
+					"Germanium-p-n-p-NF-Transistor', Valvo Halbleiterdioden und Transistoren, 'Vorläufige " +
+					"Daten', page footer 8.63, p124; original-manufacturer scan, read visually 2026-11-02), " +
+					"Kennwerte (Tj = 25 °C): 'Gleichstromverstärkung bei UCB = 0, IE = 50 mA: B = 90 " +
+					"(55...175)' (the 300 mA row reads 90 (60...175) and the 1 A row 80 (45...165); the -UBE " +
+					"rows are '≤ 300 mV' at IE = 50 mA and '≤ 450 mV' at 300 mA, MAX-only limits, so no " +
+					"form-1 IS). The Newmarket 'Germanium Alloy Transistors' reference table's AC128 row " +
+					"(newmarket/datasheets/newmarket-germanium-alloy-transistors-reference-table.pdf, '60 ... " +
+					"175(0/300)') repeats the Valvo 300 mA spread and is not used: the original-manufacturer " +
+					"TYP wins",
 			},
 		},
 	},
@@ -2180,6 +2180,697 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 				derivation:
 					"Printed hFE bin 100-300 at IC = 150 mA, VCE = 10 V; geometric midpoint " +
 					"(form 2, gains): sqrt(100 * 300) = 173.2050808.",
+			},
+		},
+	},
+	{
+		// Newmarket germanium reference table (2026-11-02): BF-only rows from the one-page
+		// 'Germanium Alloy Transistors' PNP table. The table prints no Vbe, so no IS on any row
+		// (silicon-bias caveat as OC75). Two-sided hFE bins only: OC76/OC77 ('>45'), 2N1303
+		// ('>20') and 2N1309 ('>80') are MIN-only and stay out. Asterisked rows are the table's
+		// 1 kHz small-signal hfe and are admitted as the DC beta by the 2N2222A/2N5088
+		// precedent. AC176 (NPN table), OC75 and AC128 keep their original-manufacturer rows
+		// (Siemens, Mullard, Valvo); OC44N/OC45N are Newmarket's own N-suffix codes, registered as their own ids,
+		// not aliases of OC44. NKT275 is not on this table (its own community row closes this
+		// file). Polarity is structural (PNP).
+		partIds: ["ACY17"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 86.6025404,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 17': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 150(0/300)' (BVCEO 32 V, BVCBO 70 V, BVEBO 12 V, ICM 1.0 A, " +
+					"VCEsat 0.3 V at (IC/IB) 300/15 mA, max ICBO 10 uA at VCB 6 V, stock no. 27714R carry no " +
+					"gain information)",
+				derivation:
+					"Printed hFE bin 50-150 at VCE/IC = 0/300 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 300 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 150) = 86.6025404.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY18"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 69.2820323,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 18': 'hFE " +
+					"(VCE/IC) (V/mA) 40 ... 120(0/300)' (BVCEO 30 V, BVCBO 50 V, BVEBO 12 V, ICM 1.0 A, " +
+					"VCEsat 0.3 V at 300/15 mA, max ICBO 10 uA at VCB 6 V, stock no. 27715G carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 40-120 at VCE/IC = 0/300 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 300 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(40 * 120) = 69.2820323.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY19"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 141.4213562,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 19': 'hFE " +
+					"(VCE/IC) (V/mA) 80 ... 250(0/300)' (BVCEO 30 V, BVCBO 50 V, BVEBO 12 V, ICM 1.0 A, " +
+					"VCEsat 0.3 V at 300/15 mA, max ICBO 10 uA at VCB 6 V, stock no. 27716E carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 80-250 at VCE/IC = 0/300 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 300 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(80 * 250) = 141.4213562.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY20"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 85.1469318,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 20': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 145(0/50)' (BVCEO 20 V, BVCBO 40 V, BVEBO 12 V, ICM 1.0 A, VCEsat " +
+					"0.2 V at 50/1.3 mA, max ICBO 10 uA at VCB 6 V, stock no. 27717C carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 50-145 at VCE/IC = 0/50 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 50 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 145) = 85.1469318.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY21"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 150,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 21': 'hFE " +
+					"(VCE/IC) (V/mA) 90 ... 250(0/50)' (BVCEO 20 V, BVCBO 40 V, BVEBO 12 V, ICM 1.0 A, VCEsat " +
+					"0.2 V at 50/1.3 mA, max ICBO 10 uA at VCB 6 V, stock no. 27718A carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 90-250 at VCE/IC = 0/50 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 50 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(90 * 250) = 150.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY22"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 94.8683298,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 22': 'hFE " +
+					"(VCE/IC) (V/mA) 30 ... 300(0/300)' (BVCEO 15 V, BVCBO 20 V, BVEBO 12 V, ICM 1.0 A, " +
+					"VCEsat 0.3 V at 300/15 mA, max ICBO 10 uA at VCB 6 V, stock no. 27719X carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 30-300 at VCE/IC = 0/300 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 300 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(30 * 300) = 94.8683298.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY39"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 86.6025404,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 39': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 150(0/300)' (BVCEO 40 V, BVCBO 110 V, BVEBO 12 V, ICM 1.0 A, " +
+					"VCEsat 0.3 V at 300/15 mA, max ICBO 10 uA at VCB 6 V, stock no. 27720B carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 50-150 at VCE/IC = 0/300 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 300 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 150) = 86.6025404.",
+			},
+		},
+	},
+	{
+		partIds: ["ACY40"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 45.8257569,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'ACY 40': 'hFE " +
+					"(VCE/IC) (V/mA) 30 ... 70(0/300)' (BVCEO 18 V, BVCBO 32 V, BVEBO 12 V, ICM 1.0 A, VCEsat " +
+					"0.3 V at 300/15 mA, max ICBO 10 uA at VCB 6 V, stock no. 27721X carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 30-70 at VCE/IC = 0/300 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 300 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(30 * 70) = 45.8257569.",
+			},
+		},
+	},
+	{
+		partIds: ["OC44N"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 94.8683298,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'OC 44N': 'hFE " +
+					"(VCE/IC) (V/mA) 40 ... 225(6/1)' (BVCBO 15 V, BVEBO 12 V, ICM 0.01 A, max ICBO 10 uA at " +
+					"VCB 15 V, stock no. 31452H carry no gain information)",
+				derivation:
+					"Printed hFE bin 40-225 at VCE/IC = 6/1 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(40 * 225) = 94.8683298.",
+			},
+		},
+	},
+	{
+		partIds: ["OC45N"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 55.9016994,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'OC 45N': 'hFE " +
+					"(VCE/IC) (V/mA) 25 ... 125(6/1)' (BVCBO 15 V, BVEBO 12 V, ICM 0.01 A, max ICBO 10 uA at " +
+					"VCB 15 V, stock no. 31453F carry no gain information)",
+				derivation:
+					"Printed hFE bin 25-125 at VCE/IC = 6/1 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(25 * 125) = 55.9016994.",
+			},
+		},
+	},
+	{
+		partIds: ["OC72"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 73.4846923,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'OC 72': 'hFE " +
+					"(VCE/IC) (V/mA) 45 ... 120(5.4/10)' (BVCEO 16 V, BVCBO 32 V, BVEBO 10 V, ICM 0.125 A, " +
+					"VCEsat <0.3 V at 125/12.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 31454D carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 45-120 at VCE/IC = 5.4/10 V/mA as printed; geometric " +
+					"midpoint (form 2, gains): sqrt(45 * 120) = 73.4846923.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT11"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 140.7124728,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 11': 'hFE " +
+					"(VCE/IC) (V/mA) 90 ... 220(4.5/1)*' (BVCEO 10 V, BVCBO 18 V, BVEBO 12 V, ICM 0.075 A, " +
+					"VCEsat <0.2 V at 8/0.5 mA, max ICBO 5 uA at VCB 6 V, stock no. 16635X carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 90-220; the asterisked row is the table's '*hfe (f = 1 kHz)' " +
+					"small-signal bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the " +
+					"2N2222A/2N5088 precedent (1 kHz is far below fT, so hfe approximates hFE); geometric " +
+					"midpoint (form 2, gains): sqrt(90 * 220) = 140.7124728.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT12"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 90,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 12': 'hFE " +
+					"(VCE/IC) (V/mA) 45 ... 180(4.5/1)' (BVCEO 10 V, BVCBO 18 V, BVEBO 12 V, ICM 0.075 A, " +
+					"VCEsat <0.2 V at 8/0.5 mA, max ICBO 5 uA at VCB 6 V, stock no. 16636R carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 45-180 at VCE/IC = 4.5/1 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(45 * 180) = 90.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT213"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 80.6225775,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 213': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 130(4.5/1)*' (BVCBO 32 V, BVEBO 10 V, ICM 0.25 A, VCEsat <0.2 V " +
+					"at 25/2.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 27704B carry no gain information)",
+				derivation:
+					"Printed hFE bin 50-130; the asterisked row is the table's '*hfe (f = 1 kHz)' " +
+					"small-signal bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the " +
+					"2N2222A/2N5088 precedent (1 kHz is far below fT, so hfe approximates hFE); geometric " +
+					"midpoint (form 2, gains): sqrt(50 * 130) = 80.6225775.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT214"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 47.4341649,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 214': 'hFE " +
+					"(VCE/IC) (V/mA) 30 ... 75(4.5/1)*' (BVCBO 32 V, BVEBO 10 V, ICM 0.25 A, VCEsat <0.2 V at " +
+					"25/2.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 27705X carry no gain information)",
+				derivation:
+					"Printed hFE bin 30-75; the asterisked row is the table's '*hfe (f = 1 kHz)' small-signal " +
+					"bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the 2N2222A/2N5088 precedent " +
+					"(1 kHz is far below fT, so hfe approximates hFE); geometric midpoint (form 2, gains): " +
+					"sqrt(30 * 75) = 47.4341649.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT216"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 25.9807621,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 216': 'hFE " +
+					"(VCE/IC) (V/mA) 15 ... 45(4.5/1)*' (BVCBO 32 V, BVEBO 10 V, ICM 0.25 A, VCEsat <0.2 V at " +
+					"25/2.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 27707G carry no gain information)",
+				derivation:
+					"Printed hFE bin 15-45; the asterisked row is the table's '*hfe (f = 1 kHz)' small-signal " +
+					"bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the 2N2222A/2N5088 precedent " +
+					"(1 kHz is far below fT, so hfe approximates hFE); geometric midpoint (form 2, gains): " +
+					"sqrt(15 * 45) = 25.9807621.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT217"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 86.6025404,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 217': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 150(0/25)' (BVCEO 40 V, BVCBO 60 V, BVEBO 10 V, ICM 0.5 A, VCEsat " +
+					"<0.5 V at 300/6 mA, max ICBO 10 uA at VCB 10 V, stock no. 27708E carry no gain " +
+					"information)",
+				derivation:
+					"Printed hFE bin 50-150 at VCE/IC = 0/25 V/mA as printed (a printed VCE of 0 " +
+					"V, transcribed as the table states it); IC = 25 mA is off the small-signal operating " +
+					"point of a pedal stage (~1 mA), disclosed per the PN2222A precedent; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 150) = 86.6025404.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT219"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 143.1782106,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 219': 'hFE " +
+					"(VCE/IC) (V/mA) 82 ... 250(4.5/1)*' (BVCBO 32 V, BVEBO 10 V, ICM 0.25 A, VCEsat <0.2 V " +
+					"at 25/2.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 27709C carry no gain information)",
+				derivation:
+					"Printed hFE bin 82-250; the asterisked row is the table's '*hfe (f = 1 kHz)' " +
+					"small-signal bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the " +
+					"2N2222A/2N5088 precedent (1 kHz is far below fT, so hfe approximates hFE); geometric " +
+					"midpoint (form 2, gains): sqrt(82 * 250) = 143.1782106.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT223"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 100,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 223': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 200(4.5/1)' (BVCBO 30 V, BVEBO 10 V, ICM 0.5 A, VCEsat <0.2 V at " +
+					"25/2.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 27710F carry no gain information)",
+				derivation:
+					"Printed hFE bin 50-200 at VCE/IC = 4.5/1 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(50 * 200) = 100.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT224"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 51.9615242,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 224': 'hFE " +
+					"(VCE/IC) (V/mA) 30 ... 90(4.5/1)' (BVCBO 30 V, BVEBO 10 V, ICM 0.5 A, VCEsat <0.2 V at " +
+					"25/2.5 mA, max ICBO 10 uA at VCB 10 V, stock no. 27711D carry no gain information)",
+				derivation:
+					"Printed hFE bin 30-90 at VCE/IC = 4.5/1 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(30 * 90) = 51.9615242.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT271"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 111.8033989,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 271': 'hFE " +
+					"(VCE/IC) (V/mA) 50 ... 250(1.5/50)' (BVCBO 15 V, BVEBO 5 V, ICM 0.5 A, max ICBO 10 uA at " +
+					"VCB 10 V, stock no. 15627E carry no gain information)",
+				derivation:
+					"Printed hFE bin 50-250 at VCE/IC = 1.5/50 V/mA as printed; IC = 50 mA is off " +
+					"the small-signal operating point of a pedal stage (~1 mA), disclosed per the PN2222A " +
+					"precedent; geometric midpoint (form 2, gains): sqrt(50 * 250) = 111.8033989.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT272"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 56.1248608,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 272': 'hFE " +
+					"(VCE/IC) (V/mA) 35 ... 90(4.5/1)*' (BVCBO 15 V, BVEBO 5 V, ICM 0.25 A, max ICBO 10 uA at " +
+					"VCB 10 V, stock no. 15628C carry no gain information)",
+				derivation:
+					"Printed hFE bin 35-90; the asterisked row is the table's '*hfe (f = 1 kHz)' small-signal " +
+					"bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the 2N2222A/2N5088 precedent " +
+					"(1 kHz is far below fT, so hfe approximates hFE); geometric midpoint (form 2, gains): " +
+					"sqrt(35 * 90) = 56.1248608.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT274"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 143.1782106,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 274': 'hFE " +
+					"(VCE/IC) (V/mA) 82 ... 250(4.5/1)*' (BVCBO 15 V, BVEBO 5 V, ICM 0.25 A, max ICBO 10 uA " +
+					"at VCB 10 V, stock no. 15629A carry no gain information)",
+				derivation:
+					"Printed hFE bin 82-250; the asterisked row is the table's '*hfe (f = 1 kHz)' " +
+					"small-signal bin at VCE = 4.5 V, IC = 1 mA; admitted as the DC beta by the " +
+					"2N2222A/2N5088 precedent (1 kHz is far below fT, so hfe approximates hFE); geometric " +
+					"midpoint (form 2, gains): sqrt(82 * 250) = 143.1782106.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT281"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 102.4695077,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row 'NKT 281': 'hFE " +
+					"(VCE/IC) (V/mA) 60 ... 175(1/300)' (BVCEO 16 V, BVCBO 32 V, BVEBO 10 V, ICM 1.0 A, max " +
+					"ICBO 10 uA at VCB 10 V, stock no. 15631B carry no gain information)",
+				derivation:
+					"Printed hFE bin 60-175 at VCE/IC = 1/300 V/mA as printed; IC = 300 mA is off " +
+					"the small-signal operating point of a pedal stage (~1 mA), disclosed per the PN2222A " +
+					"precedent; geometric midpoint (form 2, gains): sqrt(60 * 175) = 102.4695077.",
+			},
+		},
+	},
+	{
+		partIds: ["2N1305"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 89.4427191,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row '2N1305': 'hFE " +
+					"(VCE/IC) (V/mA) 40 ... 200(1/10)' (BVCEO 20 V, BVCBO 25 V, BVEBO 25 V, ICM 0.3 A, stock " +
+					"no. 34599X carry no gain information)",
+				derivation:
+					"Printed hFE bin 40-200 at VCE/IC = 1/10 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(40 * 200) = 89.4427191.",
+			},
+		},
+	},
+	{
+		partIds: ["2N1307"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 134.1640786,
+				basis: "derived",
+				source:
+					"Newmarket Semiconductors 'Germanium Alloy Transistors' PNP REFERENCE TABLE ('Maximum " +
+					"ratings. Characteristics at TA = 25°C'; one-page catalogue scan, page 1065, section tab " +
+					"7, DatasheetArchive-hosted PDF; local copy " +
+					"workbench/tmp/newmarket-germanium-transistor-datasheet.pdf, read 2026-11-02; the table " +
+					"prints no Vbe figure for any part, so no IS derivation exists), row '2N1307': 'hFE " +
+					"(VCE/IC) (V/mA) 60 ... 300(1/10)' (BVCEO 15 V, BVCBO 25 V, BVEBO 25 V, ICM 0.3 A, stock " +
+					"no. 34600A carry no gain information)",
+				derivation:
+					"Printed hFE bin 60-300 at VCE/IC = 1/10 V/mA as printed; geometric midpoint " +
+					"(form 2, gains): sqrt(60 * 300) = 134.1640786.",
+			},
+		},
+	},
+	{
+		// NKT275 (2026-11-02): community, published measurement. Not on the Newmarket reference
+		// table above; Newmarket's own figure is MIN-only hFE 30 (wave 7 left it out for that
+		// reason). Amplified Parts curve-traced two original white-dot specimens and published the
+		// raw DCA75 data, so both parameters are read from the raw rows nearest IC = 1 mA on the
+		// VCE = 5 V traces (a pedal stage's operating region), one row per specimen, pooled by
+		// geometric mean. Two specimens only, 2.7x apart in gain: provisional, and the compiler
+		// names every device that runs on it. The ZVex Fuzz Factory packet declares its own
+		// NKT275 overrides (BF 85/125), which take precedence over this row. Polarity is
+		// structural (PNP).
+		partIds: ["NKT275"],
+		class: "bjt",
+		note:
+			"Two-specimen pooled values. Q1 reads hFE 53.7 / IS 1.33e-6 and Q2 hFE 143.5 / IS 2.38e-6 " +
+			"at IC ~ 1 mA, VCE = 5 V; Q2 carries 34 uA leakage (article), ~3% of the 1 mA row.",
+		params: {
+			saturationCurrent: {
+				value: 1.778757e-6,
+				basis: "community",
+				source:
+					"Amplified Parts, Tech Corner article 'Newmarket NKT275 White Dot Transistor " +
+					"Measurements', " +
+					"https://www.amplifiedparts.com/tech-articles/newmarket-nkt275-measurements (read " +
+					"2026-11-02): two original Newmarket NKT275 (white dot) specimens from an early Cornell " +
+					"First Fuzz, curve-traced on a Peak DCA75 ('All measurements were taken with the " +
+					"transistors stabilized to room temperature. The room measured 77°F'; 'In the First Fuzz, " +
+					"Q1 had zero leakage while Q2 had 34µA'), raw data published as " +
+					"https://www.amplifiedparts.com/sites/all/modules/custom/tech_corner/data/nkt275-raw-data.zip " +
+					"(local copy parts/bjts/NKT275/datasheets/nkt275-raw-data.zip); raw rows: " +
+					"Q1_4_Ic_vbe.txt, trace 'Q1, Vce=5V', point 17: 'Vbe 0.173673629760742, Ic (mA) " +
+					"1.10184299945831'; Q2_4_ic_vbe.txt, trace 'Vce=5V', point 20: 'Vbe 0.156471252441406, Ic " +
+					"(mA) 1.00995790958405'. IS per specimen by form 1 (IS = IC * exp(-Vbe / Vt), n = 1, Vt = " +
+					"0.025852): Q1 1.10184299945831e-3 * exp(-0.173673629760742 / 0.025852) = 1.332083e-6; Q2 " +
+					"1.00995790958405e-3 * exp(-0.156471252441406 / 0.025852) = 2.375210e-6; pooled geometric " +
+					"mean sqrt(1.332083e-6 * 2.375210e-6) = 1.778757e-6 (Vbe-equivalent 0.1637 V at 1 mA).",
+				sourceKind: "published-measurement",
+				url: "https://www.amplifiedparts.com/tech-articles/newmarket-nkt275-measurements",
+				quote:
+					"Q1_4_Ic_vbe.txt, trace 'Q1, Vce=5V', point 17: 'Vbe 0.173673629760742, Ic (mA) " +
+					"1.10184299945831'; Q2_4_ic_vbe.txt, trace 'Vce=5V', point 20: 'Vbe 0.156471252441406, Ic " +
+					"(mA) 1.00995790958405'",
+				author: "Amplified Parts (Tech Corner)",
+				retrievedDate: "2026-11-02",
+				whyNoBetterSource:
+					"Newmarket's own NKT275 data (every located copy: alltransistors, datasheetarchive index " +
+					"entries, distributor listings) is MIN-only hFE 30 with no Vbe row, and the Newmarket " +
+					"'Germanium Alloy Transistors' reference table carries no NKT275 row at all; no " +
+					"manufacturer SPICE model exists (Newmarket is defunct); no owner bench measurement; the " +
+					"Holmes/Holters/van Walstijn DAFx-2017 extractions cover OC44 and AC128 only. A published " +
+					"two-specimen curve-tracer dataset with downloadable raw numbers is the best available " +
+					"source; both specimens are quoted so the pooled value can be recomputed, and germanium " +
+					"spread is disclosed (the two gains differ 2.7x).",
+			},
+			forwardBeta: {
+				value: 87.7666273,
+				basis: "community",
+				source:
+					"Amplified Parts, Tech Corner article 'Newmarket NKT275 White Dot Transistor " +
+					"Measurements', " +
+					"https://www.amplifiedparts.com/tech-articles/newmarket-nkt275-measurements (read " +
+					"2026-11-02): two original Newmarket NKT275 (white dot) specimens from an early Cornell " +
+					"First Fuzz, curve-traced on a Peak DCA75 ('All measurements were taken with the " +
+					"transistors stabilized to room temperature. The room measured 77°F'; 'In the First Fuzz, " +
+					"Q1 had zero leakage while Q2 had 34µA'), raw data published as " +
+					"https://www.amplifiedparts.com/sites/all/modules/custom/tech_corner/data/nkt275-raw-data.zip " +
+					"(local copy parts/bjts/NKT275/datasheets/nkt275-raw-data.zip); raw rows: " +
+					"Q1_3_hfe_ic.txt, trace 'Q1, Vce=5V', point 18: 'Ic (mA) 1.01584208011627, hFE " +
+					"53.6911282492335'; Q2_3_hfe_ic.txt, trace 'Vce=5V', point 3: 'Ic (mA) 0.977419555187225, " +
+					"hFE 143.468411103812'. Pooled geometric mean (form 2, gains, over the two specimens): " +
+					"sqrt(53.6911282492335 * 143.468411103812) = 87.7666273.",
+				sourceKind: "published-measurement",
+				url: "https://www.amplifiedparts.com/tech-articles/newmarket-nkt275-measurements",
+				quote:
+					"Q1_3_hfe_ic.txt, trace 'Q1, Vce=5V', point 18: 'Ic (mA) 1.01584208011627, hFE " +
+					"53.6911282492335'; Q2_3_hfe_ic.txt, trace 'Vce=5V', point 3: 'Ic (mA) 0.977419555187225, " +
+					"hFE 143.468411103812'",
+				author: "Amplified Parts (Tech Corner)",
+				retrievedDate: "2026-11-02",
+				whyNoBetterSource:
+					"Newmarket's own NKT275 data (every located copy: alltransistors, datasheetarchive index " +
+					"entries, distributor listings) is MIN-only hFE 30 with no Vbe row, and the Newmarket " +
+					"'Germanium Alloy Transistors' reference table carries no NKT275 row at all; no " +
+					"manufacturer SPICE model exists (Newmarket is defunct); no owner bench measurement; the " +
+					"Holmes/Holters/van Walstijn DAFx-2017 extractions cover OC44 and AC128 only. A published " +
+					"two-specimen curve-tracer dataset with downloadable raw numbers is the best available " +
+					"source; both specimens are quoted so the pooled value can be recomputed, and germanium " +
+					"spread is disclosed (the two gains differ 2.7x).",
 			},
 		},
 	},
