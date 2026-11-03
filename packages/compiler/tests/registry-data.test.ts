@@ -894,6 +894,9 @@ describe("wave-4 fill inventory", () => {
 		// (community card BF removed, community IS kept). Out: OC76/OC77/2N1303/2N1309
 		// (MIN-only), AC176 and OC75 (original-manufacturer rows kept). NKT275 is not on the table: it gets a
 		// community row instead (Amplified Parts two-specimen DCA75 raw data, IS+BF pooled).
+		// Towers' selector p239 (2026-11-03): 19 BF-only NKT rows with a printed typical
+		// (NKT131/132/143/144/151/152/154-25/162/163/163-25/164/164-25/202-208), transcribed
+		// at the stated bias; the page's MN-only rows stay out.
 		// 1S188FM (2026-10-28): one measured germanium diode row (owner bench D10/D11 of
 		// Boss OC-2 JP 07556, IS+n+Rs pooled at the engine VT), alias 1S-188FM per the
 		// OC-2 service-note legend; 1SS-188FM deliberately unregistered (silicon-prefix
@@ -904,13 +907,13 @@ describe("wave-4 fill inventory", () => {
 		expect(regulatorRegistryRecords).toHaveLength(7);
 		expect(chargePumpRegistryRecords).toHaveLength(8);
 
-		expect(bjtRegistryRecords).toHaveLength(101);
+		expect(bjtRegistryRecords).toHaveLength(120);
 		expect(diodeRegistryRecords).toHaveLength(22);
 		expect(ledRegistryRecords).toHaveLength(5);
 		expect(mosfetRegistryRecords).toHaveLength(2);
 		expect(ujtRegistryRecords).toHaveLength(1);
 		expect(powerAmpRegistryRecords).toHaveLength(2);
-		expect(partRegistryData).toHaveLength(26 + 101 + 22 + 2 + 35 + 28 + 7 + 8 + 1 + 5 + 2);
+		expect(partRegistryData).toHaveLength(26 + 120 + 22 + 2 + 35 + 28 + 7 + 8 + 1 + 5 + 2);
 	});
 
 	it("every parameter in the set is cited, and every derived one shows its working", () => {
@@ -1022,6 +1025,31 @@ describe("Newmarket germanium reference table rows (2026-11-02)", () => {
 		expect(record?.params.saturationCurrent?.value).toBeCloseTo(1.778757e-6, 12);
 		expect(record?.params.forwardBeta?.sourceKind).toBe("published-measurement");
 		expect(record?.params.forwardBeta?.url).toContain("amplifiedparts.com");
+	});
+
+	it("transcribes the Towers' p239 typicals and skips that page's minimum-only rows", () => {
+		const expected: Record<string, number> = {
+			NKT131: 50,
+			NKT132: 40,
+			NKT143: 100,
+			NKT151: 150,
+			"NKT154/25": 50,
+			NKT163: 80,
+			NKT202: 150,
+			NKT205: 30,
+			NKT208: 70,
+		};
+		for (const [id, value] of Object.entries(expected)) {
+			expect(bf(id)?.basis).toBe("datasheet");
+			expect(bf(id)?.value).toBe(value);
+			expect(bf(id)?.source).toContain("Towers");
+		}
+		for (const id of ["NKT122", "NKT142", "NKT210", "NKT242H", "NKT275J"]) {
+			expect(bjtById.has(id)).toBe(false);
+		}
+		// The Newmarket bins outrank the page's MN-only rows for the shared codes.
+		expect(bf("NKT213")?.source).toContain("Newmarket");
+		expect(bf("NKT275")?.basis).toBe("community");
 	});
 
 	it("leaves the MIN-only rows and the parts with original-manufacturer rows alone", () => {

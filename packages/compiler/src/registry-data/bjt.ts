@@ -2874,4 +2874,437 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			},
 		},
 	},
+	{
+		// Towers' selector p239 (2026-11-03): the NKT122-NKT275J page of the compilation.
+		// Only the rows whose HFE column prints a typical (TP) are taken, transcribed at the
+		// stated HFE BIAS current (a TYP is one value, no midpoint); the MN (minimum-only)
+		// rows -- NKT122-129, 133-142, 210-275J -- are limits and stay out, which is also why
+		// the NKT213/214/216/217/219/223/224/271/272/274 rows above keep their Newmarket
+		// reference-table bins and NKT275 its community row. The book is a compilation of
+		// maker data, disclosed in every citation; no Vbe column, so no IS (OC75 bias caveat).
+		// NKT202/207 (25 mA) and NKT208 (500 mA) are off the ~1 mA pedal operating point,
+		// disclosed. Polarity is structural (PNP: the PM/OA/LT column reads PG).
+		partIds: ["NKT131"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 50,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT131': 'PG T022 L39 15V 15V . 25MA 75C 125MWF 8M 30P 50TP " +
+					"1MA RLG OBS OC44N 2N2614 0' -- HFE 50TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 50 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT132"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 40,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT132': 'PG T022 L39 15V 15V . 25MA 75C 125MWF 4M 30P 40TP " +
+					"1MA RLG OBS OC44N 2N2614 0' -- HFE 40TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 40 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT143"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 100,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT143': 'PG T05 L04 15V 12V 12V 25MA 75C 125MWF 3M 35P 100TP " +
+					"1MA RLA NEM ASY27 2N1305 0' -- HFE 100TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 100 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT144"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 100,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT144': 'PG T05 L04 15V 12V 12V 25MA 75C 125MWF 3M 35P 100TP " +
+					"1MA ALN NEM ASY27 2N1305 0' -- HFE 100TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 100 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT151"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 150,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT151': 'PG T022 L39 6V 6V . 10MA 75C 75MWF 8M 30P 150TP 1MA " +
+					"RLG OBS OC44N 2N2614 0' -- HFE 150TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR and " +
+					"equivalents columns carry no gain information). Printed hFE TYP 150 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT152"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 100,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT152': 'PG T022 L39 6V 6V . 10MA 75C 75MWF 4M 30P 100TP 1MA " +
+					"RLG OBS ASY27 2N1305 0' -- HFE 100TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR and " +
+					"equivalents columns carry no gain information). Printed hFE TYP 100 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT154/25"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 50,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT154/25': 'PG T022 L39 6V 6V 6V 10MA 75C 75MWF 2M 30P 50TP " +
+					"1MA RLG OBS ASY27 2N1305 0' -- HFE 50TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 50 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT162"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 100,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT162': 'PG T05 L02 9V 9V 9V 25MA 75C 75MWF 8M 30P 100TP 1MA " +
+					"RLA NEM ASY27 2N1305 0' -- HFE 100TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR and " +
+					"equivalents columns carry no gain information). Printed hFE TYP 100 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT163"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 80,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT163': 'PG T05 L02 9V 9V 9V 25MA 75C 75MWF 5M 30P 80TP 1MA " +
+					"RLA NEM ASY27 2N1305 0' -- HFE 80TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR and " +
+					"equivalents columns carry no gain information). Printed hFE TYP 80 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT163/25"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 80,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT163/25': 'PG T05 L02 9V 9V 9V 25MA 75C 75MWF 5M 30P 80TP " +
+					"1MA RLA NEM ASY27 2N1305 0' -- HFE 80TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 80 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT164"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 50,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT164': 'PG T05 L02 9V 9V 9V 25MA 75C 75MWF 3M 30P 50TP 1MA " +
+					"RLA NEM ASY27 2N1305 0' -- HFE 50TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR and " +
+					"equivalents columns carry no gain information). Printed hFE TYP 50 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT164/25"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 50,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT164/25': 'PG T05 L02 9V 9V 9V 25MA 75C 75MWF 3M 30P 50TP " +
+					"1MA RLA NEM ASY27 2N1305 0' -- HFE 50TP at HFE BIAS 1MA (the ratings, FT, COB, USE, MFR " +
+					"and equivalents columns carry no gain information). Printed hFE TYP 50 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT202"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 150,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT202': 'PG T022 L39 30V 18V 10V 125MA 75C 180MWF 500K 60P " +
+					"150TP 25MA AMG OBS AC128 2N2706 0' -- HFE 150TP at HFE BIAS 25MA (the ratings, FT, COB, " +
+					"USE, MFR and equivalents columns carry no gain information). Printed hFE TYP 150 at IC = " +
+					"25 mA, transcribed (no midpoint: a TYP is already one value); IC = 25 mA is off the " +
+					"small-signal operating point of a pedal stage (~1 mA), disclosed per the PN2222A " +
+					"precedent.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT203"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 45,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT203': 'PG T022 L39 30V 18V 10V 125MA 75C 180MWF 500K 60P " +
+					"45TP 1MA AMG OBS AC128 2N2706 0' -- HFE 45TP at HFE BIAS 1MA (the ratings, FT, COB, USE, " +
+					"MFR and equivalents columns carry no gain information). Printed hFE TYP 45 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT204"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 35,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT204': 'PG T022 L39 30V 18V 10V 125MA 75C 180MWF 500K 60P " +
+					"35TP 1MA AMG OBS AC128 2N2706 0' -- HFE 35TP at HFE BIAS 1MA (the ratings, FT, COB, USE, " +
+					"MFR and equivalents columns carry no gain information). Printed hFE TYP 35 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT205"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 30,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT205': 'PG T022 L39 30V 18V 10V 125MA 75C 180MWF 500K 60P " +
+					"30TP 1MA AMG OBS AC128 2N2706 0' -- HFE 30TP at HFE BIAS 1MA (the ratings, FT, COB, USE, " +
+					"MFR and equivalents columns carry no gain information). Printed hFE TYP 30 at IC = 1 mA, " +
+					"transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT206"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 100,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT206': 'PG T022 L39 30V 18V 10V 125MA 75C 180MWF 500K 60P " +
+					"100TP 1MA AMG OBS AC128 2N2706 0' -- HFE 100TP at HFE BIAS 1MA (the ratings, FT, COB, " +
+					"USE, MFR and equivalents columns carry no gain information). Printed hFE TYP 100 at IC = " +
+					"1 mA, transcribed (no midpoint: a TYP is already one value).",
+			},
+		},
+	},
+	{
+		partIds: ["NKT207"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 150,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT207': 'PG T022 L39 60V 45V 10V 125MA 75C 180MWF 500K 60P " +
+					"150TP 25MA AMG OBS AC128 2N2706 0' -- HFE 150TP at HFE BIAS 25MA (the ratings, FT, COB, " +
+					"USE, MFR and equivalents columns carry no gain information). Printed hFE TYP 150 at IC = " +
+					"25 mA, transcribed (no midpoint: a TYP is already one value); IC = 25 mA is off the " +
+					"small-signal operating point of a pedal stage (~1 mA), disclosed per the PN2222A " +
+					"precedent.",
+			},
+		},
+	},
+	{
+		partIds: ["NKT208"],
+		class: "bjt",
+		params: {
+			forwardBeta: {
+				value: 70,
+				basis: "datasheet",
+				source:
+					"Towers' International Transistor Selector (T. D. Towers, W. Foulsham & Co; a compilation " +
+					"of maker data, not a Newmarket sheet -- edition not identifiable from the single scanned " +
+					"page), p239 'NKT122 ... NKT275J' (DatasheetArchive scan DSA841000-47; local copy " +
+					"newmarket/datasheets/towers-international-transistor-selector-p239-nkt122-nkt275j.pdf, " +
+					"read 2026-11-03). Columns: PM/OA/LT, PACKAGE, LEAD INFO, VCB MAX, VCE MAX, VEB MAX, IC " +
+					"MAX, TJ MAX, P TOT, FT MIN, COB MAX, HFE, HFE BIAS, USE, MFR, EUR EQUIV, USA EQUIV, ISS; " +
+					"the HFE column prints MN (minimum) or TP (typical) at the HFE BIAS collector current; no " +
+					"Vbe column, so no IS; row 'NKT208': 'PG T022 L39 30V 18V 10V 500MA 75C 300MWF 500K 60P " +
+					"70TP 500MA AMG OBS AC128 2N2706 0' -- HFE 70TP at HFE BIAS 500MA (the ratings, FT, COB, " +
+					"USE, MFR and equivalents columns carry no gain information). Printed hFE TYP 70 at IC = " +
+					"500 mA, transcribed (no midpoint: a TYP is already one value); IC = 500 mA is off the " +
+					"small-signal operating point of a pedal stage (~1 mA), disclosed per the PN2222A " +
+					"precedent.",
+			},
+		},
+	},
 ]);
