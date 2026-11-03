@@ -1,9 +1,11 @@
-# Release prep: core 0.19.0 / compiler 0.21.0 / runtime 0.16.0 / chain 0.1.23 / player 0.2.21 (2026-11-03, ambient temperature + NTC thermistor)
+# Release prep: core 0.19.0 / compiler 0.21.0 / runtime 0.16.1 / chain 0.1.24 / player 0.2.22 (2026-11-03, ambient temperature + NTC thermistor)
 
-**Status: PREP ONLY. No push, no tags, no publish; the owner publishes once at the end.**
+**Status: PREPARED (versions final). Publish by tag from main, one tag at a time, in the order below.**
 Prepared 2026-11-03 on branch `indiejoseph/core-temperature` at `f9681f1` (plus this
 note): main `5afbc1d` plus two commits, verified in a fresh throwaway clone (deleted
-after). Local core `main` untouched (another session has uncommitted work there).
+after). Runtime, chain and player versions were then bumped by the coordinator (a
+published version cannot be re-published with a new exact pin); re-verified before
+the push, see the release record appended below.
 
 ## What ships
 
@@ -11,9 +13,9 @@ after). Local core `main` untouched (another session has uncommitted work there)
 |---|---|---|---|
 | core (`@vessel-dsp/core`) | 0.18.0 | 0.19.0 | new component kind `thermistor` + typed `Resistance`/`Beta`/`ReferenceTemperatureC` validation (no schema bump per the fuse precedent) |
 | compiler | 0.19.0 | 0.21.0 (via 0.20.0) | `ambientTemperatureC` compile option with the junction fold at compile time (0.20.0); thermistor device kind lowering to R(T) (0.21.0); exact core pin 0.19.0 |
-| runtime | 0.16.0 | 0.16.0 (unchanged) | untouched: no `Program`/`Stamp`/`ProgramJson.cpp`/`Program.h` change; exact compiler pin moves to 0.21.0 |
-| chain | 0.1.23 | 0.1.23 (unchanged) | never calls the compiler (takes a built `Program`); exact pins move (compiler 0.21.0, core 0.19.0) |
-| player | 0.2.21 | 0.2.21 (unchanged) | `ambientTemperatureC` passthrough only; exact pins move (chain 0.1.23, compiler 0.21.0, core 0.19.0, runtime 0.16.0) |
+| runtime | 0.16.0 | 0.16.1 | sources untouched: no `Program`/`Stamp`/`ProgramJson.cpp`/`Program.h` change; patch because the exact compiler pin moves to 0.21.0 (a published version cannot carry a new pin) |
+| chain | 0.1.23 | 0.1.24 | never calls the compiler (takes a built `Program`); exact re-pin (compiler 0.21.0, core 0.19.0, runtime 0.16.1) |
+| player | 0.2.21 | 0.2.22 | `ambientTemperatureC` passthrough; exact re-pin (chain 0.1.24, compiler 0.21.0, core 0.19.0, runtime 0.16.1) |
 | stompbox | 0.6.17 (unchanged) | -- | exact `@vessel-dsp/core` pin moves to 0.19.0 |
 
 ## What changed
