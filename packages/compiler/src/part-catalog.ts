@@ -146,6 +146,7 @@ function zenerLaw(record: PartDataEntry): PartEntry {
 		declaredTypes: [],
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
+		...(record.material === undefined ? {} : { material: record.material }),
 		model: {
 			kind: "law",
 			law: {
@@ -236,6 +237,7 @@ export function bjtLawEntry(record: PartDataEntry): PartEntry {
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
 		...citedArmOf(record),
+		...(record.material === undefined ? {} : { material: record.material }),
 		model: {
 			kind: "law",
 			law: {
@@ -280,6 +282,7 @@ export function diodeLawEntry(record: PartDataEntry): PartEntry {
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
 		...citedArmOf(record),
+		...(record.material === undefined ? {} : { material: record.material }),
 		model: {
 			kind: "law",
 			law: {
@@ -327,6 +330,7 @@ export function ledLawEntry(record: PartDataEntry): PartEntry {
 		terminalRoleGroups: [],
 		...provisionalArmOf(record),
 		...citedArmOf(record),
+		...(record.material === undefined ? {} : { material: record.material }),
 		model: {
 			kind: "law",
 			law: {

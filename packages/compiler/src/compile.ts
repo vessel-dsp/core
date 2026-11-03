@@ -13,8 +13,12 @@ import {
 	findUnimplementedDeviceLaws,
 	JFET_DEFAULT_THRESHOLD_VOLTS,
 	JFET_DEFAULT_TRANSCONDUCTANCE,
+	kelvinFromAmbientCelsius,
 	MOSFET_BODY_EMISSION_COEFFICIENT,
 	MOSFET_BODY_SATURATION_CURRENT,
+	ambientTemperatureScalesJunction,
+	registryMaterialFor,
+	REFERENCE_TEMPERATURE_KELVIN,
 	SILICON_FORWARD_BETA,
 	SILICON_SATURATION_CURRENT,
 } from "./device-laws";
@@ -64,6 +68,7 @@ import type {
 	FetLawDefaultWarning,
 	LawedNetlist,
 	LedColourUnmatchedWarning,
+	MaterialDefaultSiliconWarning,
 	ModulationNotModelledWarning,
 	Netlist,
 	NodeId,
@@ -78,6 +83,22 @@ export type CompileOptions = {
 	readonly registry?: PartRegistry;
 	readonly inputJack?: string;
 	readonly outputJack?: string;
+	/**
+	 * The room temperature the circuit sits in, in degrees Celsius. Absent means
+	 * the 300 K reference every registry fit is referred to: every program is
+	 * byte-identical to today's. Present, every junction law (diode, BJT, FET
+	 * body diode excluded, LED/opto emitter excluded, OTA bias diode included)
+	 * folds to T = 273.15 + C at compile time -- `thermalVoltage` with T and
+	 * saturation currents with the SPICE law against the part's registry
+	 * material (silicon where none is typed, recorded by
+	 * `material-default-silicon`). The runtime and the `Program` shape are
+	 * untouched: the option changes the numbers written into the stamps.
+	 *
+	 * Outside the fold, reported not changed: the FET body-diode scale and the
+	 * optocoupler LED emitter, which both consoles hold as constants, stay at
+	 * 300 K at any ambient.
+	 */
+	readonly ambientTemperatureC?: number;
 };
 
 /**
@@ -110,6 +131,13 @@ export function compile(
 }
 
 function run(source: string, options: CompileOptions): CompileResult {
+	// The ambient temperature is a programmer option, validated before any stage
+	// reads the document: a non-finite or below-absolute-zero value throws rather
+	// than compiling a pedal at an unphysical temperature.
+	const ambientKelvin =
+		options.ambientTemperatureC === undefined
+			? REFERENCE_TEMPERATURE_KELVIN
+			: kelvinFromAmbientCelsius(options.ambientTemperatureC);
 	const netlist = readNetlist(source, {
 		inputJack: options.inputJack,
 		outputJack: options.outputJack,
@@ -118,6 +146,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 	const lawed: LawedNetlist = attachDeviceLaws(
 		netlist,
 		options.registry ?? emptyRegistry,
+		{ ambientKelvin },
 	);
 
 	// Decision 1: an unmodellable device makes the whole pedal/amp unsupported, and
@@ -247,6 +276,7 @@ function run(source: string, options: CompileOptions): CompileResult {
 		...findFetLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findBjtLawDefaults(netlist, options.registry ?? emptyRegistry),
 		...findDiodeLawDefaults(netlist, options.registry ?? emptyRegistry),
+		...findMaterialDefaultSilicon(lawed, options.registry ?? emptyRegistry, ambientKelvin),
 		...findRegistryProvisionalValues(netlist, lawed, options.registry ?? emptyRegistry),
 		...findLedColourUnmatched(netlist, lawed),
 		...findRegistryOverrideApplied(netlist, lawed, options.registry ?? emptyRegistry),
@@ -452,6 +482,58 @@ function findFetLawDefaults(
 			device: null,
 			devices: defaulted.map((device) => device.id),
 			detail: sentences.join(" "),
+		},
+	];
+}
+
+/** Junctions folded at a non-default ambient on the silicon bandgap. See `MaterialDefaultSiliconWarning`. */
+function findMaterialDefaultSilicon(
+	lawed: LawedNetlist,
+	registry: PartRegistry,
+	kelvin: number,
+): readonly MaterialDefaultSiliconWarning[] {
+	// At the 300 K reference the fold is skipped outright, so there is nothing to
+	// record and -- decisively -- no new warning on any default compile.
+	if (!ambientTemperatureScalesJunction(kelvin)) {
+		return [];
+	}
+	const byId = new Map(lawed.netlist.devices.map((device) => [device.id, device]));
+	const defaulted: DeviceId[] = [];
+	for (const resolution of lawed.resolutions) {
+		if (resolution.outcome !== "law") {
+			continue;
+		}
+		const kind = resolution.law.kind;
+		if (kind !== "diode" && kind !== "bjt" && kind !== "ota") {
+			continue;
+		}
+		// A section expansion lowers as `<device>#<index>`; the notice names the device.
+		const id = resolution.device.replace(/#\d+$/, "");
+		if (defaulted.includes(id as DeviceId)) {
+			continue;
+		}
+		const device = byId.get(resolution.device) ?? byId.get(id);
+		if (
+			registryMaterialFor(registry, device?.identity.partNumber ?? null) !== null
+		) {
+			continue;
+		}
+		defaulted.push(id as DeviceId);
+	}
+	if (defaulted.length === 0) {
+		return [];
+	}
+	return [
+		{
+			code: "material-default-silicon" as const,
+			device: null,
+			devices: defaulted,
+			kelvin,
+			detail:
+				`${defaulted.length} junction(s) fold to ${(kelvin - 273.15).toFixed(2)} C on the silicon ` +
+				`bandgap (1.11 eV) because no registry entry states a material for the exact part: ` +
+				`${defaulted.join("; ")}. An LED is named like any other defaulted junction: its ` +
+				"junction is a III-V the three-material law does not cover, so LEDs run silicon by construction.",
 		},
 	];
 }

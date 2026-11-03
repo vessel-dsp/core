@@ -50,6 +50,7 @@ export {
 	type CitedParam,
 	type CommunityProvenance,
 	type CommunitySourceKind,
+	type JunctionMaterial,
 	type OpampRegistryRecord,
 	type OpampSwingPrinted,
 	type ParamBasis,
@@ -68,6 +69,12 @@ export {
 	attachDeviceLaws,
 	invalidLdrTableReason,
 	ldrTableFieldsOf,
+	kelvinFromAmbientCelsius,
+	ambientTemperatureScalesJunction,
+	registryMaterialFor,
+	REFERENCE_TEMPERATURE_KELVIN,
+	THERMAL_VOLTAGE,
+	type AttachDeviceLawsOptions,
 } from "./device-laws";
 // Order construction for the runtime's sparse path: the value-blind static
 // schedule is built at compile time, and the value-aware re-pivot is built by

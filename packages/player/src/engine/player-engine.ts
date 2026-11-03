@@ -93,6 +93,12 @@ export type RealPlayerEngineOptions = {
 	/** Precompiled Program (object or JSON) to skip fetching and compiling. */
 	readonly program?: Program | string;
 	readonly registry?: PartRegistry;
+	/**
+	 * The room temperature the circuit sits in, in degrees Celsius, threaded to
+	 * the compiler's `ambientTemperatureC`: junction laws fold to it at compile
+	 * time. Absent means the 300 K reference (byte-identical programs).
+	 */
+	readonly ambientTemperatureC?: number;
 	/** Pickable WAV inputs; the default input is the first entry. */
 	readonly inputs?: readonly SourceItem[];
 	readonly inputGainDb?: number;
@@ -511,7 +517,12 @@ export class RealPlayerEngine implements PlayerEngine {
 		}
 		let compiled: ReturnType<typeof compile>;
 		try {
-			compiled = compile(text, { registry: this.options.registry ?? pedalPartCatalog });
+			compiled = compile(text, {
+			registry: this.options.registry ?? pedalPartCatalog,
+			...(this.options.ambientTemperatureC === undefined
+				? {}
+				: { ambientTemperatureC: this.options.ambientTemperatureC }),
+		});
 		} catch (error) {
 			throw new PlayerError(
 				"load-failed",

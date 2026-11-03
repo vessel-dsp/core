@@ -58,12 +58,14 @@ import {
 } from "./registry";
 import type { FirmwareClass } from "./firmware-class";
 import { parseLedIndicatorColour } from "@vessel-dsp/core";
+import type { JunctionMaterial } from "./registry-data/schema";
 import { GROUND } from "./types";
 import { LED_COLOUR_RECORD_ID } from "./registry-data/led";
 import type {
 	ComposedLineSweep,
 	Block,
 	ControlId,
+	DeviceId,
 	DeclaredProgram,
 	DeclaredParameterPlan,
 	DeclaredRouterPlan,
@@ -86,6 +88,183 @@ import type {
 
 /** Room-temperature thermal voltage; the diode law needs a reference somewhere. */
 export const THERMAL_VOLTAGE = 0.025_852;
+
+/**
+ * The absolute temperature every registry fit is referred to, in kelvin.
+ *
+ * Fitted saturation currents and the engine thermal-voltage constant are stated at
+ * this temperature (`THERMAL_VOLTAGE` is kT/q at 300 K, not 273.15 + 27), so the
+ * ambient-temperature fold scales relative to it and ngspice parity sets
+ * `tnom=26.85` to match. With no ambient option the compile stamps exactly today's
+ * numbers: the fold is skipped outright below a 1e-9 K band around this value, so
+ * the default path shares no arithmetic with the scaled one.
+ */
+export const REFERENCE_TEMPERATURE_KELVIN = 300;
+
+/** Offset between the compile option's Celsius and the fold's kelvin. */
+const CELSIUS_TO_KELVIN = 273.15;
+
+/** Boltzmann constant, J/K (exact, SI). */
+const BOLTZMANN_JOULES_PER_KELVIN = 1.380_649e-23;
+
+/** Elementary charge, C (exact, SI). */
+const ELEMENTARY_CHARGE_COULOMBS = 1.602_176_634e-19;
+
+/**
+ * Bandgap energy per junction material, in eV: the ngspice defaults for the
+ * matching device kinds (silicon diode/BJT 1.11, germanium 0.67, Schottky barrier
+ * 0.69). An LED junction is a III-V the three-material law does not cover; LEDs run
+ * the silicon bandgap and the material-default notice says so.
+ */
+const BANDGAP_ELECTRON_VOLTS: Readonly<Record<JunctionMaterial, number>> = {
+	silicon: 1.11,
+	germanium: 0.67,
+	schottky: 0.69,
+};
+
+/** The saturation-current temperature exponent (SPICE XTI), shared by all three. */
+const SATURATION_TEMPERATURE_EXPONENT = 3;
+
+/**
+ * The compile option's Celsius as an absolute temperature, validated.
+ *
+ * Throws a `RangeError` naming the option for a non-finite value or anything below
+ * absolute zero: an option is a programmer error, not a source refusal, so it
+ * propagates rather than becoming a pedal-shaped answer.
+ */
+export function kelvinFromAmbientCelsius(celsius: number): number {
+	if (!Number.isFinite(celsius)) {
+		throw new RangeError(
+			`ambientTemperatureC ${String(celsius)} is not a finite temperature in degrees Celsius`,
+		);
+	}
+	if (celsius < -CELSIUS_TO_KELVIN) {
+		throw new RangeError(
+			`ambientTemperatureC ${String(celsius)} is below absolute zero (-273.15 C)`,
+		);
+	}
+	return celsius + CELSIUS_TO_KELVIN;
+}
+
+/** Whether the fold changes any number: outside a 1e-9 K band around 300 K. */
+export function ambientTemperatureScalesJunction(kelvin: number): boolean {
+	return (
+		Math.abs(kelvin - REFERENCE_TEMPERATURE_KELVIN) > 1e-9 &&
+		Number.isFinite(kelvin)
+	);
+}
+
+/**
+ * The SPICE temperature ratio a junction saturation current scales by, relative to
+ * the 300 K reference the registry fits are referred to:
+ * `Is(T) = Is * (T/Tnom)^(XTI/N) * exp((Eg*q/(N*k)) * (1/Tnom - 1/T))` with XTI = 3.
+ * `n` is the junction's own emission coefficient (1 for a BJT or OTA bias diode).
+ */
+function saturationCurrentRatio(
+	emissionCoefficient: number,
+	material: JunctionMaterial,
+	kelvin: number,
+): number {
+	const bandgapJoules =
+		BANDGAP_ELECTRON_VOLTS[material] * ELEMENTARY_CHARGE_COULOMBS;
+	const slope =
+		bandgapJoules /
+		(emissionCoefficient * BOLTZMANN_JOULES_PER_KELVIN);
+	return (
+		(kelvin / REFERENCE_TEMPERATURE_KELVIN) **
+			(SATURATION_TEMPERATURE_EXPONENT / emissionCoefficient) *
+		Math.exp(
+			slope * (1 / REFERENCE_TEMPERATURE_KELVIN - 1 / kelvin),
+		)
+	);
+}
+
+/**
+ * Fold one finished diode law to the ambient temperature: `thermalVoltage` scales
+ * with T (today's constant is kT/q at 300 K) and `saturationCurrent` follows the
+ * SPICE law above with the junction's own emission coefficient. Series resistance
+ * and breakdown voltage carry no temperature model and are kept as stated.
+ */
+function diodeLawAtAmbientTemperature(
+	law: Extract<DeviceLaw, { kind: "diode" }>,
+	material: JunctionMaterial,
+	kelvin: number,
+): Extract<DeviceLaw, { kind: "diode" }> {
+	return {
+		...law,
+		thermalVoltage:
+			law.thermalVoltage * (kelvin / REFERENCE_TEMPERATURE_KELVIN),
+		saturationCurrent:
+			law.saturationCurrent *
+			saturationCurrentRatio(law.emissionCoefficient, material, kelvin),
+	};
+}
+
+/**
+ * Fold one finished BJT law to the ambient temperature: as the diode fold, with
+ * the Ebers-Moll ideality of 1. The excess collector-base leakage is a junction
+ * prefactor beyond the ideal reverse current, so it scales with the same ratio;
+ * betas carry no temperature model and are kept as stated.
+ */
+function bjtLawAtAmbientTemperature(
+	law: Extract<DeviceLaw, { kind: "bjt" }>,
+	material: JunctionMaterial,
+	kelvin: number,
+): Extract<DeviceLaw, { kind: "bjt" }> {
+	const ratio = saturationCurrentRatio(1, material, kelvin);
+	return {
+		...law,
+		thermalVoltage:
+			law.thermalVoltage * (kelvin / REFERENCE_TEMPERATURE_KELVIN),
+		saturationCurrent: law.saturationCurrent * ratio,
+		leakageAmps: law.leakageAmps * ratio,
+	};
+}
+
+/**
+ * Fold one finished OTA law to the ambient temperature: the four-terminal bias
+ * diode is a silicon junction with ideality 1. A law that states no bias-diode
+ * pair (a sections entry carrying transconductance only) gains the scaled class
+ * defaults the lowering would otherwise stamp at 300 K, so the program carries
+ * the temperature rather than the lowering re-defaulting it.
+ */
+function otaLawAtAmbientTemperature(
+	law: Extract<DeviceLaw, { kind: "ota" }>,
+	kelvin: number,
+): Extract<DeviceLaw, { kind: "ota" }> {
+	const ratio = saturationCurrentRatio(1, "silicon", kelvin);
+	return {
+		...law,
+		saturationCurrent:
+			(law.saturationCurrent ?? 1e-12) * ratio,
+		thermalVoltage:
+			(law.thermalVoltage ?? THERMAL_VOLTAGE) *
+			(kelvin / REFERENCE_TEMPERATURE_KELVIN),
+	};
+}
+
+/**
+ * A part's junction material for the temperature fold: the registry entry's typed
+ * `material` for the exact folded part id -- the same rung the law refinement
+ * uses -- or null when no entry states one. Null means the silicon default, which
+ * the compile records (`material-default-silicon`); it is never inferred from the
+ * part number or any prose.
+ */
+export function registryMaterialFor(
+	registry: PartRegistry,
+	partNumber: string | null,
+): JunctionMaterial | null {
+	if (partNumber === null) {
+		return null;
+	}
+	const folded = foldPartId(partNumber);
+	for (const entry of registry.entries) {
+		if (entry.partIds.some((id) => foldPartId(id) === folded)) {
+			return entry.material ?? null;
+		}
+	}
+	return null;
+}
 
 /**
  * Closed and open switch resistances. Not arbitrary: the ratio sets the matrix
@@ -749,9 +928,28 @@ function zenerRailDerivations(
 	return derived;
 }
 
+export type AttachDeviceLawsOptions = {
+	/**
+	 * The ambient temperature in kelvin. Absent means the 300 K reference every
+	 * registry fit is referred to: junction laws stamp exactly as today and the
+	 * fold changes no number. Present and outside a 1e-9 K band around 300 K, the
+	 * fold scales every diode, BJT and OTA-bias law (`thermalVoltage`,
+	 * `saturationCurrent`, BJT `leakageAmps`) to the temperature; parts whose
+	 * registry entry states no material run the silicon bandgap and are recorded
+	 * by the `material-default-silicon` notice the compile emits.
+	 *
+	 * Outside the fold by construction, and reported rather than changed: the FET
+	 * body-diode scale and the optocoupler emitter, which both consoles hold as
+	 * constants, stay at 300 K at any ambient. Folding them needs new stamp
+	 * fields, which is a Program-shape change this option deliberately avoids.
+	 */
+	readonly ambientKelvin?: number;
+};
+
 export function attachDeviceLaws(
 	netlist: Netlist,
 	registry: PartRegistry,
+	options?: AttachDeviceLawsOptions,
 ): LawedNetlist {
 	const regulatedBase = registrySuppliedVoltages(netlist, registry);
 	const nodeToVoltage = buildNodeToVoltageMap(netlist, regulatedBase);
@@ -864,8 +1062,50 @@ export function attachDeviceLaws(
 			devices,
 			nodes: internalNodes.size === 0 ? netlist.nodes : [...netlist.nodes, ...internalNodes.values()],
 		},
-		resolutions,
+		resolutions: foldAmbientTemperature(devices, resolutions, registry, options?.ambientKelvin),
 	};
+}
+
+/**
+ * Fold the ambient temperature into every finished junction law, at compile time.
+ *
+ * With no ambient (or within a 1e-9 K band of 300 K) the resolutions pass through
+ * untouched -- the same array contents, so every program is byte-identical to
+ * today's. Otherwise each diode, BJT and OTA law is replaced by its scaled copy;
+ * every other outcome (macro, open, unsupported, non-junction laws) is returned as
+ * is. The runtime, the `Program` shape and both consoles are untouched: the option
+ * changes the numbers written into the stamps and nothing else.
+ */
+function foldAmbientTemperature(
+	devices: readonly Device[],
+	resolutions: readonly DeviceResolution[],
+	registry: PartRegistry,
+	ambientKelvin: number | undefined,
+): readonly DeviceResolution[] {
+	const kelvin = ambientKelvin ?? REFERENCE_TEMPERATURE_KELVIN;
+	if (!ambientTemperatureScalesJunction(kelvin)) {
+		return resolutions;
+	}
+	const byId = new Map<DeviceId, Device>(devices.map((device) => [device.id, device]));
+	return resolutions.map((resolution) => {
+		if (resolution.outcome !== "law") {
+			return resolution;
+		}
+		const law = resolution.law;
+		if (law.kind !== "diode" && law.kind !== "bjt" && law.kind !== "ota") {
+			return resolution;
+		}
+		const material =
+			registryMaterialFor(registry, byId.get(resolution.device)?.identity.partNumber ?? null) ??
+			"silicon";
+		if (law.kind === "diode") {
+			return { ...resolution, law: diodeLawAtAmbientTemperature(law, material, kelvin) };
+		}
+		if (law.kind === "bjt") {
+			return { ...resolution, law: bjtLawAtAmbientTemperature(law, material, kelvin) };
+		}
+		return { ...resolution, law: otaLawAtAmbientTemperature(law, kelvin) };
+	});
 }
 
 /**

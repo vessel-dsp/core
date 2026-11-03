@@ -16,6 +16,7 @@ import type {
 	MacroModel,
 	PartIdentity,
 } from "./types";
+import type { JunctionMaterial } from "./registry-data/schema";
 
 /**
  * One section of a multi-section part: a law plus which of the device's terminals it uses.
@@ -473,6 +474,14 @@ export type PartEntry = {
 	 */
 	readonly terminalRoleGroups: readonly (readonly string[])[];
 	readonly model: PartModel;
+	/**
+	 * The junction's semiconductor material, carried from the record's own cited
+	 * `material` (see `PartDataEntry`): `silicon`, `germanium` or `schottky`.
+	 * Read by the ambient-temperature fold for the exact part id, the same rung the
+	 * law refinement uses. Absent means the record states none and the compile runs
+	 * the silicon bandgap, recording the default (`material-default-silicon`).
+	 */
+	readonly material?: JunctionMaterial;
 	/**
 	 * **Present when this entry's model is a STAND-IN for a part it is not.** Required for any
 	 * macro binding a part whose packets declare its behaviour unavailable, and read by

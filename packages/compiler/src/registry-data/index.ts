@@ -69,6 +69,7 @@ export {
 	classParamNames,
 	REQUIRED_CLASS_PARAMS,
 	requiredClassParams,
+	type JunctionMaterial,
 	type PartClassName,
 } from "./schema";
 export {

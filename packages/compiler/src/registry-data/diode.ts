@@ -90,6 +90,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// SOD-123 FILM lines in the same file are package variants, not registered).
 		partIds: ["BAT41"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 10e-9,
@@ -154,6 +155,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// ST small-signal Schottky, DO-35.
 		partIds: ["BAT46"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 15.896e-6,
@@ -218,6 +220,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// ST small-signal Schottky, DO35. N 4.995 is the printed fit value (see module note).
 		partIds: ["BAT43"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 480.77e-6,
@@ -282,6 +285,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// ST small-signal Schottky, DO35.
 		partIds: ["BAT48"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 263.91e-9,
@@ -347,6 +351,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// single file; the exact-part single file is cited.
 		partIds: ["1N5817"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		note:
 			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Diode/DIODE2.lib line 125, " +
 			"card '.model 1N5817 D': 'Is=31.7u' = 3.17e-05, ltwiki Standard.* mirror): this record's " +
@@ -413,6 +418,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// owner bundle). Corpus: (project NetPort scan names 1N5818 once, DO-41).
 		partIds: ["1N5818"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 263e-6,
@@ -466,6 +472,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Diodes Inc Schottky barrier rectifier; bundle-only in hand (same index-page citation as 1N5819).
 		partIds: ["1N5819"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		note:
 			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
 			"Electronics Lib/cmp/standard.dio line 146, card '.MODEL 1N5819_ D': 'IS=1.65E-05' = " +
@@ -520,6 +527,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// N 0.775 is the printed fit value (see module note).
 		partIds: ["B340A"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 9.9e-9,
@@ -1093,6 +1101,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Diodes PDF: VF MAX 1.0 V at 5 mA, single point).
 		partIds: ["1N34A"],
 		class: "diode",
+		material: "germanium", // the cited record identifies a germanium junction (factory sheet / Ge card / measured Ge).
 		params: {
 			saturationCurrent: {
 				value: 2.6e-6,
@@ -1183,6 +1192,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// corrupt as a low-current model; the datasheet derivation below replaces it.
 		partIds: ["1N60"],
 		class: "diode",
+		material: "germanium", // the cited record identifies a germanium junction (factory sheet / Ge card / measured Ge).
 		note:
 			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
 			"Electronics Lib/cmp/standard.dio line 65, card '.MODEL 1N60 D': 'IS=1.37773u' = " +
@@ -1230,6 +1240,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// record competes.
 		partIds: ["1N60P"],
 		class: "diode",
+		material: "germanium", // the cited record identifies a germanium junction (factory sheet / Ge card / measured Ge).
 		params: {
 			saturationCurrent: {
 				value: 4.4984e-5,
@@ -1261,6 +1272,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// 0.227 V at 1 mA, 0.308 V at 10 mA (the card's own header prints VF max 400 mV at 10 mA).
 		partIds: ["BAT85"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 2.076e-7,
@@ -1325,6 +1337,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// community records out, per the loader).
 		partIds: ["BAT85S"],
 		class: "diode",
+		material: "schottky", // the cited manufacturer card prints EG=.69 (applied card for BAT85S).
 		params: {
 			saturationCurrent: {
 				value: 2.076e-7,
@@ -1392,6 +1405,7 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		partIds: ["1S188FM"],
 		aliases: ["1S-188FM"],
 		class: "diode",
+		material: "germanium", // the cited record identifies a germanium junction (factory sheet / Ge card / measured Ge).
 		params: {
 			saturationCurrent: {
 				value: 5.4e-6,

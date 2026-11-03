@@ -114,6 +114,19 @@ export const CLASS_PARAM_SCHEMAS = {
 /** The closed set of part classes the registry holds parameters for. */
 export type PartClassName = keyof typeof CLASS_PARAM_SCHEMAS;
 
+/**
+ * A junction's semiconductor material, as typed registry evidence for the ambient-
+ * temperature fold (`device-laws.ts`).
+ *
+ * The temperature law needs the bandgap EG per junction: silicon 1.11 eV, germanium
+ * 0.67 eV, Schottky barrier 0.69 eV (all ngspice defaults for the matching device
+ * kinds). Read from the record that states the part's own parameters -- a cited
+ * `.MODEL` card's EG, a manufacturer sheet's material line, a measured record's own
+ * identification -- never from the part id string or any prose about the part.
+ * Parts without a material run the silicon bandgap and the compile records that
+ * default (`material-default-silicon`), so a silent assumption is a named one.
+ */
+export type JunctionMaterial = "silicon" | "germanium" | "schottky";
 /** The accepted parameter names for a class, in schema order. */
 export function classParamNames(cls: PartClassName): readonly string[] {
 	return CLASS_PARAM_SCHEMAS[cls] as readonly string[];

@@ -46,7 +46,32 @@
 // Central Semiconductor).
 
 import { foldPartId } from "../registry";
-import { CLASS_PARAM_SCHEMAS, classParamNames, type PartClassName } from "./schema";
+import {
+	CLASS_PARAM_SCHEMAS,
+	classParamNames,
+	type JunctionMaterial,
+	type PartClassName,
+} from "./schema";
+
+/**
+ * The junction classes the ambient-temperature fold reads a material for: the diode
+ * family (diode, zener) and bipolar transistors. Stating a material on any other
+ * class is refused: a JFET/MOSFET gate is silicon by construction and carries no
+ * thermal figure, an LED junction is a III-V the three-material law does not cover
+ * (LEDs run the silicon bandgap and the compile says so), and rails, pumps and
+ * power stages have no junction the fold scales.
+ */
+const MATERIAL_CLASSES: ReadonlySet<PartClassName> = new Set<PartClassName>([
+	"diode",
+	"zener",
+	"bjt",
+]);
+
+const JUNCTION_MATERIALS: ReadonlySet<string> = new Set<string>([
+	"silicon",
+	"germanium",
+	"schottky",
+]);
 
 /**
  * Manufacturer hosts a `manufacturer-model` file URL may live on. The file must be the
@@ -193,6 +218,14 @@ export type PartDataEntry = {
 	readonly aliases?: readonly string[];
 	readonly class: PartClassName;
 	readonly params: Readonly<Record<string, CitedParam>>;
+	/**
+	 * The junction's semiconductor material, as typed evidence for the ambient-
+	 * temperature fold. Present only where the record's own cited sources state it
+	 * (a `.MODEL` card's EG, a manufacturer sheet, a measured identification); never
+	 * read from the part id or filled in by family resemblance. Absent means the
+	 * silicon default, recorded by the compile (`material-default-silicon`).
+	 */
+	readonly material?: JunctionMaterial;
 	/** Provenance disclosures that are not a parameter: stand-ins, exceptions, caveats. */
 	readonly note?: string;
 };
@@ -492,6 +525,18 @@ export function definePartData(
 		const label = entry.partIds.join(",") || "(no part ids)";
 		if (!(entry.class in CLASS_PARAM_SCHEMAS)) {
 			throw new Error(`${label}: unknown part class "${entry.class}"`);
+		}
+		if (entry.material !== undefined) {
+			if (!JUNCTION_MATERIALS.has(entry.material)) {
+				throw new Error(
+					`${label}: unknown junction material "${entry.material}" (silicon, germanium or schottky)`,
+				);
+			}
+			if (!MATERIAL_CLASSES.has(entry.class)) {
+				throw new Error(
+					`${label}: material is stated for class "${entry.class}", which carries no temperature-scaled junction (diode, zener or bjt only)`,
+				);
+			}
 		}
 		const allowed = new Set<string>(classParamNames(entry.class));
 		for (const [name, param] of Object.entries(entry.params)) {

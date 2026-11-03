@@ -1292,6 +1292,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// disclosed as the corroborating one-sample. Polarity is structural (PNP).
 		partIds: ["AC128"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		note:
 			"Corroborating single-specimen extraction (Holmes/Holters/van Walstijn DAFx-2017 " +
 			"Table 1 via https://grwhitehead.github.io/germaniumbjts, Greg Whitehead): " +
@@ -1364,6 +1365,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// images): disclosed. Polarity is structural (PNP).
 		partIds: ["OC44"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			saturationCurrent: {
 				value: 3.0207e-6,
@@ -2419,6 +2421,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Corpus: Sola Sound Tone Bender MKI (OC75).
 		partIds: ["OC75"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 90,
@@ -2439,6 +2442,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Corpus: Sola Sound Tone Bender MKII (two sheets) -- 12 instances.
 		partIds: ["OC81D"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 60,
@@ -2458,6 +2462,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Same bias caveat as OC75. Corpus: EQD Tone Reaper (AC176).
 		partIds: ["AC176"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 111.8033989,
@@ -2487,6 +2492,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// default) and keep the row BF-less. Corpus: BearFoot Emerald Green, EQD Hoof.
 		partIds: ["2N1308"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			saturationCurrent: {
 				value: 6.31226e-07,
@@ -2544,6 +2550,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// file). Polarity is structural (PNP).
 		partIds: ["ACY17"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 86.6025404,
@@ -2568,6 +2575,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY18"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 69.2820323,
@@ -2592,6 +2600,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY19"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 141.4213562,
@@ -2616,6 +2625,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY20"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 85.1469318,
@@ -2640,6 +2650,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY21"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 150,
@@ -2664,6 +2675,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY22"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 94.8683298,
@@ -2688,6 +2700,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY39"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 86.6025404,
@@ -2712,6 +2725,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["ACY40"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 45.8257569,
@@ -2736,6 +2750,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["OC44N"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 94.8683298,
@@ -2757,6 +2772,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["OC45N"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 55.9016994,
@@ -2778,6 +2794,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["OC72"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 73.4846923,
@@ -2800,6 +2817,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT11"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 140.7124728,
@@ -2824,6 +2842,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT12"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 90,
@@ -2846,6 +2865,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT213"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 80.6225775,
@@ -2869,6 +2889,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT214"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 47.4341649,
@@ -2892,6 +2913,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT216"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 25.9807621,
@@ -2915,6 +2937,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT217"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 86.6025404,
@@ -2939,6 +2962,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT219"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 143.1782106,
@@ -2962,6 +2986,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT223"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 100,
@@ -2983,6 +3008,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT224"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 51.9615242,
@@ -3004,6 +3030,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT271"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 111.8033989,
@@ -3026,6 +3053,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT272"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 56.1248608,
@@ -3049,6 +3077,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT274"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 143.1782106,
@@ -3072,6 +3101,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT281"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 102.4695077,
@@ -3094,6 +3124,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["2N1305"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 89.4427191,
@@ -3115,6 +3146,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["2N1307"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 134.1640786,
@@ -3145,6 +3177,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// structural (PNP).
 		partIds: ["NKT275"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		note:
 			"Two-specimen pooled values. Q1 reads hFE 53.7 / IS 1.33e-6 and Q2 hFE 143.5 / IS 2.38e-6 " +
 			"at IC ~ 1 mA, VCE = 5 V; Q2 carries 34 uA leakage (article), ~3% of the 1 mA row.",
@@ -3235,6 +3268,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// disclosed. Polarity is structural (PNP: the PM/OA/LT column reads PG).
 		partIds: ["NKT131"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 50,
@@ -3257,6 +3291,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT132"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 40,
@@ -3279,6 +3314,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT143"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 100,
@@ -3301,6 +3337,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT144"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 100,
@@ -3323,6 +3360,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT151"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 150,
@@ -3345,6 +3383,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT152"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 100,
@@ -3367,6 +3406,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT154/25"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 50,
@@ -3389,6 +3429,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT162"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 100,
@@ -3411,6 +3452,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT163"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 80,
@@ -3433,6 +3475,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT163/25"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 80,
@@ -3455,6 +3498,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT164"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 50,
@@ -3477,6 +3521,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT164/25"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 50,
@@ -3499,6 +3544,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT202"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 150,
@@ -3523,6 +3569,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT203"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 45,
@@ -3545,6 +3592,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT204"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 35,
@@ -3567,6 +3615,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT205"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 30,
@@ -3589,6 +3638,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT206"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 100,
@@ -3611,6 +3661,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT207"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 150,
@@ -3635,6 +3686,7 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 	{
 		partIds: ["NKT208"],
 		class: "bjt",
+		material: "germanium", // The cited record identifies a germanium junction (Mullard pocket book, Newmarket reference table, or manufacturer sheet).
 		params: {
 			forwardBeta: {
 				value: 70,

@@ -3637,6 +3637,30 @@ export type RegistryProvisionalValueWarning = {
 };
 
 /**
+ * Junctions whose temperature fold ran on the silicon bandgap because no registry
+ * entry states a material for the exact part -- or the part names none at all.
+ * One notice per document, naming every such device, emitted only when the
+ * ambient-temperature option moves the compile off 300 K (at the default there is
+ * nothing to record: every program is byte-identical to today's).
+ *
+ * **Why it is named.** The bandgap moves the saturation current exponentially: at
+ * 19 C a germanium junction's IS is ~0.6x its 300 K value while a silicon one's is
+ * ~0.5x, so a defaulted germanium part biases measurably off. The notice is not a
+ * claim that silicon is wrong -- most junctions are silicon -- only that the
+ * number came from the consumer, not the source. An LED is named like any other
+ * defaulted junction: its junction is a III-V the three-material law does not
+ * cover, so LEDs run the silicon bandgap by construction.
+ */
+export type MaterialDefaultSiliconWarning = {
+	readonly code: "material-default-silicon";
+	readonly device: null;
+	readonly devices: readonly DeviceId[];
+	/** The ambient temperature in kelvin the silicon bandgap was folded at. */
+	readonly kelvin: number;
+	readonly detail: string;
+};
+
+/**
  * A device parameter the source still types under its legacy spelling (`Aol`, `IS`, `BF`,
  * `Vt0`, `Beta`, `GBP`, `EmissionCoefficient`, ...), which the compiler still reads while
  * the artifacts migration to explicit `DeviceOverride` blocks is in flight. One warning per
@@ -4088,6 +4112,7 @@ export type CompileWarning =
 	| FetLawDefaultWarning
 	| BjtLawDefaultWarning
 	| DiodeLawDefaultWarning
+	| MaterialDefaultSiliconWarning
 	| RegistryProvisionalValueWarning
 	| LegacyDeviceParameterWarning
 	| LedColourUnmatchedWarning
