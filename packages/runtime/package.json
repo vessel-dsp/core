@@ -58,7 +58,7 @@
     "generate-kernels": "bun scripts/generate-kernels.ts"
   },
   "dependencies": {
-    "@vessel-dsp/compiler": "0.20.0"
+    "@vessel-dsp/compiler": "0.21.0"
   },
   "publishConfig": {
     "access": "public"

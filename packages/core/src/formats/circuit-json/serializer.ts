@@ -220,6 +220,7 @@ const MODEL_PROPERTY_NAMES: readonly string[] = [
 const DIRECT_EXPORT_KINDS: ReadonlySet<ComponentKind> = new Set<ComponentKind>([
 	"resistor",
 	"variable-resistor",
+	"thermistor",
 	"capacitor",
 	"inductor",
 	"diode",
@@ -649,7 +650,13 @@ function sourceComponentElement(
 
 	switch (component.kind) {
 		case "resistor":
-		case "variable-resistor": {
+		case "variable-resistor":
+		// A thermistor is a temperature-dependent resistor, and Circuit JSON has
+		// no thermistor ftype: it exports as the reference resistance it behaves
+		// as at one temperature (Beta and the reference temperature stay in the
+		// source document), the same lossy mapping a fuse gets. The symbol keeps
+		// the resistor body, so the value reads on the schematic.
+		case "thermistor": {
 			const resistance = quantity(component, "resistance");
 			if (resistance === null) {
 				return missingQuantityComponent(
@@ -969,6 +976,7 @@ function quantityKeyForComponent(kind: ComponentKind): QuantityKey | null {
 	switch (kind) {
 		case "resistor":
 		case "variable-resistor":
+		case "thermistor":
 		case "potentiometer":
 			return "resistance";
 		case "capacitor":
@@ -1136,6 +1144,7 @@ function schematicSymbolName(component: Component): string {
 	switch (component.kind) {
 		case "resistor":
 		case "variable-resistor":
+		case "thermistor":
 			return "boxresistor_right";
 		case "capacitor":
 			return isPolarizedCapacitor(component)
@@ -1207,6 +1216,7 @@ function schematicComponentSize(component: Component): {
 	switch (component.kind) {
 		case "resistor":
 		case "variable-resistor":
+		case "thermistor":
 			return { width: 1.1, height: 0.39 };
 		case "capacitor":
 			return { width: 1.1, height: 0.84 };

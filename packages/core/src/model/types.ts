@@ -26,6 +26,7 @@ export type ComponentKind =
 	| "transformer"
 	| "potentiometer"
 	| "variable-resistor"
+	| "thermistor"
 	| "switch"
 	| "fuse"
 	| "optocoupler"

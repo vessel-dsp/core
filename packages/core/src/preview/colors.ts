@@ -33,6 +33,8 @@ const KIND_COLOR: Readonly<Record<ComponentKind, string>> = {
 	rail: "#f97316",
 	ground: "#64748b",
 	switch: "#eab308",
+	// An NTC disc, drawn with the passives it behaves as at any one temperature.
+	thermistor: "#3b82f6",
 	// A protective conductor, drawn with the passives it behaves as while intact.
 	fuse: "#3b82f6",
 	// A logic gate, drawn with the active devices it is built from.

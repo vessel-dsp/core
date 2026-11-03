@@ -84,6 +84,10 @@ const deviceKindByComponentKind: Readonly<Record<string, DeviceKind>> = {
 	// two terminals, so aliasing it to `potentiometer` refused all of them for want of
 	// a wiper the device does not have.
 	"variable-resistor": "rheostat",
+	// An NTC thermistor disc: its own device kind (the fold needs Beta and the
+	// reference temperature, which a resistor law cannot carry), lowering to a
+	// conductance like a resistor does.
+	thermistor: "thermistor",
 	opamp: "opamp",
 	// 126 of the 24 canonical amp documents' tube instances are triodes, and every one of
 	// those documents refused at this table until now.
@@ -2377,6 +2381,7 @@ function propertyQuantityText(
  */
 const baseUnitsByDeviceKind: Readonly<Record<string, readonly string[]>> = {
 	resistor: ["", "ohm", "ohms", "Ω"],
+	thermistor: ["", "ohm", "ohms", "Ω"],
 	potentiometer: ["", "ohm", "ohms", "Ω"],
 	rheostat: ["", "ohm", "ohms", "Ω"],
 	capacitor: ["f", "farad", "farads"],
@@ -3714,6 +3719,91 @@ function declaredChannel(declared: string): "n" | "p" | null {
 	}
 	return null;
 }
+
+	if (kind === "thermistor") {
+		// An NTC thermistor disc: a temperature-dependent resistor. NTC only: a
+		// `Type: ptc` (or any other stated type) is a typed refusal naming the
+		// component, never a silent resistor, and a missing Beta is the same --
+		// without the curvature there is nothing to fold.
+		const declaredType = propertyString(component, "Type");
+		if (declaredType !== null) {
+			const folded = declaredType.toLowerCase().replace(/[^a-z0-9]/gu, "");
+			if (folded === "ptc") {
+				throw new NetlistError(
+					`component ${component.id}: thermistor is a PTC type, and only NTC thermistors compile (state no Type or Type NTC)`,
+					String(component.id),
+				);
+			}
+			if (folded !== "ntc") {
+				throw new NetlistError(
+					`component ${component.id}: thermistor has Type "${declaredType}", which is not NTC or PTC`,
+					String(component.id),
+				);
+			}
+		}
+		// The typed value first, then the string -- the same rung order the
+		// resistor and fuse paths use: a structured `{value, unit}` is exact, and
+		// the parsing rung reaches a packet that never adopted the typed form.
+		const referenceOhms =
+			baseUnitQuantity(component, "Resistance", "thermistor") ??
+			baseUnitQuantity(component, "R", "thermistor") ??
+			optionalQuantity(component, "Resistance") ??
+			optionalQuantity(component, "R");
+		if (referenceOhms === null || referenceOhms === undefined) {
+			throw new NetlistError(
+				`component ${component.id}: thermistor has no Resistance`,
+				String(component.id),
+			);
+		}
+		if (!(referenceOhms > 0)) {
+			throw new NetlistError(
+				`component ${component.id}: thermistor has a non-positive resistance`,
+				String(component.id),
+			);
+		}
+		const beta =
+			typedNumber(component, "Beta", ["", "k", "kelvin"]) ??
+			typedNumber(component, "beta", ["", "k", "kelvin"]);
+		if (beta === null) {
+			throw new NetlistError(
+				`component ${component.id}: thermistor has no Beta`,
+				String(component.id),
+			);
+		}
+		if (beta < 0) {
+			throw new NetlistError(
+				`component ${component.id}: thermistor has a negative Beta, and a negative curvature is not physical`,
+				String(component.id),
+			);
+		}
+		// The temperature the Resistance is quoted at. Absent means 25 C; the
+		// closed unit set is enforced here, not in core validation, so a Kelvin
+		// figure refuses instead of silently folding as Celsius.
+		const referenceCelsius =
+			typedNumber(component, "ReferenceTemperatureC", [
+				"",
+				"c",
+				"°c",
+				"degc",
+				"celsius",
+			]) ??
+			typedNumber(component, "referenceTemperatureC", [
+				"",
+				"c",
+				"°c",
+				"degc",
+				"celsius",
+			]) ??
+			25;
+		const referenceKelvin = referenceCelsius + 273.15;
+		if (!Number.isFinite(referenceKelvin) || !(referenceKelvin > 0)) {
+			throw new NetlistError(
+				`component ${component.id}: thermistor has a reference temperature ${referenceCelsius} C, which is not above absolute zero`,
+				String(component.id),
+			);
+		}
+		return { referenceOhms, betaKelvin: beta, referenceKelvin };
+	}
 
 	if (kind === "jfet" || kind === "mosfet") {
 		const parameters: Record<string, number> = {};

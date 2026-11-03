@@ -29,6 +29,12 @@ export type DeviceKind =
 	| "potentiometer"
 	/** Two-terminal variable resistor. Not a pot: one element, not two halves. */
 	| "rheostat"
+	/**
+	 * An NTC thermistor disc: a temperature-dependent resistor. Two terminals,
+	 * polarity-free, the same terminal roles as a resistor. Lowers to a
+	 * conductance folded at the ambient temperature (no self-heating).
+	 */
+	| "thermistor"
 	| "opamp"
 	| "bjt"
 	| "jfet"

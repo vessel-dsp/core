@@ -393,6 +393,37 @@ const KIND_RULES: Partial<Record<ComponentKind, readonly PropertyRule[]>> = {
 		},
 		{ kind: "string", name: "taper", required: false, aliases: ["Taper"] },
 	],
+	thermistor: [
+		{
+			kind: "quantity",
+			name: "Resistance",
+			required: true,
+			unit: "Ω",
+			min: 1e-9,
+			max: 1e9,
+			aliases: ["R", "resistance", "r"],
+		},
+		// The NTC beta in kelvin: the curvature of log-R against 1/T. Required,
+		// with no minimum: Beta 0 is a valid negative control (a plain resistor
+		// at the reference value), while a missing Beta is a refusal at compile.
+		{
+			kind: "quantity",
+			name: "Beta",
+			required: true,
+			unit: "K",
+			aliases: ["beta"],
+		},
+		// The temperature the Resistance is quoted at, in degrees Celsius.
+		// Optional: the compiler folds at 25 C where the source states none.
+		// No unit is pinned here -- a bare number and "25 C" both validate, and
+		// the compiler's reader enforces the closed unit set.
+		{
+			kind: "quantity",
+			name: "ReferenceTemperatureC",
+			required: false,
+			aliases: ["referenceTemperatureC"],
+		},
+	],
 	capacitor: [
 		{
 			kind: "quantity",

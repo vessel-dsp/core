@@ -1016,6 +1016,10 @@ export function attachDeviceLaws(
 		internalNodes.set(key, node);
 		return node;
 	};
+	// The ambient temperature in kelvin this compile folds to. Absent means the
+	// 300 K reference: the junction fold and the thermistor resistance both land
+	// exactly on today's numbers (the fold is skipped outright near 300 K).
+	const ambientKelvin = options?.ambientKelvin ?? REFERENCE_TEMPERATURE_KELVIN;
 	const devices: Device[] = [];
 	const resolutions: DeviceResolution[] = [];
 	for (const device of netlist.devices) {
@@ -1047,6 +1051,7 @@ export function attachDeviceLaws(
 					devicesTouchingNode,
 					nodeToVoltage,
 					netlist,
+					ambientKelvin,
 				),
 			);
 			continue;
@@ -1062,7 +1067,7 @@ export function attachDeviceLaws(
 			devices,
 			nodes: internalNodes.size === 0 ? netlist.nodes : [...netlist.nodes, ...internalNodes.values()],
 		},
-		resolutions: foldAmbientTemperature(devices, resolutions, registry, options?.ambientKelvin),
+		resolutions: foldAmbientTemperature(devices, resolutions, registry, ambientKelvin),
 	};
 }
 
@@ -1080,9 +1085,9 @@ function foldAmbientTemperature(
 	devices: readonly Device[],
 	resolutions: readonly DeviceResolution[],
 	registry: PartRegistry,
-	ambientKelvin: number | undefined,
+	ambientKelvin: number,
 ): readonly DeviceResolution[] {
-	const kelvin = ambientKelvin ?? REFERENCE_TEMPERATURE_KELVIN;
+	const kelvin = ambientKelvin;
 	if (!ambientTemperatureScalesJunction(kelvin)) {
 		return resolutions;
 	}
@@ -3008,6 +3013,7 @@ function resolveDevice(
 	devicesTouchingNode: ReadonlyMap<NodeId, number>,
 	nodeToVoltage: ReadonlyMap<NodeId, number>,
 	netlist?: Netlist,
+	ambientKelvin: number = REFERENCE_TEMPERATURE_KELVIN,
 ): DeviceResolution {
 	// A component declared as one transistor that is really several devices in one shell. Opened
 	// rather than stamped, for the reason `isNonExecutableIcSupportShell` opens an IC shell: there
@@ -3133,6 +3139,51 @@ function resolveDevice(
 			}
 			if (!(ohms > 0)) {
 				return unsupported(device, "resistor has a non-positive resistance");
+			}
+			return {
+				outcome: "law",
+				device: device.id,
+				law: { kind: "conductance", siemens: 1 / ohms },
+			};
+		}
+		case "thermistor": {
+			// An NTC disc at the ambient temperature: `R(T) = R_ref * exp(Beta *
+			// (1/T - 1/T_ref))`, folded here at compile time like the junction fold
+			// above, and stamped as the conductance a resistor of that value takes.
+			// Beta 0 folds to exactly R_ref (exp(0) is 1), so the negative control
+			// compiles to the same program as the same-valued resistor.
+			//
+			// **No self-heating.** The resistance is a function of the ambient
+			// alone: the current through the disc does not warm it. A thermistor
+			// that heats under load needs a thermal state the program does not have.
+			const referenceOhms = device.parameters.referenceOhms ?? 0;
+			const beta = device.parameters.betaKelvin ?? 0;
+			const referenceKelvin = device.parameters.referenceKelvin ?? 298.15;
+			if (device.nodes.length !== 2) {
+				return unsupported(
+					device,
+					`thermistor has ${device.nodes.length} terminals, not the two a polarity-free disc carries`,
+				);
+			}
+			if (
+				!(referenceOhms > 0) ||
+				!Number.isFinite(beta) ||
+				beta < 0 ||
+				!(referenceKelvin > 0)
+			) {
+				return unsupported(
+					device,
+					"thermistor carries no usable Resistance, Beta or reference temperature",
+				);
+			}
+			const ohms =
+				referenceOhms *
+				Math.exp(beta * (1 / ambientKelvin - 1 / referenceKelvin));
+			if (!(ohms > 0) || !Number.isFinite(ohms)) {
+				return unsupported(
+					device,
+					"thermistor folds to a non-positive resistance at this ambient temperature",
+				);
 			}
 			return {
 				outcome: "law",

@@ -414,6 +414,15 @@ export const TERMINAL_ROLES_BY_KIND: Readonly<
 > = {
 	resistor: TWO_TERMINAL,
 	/**
+	 * An NTC thermistor disc: a temperature-dependent resistor, two terminals and
+	 * no polarity, the same roles as the resistor it behaves as at any one
+	 * temperature. The temperature dependence itself is properties, not roles:
+	 * `Resistance` (ohms at `ReferenceTemperatureC`, default 25 C) and the NTC
+	 * `Beta` in kelvin. PTC is not this kind: a `Type: ptc` is a compile refusal
+	 * naming the component, never a silent resistor.
+	 */
+	thermistor: TWO_TERMINAL,
+	/**
 	 * A fuse, thermal cutout or other one-shot protective conductor.
 	 *
 	 * **Why the format needs its own kind for this.** A fuse conducts until it opens once, and

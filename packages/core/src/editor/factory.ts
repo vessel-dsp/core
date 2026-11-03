@@ -97,6 +97,7 @@ const ID_PREFIX: Readonly<Record<ComponentKind, string>> = {
 	transformer: "T",
 	potentiometer: "RV",
 	"variable-resistor": "VR",
+	"thermistor": "TH",
 	switch: "SW",
 	fuse: "F",
 	inverter: "U",

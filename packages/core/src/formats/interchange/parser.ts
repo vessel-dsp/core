@@ -3924,6 +3924,7 @@ function parseComponentKind(
 		case "transformer":
 		case "potentiometer":
 		case "variable-resistor":
+		case "thermistor":
 		case "switch":
 		case "fuse":
 		case "inverter":

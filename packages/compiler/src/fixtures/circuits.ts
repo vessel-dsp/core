@@ -145,12 +145,437 @@ wires: []
 `;
 
 /**
+ * A divider with an NTC thermistor as the top arm: the Fuzz Face bias network in
+ * miniature (a thermistor in the collector return against a fixed lower arm).
+ * R_ref 10k at 25 C, Beta 3950 K: at 25 C it divides exactly like
+ * `resistorDivider` (gain 0.5); at 19 C the top arm is 13127.01 ohms and the gain
+ * is 0.43239483. The closed forms are asserted in `thermistor.test.ts`.
+ */
+export const thermistorDivider = `${header("Thermistor Divider Fixture")}components:
+${jacks}  - id: RT1
+    kind: thermistor
+    name: NTC_DISC
+    sourceTypeName: Circuit.Thermistor
+    origin:
+      x: -100
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: -100
+          y: -20
+      - name: b
+        node: 2
+        position:
+          x: -100
+          y: 20
+    properties:
+      Resistance: "10k"
+      Beta: "3950"
+      Description: "NTC bias disc, 10k at 25 C."
+  - id: R2
+    kind: resistor
+    name: LOWER_ARM
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 100
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 2
+        position:
+          x: 100
+          y: -20
+      - name: b
+        node: 0
+        position:
+          x: 100
+          y: 20
+    properties:
+      Resistance: "10k"
+      Description: "Fixed lower arm."
+wires: []
+`;
+
+/**
  * The same divider with one inline terminal node contradicting the declared ledger.
  *
  * `R1.b` is authored inline on node 9 while `nodes:` places it on node 2 with `R2.a` and
  * the output jack. Stage 1 should follow the ledger and still warn that the document is
  * inconsistent with itself.
  */
+/**
+ * Two PNP germanium gain stages with an NTC thermistor in Q1's collector return:
+ * the Fuzz Face bias network in miniature (33k NTC disc RT1 against a fixed lower
+ * arm is `thermistorDivider`; here the disc sets a biased stage's operating point).
+ * Q1/Q2 are registry AC128 germanium PNPs, so the temperature fold runs EG 0.67;
+ * RT1 is R_ref 33k at 25 C, Beta 3950 K: 43319.14 ohms at 19 C, 33000.00 at 25 C.
+ * The closed forms and the ngspice parity at both temperatures are asserted in
+ * `tests/temperature-parity.test.ts`; the stamp folds in `thermistor.test.ts`.
+ */
+export const thermalFuzzFacePair = `${header("Thermal Fuzz Face Pair Fixture")}components:
+  - id: JIN
+    kind: jack
+    name: INPUT
+    sourceTypeName: Circuit.Input
+    origin:
+      x: -200
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 1
+        position:
+          x: -200
+          y: 0
+  - id: JOUT
+    kind: jack
+    name: OUTPUT
+    sourceTypeName: Circuit.Output
+    origin:
+      x: 400
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: tip
+        node: 6
+        position:
+          x: 400
+          y: 0
+  - id: GND1
+    kind: ground
+    name: GND
+    sourceTypeName: Circuit.Ground
+    origin:
+      x: 0
+      y: -100
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: gnd
+        node: 0
+        position:
+          x: 0
+          y: -100
+  - id: V1
+    kind: voltage-source
+    name: SUPPLY
+    sourceTypeName: Circuit.VoltageSource
+    origin:
+      x: 0
+      y: -200
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: plus
+        role: positive
+        node: 5
+        position:
+          x: 0
+          y: -200
+      - name: minus
+        role: negative
+        node: 0
+        position:
+          x: 0
+          y: -180
+    properties:
+      Voltage: "9"
+  - id: CIN
+    kind: capacitor
+    name: CIN
+    sourceTypeName: Circuit.Capacitor
+    origin:
+      x: -150
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 1
+        position:
+          x: -160
+          y: 0
+      - name: b
+        node: 2
+        position:
+          x: -140
+          y: 0
+    properties:
+      Capacitance: "10u"
+  - id: RB1
+    kind: resistor
+    name: RB1
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -50
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 5
+        position:
+          x: -50
+          y: -60
+      - name: b
+        node: 2
+        position:
+          x: -50
+          y: -40
+    properties:
+      Resistance: "10k"
+  - id: RB2
+    kind: resistor
+    name: RB2
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: -50
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 2
+        position:
+          x: -50
+          y: 40
+      - name: b
+        node: 0
+        position:
+          x: -50
+          y: 60
+    properties:
+      Resistance: "100k"
+  - id: Q1
+    kind: bjt
+    name: Q1
+    sourceTypeName: Circuit.BJT
+    origin:
+      x: 0
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: base
+        role: base
+        node: 2
+        position:
+          x: -20
+          y: 0
+      - name: collector
+        role: collector
+        node: 3
+        position:
+          x: 20
+          y: -20
+      - name: emitter
+        role: emitter
+        node: 4
+        position:
+          x: 20
+          y: 20
+    properties:
+      Type: "PNP"
+      PartNumber: "AC128"
+  - id: RE1
+    kind: resistor
+    name: RE1
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 60
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 4
+        position:
+          x: 60
+          y: -40
+      - name: b
+        node: 5
+        position:
+          x: 60
+          y: -60
+    properties:
+      Resistance: "4.7k"
+  - id: RT1
+    kind: thermistor
+    name: RT1
+    sourceTypeName: Circuit.Thermistor
+    origin:
+      x: 60
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        role: end
+        node: 3
+        position:
+          x: 60
+          y: 40
+      - name: b
+        role: end
+        node: 5
+        position:
+          x: 60
+          y: 60
+    properties:
+      Resistance: "33k"
+      Beta: "3950"
+  - id: C2
+    kind: capacitor
+    name: C2
+    sourceTypeName: Circuit.Capacitor
+    origin:
+      x: 120
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 3
+        position:
+          x: 110
+          y: 0
+      - name: b
+        node: 7
+        position:
+          x: 130
+          y: 0
+    properties:
+      Capacitance: "10u"
+  - id: RB3
+    kind: resistor
+    name: RB3
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 170
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 5
+        position:
+          x: 170
+          y: -60
+      - name: b
+        node: 7
+        position:
+          x: 170
+          y: -40
+    properties:
+      Resistance: "10k"
+  - id: RB4
+    kind: resistor
+    name: RB4
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 170
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 7
+        position:
+          x: 170
+          y: 40
+      - name: b
+        node: 0
+        position:
+          x: 170
+          y: 60
+    properties:
+      Resistance: "100k"
+  - id: Q2
+    kind: bjt
+    name: Q2
+    sourceTypeName: Circuit.BJT
+    origin:
+      x: 220
+      y: 0
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: base
+        role: base
+        node: 7
+        position:
+          x: 200
+          y: 0
+      - name: collector
+        role: collector
+        node: 6
+        position:
+          x: 240
+          y: -20
+      - name: emitter
+        role: emitter
+        node: 8
+        position:
+          x: 240
+          y: 20
+    properties:
+      Type: "PNP"
+      PartNumber: "AC128"
+  - id: RE2
+    kind: resistor
+    name: RE2
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 280
+      y: -50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 8
+        position:
+          x: 280
+          y: -40
+      - name: b
+        node: 5
+        position:
+          x: 280
+          y: -60
+    properties:
+      Resistance: "4.7k"
+  - id: RC2
+    kind: resistor
+    name: RC2
+    sourceTypeName: Circuit.Resistor
+    origin:
+      x: 280
+      y: 50
+    rotation: 0
+    flipped: false
+    terminals:
+      - name: a
+        node: 6
+        position:
+          x: 280
+          y: 40
+      - name: b
+        node: 0
+        position:
+          x: 280
+          y: 60
+    properties:
+      Resistance: "10k"
+wires: []
+`;
+
 export const ledgerOverridesInlineDivider = derive(
 	resistorDivider,
 	'      - name: b\n        node: 2\n',
