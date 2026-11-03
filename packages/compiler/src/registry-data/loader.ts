@@ -9,6 +9,7 @@
 // value is not loadable -- the loader throws, at module load, on:
 //
 // - a parameter missing `source` or `basis`;
+// - a `corroboration` field that is present but empty (any basis may carry one);
 // - a `derived` basis with no derivation text;
 // - a `manufacturer-model` basis without the manufacturer model file URL and the exact
 //   model line it was read from (both required, validated, and quoted in `source`);
@@ -165,6 +166,16 @@ export type CitedParam = {
 	readonly retrievedDate?: string;
 	/** Required when `basis` is `community`: what was searched and why no better source exists. */
 	readonly whyNoBetterSource?: string;
+	/**
+	 * Optional on any basis: a second, independently published figure for the same
+	 * parameter, cited so it can be re-read (URL or vendored file, the verbatim fragment
+	 * carrying the value, and how far it sits from `value`). It never supplies the value;
+	 * it records that someone else printed one and whether it agrees. An identical figure
+	 * from a mirror of the cited card is a transcription check, not a second witness, and
+	 * the text says which it is. Counting entries with this field answers "how many
+	 * registry values have a cross-source" without reading prose.
+	 */
+	readonly corroboration?: string;
 };
 
 /**
@@ -211,6 +222,14 @@ export function validateCitedParam(
 	if (typeof param.source !== "string" || param.source.length === 0) {
 		throw new Error(
 			`${entryLabel}: parameter "${name}" is missing its source citation`,
+		);
+	}
+	if (
+		param.corroboration !== undefined &&
+		(typeof param.corroboration !== "string" || param.corroboration.trim().length === 0)
+	) {
+		throw new Error(
+			`${entryLabel}: parameter "${name}" states an empty corroboration (omit the field or cite the second figure)`,
 		);
 	}
 	if (

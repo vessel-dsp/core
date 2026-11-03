@@ -36,6 +36,13 @@ export const mosfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: 2.0,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.mos line 943, card '.model BS170 VDMOS': 'VTO=1.824' = " +
+					"1.824 against this record's 2 (independent published fit, registry/card ratio 1.10); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.mos#L943",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi BS170/D, Nov 2017 Rev. 7, p2, ON " +
 					"CHARACTERISTICS (Note 1: pulse test): 'Gate Threshold Voltage VGS(th), VDS = VGS, " +
@@ -55,6 +62,13 @@ export const mosfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: 1.9,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/Transistor/FET/MOS.lib line 801, card '.model 2N7000 VDMOS': " +
+					"'Vto=1.6' = 1.6 against this record's 1.9 (independent published fit, registry/card " +
+					"ratio 1.19); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/MOS.lib#L801",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Zetex 2N7000 (now Diodes Inc), Issue 2 " +
 					"Nov 1994, p1 table: 'Gate-Source Threshold Voltage VGS(th), ID = 1 mA, VDS = VGS: " +

@@ -76,6 +76,28 @@ describe("definePartData throws for the stated reason", () => {
 		).toThrow(/source/);
 	});
 
+	it("refuses a corroboration field that is present but empty", () => {
+		expect(() =>
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: { value: 5.1, basis: "datasheet", source: "test source", corroboration: "  " },
+				}),
+			]),
+		).toThrow(/corroboration/);
+		expect(
+			definePartData([
+				entry(["FIX-A"], {
+					breakdownVolts: {
+						value: 5.1,
+						basis: "datasheet",
+						source: "test source",
+						corroboration: "second sheet prints 5.1 V too",
+					},
+				}),
+			]),
+		).toHaveLength(1);
+	});
+
 	it("refuses a parameter missing its basis", () => {
 		const param = { value: 5.1, source: "test source" } as unknown as CitedParam;
 		expect(() =>
@@ -1058,6 +1080,39 @@ describe("Newmarket germanium reference table rows (2026-11-02)", () => {
 		}
 		expect(bf("OC75")?.source).toContain("Mullard");
 		expect(bf("AC176")?.source).toContain("Siemens");
+	});
+});
+
+describe("cross-source corroboration census (2026-11-03)", () => {
+	const KSL = "github.com/kicad-spice-library/KiCad-Spice-Library";
+	const withCorroboration = partRegistryData.flatMap((record) =>
+		Object.entries(record.params)
+			.filter(([, param]) => param.corroboration !== undefined)
+			.map(([name, param]) => ({ id: record.partIds[0], name, param })),
+	);
+
+	it("carries a KiCad-Spice-Library corroboration on every parameter a card agreed with (within 2x)", () => {
+		expect(withCorroboration).toHaveLength(112);
+		for (const { param } of withCorroboration) {
+			expect(param.corroboration).toContain(KSL);
+			expect(param.corroboration).toContain("/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/");
+			expect(param.corroboration).toMatch(/ratio \d+\.\d\d|identical figure/);
+		}
+	});
+
+	it("says which corroborations are only a mirror of the cited card", () => {
+		const mirrors = withCorroboration.filter(({ param }) => param.corroboration?.includes("identical figure"));
+		const independent = withCorroboration.length - mirrors.length;
+		expect(mirrors.map((x) => x.id)).toEqual(expect.arrayContaining(["BAT41", "BAT46", "1N34A", "ZTX618", "2N5088", "OC44"]));
+		expect(independent).toBeGreaterThan(50);
+	});
+
+	it("records the >10x disagreements as notes, not corroborations", () => {
+		for (const id of ["BC107B", "2N2907A", "2N4403", "MPSA06", "1N5817", "1N5819", "1N4001", "1N4007", "1N60"]) {
+			const record = partRegistryData.find((r) => r.partIds.includes(id));
+			expect(record?.note ?? "").toContain("disagrees with KiCad-Spice-Library");
+			expect(record?.params.saturationCurrent?.corroboration).toBeUndefined();
+		}
 	});
 });
 

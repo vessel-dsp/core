@@ -94,6 +94,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 10e-9,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 124, card '.MODEL " +
+					"BAT41 D': 'IS=10.000E-9' = 1e-08 against this record's 1e-08 (identical figure -- a " +
+					"mirror of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L124",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO-35 card:\n` +
@@ -105,6 +113,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.4402,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 124, card '.MODEL " +
+					"BAT41 D': 'N=1.4402' = 1.44 against this record's 1.44 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L124",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO-35 card:\n` +
@@ -116,6 +132,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 0.12219,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 124, card '.MODEL " +
+					"BAT41 D': 'RS=.12219' = 0.1222 against this record's 0.1222 (identical figure -- a " +
+					"mirror of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L124",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO-35 card:\n` +
@@ -134,6 +158,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 15.896e-6,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 154, card '.MODEL " +
+					"BAT46 D': 'IS=15.896E-6' = 1.59e-05 against this record's 1.59e-05 (identical figure -- " +
+					"a mirror of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L154",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO-35 card:\n` +
@@ -145,6 +177,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 2.3964,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 154, card '.MODEL " +
+					"BAT46 D': 'N=2.3964' = 2.396 against this record's 2.396 (identical figure -- a mirror " +
+					"of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L154",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO-35 card:\n` +
@@ -156,6 +196,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 7.7928e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 154, card '.MODEL " +
+					"BAT46 D': 'RS=7.7928E-3' = 0.007793 against this record's 0.007793 (identical figure -- " +
+					"a mirror of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L154",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO-35 card:\n` +
@@ -174,6 +222,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 480.77e-6,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 144, card '.MODEL " +
+					"BAT43 D': 'IS=480.77E-6' = 0.0004808 against this record's 0.0004808 (identical figure " +
+					"-- a mirror of the cited card or the same printed number, so a transcription check, not " +
+					"an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L144",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO35 card:\n` +
@@ -185,6 +241,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 4.995,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 144, card '.MODEL " +
+					"BAT43 D': 'N=4.9950' = 4.995 against this record's 4.995 (identical figure -- a mirror " +
+					"of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L144",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO35 card:\n` +
@@ -196,6 +260,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 40.15e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 144, card '.MODEL " +
+					"BAT43 D': 'RS=40.150E-3' = 0.04015 against this record's 0.04015 (identical figure -- a " +
+					"mirror of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L144",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO35 card:\n` +
@@ -214,6 +286,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 263.91e-9,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 174, card '.MODEL " +
+					"BAT48 D': 'IS=263.91E-9' = 2.639e-07 against this record's 2.639e-07 (identical figure " +
+					"-- a mirror of the cited card or the same printed number, so a transcription check, not " +
+					"an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L174",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO35 card:\n` +
@@ -225,6 +305,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.0966,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 174, card '.MODEL " +
+					"BAT48 D': 'N=1.0966' = 1.097 against this record's 1.097 (identical figure -- a mirror " +
+					"of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L174",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO35 card:\n` +
@@ -236,6 +324,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 0.4109,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/diode_ST.lib line 174, card '.MODEL " +
+					"BAT48 D': 'RS=.4109' = 0.4109 against this record's 0.4109 (identical figure -- a mirror " +
+					"of the cited card or the same printed number, so a transcription check, not an " +
+					"independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/diode_ST.lib#L174",
 				source:
 					`ST product page ${ST_BAT46_PAGE}. ` +
 					`${ST_ZIP_CAUTION} DO35 card:\n` +
@@ -251,6 +347,11 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// single file; the exact-part single file is cited.
 		partIds: ["1N5817"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Diode/DIODE2.lib line 125, " +
+			"card '.model 1N5817 D': 'Is=31.7u' = 3.17e-05, ltwiki Standard.* mirror): this record's " +
+			"0.00087 is 27x above it; not corroborated, kept as cited because the two are different " +
+			"fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 870e-6,
@@ -268,6 +369,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.81,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 125, card '.model 1N5817 D': 'N=1.373' = " +
+					"1.373 against this record's 1.81 (independent published fit, registry/card ratio 1.32); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L125",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/270/1N5817.spice.txt " +
 					"(Diodes Inc 1N5817.spice.txt, MANIFEST sha256 " +
@@ -281,6 +388,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 81.3e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 125, card '.model 1N5817 D': 'Rs=.051' = " +
+					"0.051 against this record's 0.0813 (independent published fit, registry/card ratio " +
+					"1.59); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L125",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/270/1N5817.spice.txt " +
 					"(Diodes Inc 1N5817.spice.txt, MANIFEST sha256 " +
@@ -314,6 +428,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.9,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 126, card '.model 1N5818 D': 'N=1.373' = " +
+					"1.373 against this record's 1.9 (independent published fit, registry/card ratio 1.38); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L126",
 				source:
 					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
 					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
@@ -325,6 +445,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 73.1e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 126, card '.model 1N5818 D': 'Rs=.051' = " +
+					"0.051 against this record's 0.0731 (independent published fit, registry/card ratio " +
+					"1.43); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L126",
 				source:
 					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
 					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
@@ -339,6 +466,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Diodes Inc Schottky barrier rectifier; bundle-only in hand (same index-page citation as 1N5819).
 		partIds: ["1N5819"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
+			"Electronics Lib/cmp/standard.dio line 146, card '.MODEL 1N5819_ D': 'IS=1.65E-05' = " +
+			"1.65e-05, Bordodynov's Electronics lib copy of the LTspice standard library): this " +
+			"record's 3.9e-07 is 42x below it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 390e-9,
@@ -354,6 +487,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.7,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 146, card '.MODEL 1N5819_ D': 'N=1.41' = 1.41 " +
+					"against this record's 1.7 (independent published fit, registry/card ratio 1.21); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L146",
 				source:
 					`Manufacturer SPICE index ${DIODES_SPICE_INDEX}. ` +
 					`${DIODES_BUNDLE_CAUTION} Card lines:\n` +
@@ -421,6 +561,11 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// covers only a part id that says G and is not registered here).
 		partIds: ["1N4001"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Diode/DIODE2.lib line 107, " +
+			"card '.model 1N4001 D': 'Is=14.11n' = 1.411e-08, ltwiki Standard.* mirror): this " +
+			"record's 7.69e-11 is 183x below it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 76.9e-12,
@@ -437,6 +582,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.45,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 107, card '.model 1N4001 D': 'N=1.984' = " +
+					"1.984 against this record's 1.45 (independent published fit, registry/card ratio 0.73); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L107",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/80/1N4001.spice.txt " +
 					"(Diodes Inc 1N4001.spice.txt, MANIFEST sha256 " +
@@ -449,6 +600,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 42e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 107, card '.model 1N4001 D': 'Rs=33.89m' " +
+					"= 0.03389 against this record's 0.042 (independent published fit, registry/card ratio " +
+					"1.24); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L107",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/80/1N4001.spice.txt " +
 					"(Diodes Inc 1N4001.spice.txt, MANIFEST sha256 " +
@@ -464,6 +622,11 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Diodes Inc rectifier diode; fetched whole in this run (one request, no scanning).
 		partIds: ["1N4002"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Diode/DIODE2.lib line 108, " +
+			"card '.model 1N4002 D': 'Is=14.11n' = 1.411e-08, ltwiki Standard.* mirror): this " +
+			"record's 7.69e-11 is 183x below it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 76.9e-12,
@@ -480,6 +643,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.45,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 108, card '.model 1N4002 D': 'N=1.984' = " +
+					"1.984 against this record's 1.45 (independent published fit, registry/card ratio 0.73); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L108",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/407/1N4002.spice.txt " +
 					"(fetched 2026-10-19 in this run, sha256 " +
@@ -492,6 +661,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 42e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 108, card '.model 1N4002 D': " +
+					"'Rs=33.89E-3' = 0.03389 against this record's 0.042 (independent published fit, " +
+					"registry/card ratio 1.24); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L108",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/407/1N4002.spice.txt " +
 					"(fetched 2026-10-19 in this run, sha256 " +
@@ -507,6 +683,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Diodes Inc rectifier diode; fetched whole in this run (one request, no scanning).
 		partIds: ["1N4004"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
+			"Electronics Lib/cmp/standard.dio line 1375, card '.MODEL 1N4004 D': 'IS=5.86E-06' = " +
+			"5.86e-06, Bordodynov's Electronics lib copy of the LTspice standard library): this " +
+			"record's 7.69e-11 is 76203x below it; not corroborated, kept as cited because the two " +
+			"are different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 76.9e-12,
@@ -523,6 +705,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.45,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 1375, card '.MODEL 1N4004 D': 'N=1.70' = 1.7 " +
+					"against this record's 1.45 (independent published fit, registry/card ratio 0.85); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L1375",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/339/1N4004.spice.txt " +
 					"(fetched 2026-10-19 in this run, sha256 " +
@@ -535,6 +724,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 42e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 1375, card '.MODEL 1N4004 D': 'RS=4.22E-02' = " +
+					"0.0422 against this record's 0.042 (independent published fit, registry/card ratio " +
+					"1.00); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L1375",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/339/1N4004.spice.txt " +
 					"(fetched 2026-10-19 in this run, sha256 " +
@@ -551,6 +748,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Corpus: Fulltone Robin Trower OD.
 		partIds: ["1N4005"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
+			"Electronics Lib/cmp/standard.dio line 126, card '.MODEL D1N4005 D': 'IS=5.86E-06' = " +
+			"5.86e-06, Bordodynov's Electronics lib copy of the LTspice standard library): this " +
+			"record's 7.69e-11 is 76203x below it; not corroborated, kept as cited because the two " +
+			"are different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 76.9e-12,
@@ -567,6 +770,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.45,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 126, card '.MODEL D1N4005 D': 'N=1.70' = 1.7 " +
+					"against this record's 1.45 (independent published fit, registry/card ratio 0.85); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L126",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/408/1N4005.spice.txt " +
 					"(Diodes Inc 1N4005.spice.txt, fetched 2026-10-28 in this run, sha256 " +
@@ -579,6 +789,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 42e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 126, card '.MODEL D1N4005 D': 'RS=4.22E-02' = " +
+					"0.0422 against this record's 0.042 (independent published fit, registry/card ratio " +
+					"1.00); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L126",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/408/1N4005.spice.txt " +
 					"(Diodes Inc 1N4005.spice.txt, fetched 2026-10-28 in this run, sha256 " +
@@ -595,6 +813,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Corpus: EQD Chelsea.
 		partIds: ["1N4006"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
+			"Electronics Lib/cmp/standard.dio line 127, card '.MODEL D1N4006 D': 'IS=5.86E-06' = " +
+			"5.86e-06, Bordodynov's Electronics lib copy of the LTspice standard library): this " +
+			"record's 7.69e-11 is 76203x below it; not corroborated, kept as cited because the two " +
+			"are different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 76.9e-12,
@@ -611,6 +835,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.45,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 127, card '.MODEL D1N4006 D': 'N=1.70' = 1.7 " +
+					"against this record's 1.45 (independent published fit, registry/card ratio 0.85); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L127",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/342/1N4006.spice.txt " +
 					"(Diodes Inc 1N4006.spice.txt, fetched 2026-10-28 in this run, sha256 " +
@@ -623,6 +854,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 42e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 127, card '.MODEL D1N4006 D': 'RS=4.22E-02' = " +
+					"0.0422 against this record's 0.042 (independent published fit, registry/card ratio " +
+					"1.00); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L127",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/342/1N4006.spice.txt " +
 					"(Diodes Inc 1N4006.spice.txt, fetched 2026-10-28 in this run, sha256 " +
@@ -638,6 +877,11 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Diodes Inc rectifier diode; the exact-part single file is cited.
 		partIds: ["1N4007"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Diode/DIODE2.lib line 109, " +
+			"card '.model 1N4007 D': 'IS=7.02767n' = 7.028e-09, ltwiki Standard.* mirror): this " +
+			"record's 7.69e-11 is 91x below it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 76.9e-12,
@@ -654,6 +898,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.45,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 109, card '.model 1N4007 D': 'N=1.80803' " +
+					"= 1.808 against this record's 1.45 (independent published fit, registry/card ratio " +
+					"0.80); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L109",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/396/1N4007.spice.txt " +
 					"(Diodes Inc 1N4007.spice.txt, MANIFEST sha256 " +
@@ -666,6 +917,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 42e-3,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 109, card '.model 1N4007 D': " +
+					"'RS=0.0341512' = 0.03415 against this record's 0.042 (independent published fit, " +
+					"registry/card ratio 1.23); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L109",
 				source:
 					"Manufacturer model file https://www.diodes.com/spice/download/396/1N4007.spice.txt " +
 					"(Diodes Inc 1N4007.spice.txt, MANIFEST sha256 " +
@@ -709,6 +967,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.9224,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 98, card '.model 1N914 D': 'N=1.752' = " +
+					"1.752 against this record's 1.922 (independent published fit, registry/card ratio 1.10); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L98",
 				source:
 					"Central Semiconductor, LLC model, item 1N914, Rev A, date 12/07/11 " +
 					"(header '*SRC=1N914;1N914;Diodes;Si;100V 150mA 4.0ns  Central Semi'). " +
@@ -789,6 +1053,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 2.17468223817758,
 				basis: "measured",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 99, card '.model 1N4148 D': 'N=1.752' = " +
+					"1.752 against this record's 2.175 (independent published fit, registry/card ratio 1.24); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L99",
 				source:
 					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), same " +
 					"sitting and fit as the saturationCurrent " +
@@ -827,6 +1097,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 2.6e-6,
 				basis: "community",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 97, card '.MODEL 1N34A D': 'IS=2.6u' = " +
+					"2.6e-06 against this record's 2.6e-06 (identical figure -- a mirror of the cited card or " +
+					"the same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L97",
 				source:
 					"Bordodynov's Electronics public LTspice collection, lib.zip " +
 					"http://bordodynov.ltwiki.org/lib.zip (sha256 " +
@@ -852,6 +1129,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.6,
 				basis: "community",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 97, card '.MODEL 1N34A D': 'N=1.6' = 1.6 " +
+					"against this record's 1.6 (identical figure -- a mirror of the cited card or the same " +
+					"printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L97",
 				source:
 					"Bordodynov's Electronics lib.zip http://bordodynov.ltwiki.org/lib.zip " +
 					"(lib/cmp/standard.dio line 137, read 2026-10-19). Verbatim card:\n" +
@@ -868,6 +1152,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 6.5,
 				basis: "community",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 97, card '.MODEL 1N34A D': 'RS=6.5' = " +
+					"6.5 against this record's 6.5 (identical figure -- a mirror of the cited card or the " +
+					"same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L97",
 				source:
 					"Bordodynov's Electronics lib.zip http://bordodynov.ltwiki.org/lib.zip " +
 					"(lib/cmp/standard.dio line 137, read 2026-10-19). Verbatim card:\n" +
@@ -892,6 +1183,12 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// corrupt as a low-current model; the datasheet derivation below replaces it.
 		partIds: ["1N60"],
 		class: "diode",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/uncategorized/Bordodynovs " +
+			"Electronics Lib/cmp/standard.dio line 65, card '.MODEL 1N60 D': 'IS=1.37773u' = " +
+			"1.378e-06, Bordodynov's Electronics lib copy of the LTspice standard library): this " +
+			"record's 3.695e-05 is 27x above it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 3.6952e-5,
@@ -911,6 +1208,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 3.7531,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 65, card '.MODEL 1N60 D': 'N=2' = 2 against this " +
+					"record's 3.753 (independent published fit, registry/card ratio 1.88); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L65",
 				source:
 					"DEC 1N60, 1N60P GERMANIUM DIODES factory sheet (via radiolocman, p1): same two " +
 					"typical points, 1N60 (0.32 V at 1 mA; 0.65 V at 30 mA)",
@@ -961,6 +1265,14 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 2.076e-7,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 880, card '.MODEL BAT85 D': 'IS=2.117E-07' = " +
+					"2.117e-07 against this record's 2.076e-07 (independent published fit, registry/card " +
+					"ratio 0.98); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L880",
 				source:
 					`Nexperia BAT85 product page ${NEXPERIA_BAT85_PAGE}, model file ${NEXPERIA_BAT85_FILE}. ` +
 					`${NEXPERIA_BAT85_CAUTION} Card:\n${NEXPERIA_BAT85_LINE}`,
@@ -970,6 +1282,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 1.023,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 880, card '.MODEL BAT85 D': 'N=1.016' = 1.016 " +
+					"against this record's 1.023 (independent published fit, registry/card ratio 1.01); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L880",
 				source:
 					`Nexperia BAT85 product page ${NEXPERIA_BAT85_PAGE}, model file ${NEXPERIA_BAT85_FILE}. ` +
 					`${NEXPERIA_BAT85_CAUTION} Card:\n${NEXPERIA_BAT85_LINE}`,
@@ -979,6 +1298,13 @@ export const diodeRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 2.326,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 880, card '.MODEL BAT85 D': 'RS=2.637' = 2.637 " +
+					"against this record's 2.326 (independent published fit, registry/card ratio 0.88); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L880",
 				source:
 					`Nexperia BAT85 product page ${NEXPERIA_BAT85_PAGE}, model file ${NEXPERIA_BAT85_FILE}. ` +
 					`${NEXPERIA_BAT85_CAUTION} Card:\n${NEXPERIA_BAT85_LINE}`,

@@ -123,6 +123,12 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 2.7587062,
 				basis: "measured",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 88, card '.MODEL LedRed D': 'N=3.73' = " +
+					"3.73 against this record's 2.759 (independent published fit, registry/card ratio 0.74); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L88",
 				source:
 					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner), red two-point pair (n 2.76 may carry inflated-n " +
 					"structure; Rs fixed at 2.0 ohm). Valid about 1.4 to 11 mA only. Evidence " +
@@ -190,6 +196,12 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 			emissionCoefficient: {
 				value: 3.02001,
 				basis: "measured",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Diode/DIODE2.lib line 89, card '.MODEL LedGreen D': 'N=4.61' = " +
+					"4.61 against this record's 3.02 (independent published fit, registry/card ratio 0.66); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Diode/DIODE2.lib#L89",
 				source:
 					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) green four-point fit (n 3.02 is an effective value " +
 					"over 0.13 to 13 mA with a stated 32 mV misfit). " + FOUR_POINT_SOURCE_TAIL,
@@ -289,6 +301,13 @@ export const ledRegistryRecords: readonly PartDataEntry[] = definePartData([
 			seriesResistance: {
 				value: 22.229,
 				basis: "measured",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/sub/Cordell_Mods line 343, card '.model BLUE D': 'Rs=14' = 14 against " +
+					"this record's 22.23 (independent published fit, registry/card ratio 1.59); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/sub/Cordell_Mods#L343",
 				source:
 					"Owner bench 2026-10-20 (measured by Joseph Cheng, the project owner) blue four-point fit (Rs 22.229 ohm is why the " +
 					"first-session n read 4.4; the stamp must run at the fitted Rs, not the " +

@@ -94,6 +94,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -0.9,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/Transistor/FET/JFET.LIB line 163, card '.MODEL J201 NJF': " +
+					"'VTO=-0.90' = -0.9 against this record's -0.9 (identical figure -- a mirror of the cited " +
+					"card or the same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET.LIB#L163",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): InterFET IF35018.R00, June 2019, p2, " +
 					"Static Characteristics (TA = 25C): 'Gate to Source Cutoff Voltage VGS(OFF), VDS = 20 V, " +
@@ -129,6 +136,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -2.4,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.jft line 671, card '.MODEL 2N5952 NJF': 'Vto=-2.021' = " +
+					"-2.021 against this record's -2.4 (independent published fit, registry/card ratio 1.19); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.jft#L671",
 				source:
 					"2N5952/datasheets/2N5949_SERIES.pdf (Central Semiconductor 2N5949 Series, R1 " +
 					"25-April-2018; sha256 " +
@@ -164,6 +178,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -2.25,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/FET/JFET2.lib line 85, card '.model 2N5485 NJF': " +
+					"'Vto=-2.0' = -2 against this record's -2.25 (independent published fit, registry/card " +
+					"ratio 1.12); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET2.lib#L85",
 				source:
 					"2N5485/datasheets/central-2n5484-2n5485-2n5486.pdf (Central Semiconductor " +
 					"2N5484/2N5485/2N5486, R1 2-May-2014) p1, ELECTRICAL CHARACTERISTICS (TA = 25C), " +
@@ -260,6 +281,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -2.7,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/FET/JFET2.lib line 559, card '.model 2SK118 NJF': " +
+					"'Vto=-2.7' = -2.7 against this record's -2.7 (identical figure -- a mirror of the cited " +
+					"card or the same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET2.lib#L559",
 				source:
 					"2SK118/datasheets/toshiba-2sk118.pdf (Toshiba 2SK118, 2003-03-25) p1, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): 'Gate-source cut-off voltage VGS (OFF), VDS = 10 V, " +
@@ -319,6 +347,14 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -0.85,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.jft line 789, card '.model J2sk184 NJF': 'Vto=-.8914' = " +
+					"-0.8914 against this record's -0.85 (independent published fit, registry/card ratio " +
+					"0.95); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.jft#L789",
 				source:
 					"2SK184/datasheets/toshiba-2sk184.pdf (Toshiba 2SK184, 1997-04-10, scan, read " +
 					"visually, no text layer) p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): " +
@@ -410,6 +446,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -4,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.jft line 619, card '.MODEL 2N5458 NJF': 'Vto=-2.882' = " +
+					"-2.882 against this record's -4 (independent published fit, registry/card ratio 1.39); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.jft#L619",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi 2N5457/D Rev. 6 Feb 2010, " +
 					"p2, ELECTRICAL CHARACTERISTICS: 'Gate-Source Cutoff Voltage VGS(off), " +
@@ -443,6 +486,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -1.75,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/FET/JFET2.lib line 439, card '.MODEL MPF4393 NJF': " +
+					"'Vto=-1.422' = -1.422 against this record's -1.75 (independent published fit, " +
+					"registry/card ratio 1.23); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET2.lib#L439",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi MPF4392/D Rev. 6 Feb 2012, " +
 					"p2, ELECTRICAL CHARACTERISTICS (TA = 25C): 'Gate Source Voltage VGS " +
@@ -475,6 +525,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -2.5,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/FET/JFET2.lib line 143, card '.MODEL J309 NJF': " +
+					"'VTO=-2.3973' = -2.397 against this record's -2.5 (independent published fit, " +
+					"registry/card ratio 1.04); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET2.lib#L143",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi J309/D Rev. 1 Mar 2006, " +
 					"p2, ELECTRICAL CHARACTERISTICS: 'Gate Source Cutoff Voltage VGS(off), " +
@@ -507,6 +564,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -2.4,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/Transistor/FET/JFET.LIB line 170, card '.MODEL J202 NJF': " +
+					"'VTO=-2.40' = -2.4 against this record's -2.4 (identical figure -- a mirror of the cited " +
+					"card or the same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET.LIB#L170",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): InterFET IF35018.R00 June 2019 " +
 					"(J201-2, 2 of 4, jfet-j201-j202-interfet.pdf) p2, Electrical Characteristics, " +
@@ -540,6 +604,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -1.15,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/FET/JFET2.lib line 468, card '.MODEL PF5102 NJF': " +
+					"'Vto=-972.3m' = -0.9723 against this record's -1.15 (independent published fit, " +
+					"registry/card ratio 1.18); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/FET/JFET2.lib#L468",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Fairchild PF5102 Rev. B0 (2011, " +
 					"'N-Channel Switch') p1, table MIN/MAX columns: 'VGS(off) Gate-Source Cutoff " +
@@ -669,6 +740,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -0.9,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.jft line 1026, card '.MODEL 2SK3557 NJF': 'VTO=-1.04' = " +
+					"-1.04 against this record's -0.9 (independent published fit, registry/card ratio 0.87); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.jft#L1026",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi 2SK3557/D, Sep 2024 Rev. 3, " +
 					"Electrical Characteristics (Ta = 25C): 'Cutoff Voltage VGS(off), VDS = 5 V, " +
@@ -739,6 +817,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -2.7,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.jft line 855, card '.model 2SK879 NJF': 'Vto=-2.77' = -2.77 " +
+					"against this record's -2.7 (independent published fit, registry/card ratio 0.97); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.jft#L855",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SK879 (2007-11-01) p1, " +
 					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'Gate-source cut-off voltage VGS (OFF), " +
@@ -864,6 +949,13 @@ export const jfetRegistryRecords: readonly PartDataEntry[] = definePartData([
 			thresholdVolts: {
 				value: -1.75,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.jft line 149, card '.model J113 NJF': 'Vto=-1.382' = -1.382 " +
+					"against this record's -1.75 (independent published fit, registry/card ratio 1.27); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.jft#L149",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi MMBFJ113/D, Mar 2023 Rev. 5, " +
 					"p2, ELECTRICAL CHARACTERISTICS (TJ = 25C): 'Gate-Source Cut-Off Voltage VGS(off), " +

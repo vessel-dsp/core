@@ -403,6 +403,13 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 3.3,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 1399, card '.model 1N4728A d': 'BV=3.1' = 3.1 " +
+					"against this record's 3.3 (independent published fit, registry/card ratio 1.06); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L1399",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4728A: VZ MIN 3.135 TYP 3.3 MAX 3.465 V @ IZ = 76 mA'; " +
@@ -423,6 +430,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 3.6,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 541, card '.model " +
+					"D1N5227 D': 'Bv=3.6' = 3.6 against this record's 3.6 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L541",
 				source:
 					"onsemi 1N5221B-1N5252B (1N5221B/D, Nov 2023 Rev. 5) p2, ELECTRICAL " +
 					"CHARACTERISTICS (TA = 25C): '1N5227B: VZ MIN 3.42 TYP 3.6 MAX 3.78 V @ IZ = 20 mA'; " +
@@ -441,6 +456,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 4.7,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 565, card '.model " +
+					"D1N5230 D': 'Bv=4.7' = 4.7 against this record's 4.7 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L565",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4732A: VZ MIN 4.465 TYP 4.7 MAX 4.935 V @ IZ = 53 mA'; " +
@@ -459,6 +482,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 5.1,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/sub/regulators.lib line 58, card '.MODEL D_5V1 D': 'BV=5.1' = 5.1 " +
+					"against this record's 5.1 (identical figure -- a mirror of the cited card or the same " +
+					"printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/sub/regulators.lib#L58",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4733A: VZ MIN 4.845 TYP 5.1 MAX 5.355 V @ IZ = 49 mA'; " +
@@ -476,6 +507,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 5.6,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 581, card '.model " +
+					"D1N5232 D': 'Bv=5.6' = 5.6 against this record's 5.6 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L581",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4734A: VZ MIN 5.32 TYP 5.6 MAX 5.88 V @ IZ = 45 mA'; " +
@@ -492,6 +531,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 6.2,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 597, card '.model " +
+					"D1N5234 D': 'Bv=6.2' = 6.2 against this record's 6.2 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L597",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4735A: VZ MIN 5.89 TYP 6.2 MAX 6.51 V @ IZ = 41 mA'; " +
@@ -508,6 +555,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 8.2,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 621, card '.model " +
+					"D1N5237 D': 'Bv=8.2' = 8.2 against this record's 8.2 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L621",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4738A: VZ MIN 7.79 TYP 8.2 MAX 8.61 V @ IZ = 31 mA'; " +
@@ -526,6 +581,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 9.1,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 437, card '.model " +
+					"D1N4739 D': 'Bv=9.1' = 9.1 against this record's 9.1 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L437",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4739A: VZ MIN 8.645 TYP 9.1 MAX 9.555 V @ IZ = 28 mA'; " +
@@ -543,6 +606,14 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 10,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/cadlab.lib line 645, card '.model " +
+					"D1N5240 D': 'Bv=10' = 10 against this record's 10 (identical figure -- a mirror of the " +
+					"cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/cadlab.lib#L645",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4740A: VZ MIN 9.5 TYP 10 MAX 10.5 V @ IZ = 25 mA'; " +
@@ -560,6 +631,13 @@ export const zenerRegistryRecords: readonly PartDataEntry[] = definePartData([
 			breakdownVolts: {
 				value: 12,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.dio line 1391, card '.MODEL 1N4742 D': 'BV=13' = 13 against " +
+					"this record's 12 (independent published fit, registry/card ratio 0.92); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.dio#L1391",
 				source:
 					"onsemi 1N4728A-1N4758A (1N4736AT/D, Aug 2021 Rev. 10) p2, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): '1N4742A: VZ MIN 11.4 TYP 12 MAX 12.6 V @ IZ = 21 mA'; " +

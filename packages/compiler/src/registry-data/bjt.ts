@@ -44,6 +44,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 173.2050808,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 229, card '.model 2N3904 NPN': " +
+					"'Bf=300' = 300 against this record's 173.2 (independent published fit, registry/card " +
+					"ratio 0.58); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L229",
 				source:
 					"2N3904/datasheets/2n3904.pdf (onsemi 2N3904/D, Oct 2024 Rev. 3) p2: 'DC Current Gain, " +
 					"IC = 10 mA, VCE = 1.0 V, MIN 100 MAX 300' (the 0.1/1.0/50/100 mA rows are MIN-only; " +
@@ -74,6 +81,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 173.2050808,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 231, card '.model 2N3906 PNP': " +
+					"'BF=200' = 200 against this record's 173.2 (independent published fit, registry/card " +
+					"ratio 0.87); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L231",
 				source:
 					"2N3906/datasheets/2n3906.pdf (onsemi 2N3906/D, Feb 2010 Rev. 4) p2: 'DC Current Gain, " +
 					"IC = 10 mA, VCE = 1.0 V, MIN 100 MAX 300' (the 0.1/1.0/50/100 mA rows are MIN-only; " +
@@ -97,6 +111,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 5.911e-15,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 343, card '.MODEL 2N5088 NPN': " +
+					"'IS=5.911f' = 5.911e-15 against this record's 5.911e-15 (identical figure -- a mirror of " +
+					"the cited card or the same printed number, so a transcription check, not an independent " +
+					"witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L343",
 				source:
 					"Manufacturer datasheet onsemi 2N5088 / MMBT5088 / 2N5089 / MMBT5089 NPN General " +
 					"Purpose Amplifier (2N5088-D; Fairchild-integration printing, opens 'Is Now Part of' " +
@@ -114,6 +136,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 700,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 343, card '.MODEL 2N5088 NPN': " +
+					"'BF=1122' = 1122 against this record's 700 (independent published fit, registry/card " +
+					"ratio 0.62); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L343",
 				source:
 					"2N5088/datasheets/2n5088.pdf (onsemi 2N5088/D, Mar 2007 Rev. 4) p3, ELECTRICAL " +
 					"CHARACTERISTICS (VCE = 5.0 V): 'Small-Signal Current Gain hfe, IC = 1.0 mA, f = 1.0 kHz, " +
@@ -137,6 +166,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 900,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 239, card '.model 2N5089 NPN': " +
+					"'Bf=1.434K' = 1434 against this record's 900 (independent published fit, registry/card " +
+					"ratio 0.63); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L239",
 				source:
 					"2N5088/datasheets/2n5088.pdf (onsemi 2N5088/D, Mar 2007 Rev. 4) p3, ELECTRICAL " +
 					"CHARACTERISTICS (VCE = 5.0 V), 2N5089 row: 'Small-Signal Current Gain hfe, IC = 1.0 mA, " +
@@ -156,6 +192,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 221.3594362,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 747, card '.model 2SC1815 NPN': " +
+					"'Bf=400' = 400 against this record's 221.4 (independent published fit, registry/card " +
+					"ratio 0.55); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L747",
 				source:
 					"2SC1815/datasheets/toshiba-2sc1815.pdf (Toshiba 2SC1815, 2007-11-01) p1, ELECTRICAL " +
 					"CHARACTERISTICS (Ta = 25C): 'DC current gain hFE (1), VCE = 6 V, IC = 2 mA, MIN 70 " +
@@ -210,6 +253,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 8.3261401e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Intusoft BJT " +
+					"library (Copyright Intusoft 1988-1997), Models/Transistor/BJT/BJTN.LIB line 128, card " +
+					"'.MODEL MPSA18 NPN': 'IS=86.4F' = 8.64e-14 against this record's 8.326e-14 (independent " +
+					"published fit, registry/card ratio 0.96); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJTN.LIB#L128",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi MPSA18/D, Apr 2007 Rev. 4, p3, ON " +
 					"CHARACTERISTICS: 'Base-Emitter On Voltage VBE(on), IC = 1.0 mA, VCE = 5.0 V, TYP 0.6 " +
@@ -249,6 +299,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 3.88184e-14,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/zmodels.lib line 24, card '.MODEL " +
+					"2N2222A NPN': 'IS =3.0611E-14' = 3.061e-14 against this record's 3.882e-14 (independent " +
+					"published fit, registry/card ratio 1.27); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/zmodels.lib#L24",
 				source:
 					"Manufacturer model file https://www.onsemi.com/download/models/txt/2n2222a.lib.txt " +
 					"(onsemi 2N2222A PSpice, MODPEX-generated, model generated on Feb 28, 13), card lines:\n" +
@@ -262,6 +319,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 				// (far below fT 300 MHz, so approx. the DC beta) is the region-correct figure.
 				value: 122.4744871,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/zmodels.lib line 24, card '.MODEL " +
+					"2N2222A NPN': 'BF =220' = 220 against this record's 122.5 (independent published fit, " +
+					"registry/card ratio 0.56); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/zmodels.lib#L24",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): onsemi P2N2222A/D, Jan 2013 Rev. 7, p2, " +
 					"SMALL-SIGNAL CHARACTERISTICS: 'Small-Signal Current Gain hfe, IC = 1.0 mA, " +
@@ -292,6 +356,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 579.6550698,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 539, card '.model BC549C NPN': " +
+					"'Bf=493.2' = 493.2 against this record's 579.7 (independent published fit, registry/card " +
+					"ratio 1.18); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L539",
 				source:
 					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, p2, hFE " +
 					"CLASSIFICATION table: 'C: 420 ~ 800' (the family hFE row is MIN 110 MAX 800 at VCE = 5 V, " +
@@ -326,6 +397,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 296.6479395,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/zmodels.lib line 3279, card '.MODEL " +
+					"BC108 NPN': 'BF =400' = 400 against this record's 296.6 (independent published fit, " +
+					"registry/card ratio 0.74); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/zmodels.lib#L3279",
 				source:
 					"BC109/datasheets/farnell-bc107-bc108-bc109.pdf (Multicomp BC107/BC108/BC109, V1.0 " +
 					"30/05/05) p3: 'DC Current Gain hFE, IC = 2 mA, VCE = 5 V: BC108 MIN 110 MAX 800' " +
@@ -390,6 +468,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 579.6550698,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 540, card '.model BC550C NPN': " +
+					"'Bf=493.2' = 493.2 against this record's 579.7 (independent published fit, registry/card " +
+					"ratio 1.18); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L540",
 				source:
 					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, hFE " +
 					"CLASSIFICATION table: 'C: 420 ~ 800' (the family hFE row is MIN 110 MAX 800 " +
@@ -419,6 +504,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 300,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 369, card '.MODEL BC549B NPN': " +
+					"'BF=458.7' = 458.7 against this record's 300 (independent published fit, registry/card " +
+					"ratio 0.65); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L369",
 				source:
 					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, hFE " +
 					"CLASSIFICATION table: 'B: 200 ~ 450'",
@@ -437,6 +529,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 1.6350012e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.bjt line 393, card '.MODEL BC547B__ NPN': 'IS=20F' = 2e-14 " +
+					"against this record's 1.635e-14 (independent published fit, registry/card ratio 0.82); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.bjt#L393",
 				source:
 					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family " +
 					"sheet BC546/547/548/549/550), p2: 'Base-Emitter On Voltage VBE(on), VCE = 5 V, " +
@@ -448,6 +547,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 300,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.bjt line 392, card '.model BC547B_ NPN': 'Bf=300' = 300 " +
+					"against this record's 300 (identical figure -- a mirror of the cited card or the same " +
+					"printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.bjt#L392",
 				source:
 					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, hFE " +
 					"CLASSIFICATION table: 'B: 200 ~ 450' (by bin letter)",
@@ -477,6 +584,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 296.6479395,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Intusoft BJT " +
+					"library (Copyright Intusoft 1988-1997), Models/Transistor/BJT/BJTN.LIB line 177, card " +
+					"'.MODEL BC550 NPN': 'BF=312' = 312 against this record's 296.6 (independent published " +
+					"fit, registry/card ratio 0.95); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJTN.LIB#L177",
 				source:
 					"BC550/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6), p2, " +
 					"family hFE row: MIN 110 MAX 800 at VCE = 5 V, IC = 2 mA (no bin for the " +
@@ -600,6 +714,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 3.8411256e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 767, card '.model 2sc945 npn': " +
+					"'IS=3.577E-14' = 3.577e-14 against this record's 3.841e-14 (independent published fit, " +
+					"registry/card ratio 1.07); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L767",
 				source:
 					"2SC945/datasheets/nec-2sc945.pdf (NEC 2SC945 databook p258, scan, read " +
 					"visually, no text layer) ELECTRICAL CHARACTERISTICS (Ta = 25C): 'VBE Base to " +
@@ -612,6 +733,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 200,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 767, card '.model 2sc945 npn': " +
+					"'BF=2.382E+02' = 238.2 against this record's 200 (independent published fit, " +
+					"registry/card ratio 0.84); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L767",
 				source:
 					"2SC945/datasheets/nec-2sc945.pdf (NEC 2SC945 databook p258) ELECTRICAL " +
 					"CHARACTERISTICS: 'hFE2 DC Current Gain, MIN 90 TYP 200 MAX 600 at VCE = 6.0 V, " +
@@ -737,6 +865,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 374.1657387,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): vendor file " +
+					"under Models/Manufacturer/TRT-Electronics, " +
+					"Models/Manufacturer/TRT-Electronics/2sc3378.lib line 1, card '.model Q2SC3378 NPN': " +
+					"'Bf=300' = 300 against this record's 374.2 (independent published fit, registry/card " +
+					"ratio 1.25); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Manufacturer/TRT-Electronics/2sc3378.lib#L1",
 				source:
 					"Toshiba MINI PACKAGE SERIES selection table (67C 09139 D T-27-01, third-party " +
 					"scan) 'MINI PACKAGE SERIES' table, 2SC3378 column, read visually at high " +
@@ -785,6 +921,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 520,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 526, card '.model BC109C NPN': " +
+					"'Bf=677' = 677 against this record's 520 (independent published fit, registry/card ratio " +
+					"0.77); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L526",
 				source:
 					"BC109C/datasheets/farnell-bc109c.pdf (Farnell/Multicomp BC109 Series V1.0 " +
 					"08/04/06) p2, Electrical Characteristics (Ta = 25C), C Group: 'DC Current hFE, " +
@@ -827,6 +970,11 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// the family; the Farnell/Multicomp reprint of the same family prints MIN/MAX only.
 		partIds: ["BC107B"],
 		class: "bjt",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Transistor/BJT/BJT.lib line " +
+			"521, card '.model BC107B NPN': 'Is=7.049f' = 7.049e-15, ltwiki Standard.* mirror): this " +
+			"record's 7.682e-14 is 11x above it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 7.6822511e-14,
@@ -844,6 +992,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 290,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 521, card '.model BC107B NPN': " +
+					"'Bf=381.7' = 381.7 against this record's 290 (independent published fit, registry/card " +
+					"ratio 0.76); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L521",
 				source:
 					"Philips Semiconductors BC107/108/109 Product Specification 1997 Sep 03 (M3D125) " +
 					"p4: 'hFE DC current gain, IC = 2 mA, VCE = 5 V: BC107B/BC108B/BC109B MIN 200 " +
@@ -877,6 +1032,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 86.6025404,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 324, card '.MODEL 2N4125 PNP': " +
+					"'BF=85.04' = 85.04 against this record's 86.6 (independent published fit, registry/card " +
+					"ratio 1.02); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L324",
 				source:
 					"2N4125/datasheets/2n4125.pdf (Fairchild Semiconductor 2N4125, 1997, PNP General " +
 					"Purpose Amplifier) p2, Electrical Characteristics (TA = 25C): 'hFE DC Current " +
@@ -898,6 +1060,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 207.8460969,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 237, card '.model 2N4126 PNP': " +
+					"'Bf=203.7' = 203.7 against this record's 207.8 (independent published fit, registry/card " +
+					"ratio 1.02); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L237",
 				source:
 					"Central Semiconductor 2N4123-2N4126 R1 (12-Jan-2016, my.centralsemi.com) p1, " +
 					"ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 1.0 V, IC = 2.0 mA, 2N4126 " +
@@ -918,6 +1087,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 3.8411256e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 766, card '.model 2sa733 pnp': " +
+					"'IS=55.9f' = 5.59e-14 against this record's 3.841e-14 (independent published fit, " +
+					"registry/card ratio 0.69); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L766",
 				source:
 					"NEC 2SA733 DATA SHEET Doc. No. D10868EJ7V0DS00 (7th edition, March 2004, via " +
 					"renesas.com) p1, ELECTRICAL CHARACTERISTICS (TA = 25C): 'Base to Emitter Voltage " +
@@ -930,6 +1106,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 200,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 766, card '.model 2sa733 pnp': " +
+					"'BF=205' = 205 against this record's 200 (independent published fit, registry/card ratio " +
+					"0.98); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L766",
 				source:
 					"NEC 2SA733 DATA SHEET D10868EJ7V0DS00 (7th ed, March 2004) p1: 'DC Current Gain " +
 					"hFE, VCE = -6.0 V, IC = -1.0 mA, MIN 90 TYP 200 MAX 600' (the hFE(2) row at " +
@@ -998,6 +1181,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 167.3320053,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 749, card '.model 2SA1015 PNP': " +
+					"'Bf=110' = 110 against this record's 167.3 (independent published fit, registry/card " +
+					"ratio 1.52); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L749",
 				source:
 					"Toshiba 2SA1015(L) Transistor Silicon PNP Epitaxial Type (PCT process), " +
 					"2003-03-27 reprint of the 1997-04-10 original (third-party host) p1, ELECTRICAL " +
@@ -1048,6 +1238,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 374.1657387,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 758, card '.MODEL 2SC2240 NPN': " +
+					"'BF=4.539950E+02' = 454 against this record's 374.2 (independent published fit, " +
+					"registry/card ratio 0.82); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L758",
 				source:
 					"2SC2240/datasheets/toshiba-2sc2240.pdf (Toshiba 2SC2240, 2007-11-01) p2: 'DC " +
 					"current gain hFE (Note), VCE = 6 V, IC = 2 mA, MIN 200 MAX 700' with 'Note: hFE " +
@@ -1133,6 +1330,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 90,
 				basis: "datasheet",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 224, card '.MODEL AC128 PNP': " +
+					"'BF=90' = 90 against this record's 90 (identical figure -- a mirror of the cited card or " +
+					"the same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L224",
 				source:
 					"AC128/datasheets/ac128-valvo-1963-scan.pdf (Valvo 'AC 128 " +
 					"Germanium-p-n-p-NF-Transistor', Valvo Halbleiterdioden und Transistoren, 'Vorläufige " +
@@ -1180,6 +1384,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 307,
 				basis: "community",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.bjt line 1434, card '.model OC44 pnp': 'BF=307' = 307 " +
+					"against this record's 307 (identical figure -- a mirror of the cited card or the same " +
+					"printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.bjt#L1434",
 				source:
 					"Holmes/Holters/van Walstijn DAFx-2017 Table 1 ('Comparison of Germanium Bipolar " +
 					"Junction Transistor Models for Real-Time Circuit Simulation', Proc. 20th Int. " +
@@ -1275,6 +1487,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 5.6552409e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 349, card '.MODEL 2N6428 NPN': " +
+					"'IS=45.000f' = 4.5e-14 against this record's 5.655e-14 (independent published fit, " +
+					"registry/card ratio 1.26); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L349",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
 					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'VBE(ON), VCE = 5.0 V, " +
@@ -1288,6 +1507,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 403.1128874,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 349, card '.MODEL 2N6428 NPN': " +
+					"'BF=516.544' = 516.5 against this record's 403.1 (independent published fit, " +
+					"registry/card ratio 0.78); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L349",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
 					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 5.0 V, " +
@@ -1306,6 +1532,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 5.6552409e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 350, card '.MODEL 2N6429 NPN': " +
+					"'IS=45.000f' = 4.5e-14 against this record's 5.655e-14 (independent published fit, " +
+					"registry/card ratio 1.26); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L350",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
 					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'VBE(ON), VCE = 5.0 V, " +
@@ -1318,6 +1551,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 790.569415,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 350, card '.MODEL 2N6429 NPN': " +
+					"'BF=516.544' = 516.5 against this record's 790.6 (independent published fit, " +
+					"registry/card ratio 1.53); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L350",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Central Semiconductor 2N6428/2N6429, " +
 					"R1 (10-September-2019), ELECTRICAL CHARACTERISTICS (TA = 25C): 'hFE, VCE = 5.0 V, " +
@@ -1381,6 +1621,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 1.6350012e-14,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 536, card '.model BC546B NPN': " +
+					"'IS=2.39E-14' = 2.39e-14 against this record's 1.635e-14 (independent published fit, " +
+					"registry/card ratio 0.68); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L536",
 				source:
 					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6, family sheet " +
 					"BC546/547/548/549/550) p2, ELECTRICAL CHARACTERISTICS: 'VBE(on) Base-Emitter On " +
@@ -1393,6 +1640,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 300,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 536, card '.model BC546B NPN': " +
+					"'BF=294.3' = 294.3 against this record's 300 (independent published fit, registry/card " +
+					"ratio 1.02); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L536",
 				source:
 					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
 					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800' (family DC row @ 2 mA/5 V: " +
@@ -1427,6 +1681,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 447.2135955,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 242, card '.model 2N5087 PNP': " +
+					"'Bf=254.1' = 254.1 against this record's 447.2 (independent published fit, registry/card " +
+					"ratio 1.76); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L242",
 				source:
 					"Fairchild 2N5086/2N5087/MMBT5087 Rev. B1 Sept 2003 (Fairchild-authored, via NAC Semi Authorized Datasheets FAIRS25010-1): 'hFE DC Current Gain, IC = -100 uA, VCE = -5.0 V, 5087 MIN 250 MAX 800'",
 				derivation:
@@ -1443,7 +1704,12 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		class: "bjt",
 		note:
 			"The model's BF 297.85 is a fit and is NOT adopted (BF stays the derived 173.21); " +
-			"IS is taken as printed (2N2222A precedent).",
+			"IS is taken as printed (2N2222A precedent). " +
+			"saturationCurrent disagrees with KiCad-Spice-Library " +
+			"(Models/Manufacturer/TRT-Electronics/2n2907a.lib line 1, card '.model Q2N2907A PNP': " +
+			"'Is=650.6E-18' = 6.506e-16, vendor file under Models/Manufacturer/TRT-Electronics): this " +
+			"record's 1.529e-14 is 24x above it; not corroborated, kept as cited because the two are " +
+			"different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 15.294e-15,
@@ -1458,6 +1724,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 173.2050808,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): vendor file " +
+					"under Models/Manufacturer/TRT-Electronics, " +
+					"Models/Manufacturer/TRT-Electronics/2n2907a.lib line 1, card '.model Q2N2907A PNP': " +
+					"'Bf=231.7' = 231.7 against this record's 173.2 (independent published fit, registry/card " +
+					"ratio 0.75); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Manufacturer/TRT-Electronics/2n2907a.lib#L1",
 				source:
 					"Central Semiconductor 2N2906/2N2907/2N2906A/2N2907A sheet (my.centralsemi.com 2n2906.PDF): 'hFE, VCE = 10 V, IC = 150 mA, 2N2907A MIN 100 MAX 300'",
 				derivation:
@@ -1474,7 +1748,11 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		class: "bjt",
 		note:
 			"The model's BF 255.25 is a fit and is NOT adopted (BF stays the derived 173.21); " +
-			"IS is taken as printed (2N2222A precedent).",
+			"IS is taken as printed (2N2222A precedent). " +
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Transistor/BJT/BJT.lib line " +
+			"246, card '.model 2N4403 PNP': 'Is=650.6E-18' = 6.506e-16, ltwiki Standard.* mirror): " +
+			"this record's 1.683e-14 is 26x above it; not corroborated, kept as cited because the two " +
+			"are different fits with their own emission coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 16.832e-15,
@@ -1489,6 +1767,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 173.2050808,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 246, card '.model 2N4403 PNP': " +
+					"'Bf=216.2' = 216.2 against this record's 173.2 (independent published fit, registry/card " +
+					"ratio 0.80); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L246",
 				source:
 					"Central Semiconductor 2N4402/2N4403 sheet (my.centralsemi.com 2N4402.PDF): 'hFE, VCE = 2.0 V, IC = 150 mA, 2N4403 MIN 100 MAX 300'",
 				derivation:
@@ -1520,6 +1805,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 173.2050808,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 226, card '.model 2N2222 NPN': " +
+					"'BF=200' = 200 against this record's 173.2 (independent published fit, registry/card " +
+					"ratio 0.87); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L226",
 				source:
 					"Central Semiconductor 2N2221/2N2222 sheet (my.centralsemi.com 2N2221.PDF, non-A types only): 'hFE, VCE = 10 V, IC = 150 mA, 2N2222 MIN 100 MAX 300'",
 				derivation:
@@ -1535,6 +1827,12 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 		// Corpus: Revv Chat Breaker (x2).
 		partIds: ["MPSA06"],
 		class: "bjt",
+		note:
+			"saturationCurrent disagrees with KiCad-Spice-Library (Models/Transistor/BJT/BJTN.LIB " +
+			"line 121, card '.MODEL MPSA06 NPN': 'IS=50.7F' = 5.07e-14, Intusoft BJT library " +
+			"(Copyright Intusoft 1988-1997)): this record's 5.73e-13 is 11x above it; not " +
+			"corroborated, kept as cited because the two are different fits with their own emission " +
+			"coefficients, flagged for a bench check.",
 		params: {
 			saturationCurrent: {
 				value: 573.03e-15,
@@ -1588,6 +1886,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 155.5634919,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 535, card '.model BC546A NPN': " +
+					"'Bf=253' = 253 against this record's 155.6 (independent published fit, registry/card " +
+					"ratio 0.61); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L535",
 				source:
 					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
 					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800' (family DC row @ 2 mA/5 V: " +
@@ -1617,6 +1922,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 155.5634919,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 537, card '.model BC548A NPN': " +
+					"'Bf=253' = 253 against this record's 155.6 (independent published fit, registry/card " +
+					"ratio 0.61); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L537",
 				source:
 					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
 					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800'",
@@ -1647,6 +1959,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 300,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): ltwiki " +
+					"Standard.* mirror, Models/Transistor/BJT/BJT.lib line 538, card '.model BC548B NPN': " +
+					"'Bf=374.6' = 374.6 against this record's 300 (independent published fit, registry/card " +
+					"ratio 0.80); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Transistor/BJT/BJT.lib#L538",
 				source:
 					"BC548B/datasheets/onsemi-bc550-d.pdf (onsemi BC550/D, Feb 2026 Rev. 6) p2: " +
 					"'hFE CLASSIFICATION A 110 ~ 220, B 200 ~ 450, C 420 ~ 800'",
@@ -1756,6 +2075,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			saturationCurrent: {
 				value: 5.611e-13,
 				basis: "manufacturer-model",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): vendor file " +
+					"under Models/Manufacturer/Zetex Semiconductors, Models/Manufacturer/Zetex " +
+					"Semiconductors/ZMODELS.LIB line 1845, card '.MODEL ZTX618 NPN': 'IS=5.611E-13' = " +
+					"5.611e-13 against this record's 5.611e-13 (identical figure -- a mirror of the cited " +
+					"card or the same printed number, so a transcription check, not an independent witness); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Manufacturer/Zetex%20Semiconductors/ZMODELS.LIB#L1845",
 				source:
 					"Diodes Inc ZTX618 model file, " +
 					"https://www.diodes.com/spice/download/2436/ZTX618.spice.txt " +
@@ -1788,6 +2115,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 374.1657387,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): Bordodynov's " +
+					"Electronics lib copy of the LTspice standard library, Models/uncategorized/Bordodynovs " +
+					"Electronics Lib/cmp/standard.bjt line 1440, card '.model 2SC3324 NPN': 'Bf=352.8' = " +
+					"352.8 against this record's 374.2 (independent published fit, registry/card ratio 1.06); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/Bordodynovs%20Electronics%20Lib/cmp/standard.bjt#L1440",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SC3324 (2007-11-01) p1, " +
 					"ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC current gain hFE (Note), VCE = 6 V, " +
@@ -1831,6 +2165,14 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 167.3320053,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): vendor file " +
+					"under Models/Manufacturer/TRT-Electronics, " +
+					"Models/Manufacturer/TRT-Electronics/2sa1048.lib line 2, card '.model Q2SA1048 PNP': " +
+					"'Bf=110' = 110 against this record's 167.3 (independent published fit, registry/card " +
+					"ratio 1.52); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/Manufacturer/TRT-Electronics/2sa1048.lib#L2",
 				source:
 					"Fetched manufacturer sheet (no vendored copy): Toshiba 2SA1048(L) (2003-03-27) " +
 					"p1, ELECTRICAL CHARACTERISTICS (Ta = 25C): 'DC current gain hFE (Note), " +
@@ -2173,6 +2515,13 @@ export const bjtRegistryRecords: readonly PartDataEntry[] = definePartData([
 			forwardBeta: {
 				value: 173.2050808,
 				basis: "derived",
+				corroboration:
+					"KiCad-Spice-Library (github.com/kicad-spice-library/KiCad-Spice-Library, user-collected " +
+					"mirror of published SPICE cards; pinned commit a8688952, read 2026-11-03): uncategorized " +
+					"collection file, Models/uncategorized/spice_complete/fairch.lib line 8276, card '.model " +
+					"PN2222A NPN': 'Bf=255.9' = 255.9 against this record's 173.2 (independent published fit, " +
+					"registry/card ratio 0.68); " +
+					"https://github.com/kicad-spice-library/KiCad-Spice-Library/blob/a8688952bcaab19f567bc4db237b60bde03ef310/Models/uncategorized/spice_complete/fairch.lib#L8276",
 				source:
 					"Fairchild PN2222A datasheet (Rev. 1.1.0, July 2014), ELECTRICAL " +
 					"CHARACTERISTICS: 'hFE DC Current Gain, IC = 150 mA, VCE = 10 V, " +
