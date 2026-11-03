@@ -1,6 +1,6 @@
 # Release prep: core 0.19.0 / compiler 0.21.0 / runtime 0.16.1 / chain 0.1.24 / player 0.2.22 (2026-11-03, ambient temperature + NTC thermistor)
 
-**Status: PREPARED (versions final). Publish by tag from main, one tag at a time, in the order below.**
+**Status: PUBLISHED (all five tags live on npm; record commit follows on main).**
 Prepared 2026-11-03 on branch `indiejoseph/core-temperature` at `f9681f1` (plus this
 note): main `5afbc1d` plus two commits, verified in a fresh throwaway clone (deleted
 after). Runtime, chain and player versions were then bumped by the coordinator (a
@@ -96,3 +96,63 @@ ohms at 19 C (gain 0.43239483) and 10000.00 at 25 C; FF collector return
 4. `/core-temperature/` already in the core checkout's `.git/info/exclude`; nothing
    loose in `~`; the `/tmp` scratch clones removed.
 5. **No push.**
+
+## Release record (published 2026-11-03, workbench release-0210 worker)
+
+**Status: PUBLISHED.** Main pushed fast-forward `5afbc1d` -> `616f2fd`
+(no force); five tags pushed one at a time in order, each watched to success
+before the next, each confirmed on npm before proceeding. No reruns, no tag
+moves.
+
+| package | version | tag | publish run | npm time (UTC) |
+|---|---|---|---|---|
+| core | 0.19.0 | `v0.19.0` | 41659717499 success | 2026-11-03T15:05:12 |
+| compiler | 0.21.0 | `compiler-v0.21.0` | 41660300119 success | 2026-11-03T15:08:32 |
+| runtime | 0.16.1 | `runtime-v0.16.1` | 41660879718 success | 2026-11-03T15:14:37 |
+| chain | 0.1.24 | `chain-v0.1.24` | 41661925260 success | 2026-11-03T15:20:04 |
+| player | 0.2.22 | `player-v0.2.22` | 41662898572 success | 2026-11-03T15:24:16 |
+
+Acceptance in an empty dir (`npm i` all five at the new versions): `npm ls
+--all` clean, one copy of each, no nested older core or compiler.
+
+Verification of the release commit (fresh clone at `616f2fd`, branch
+`indiejoseph/core-release-0210`): `bun install --frozen-lockfile` PASS
+unchanged; wasm built with CI-order emcc, sha256
+`d8ed56447768b0eb36aac1c2cd770e28aa319723474fbb1e9adf55017b57e7c8`
+(= the 0190 local build hash: the runtime did not move); `bun run typecheck`
+exit 0; `bun run build` exit 0 (`dist entrypoints ok`); root `bun test`
+**2741 pass / 2 fail** across 175 files (632488 expect() calls) -- the 2 are
+the pre-existing `tests/appearance/corpus-integration.test.ts` failures (CE-2
+colour `#59B1E6` vs `#5ca8d4`, block count; the canonical artifacts checkout
+has drifted, as documented in the 0190 record); `bun test
+tests/package.test.ts` 25 pass / 0 fail unedited (exact-pin guard holds).
+
+Program bit-identity control (the release claim): 145 programs (122 pedals +
+23 amps) exported from a clean `git archive` extract of artifacts
+`da97fc07bf343753fca842a719f37ee6af6f0a39`, compiled once with the release
+compiler (clone symlinked into the workbench) and once with the published npm
+compiler 0.19.0 / core 0.18.0 / runtime 0.16.0: `diff -r programs-old
+programs-new` **empty**. With the option absent every program is byte-identical
+to the published 0.19.0 compiler's. The kernel generator is deterministic
+(two runs on the same programs, byte-identical output).
+
+Kernel table control (finding, coordinator-approved PROCEED): regenerating
+`GeneratedKernels.cpp` from the clean-extract programs gives **139 kernels
+from 563 scheduled blocks** vs the committed **138 from 557** (-1 kernel
+`k_3c71d0ec`, +2 `k_63ec0fb5`/`k_80e7ceac`). This is tree state, not compiler
+churn: the same generator run over programs built from the dirty canonical
+checkout reproduces the committed table **exactly** (empty diff, 138/557).
+The canonical checkout carries an uncommitted `boss-oc-2` re-trace (`.vdsp`
+mtime 2026-10-28, 4550-line diff; the sole program mover clean-vs-dirty, 1 of
+145 files) that predates the 0190 table commit `07377ac` (2026-11-01) -- so
+the 0190 table, and the HEAD workbench catalogs (whose `boss-oc-2` program
+equals the dirty-tree build, verified), were built from that dirty tree, not
+from clean `da97fc07b` as the 0190 record states. The regenerated table was
+**not** committed (per procedure); the release ships the committed table,
+which is program-identical to what 0190 shipped. CI wasm proof: published
+0.16.1 `dist/wasm/v2_dsp.wasm` sha256
+`5f9754f1f0c35792bcab58b94bf0fe670f394a236fa35016a047e421411df813`
+(2,283,801 bytes) is **byte-identical to published 0.16.0** -- the runtime did
+not move. Owed to the owner: decide whether to commit the OC-2 re-trace in
+artifacts, then regenerate the kernel table and the workbench catalogs in one
+later row; the SPICE deck emitters owed are on the workbench side (X15).
