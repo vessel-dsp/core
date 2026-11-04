@@ -19,16 +19,13 @@ import type { SparseSchedule, Stamp } from "./types.js";
 export const NUMERIC_REPIVOT_TAU = 1e-3;
 
 /**
- * Every matrix entry a stamp can write, over-approximated as the full square over the stamp's
- * own terminals.
+ * The stamp's terminals as row indices: its auxiliary rows plus every node the shape table
+ * names for its kind.
  *
- * Read off the shape table in `stamp-partition.ts` rather than restated here. `terminalNodes`
- * lets a kind narrow the set -- only `vccs` does, to its output pair -- and `terminalsDropGround`
- * lets it drop ground, which `vccs` also does and nothing else may, because `schedulePattern`
- * removes row 0 globally but keeps column 0.
- *
- * Order is not significant: the caller expands these into every (row, column) pair and collects
- * them in a `Set`.
+ * Kept for the pattern's positive control (the old full-square behaviour) and for callers
+ * that need the terminal set rather than the write set. `schedulePattern` no longer uses
+ * this: it reads `stampPatternCells`, which is exact per stamp kind rather than the square
+ * over these rows.
  */
 export function stampTerminals(
 	stamp: Stamp,
@@ -41,6 +38,363 @@ export function stampTerminals(
 		...fields.map((field) => stampNodeValue(stamp, field)),
 	];
 	return shape.terminalsDropGround ? rows.filter((row) => row !== 0) : rows;
+}
+
+/**
+ * Every matrix entry a stamp can write on an audio pass, as the exact union over the stamp's
+ * branches -- never the full square over its terminals.
+ *
+ * Read off `applyStamp` in `packages/runtime/src/reference-runtime.ts` and its C++ twin in
+ * `packages/runtime/src/cpp/Engine.cpp`, not off the shape table in `stamp-partition.ts`.
+ * The two consoles write the same cells for every kind (the one structural divergence, the
+ * transformer's series-resistance diagonal, is present in the TS console only and is included
+ * conditionally on the stamp field so both consoles stay covered). The DC-only extras need no
+ * cover: both consoles solve the operating point densely (`iterate` with `dc=true` never
+ * touches the schedule; see the runtime's sparse-schedule test), so the pattern is an
+ * audio-path plan and the union is over audio branches only (railed and unrailed op-amp,
+ * diode with and without breakdown/series resistance, FET with and without gate junctions,
+ * pentode with and without screen share, both flip-flop halves, every clock-driver phase,
+ * switch/selector positions, VCA floors).
+ *
+ * The rule is superset-or-exact, never a subset: a cell the stamp can write that is missing
+ * from the pattern silently corrupts the kernel (the runtime gathers only pattern slots).
+ * Where a kind's write set depends on a stamp field (`gateSaturationCurrent`,
+ * `screenShare`, `seriesResistanceOhms`, ground guards both consoles share), the pattern
+ * reads that field, so the set is exact in every case. `terminalNodes`/`terminalsDropGround`
+ * narrowing is subsumed by this: no kind needs it.
+ *
+ * Order is not significant: the caller adds each pair to a `Set`.
+ */
+export function stampPatternCells(
+	stamp: Stamp,
+	nodeCount: number,
+): Array<readonly [row: number, column: number]> {
+	const cells: Array<readonly [row: number, column: number]> = [];
+	const add = (row: number, column: number): void => {
+		cells.push([row, column]);
+	};
+	const addSquare2 = (a: number, b: number): void => {
+		add(a, a);
+		add(a, b);
+		add(b, a);
+		add(b, b);
+	};
+	const auxRow = (sourceIndex: number, offset = 0): number =>
+		nodeCount + sourceIndex + offset;
+	switch (stamp.kind) {
+		case "conductance":
+		case "controlled-conductance":
+		case "controlled-resistance":
+		case "capacitor":
+		case "inductor":
+		case "switch": {
+			// `stampConductance(a, b, g)` on every branch (the capacitor's DC branch writes
+			// nothing; the union is over audio branches, so the audio cells stand).
+			addSquare2(stamp.a, stamp.b);
+			break;
+		}
+		case "selector": {
+			// One throw's conductance per control position; the multi-throw execution shape
+			// stamps every throw in its list, so the union covers the list as well.
+			const shaped = stamp as unknown as {
+				readonly common: number;
+				readonly throwNode: number;
+				readonly throwsList?: readonly number[];
+			};
+			if (shaped.throwNode !== undefined && shaped.throwNode !== -1) {
+				addSquare2(shaped.common, shaped.throwNode);
+			}
+			for (const t of shaped.throwsList ?? []) {
+				addSquare2(shaped.common, t);
+			}
+			break;
+		}
+		case "dc-source":
+		case "ac-source": {
+			const row = auxRow(stamp.sourceIndex);
+			add(row, stamp.positive);
+			add(stamp.positive, row);
+			add(row, stamp.negative);
+			add(stamp.negative, row);
+			add(row, row);
+			break;
+		}
+		case "input-source": {
+			// The C++ console resolves legacy single-ended shapes; the union covers the
+			// resolution so an old program's cell is never missing.
+			const shaped = stamp as unknown as {
+				readonly node: number;
+				readonly input?: number;
+				readonly plus?: number;
+				readonly positive?: number;
+			};
+			const node =
+				shaped.node !== undefined && shaped.node !== -1
+					? shaped.node
+					: (shaped.input ?? shaped.plus ?? shaped.positive ?? shaped.node);
+			const row = auxRow(stamp.sourceIndex);
+			add(row, node);
+			add(node, row);
+			add(row, row);
+			break;
+		}
+		case "macro-audio-source": {
+			// Audio pass only. The DC branch additionally couples the composed tap node,
+			// but both consoles solve DC densely, so no schedule slot covers it.
+			const row = auxRow(stamp.sourceIndex);
+			add(row, stamp.node);
+			add(stamp.node, row);
+			add(row, row);
+			break;
+		}
+		case "logic-divider": {
+			const row = auxRow(stamp.sourceIndex);
+			add(row, stamp.qNode);
+			add(stamp.qNode, row);
+			add(row, stamp.gndNode);
+			add(stamp.gndNode, row);
+			add(row, row);
+			break;
+		}
+		case "d-flip-flop": {
+			// One auxiliary row per driven output; the degenerate VSS-tied half collapses
+			// to three distinct cells, which this same list produces.
+			const rowQ = auxRow(stamp.sourceIndex);
+			add(rowQ, stamp.qNode);
+			add(stamp.qNode, rowQ);
+			add(rowQ, stamp.vssNode);
+			add(stamp.vssNode, rowQ);
+			add(rowQ, rowQ);
+			const rowQbar = auxRow(stamp.sourceIndex2);
+			add(rowQbar, stamp.qBarNode);
+			add(stamp.qBarNode, rowQbar);
+			add(rowQbar, stamp.vssNode);
+			add(stamp.vssNode, rowQbar);
+			add(rowQbar, rowQbar);
+			break;
+		}
+		case "vccs": {
+			// One-directional couplings only; both consoles skip ground terminals.
+			if (stamp.outP !== 0) {
+				if (stamp.inP !== 0) add(stamp.outP, stamp.inP);
+				if (stamp.inN !== 0) add(stamp.outP, stamp.inN);
+			}
+			if (stamp.outN !== 0) {
+				if (stamp.inP !== 0) add(stamp.outN, stamp.inP);
+				if (stamp.inN !== 0) add(stamp.outN, stamp.inN);
+			}
+			break;
+		}
+		case "transformer": {
+			const row = auxRow(stamp.sourceIndex);
+			add(row, stamp.primaryPlus);
+			add(stamp.primaryPlus, row);
+			add(row, stamp.primaryMinus);
+			add(stamp.primaryMinus, row);
+			add(row, stamp.secondaryPlus);
+			add(stamp.secondaryPlus, row);
+			add(row, stamp.secondaryMinus);
+			add(stamp.secondaryMinus, row);
+			// The TS console's copper-loss diagonal; the C++ console never writes it.
+			// Conditional on the field so the set stays exact either way.
+			if (
+				stamp.seriesResistanceOhms !== undefined &&
+				stamp.seriesResistanceOhms > 0
+			) {
+				add(row, row);
+			}
+			break;
+		}
+		case "spring-reverb": {
+			add(stamp.inputPlus, stamp.inputPlus);
+			add(stamp.inputPlus, stamp.inputMinus);
+			add(stamp.inputMinus, stamp.inputPlus);
+			add(stamp.inputMinus, stamp.inputMinus);
+			const row = auxRow(stamp.sourceIndex);
+			add(row, stamp.outputPlus);
+			add(stamp.outputPlus, row);
+			add(row, stamp.outputMinus);
+			add(stamp.outputMinus, row);
+			add(row, row);
+			break;
+		}
+		case "ideal-opamp": {
+			// The output column is unconditional; the constraint row reads plus/minus when
+			// unrailed and the slope-weighted pair when railed. Neither console writes the
+			// row's own diagonal.
+			add(stamp.output, auxRow(stamp.sourceIndex));
+			const row = auxRow(stamp.sourceIndex);
+			add(row, stamp.output);
+			add(row, stamp.plus);
+			add(row, stamp.minus);
+			break;
+		}
+		case "diode":
+		case "tube-diode": {
+			// Forward and breakdown/space-charge branches share the terminal pair.
+			const pair = stamp as unknown as {
+				readonly anode?: number;
+				readonly plate?: number;
+				readonly cathode: number;
+			};
+			addSquare2(pair.anode ?? pair.plate ?? 0, pair.cathode);
+			break;
+		}
+		case "bjt": {
+			const { base: b, collector: c, emitter: e } = stamp;
+			for (const r of [b, c, e] as const) {
+				for (const col of [b, c, e] as const) {
+					add(r, col);
+				}
+			}
+			break;
+		}
+		case "fet": {
+			const g = stamp.gate;
+			const d = stamp.drain;
+			const s = stamp.source;
+			// The channel, both channel-signed directions included.
+			add(d, g);
+			add(d, d);
+			add(d, s);
+			add(s, g);
+			add(s, d);
+			add(s, s);
+			// The gate junctions (source and drain sides) exist only on a part whose gate
+			// draws current. The body diode's cells are already in the channel set above.
+			if (stamp.gateSaturationCurrent > 0) {
+				add(g, g);
+				add(g, s);
+				add(g, d);
+			}
+			break;
+		}
+		case "triode": {
+			const p = stamp.plate;
+			const k = stamp.cathode;
+			const g = stamp.grid;
+			add(p, g);
+			add(p, p);
+			add(p, k);
+			add(k, g);
+			add(k, p);
+			add(k, k);
+			add(g, g);
+			add(g, k);
+			break;
+		}
+		case "pentode": {
+			const p = stamp.plate;
+			const k = stamp.cathode;
+			const g = stamp.grid;
+			const sc = stamp.screen;
+			add(p, g);
+			add(p, sc);
+			add(p, p);
+			add(p, k);
+			add(k, g);
+			add(k, sc);
+			add(k, p);
+			add(k, k);
+			add(g, g);
+			add(g, k);
+			// The screen-share source exists only when the stamp declares a share.
+			if ((stamp.screenShare ?? 0) > 0) {
+				add(sc, g);
+				add(sc, sc);
+				add(sc, p);
+				add(sc, k);
+			}
+			break;
+		}
+		case "ota": {
+			// The bias diode is unconditional; the output row exists on the conducting
+			// branch, so the union carries it, with the ground guards both consoles share.
+			add(stamp.bias, stamp.bias);
+			add(stamp.bias, stamp.vee);
+			add(stamp.vee, stamp.bias);
+			add(stamp.vee, stamp.vee);
+			if (stamp.output !== 0) {
+				if (stamp.plus !== 0) add(stamp.output, stamp.plus);
+				if (stamp.minus !== 0) add(stamp.output, stamp.minus);
+				if (stamp.bias !== 0) add(stamp.output, stamp.bias);
+				if (stamp.vee !== 0) add(stamp.output, stamp.vee);
+			}
+			break;
+		}
+		case "optocoupler": {
+			// The LED junction pair and the LDR pair.
+			addSquare2(stamp.ledAnode, stamp.ledCathode);
+			addSquare2(stamp.ldrA, stamp.ldrB);
+			break;
+		}
+		case "analog-switch": {
+			// The channel plus the one-directional gate couplings both consoles guard on
+			// the channel node.
+			addSquare2(stamp.a, stamp.b);
+			if (stamp.a !== 0) add(stamp.a, stamp.control);
+			if (stamp.b !== 0) add(stamp.b, stamp.control);
+			break;
+		}
+		case "compandor": {
+			// The gain cell; the rectifier current rides the RHS. The TS console stamps
+			// these unconditionally while the C++ console guards the nodes, so the union
+			// carries them and ground-row deletion handles node 0.
+			add(stamp.sumNode, stamp.cellIn);
+			add(stamp.sumNode, stamp.vref);
+			break;
+		}
+		case "clock-driver": {
+			// Each phase row couples its pin plus the supply pin of the current half-phase,
+			// so the union carries both supply pins per row with the guards both consoles
+			// share. The third row's weights differ; its cells do not.
+			const row1 = auxRow(stamp.sourceIndex);
+			add(row1, stamp.cp1);
+			add(stamp.cp1, row1);
+			if (stamp.vdd !== 0) add(row1, stamp.vdd);
+			if (stamp.gnd !== 0) add(row1, stamp.gnd);
+			add(row1, row1);
+			const row2 = auxRow(stamp.sourceIndex, 1);
+			add(row2, stamp.cp2);
+			add(stamp.cp2, row2);
+			if (stamp.vdd !== 0) add(row2, stamp.vdd);
+			if (stamp.gnd !== 0) add(row2, stamp.gnd);
+			add(row2, row2);
+			const row3 = auxRow(stamp.sourceIndex, 2);
+			add(row3, stamp.vgg);
+			add(stamp.vgg, row3);
+			if (stamp.vdd !== 0) add(row3, stamp.vdd);
+			if (stamp.gnd !== 0) add(row3, stamp.gnd);
+			add(row3, row3);
+			break;
+		}
+		case "comparator": {
+			// The pull-down conductance plus the one-directional input couplings, with the
+			// ground guards both consoles share.
+			addSquare2(stamp.output, stamp.vee);
+			if (stamp.output !== 0) {
+				if (stamp.plus !== 0) add(stamp.output, stamp.plus);
+				if (stamp.minus !== 0) add(stamp.output, stamp.minus);
+			}
+			if (stamp.vee !== 0) {
+				if (stamp.plus !== 0) add(stamp.vee, stamp.plus);
+				if (stamp.minus !== 0) add(stamp.vee, stamp.minus);
+			}
+			break;
+		}
+		case "linear-vca":
+		case "dbx-vca": {
+			// Voltage-sense control: the output row reads plus/minus/control and no row
+			// reads back onto control. Both consoles guard every terminal.
+			if (stamp.output !== 0) {
+				if (stamp.plus !== 0) add(stamp.output, stamp.plus);
+				if (stamp.minus !== 0) add(stamp.output, stamp.minus);
+				if (stamp.control !== 0) add(stamp.output, stamp.control);
+			}
+			break;
+		}
+	}
+	return cells;
 }
 
 /**
@@ -189,10 +543,10 @@ export function provablyNonzeroEntries(
 				// `boss-ce-5` (aux4, node1), `boss-ce-2` (node2, aux5 -- a transpose that no
 				// stamp ever writes) and `boss-dm-2` (node1, aux7) each pivoted on.
 				//
-				// The *pattern* still needs both pins, and still has them: `stampTerminals` reads
-				// the shape table, which is a different question from what may be a pivot. The
-				// bug the old comment here describes -- a pattern missing a cell the stamp writes
-				// -- is real and is not this set's job to prevent.
+				// The *pattern* still needs both pins, and still has them: `stampPatternCells`
+				// carries the union over both half-phases, which is a different question from
+				// what may be a pivot. The bug the old comment here describes -- a pattern
+				// missing a cell the stamp writes -- is real and is not this set's job to prevent.
 				const row1 = auxRow(stamp.sourceIndex);
 				pair(row1, stamp.cp1);
 				eligible.add(row1 * size + row1);
@@ -272,6 +626,10 @@ export function provablyNonzeroEntries(
 /**
  * The block's structural pattern: every entry any stamp can write, plus the gmin diagonals,
  * with ground-pin overwrite applied.
+ *
+ * Per-stamp cells come from `stampPatternCells` (exact audio-write sets); the node diagonals
+ * below are the runtime's `gmin` contributors, and the ground-row handling matches the
+ * solver's overwrite of row 0.
  */
 export function schedulePattern(
 	block: { nodeCount: number; stamps: readonly Stamp[] },
@@ -279,11 +637,8 @@ export function schedulePattern(
 ): Set<number> {
 	const pattern = new Set<number>();
 	for (const stamp of block.stamps) {
-		const terminals = stampTerminals(stamp, block.nodeCount);
-		for (const row of terminals) {
-			for (const column of terminals) {
-				pattern.add(row * size + column);
-			}
+		for (const [row, column] of stampPatternCells(stamp, block.nodeCount)) {
+			pattern.add(row * size + column);
 		}
 	}
 	for (let node = 1; node < block.nodeCount; node += 1) {
