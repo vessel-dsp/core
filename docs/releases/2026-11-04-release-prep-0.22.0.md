@@ -82,3 +82,38 @@ stop before pushing.
 4. Nothing loose in `~`; scratch only under `/tmp/release-0220-worker/` and the
    `tmp/release-0220/` tree.
 5. **No push.**
+
+## Release record (published 2026-11-04, workbench release-0220 worker)
+
+**Status: PUBLISHED.** Main pushed fast-forward `9da954e` -> `f378eaa`
+(no force); four tags pushed one at a time in order, each watched to success
+before the next, each confirmed on npm before proceeding. No reruns, no tag
+moves, no core tag (core unchanged).
+
+| package | version | tag | publish run | npm time (UTC) |
+|---|---|---|---|---|
+| compiler | 0.22.0 | `compiler-v0.22.0` | 41871457810 success | 2026-11-04T16:54:23 |
+| runtime | 0.17.0 | `runtime-v0.17.0` | 41872309363 success | 2026-11-04T16:59:43 |
+| chain | 0.1.26 | `chain-v0.1.26` | 41873157138 success | 2026-11-04T17:03:52 |
+| player | 0.2.24 | `player-v0.2.24` | 41873903697 success | 2026-11-04T17:09:42 |
+
+Acceptance in an empty dir (`npm i` all five at the new versions): `npm ls
+--all` clean, one copy of each, deduped, no nested older core or compiler.
+
+Published wasm proof: published 0.17.0 `dist/wasm/v2_dsp.wasm` sha256
+`9a3819832b7d89df18e516269184fef23e418bd70cce3863c0a95a898a16847a`
+(1,607,272 bytes) -- differs from published 0.16.2's `5f9754f1…` (2,283,801
+bytes, the interpreter-only table era) and from the sibling worker's local
+emcc 6.0.4 build `566003ad…` (CI builds with emcc 3.1.74), as expected for a
+wholesale-regenerated kernel table on the CI toolchain.
+
+Phase-1 controls (workbench, logged in the release-0220 report): kernel-table
+regen from the clean-extract programs gives 137 kernels / 556 blocks with an
+empty diff against the committed table; program control 144 of 145 programs
+differ, the byte-identical one being `boss-ps-2`; solver-plan pivot fallbacks
+0, abandoned 0, dropped 0 on pedals (108 sparse) and amps (30 sparse), logs
+byte-identical to the sibling's gate-2 runs; the two programs differing from
+the sibling's dirty-tree exports are fully characterized (`boss-oc-2`
+`controls[3]` defaultPosition 0 vs 1; `jim-dunlop-cry-baby-gcb-95` one stamp's
+`seriesResistanceOhms` present only in the dirty tree) and neither moves the
+kernel table.
