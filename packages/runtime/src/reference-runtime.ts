@@ -1082,6 +1082,20 @@ function boundOpAmpRaw(raw: number, halfSwing: number): number {
 }
 
 /**
+ * Exact-formula tanh through one exp: 1 − 2/(1 + exp(2x)).
+ * Matches Math.tanh to ~3e-16 over the audio band; the large-|x| guard returns exactly ±1
+ * where exp(2x) would overflow (x beyond ±354). Board-p2 row 15 commit B: the per-call
+ * tanh sites (op-amp shape, OTA) evaluate this instead of a libm tanh. Not an approximation:
+ * it is the same function, one rounding apart at most. Mirrored in Engine.cpp as tanhOneExp.
+ */
+function tanhOneExp(x: number): number {
+	if (x > 354) return 1;
+	if (x < -354) return -1;
+	const e = Math.exp(2 * x);
+	return 1 - 2 / (1 + e);
+}
+
+/**
  * How far the `modulation` port may scale a delay, either way.
  *
  * A bound rather than a tuning. The law `delay = base * (Vdc / V)` has a pole as `V` approaches
@@ -8316,7 +8330,7 @@ export class ReferenceRuntime {
 					halfSwing,
 				);
 				const scaled = raw / halfSwing;
-				const shape = Math.tanh(scaled);
+				const shape = tanhOneExp(scaled);
 				const output = centre + halfSwing * shape;
 				// The value uses the true `raw`; the **derivative** is evaluated at a bounded
 				// argument. `1 - shape * shape` underflows to exactly 0 past about
@@ -8421,9 +8435,9 @@ export class ReferenceRuntime {
 
 				// If bias current is flowing, compute dynamic transconductance and hyperbolic tangent clipping
 				if (iAbc > 0) {
-					const tanhVal = Math.tanh(vDiff / (2.0 * vt));
-					const sechVal = 1.0 / Math.cosh(vDiff / (2.0 * vt));
-					const sech2 = sechVal * sechVal;
+					const tanhVal = tanhOneExp(vDiff / (2.0 * vt));
+					// sech^2 = 1 - tanh^2, exactly: the slope of the same curve the value takes.
+					const sech2 = 1.0 - tanhVal * tanhVal;
 
 					const iOut = 2.0 * iAbc * tanhVal;
 

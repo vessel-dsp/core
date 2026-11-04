@@ -693,6 +693,18 @@ inline double boundOpAmpRaw(double raw, double halfSwing) {
     return std::min(limit, std::max(-limit, raw));
 }
 
+// Exact-formula tanh through one exp: 1 - 2/(1 + exp(2x)).
+// Matches std::tanh to ~3e-16 over the audio band; the large-|x| guard returns exactly ±1
+// where exp(2x) would overflow (x beyond ±354). Board-p2 row 15 commit B: the per-call
+// tanh sites (op-amp shape, OTA) evaluate this instead of a libm tanh. Not an approximation:
+// it is the same function, one rounding apart at most. Mirrored in reference-runtime.ts.
+inline double tanhOneExp(double x) {
+    if (x > 354.0) return 1.0;
+    if (x < -354.0) return -1.0;
+    double e = std::exp(2.0 * x);
+    return 1.0 - 2.0 / (1.0 + e);
+}
+
 inline void stampConductance(double* matrix, int32_t size, int32_t a, int32_t b, double g) {
     matrix[a * size + a] += g;
     matrix[b * size + b] += g;
@@ -3755,7 +3767,7 @@ void Engine::applyStamp(
                 dc ? (stamp.openLoopGain * diff) : (alpha * stamp.openLoopGain * diff + (1.0 - alpha) * rawPrev),
                 halfSwing);
             double scaled = raw / halfSwing;
-            double shape = std::tanh(scaled);
+            double shape = tanhOneExp(scaled);
             double outVal = centre + halfSwing * shape;
             // The second tanh is the first one again: boundOpAmpRaw clamps raw to
             // ±(OPAMP_SATURATION_BAND * halfSwing), so |scaled| <= 8 always and the
@@ -4446,9 +4458,9 @@ void Engine::applyStamp(
             }
 
             if (iAbc > 0.0) {
-                double tanhVal = std::tanh(vDiff / (2.0 * vt));
-                double sechVal = 1.0 / std::cosh(vDiff / (2.0 * vt));
-                double sech2 = sechVal * sechVal;
+                double tanhVal = tanhOneExp(vDiff / (2.0 * vt));
+                // sech^2 = 1 - tanh^2, exactly: the slope of the same curve the value takes.
+                double sech2 = 1.0 - tanhVal * tanhVal;
 
                 double iOut = 2.0 * iAbc * tanhVal;
 
