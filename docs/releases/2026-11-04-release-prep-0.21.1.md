@@ -88,3 +88,52 @@ finding: report, do not commit the table, stop before pushing.
 4. Nothing loose in `~`; scratch only under `/tmp/release-0211-worker/` and the
    `tmp/release-0211/` tree.
 5. **No push.**
+
+## Release record (published 2026-11-04, workbench release-0211 worker)
+
+**Status: PUBLISHED.** Main pushed fast-forward `93a3a8d` -> `0a55a06`
+(no force); four tags pushed one at a time in order, each watched to success
+before the next, each confirmed on npm before proceeding. No reruns, no tag
+moves, no core tag (core unchanged).
+
+| package | version | tag | publish run | npm time (UTC) |
+|---|---|---|---|---|
+| compiler | 0.21.1 | `compiler-v0.21.1` | 41816260164 success | 2026-11-04T10:47:56 |
+| runtime | 0.16.2 | `runtime-v0.16.2` | 41816684285 success | 2026-11-04T10:56:04 |
+| chain | 0.1.25 | `chain-v0.1.25` | 41817570424 success | 2026-11-04T11:00:19 |
+| player | 0.2.23 | `player-v0.2.23` | 41818033347 success | 2026-11-04T11:05:42 |
+
+Acceptance in an empty dir (`npm i` all five at the new versions): `npm ls
+--all` clean, one copy of each, deduped, no nested older core or compiler.
+
+Program control (the release claim): 145 programs (122 pedals + 23 amps)
+exported from a clean `git archive` extract of artifacts
+`fd050cf3881fa36eef91506b066b7367554aaaf2`, compiled once with the release
+compiler (clone symlinked into the workbench) and once with the published npm
+compiler 0.21.0 / core 0.19.0 / runtime 0.16.1: `diff -rq programs-old
+programs-new` differs in exactly the seven executing TL022 packets --
+`boss-bf-2`, `boss-ce-2`, `boss-ce-2b`, `boss-ge-7`, `boss-oc-2`, `boss-ph-1r`,
+`dod-envelope-filter-440-vintage-green` -- and nothing else. `boss-vb-2` is
+listed by the `PartNumber` grep but is not a mover: its IC5 (TL022CP) declares
+0 connected terminals (`unconnected-behavior-component`, skipped from MNA
+modeling) and `SRC_TL022CP` is empty-terminal source evidence, so its program
+carries no TL022 stamp (its sole ideal-opamp stamp is IC1B NJM4558DD) and is
+correctly byte-identical -- the same unconnected-inventory precedent as
+`boss-ps-2`'s 1S188FM in the 0.17.0 record. All seven movers verified
+non-rail-identical (every block and stamp equal after removing ideal-opamp
+`railLow`/`railHigh`): TL022 sections move 0/9 to 2/7, every other part's
+stamps untouched. `boss-oc-2` positive control (release compiler): 10 of 10
+ideal-opamp stamps at rails low 2 / high 7 (2.0 V inside the 9 V supply), all
+ten sections (IC1A/B, IC2A/B including the comparator, IC3A/B, IC4A/B, IC5A/B)
+`stated-at-other-supply`, zero `not-stated` (old compiler: 10 stamps 0/9,
+10x `not-stated`).
+
+Kernel table control: regenerating `GeneratedKernels.cpp` from the new programs
+gives **138 kernels from 557 scheduled blocks** with an **empty diff** against
+the committed table -- a swing change moves rail constants, not operators, as
+expected. The regenerated table was not committed (nothing to commit).
+
+Published wasm proof: published 0.16.2 `dist/wasm/v2_dsp.wasm` sha256
+`5f9754f1f0c35792bcab58b94bf0fe670f394a236fa35016a047e421411df813`
+(2,283,801 bytes) is **byte-identical to published 0.16.1** -- the runtime did
+not move.
