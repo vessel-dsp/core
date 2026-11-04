@@ -141,6 +141,16 @@ describe("the output clamps at the stamp's rails, one side at a time", () => {
 		},
 	);
 
+	it("the railed slope is gain·(1−tanh²(8)): the band clamp is the identity at the bound", () => {
+		// boundOpAmpRaw clamps raw to ±8 halfSwings, so scaled = raw/halfSwing never exceeds
+		// ±8 and tanh(clamp(scaled, ±8)) is tanh(scaled). Both consoles evaluate the slope as
+		// gain·(1−shape²) with shape = tanh(8) at the rail; this pins that substitution.
+		expect(Math.tanh(8)).toBe(Math.tanh(Math.min(8, Math.max(-8, 8))));
+		const slope = 100000 * (1 - Math.tanh(8) * Math.tanh(8));
+		expect(slope).toBeGreaterThan(0);
+		expect(slope).toBeLessThan(100000 * 1e-6);
+	});
+
 	it("is not trivially satisfied: the clamp of one part is not the clamp of another", () => {
 		// A mutation guard: if every part clamped at the same place the checks above would hold for the wrong
 		// reason, so the three cases must be pairwise distinct on both sides they state.

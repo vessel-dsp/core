@@ -8335,10 +8335,10 @@ export class ReferenceRuntime {
 				// well; the raw can never leave ±8 halfSwings. The two are the same move made in
 				// the same file on the same row, and the deck emitter's B-source matches (see the
 				// advance's comment and `docs/troubleshootings/...saturated-opamp-row...md`).
-				const derivativeShape = Math.tanh(
-					clamp(scaled, -OPAMP_SATURATION_BAND, OPAMP_SATURATION_BAND),
-				);
-				const slope = effectiveGain * (1 - derivativeShape * derivativeShape);
+				// The second tanh is the first one again: boundOpAmpRaw clamps raw to
+				// ±(OPAMP_SATURATION_BAND * halfSwing), so |scaled| <= 8 always and the
+				// clamp is the identity on every reachable input. derivativeShape = shape.
+				const slope = effectiveGain * (1 - shape * shape);
 				// Linearised: Vout - slope * Vdiff = Vout0 - slope * Vdiff0, with Vdiff0 the point the
 				// tangent is taken at. While the step limiter is active that point is the limited
 				// differential (SPICE's rule: evaluate at the damped step, let the unknown be free).

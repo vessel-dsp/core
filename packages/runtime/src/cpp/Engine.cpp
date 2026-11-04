@@ -510,14 +510,6 @@ inline double clamp(double value, double low, double high) {
     return std::min(high, std::max(low, value));
 }
 
-inline uint64_t packHistoryKey2(int32_t blockIndex, int32_t a, int32_t b) {
-    return (static_cast<uint64_t>(blockIndex) * HISTORY_KEY_BASE + a) * HISTORY_KEY_BASE + b;
-}
-
-inline uint64_t packHistoryKey3(int32_t blockIndex, int32_t a, int32_t b, int32_t c) {
-    return ((static_cast<uint64_t>(blockIndex) * HISTORY_KEY_BASE + a) * HISTORY_KEY_BASE + b) * HISTORY_KEY_BASE + c;
-}
-
 constexpr double kTriodeGridCutoffThresholdVolts = -3.0;
 constexpr double kTriodeGridStepVolts = 5.0;
 constexpr double kTriodeGridStepDownVolts = 40.0;
@@ -1354,8 +1346,8 @@ void Engine::prepare(const EngineOptions& options) {
     }
     elapsedSamples_ = 0;
     // A tap timed against the previous clock would read a meaningless interval.
-    tapState_.clear();
-    lastComposedPosition_.clear();
+    tapByControl_.clear();
+    // (lastComposedPosition_ map removed: per-block lastComposedPos resets in the loop below.)
     // A latch is firmware state and powers up where its declaration says; a knob keeps its place.
     for (const auto& ctrl : program_.controls) {
         if (!ctrl.latchToggledBy.empty()) setControl(ctrl.id, ctrl.defaultPosition);
@@ -1368,18 +1360,9 @@ void Engine::prepare(const EngineOptions& options) {
     oneIterationSolves_ = 0;
     totalIterations_ = 0;
 
-    macroOutputVolts_.clear();
+    macroOut_.clear();
     reverbStates_.clear();
-    opampHistory_.clear();
-    opampRawState_.clear();
-    diodeHistory_.clear();
-    bjtHistory_.clear();
-    triodeHistory_.clear();
-    fetHistory_.clear();
-    springStates_.clear();
-    springOutputVolts_.clear();
     bbdBuffers_.clear();
-    lastShiftedSample_.clear();
 
     controlIndexByName_.clear();
     controlValues_.clear();
@@ -1388,6 +1371,7 @@ void Engine::prepare(const EngineOptions& options) {
         controlIndexByName_[ctrlId] = idx;
         controlValues_.push_back(val);
     }
+    tapByControl_.assign(controlValues_.size(), TapState{});
 
     for (auto& block : program_.blocks) {
         for (auto& stamp : block.stamps) {
@@ -1402,19 +1386,33 @@ void Engine::prepare(const EngineOptions& options) {
                     stamp.controlIndex = idx;
                 }
             }
+            // Resolve the publishing block once: the macro-audio-source stamp then reads
+            // macroOut_ by index instead of a string map lookup on every Newton iteration.
+            stamp.macroBlockIndex = -1;
+            if (!stamp.macroId.empty()) {
+                auto mIt = blockIndexById_.find(stamp.macroId);
+                if (mIt != blockIndexById_.end()) {
+                    stamp.macroBlockIndex = static_cast<int32_t>(mIt->second);
+                }
+            }
         }
     }
+    // Late-resolved stamp controls extend controlValues_ after the tap vector was sized.
+    tapByControl_.assign(controlValues_.size(), TapState{});
 
     // A program control's declared table beside each resolved control value above; null
     // where the control declares none (or names no program control at all). A declared
     // table wins over the stamp's denormalized kind wherever the sample loop reads one.
     controlTaperTables_.assign(controlValues_.size(), nullptr);
+    controlTapers_.assign(controlValues_.size(), TaperKind::Linear);
     for (const auto& ctrl : program_.controls) {
         auto it = controlIndexByName_.find(ctrl.id);
         if (it != controlIndexByName_.end() && it->second >= 0 &&
-            static_cast<size_t>(it->second) < controlTaperTables_.size() &&
-            ctrl.taperTable.size() >= 2) {
-            controlTaperTables_[static_cast<size_t>(it->second)] = &ctrl.taperTable;
+            static_cast<size_t>(it->second) < controlTaperTables_.size()) {
+            controlTapers_[static_cast<size_t>(it->second)] = ctrl.taper;
+            if (ctrl.taperTable.size() >= 2) {
+                controlTaperTables_[static_cast<size_t>(it->second)] = &ctrl.taperTable;
+            }
         }
     }
 
@@ -1511,6 +1509,11 @@ void Engine::prepare(const EngineOptions& options) {
                     line.sweepTapped = sweepIt->second.tapped;
                     line.sweepRatio = sweepIt->second.ratio;
                     line.sweepControl = sweepIt->second.controlId;
+                    // Resolved once: the publish path reads taper, table and value by
+                    // this index instead of scanning program_.controls per sample per op.
+                    auto swIt = controlIndexByName_.find(line.sweepControl);
+                    line.sweepControlIndex = (swIt != controlIndexByName_.end())
+                        ? swIt->second : -1;
                 }
                 line.targetLengthSamples = initialSamples;
                 line.currentLengthSamples = initialSamples;
@@ -1581,7 +1584,6 @@ void Engine::prepare(const EngineOptions& options) {
             // the block's own input tap, which every program shares because they share
             // the pin.
             composedDc_[block.id] = ComposedDc{};
-            macroOutputVolts_[block.id] = 0.0;
             continue;
         }
 
@@ -1606,6 +1608,28 @@ void Engine::prepare(const EngineOptions& options) {
         scratch.opampHistory.assign(block.stamps.size(), OpAmpHistory{});
         scratch.opampRawState.assign(block.stamps.size(), 0.0);
         scratch.fetHistory.assign(block.stamps.size(), FetHistory{});
+        // Once-per-sample guards start un-run (-1 never equals a sample count).
+        scratch.shiftGuard.assign(block.stamps.size(), -1);
+        scratch.dbxGuard.assign(block.stamps.size(), {-1, -1, -1, -1});
+        scratch.springState.assign(block.stamps.size(), SpringTankState{});
+        scratch.springOut.assign(block.stamps.size(), 0.0);
+        scratch.springLive.assign(block.stamps.size(), 0);
+        scratch.lastComposedPos = INT32_MIN;
+        scratch.composedTemps.clear();
+        scratch.composedLineMaps.clear();
+        scratch.composedOpLines.clear();
+        scratch.composedOpGateIdx.clear();
+        scratch.composedMixTermIdx.clear();
+        scratch.composedFilterPtrs.clear();
+        scratch.composedPitchPtrs.clear();
+        scratch.composedTrackerPtrs.clear();
+        scratch.composedDcPtr = nullptr;
+        scratch.routerBlockIdx = -1;
+        scratch.routerControlIdx = -1;
+        scratch.audioInBlockIdx = -1;
+        scratch.modBlockIdx = -1;
+        scratch.paramBlockIdx = -1;
+        scratch.clockLawBlockIdx = -1;
 
         blockStates_[bIdx].assign(block.stateCount, 0.0);
         blockOperatingPoints_[bIdx].assign(size, 0.0);
@@ -1662,7 +1686,8 @@ void Engine::prepare(const EngineOptions& options) {
                     0.0,
                     false,
                     1.0,
-                    static_cast<int32_t>(bIdx)
+                    static_cast<int32_t>(bIdx),
+                    cIdx
                 );
             }
         }
@@ -1817,6 +1842,88 @@ void Engine::prepare(const EngineOptions& options) {
         }
     }
 
+    // Audio-path side tables: every per-sample string lookup below is resolved once here.
+    // The maps stay for prepare/DC/reset; the sample loop only touches these pointers/indices.
+    macroOut_.assign(program_.blocks.size(), 0.0);
+    for (size_t bIdx = 0; bIdx < program_.blocks.size(); ++bIdx) {
+        const auto& block = program_.blocks[bIdx];
+        auto& scratch = blockScratch_[bIdx];
+        auto biIt = blockIndexById_.find(block.id);
+        auto resolveBlock = [&](const std::string& id) -> int32_t {
+            auto it = blockIndexById_.find(id);
+            return (it != blockIndexById_.end()) ? static_cast<int32_t>(it->second) : -1;
+        };
+        (void)biIt;
+        if (block.router.has_value() && block.router->port.has_value()) {
+            scratch.routerBlockIdx = resolveBlock(block.router->port->block);
+        }
+        if (block.router.has_value() && !block.router->controlId.empty()) {
+            auto cIt = controlIndexByName_.find(block.router->controlId);
+            scratch.routerControlIdx = (cIt != controlIndexByName_.end()) ? cIt->second : -1;
+        }
+        if (block.audioIn.has_value()) scratch.audioInBlockIdx = resolveBlock(block.audioIn->block);
+        if (block.modulation.has_value()) scratch.modBlockIdx = resolveBlock(block.modulation->block);
+        if (block.parameter.has_value()) scratch.paramBlockIdx = resolveBlock(block.parameter->block);
+        if (block.clockLaw.has_value()) scratch.clockLawBlockIdx = resolveBlock(block.clockLaw->block);
+        auto dcIt = composedDc_.find(block.id);
+        scratch.composedDcPtr = (dcIt != composedDc_.end()) ? &dcIt->second : nullptr;
+        if (block.kind != BlockKind::Composed) continue;
+        // Fresh prepare re-arms the mode edge, exactly as clearing lastComposedPosition_ did.
+        scratch.lastComposedPos = INT32_MIN;
+        auto keysIt = composedStateKeys_.find(block.id);
+        if (keysIt == composedStateKeys_.end()) continue;
+        size_t nPos = block.positions.size();
+        scratch.composedLineMaps.assign(nPos, nullptr);
+        scratch.composedOpLines.assign(nPos, {});
+        scratch.composedOpGateIdx.assign(nPos, {});
+        scratch.composedMixTermIdx.assign(nPos, {});
+        scratch.composedFilterPtrs.assign(nPos, nullptr);
+        scratch.composedPitchPtrs.assign(nPos, nullptr);
+        scratch.composedTrackerPtrs.assign(nPos, nullptr);
+        size_t maxOps = 0;
+        for (const auto& p : block.positions) maxOps = std::max(maxOps, p.ops.size());
+        scratch.composedTemps.assign(maxOps, 0.0);
+        scratch.pitchWindow.assign(TRACK_WINDOW, 0.0);
+        for (size_t posIdx = 0; posIdx < nPos && posIdx < keysIt->second.size(); ++posIdx) {
+            auto lIt = composedLines_.find(keysIt->second[posIdx]);
+            if (lIt == composedLines_.end()) continue;
+            scratch.composedLineMaps[posIdx] = &lIt->second;
+            auto fIt = composedFilters_.find(keysIt->second[posIdx]);
+            if (fIt != composedFilters_.end()) scratch.composedFilterPtrs[posIdx] = &fIt->second;
+            auto pIt = composedPitch_.find(keysIt->second[posIdx]);
+            if (pIt != composedPitch_.end()) scratch.composedPitchPtrs[posIdx] = &pIt->second;
+            auto tIt = composedTracker_.find(keysIt->second[posIdx]);
+            if (tIt != composedTracker_.end()) scratch.composedTrackerPtrs[posIdx] = &tIt->second;
+            const auto& position = block.positions[posIdx];
+            scratch.composedOpLines[posIdx].assign(position.ops.size(), nullptr);
+            scratch.composedOpGateIdx[posIdx].assign(position.ops.size(), -1);
+            scratch.composedMixTermIdx[posIdx].assign(position.ops.size(), {});
+            for (size_t oIdx = 0; oIdx < position.ops.size(); ++oIdx) {
+                const auto& op = position.ops[oIdx];
+                if (!op.line.empty()) {
+                    auto llIt = lIt->second.find(op.line);
+                    scratch.composedOpLines[posIdx][oIdx] =
+                        (llIt != lIt->second.end()) ? &llIt->second : nullptr;
+                }
+                if (!op.gateControl.empty()) {
+                    auto gIt = controlIndexByName_.find(op.gateControl);
+                    scratch.composedOpGateIdx[posIdx][oIdx] =
+                        (gIt != controlIndexByName_.end()) ? gIt->second : -1;
+                }
+                if (!op.terms.empty()) {
+                    auto& termIdx = scratch.composedMixTermIdx[posIdx][oIdx];
+                    termIdx.assign(op.terms.size(), -1);
+                    for (size_t tIdx = 0; tIdx < op.terms.size(); ++tIdx) {
+                        if (!op.terms[tIdx].sweepControl.empty()) {
+                            auto sIt = controlIndexByName_.find(op.terms[tIdx].sweepControl);
+                            termIdx[tIdx] = (sIt != controlIndexByName_.end()) ? sIt->second : -1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     solveOperatingPoint();
     settlePivotOrders();
 
@@ -1962,19 +2069,14 @@ void Engine::settlePivotOrders() {
         }
 
         bool savedLimited = limitedIterate_;
-        auto savedDiode = diodeHistory_;
-        auto savedBjt = bjtHistory_;
-        auto savedTriode = triodeHistory_;
-        auto savedOpamp = opampHistory_;
-        auto savedOpampRaw = opampRawState_;
-        auto savedFet = fetHistory_;
-        auto savedShifted = lastShiftedSample_;
         auto savedScratchDiode = scratch.diodeHistory;
         auto savedScratchBjt = scratch.bjtHistory;
         auto savedScratchTriode = scratch.triodeHistory;
         auto savedScratchOpamp = scratch.opampHistory;
         auto savedScratchOpampRaw = scratch.opampRawState;
         auto savedScratchFet = scratch.fetHistory;
+        auto savedScratchShift = scratch.shiftGuard;
+        auto savedScratchDbx = scratch.dbxGuard;
         for (size_t sIdx = 0; sIdx < block.stamps.size(); ++sIdx) {
             applyStamp(block.stamps[sIdx], matrix.data(), rhs.data(), size, block, dt, state,
                 opPadded.data(), 0.0, false, 1.0, static_cast<int32_t>(bIdx), static_cast<int32_t>(sIdx));
@@ -1988,19 +2090,14 @@ void Engine::settlePivotOrders() {
         matrix[0] = 1.0;
         rhs[0] = 0.0;
         limitedIterate_ = savedLimited;
-        diodeHistory_ = savedDiode;
-        bjtHistory_ = savedBjt;
-        triodeHistory_ = savedTriode;
-        opampHistory_ = savedOpamp;
-        opampRawState_ = savedOpampRaw;
-        fetHistory_ = savedFet;
-        lastShiftedSample_ = savedShifted;
         scratch.diodeHistory = savedScratchDiode;
         scratch.bjtHistory = savedScratchBjt;
         scratch.triodeHistory = savedScratchTriode;
         scratch.opampHistory = savedScratchOpamp;
         scratch.opampRawState = savedScratchOpampRaw;
         scratch.fetHistory = savedScratchFet;
+        scratch.shiftGuard = savedScratchShift;
+        scratch.dbxGuard = savedScratchDbx;
 
         // Both solves on the same matrix: the replay first (it only reads),
         // then the dense solve on a copy (it factorises in place).
@@ -2160,7 +2257,14 @@ void Engine::reset() {
         std::fill(scratch.opampHistory.begin(), scratch.opampHistory.end(), OpAmpHistory{});
         std::fill(scratch.opampRawState.begin(), scratch.opampRawState.end(), 0.0);
         std::fill(scratch.fetHistory.begin(), scratch.fetHistory.end(), FetHistory{});
+        std::fill(scratch.shiftGuard.begin(), scratch.shiftGuard.end(), -1);
+        for (auto& g : scratch.dbxGuard) g = {-1, -1, -1, -1};
+        std::fill(scratch.springOut.begin(), scratch.springOut.end(), 0.0);
+        std::fill(scratch.springLive.begin(), scratch.springLive.end(), 0);
+        // lastComposedPos intentionally untouched: reset() never cleared the map either,
+        // so a re-armed engine keeps the mode edge it had (bit-identical hold behavior).
     }
+    std::fill(macroOut_.begin(), macroOut_.end(), 0.0);
     for (auto& [_, lines] : composedLines_) {
         for (auto& [__, line] : lines) {
             std::fill(line.buffer.begin(), line.buffer.end(), 0.0);
@@ -2196,15 +2300,7 @@ void Engine::reset() {
             ap.index = 0;
         }
     }
-    for (auto& [_, v] : macroOutputVolts_) {
-        v = 0.0;
-    }
-    opampHistory_.clear();
-    opampRawState_.clear();
-    diodeHistory_.clear();
-    bjtHistory_.clear();
-    triodeHistory_.clear();
-    fetHistory_.clear();
+    // (macroOut_ zeroed with the scratch histories above; the string map is gone.)
     solveOperatingPoint();
     // Re-decided, not re-armed: the re-arm above cleared every admitted block's
     // drop as undecided, and the fresh operating point is what judges it, exactly
@@ -2223,7 +2319,12 @@ void Engine::setControl(std::string_view controlId, double position) {
         if (was < 0.5 && position >= 0.5 && options_.sampleRate > 0.0) {
             for (const auto& ctrl : program_.controls) {
                 if (ctrl.id != controlId || !ctrl.momentary) continue;
-                auto& tap = tapState_[std::string(controlId)];
+                // Tap state by resolved control index (was a string-keyed map entry).
+                auto tapIdxIt = controlIndexByName_.find(std::string(controlId));
+                if (tapIdxIt == controlIndexByName_.end() ||
+                    tapIdxIt->second < 0 ||
+                    static_cast<size_t>(tapIdxIt->second) >= tapByControl_.size()) break;
+                auto& tap = tapByControl_[static_cast<size_t>(tapIdxIt->second)];
                 const int64_t now = static_cast<int64_t>(elapsedSamples_);
                 if (ctrl.tapPresses <= 0) {
                     if (tap.lastPress >= 0 && now > tap.lastPress) {
@@ -2362,7 +2463,8 @@ int32_t Engine::setSupply(int32_t blockIndex, int32_t sourceIndex, double volts,
                 0.0,
                 false,
                 1.0,
-                blockIndex
+                blockIndex,
+                cIdx
             );
         }
     }
@@ -2470,7 +2572,6 @@ void Engine::solveOperatingPoint() {
                 state[stamp.stateIndex + 1] = (solution[stamp.a] - solution[stamp.b]) / DC_INDUCTOR_SHORT_OHMS;
             } else if (stamp.kind == StampKind::IdealOpAmp) {
                 if (stamp.railHigh.has_value() && stamp.railLow.has_value()) {
-                    uint64_t key = packHistoryKey3(bIdx, stamp.plus, stamp.minus, stamp.output);
                     // Seed from the solved OUTPUT (inverse tanh map), mirroring the TS
                     // console: the full-gain product of the solved differential seeds
                     // every linear stage as railed, and a weak DC loop cannot walk
@@ -2482,7 +2583,6 @@ void Engine::solveOperatingPoint() {
                     if (unit > t) unit = t;
                     if (unit < -t) unit = -t;
                     double raw = hs * std::atanh(unit);
-                    opampRawState_[key] = raw;
                     scratch.opampRawState[sIdx] = raw;
                 }
             }
@@ -2887,11 +2987,7 @@ Engine::SolveResult Engine::iterate(
             const bool toHigh = (foldReseeds % 2 == 1) ? wasHigh : !wasHigh;
             current[lo.output] = toHigh ? lo.railHigh : lo.railLow;
             const OpAmpHistory seeded{ toHigh ? lo.band : -lo.band, 0.0, lo.maxStep };
-            if (lo.stampIdx >= 0 && lo.stampIdx < static_cast<int32_t>(scratch.opampHistory.size())) {
-                scratch.opampHistory[lo.stampIdx] = seeded;
-            } else {
-                opampHistory_[lo.key] = seeded;
-            }
+            blockScratch_[static_cast<size_t>(lo.blockIndex)].opampHistory[static_cast<size_t>(lo.stampIdx)] = seeded;
             relaxing = false;
             alpha = kNewtonRelaxationFactor;
             bestDelta = HUGE_VAL;
@@ -3352,7 +3448,9 @@ void Engine::applyStamp(
         return nullptr;
     };
 
-    BlockScratch* scratchPtr = (blockIndex >= 0 && blockIndex < static_cast<int32_t>(blockScratch_.size())) ? &blockScratch_[blockIndex] : nullptr;
+    // Single path: every call site passes a valid block/stamp index, so the per-stamp
+    // slots in BlockScratch are always addressable. The old map fallback is gone.
+    BlockScratch& scratch = blockScratch_[static_cast<size_t>(blockIndex)];
 
     switch (stamp.kind) {
         case StampKind::Conductance:
@@ -3439,23 +3537,11 @@ void Engine::applyStamp(
         case StampKind::Diode: {
             double scale = stamp.emissionCoefficient * stamp.thermalVoltage;
             double raw = solution[stamp.anode] - solution[stamp.cathode];
-            double prevAcross = 0.0;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->diodeHistory.size())) {
-                prevAcross = scratchPtr->diodeHistory[stampIdx];
-            } else {
-                uint64_t diodeKey = packHistoryKey2(blockIndex, stamp.anode, stamp.cathode);
-                auto it = diodeHistory_.find(diodeKey);
-                prevAcross = (it != diodeHistory_.end()) ? it->second : 0.0;
-            }
+            double prevAcross = scratch.diodeHistory[static_cast<size_t>(stampIdx)];
             double rs = stamp.seriesResistance;
             double across = limitJunction(raw, prevAcross, scale, stamp.saturationCurrent, rs);
             if (across != raw) limitedIterate_ = true;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->diodeHistory.size())) {
-                scratchPtr->diodeHistory[stampIdx] = across;
-            } else {
-                uint64_t diodeKey = packHistoryKey2(blockIndex, stamp.anode, stamp.cathode);
-                diodeHistory_[diodeKey] = across;
-            }
+            scratch.diodeHistory[static_cast<size_t>(stampIdx)] = across;
 
             double forwardCurrent = 0.0;
             double forwardConductance = 0.0;
@@ -3584,15 +3670,17 @@ void Engine::applyStamp(
             // The stamp kind keeps its name for contract reasons -- it is a declared
             // `OperatorKind`, so renaming it would be a program-format change for nothing --
             // but since row 7 only a composition ever publishes through it.
+            // Resolved at prepare: the publishing block's output and DC bias by index.
+            // A stamp with no resolvable publisher (or a non-composed one with no DC entry)
+            // reads 0, exactly as the map misses did.
             double dcBias = 0.0;
-            auto cIt = composedDc_.find(stamp.macroId);
-            if (cIt != composedDc_.end()) {
-                dcBias = cIt->second.dcOperatingPoint;
-            }
             double macroVolts = 0.0;
-            auto vIt = macroOutputVolts_.find(stamp.macroId);
-            if (vIt != macroOutputVolts_.end()) {
-                macroVolts = vIt->second;
+            if (stamp.macroBlockIndex >= 0 &&
+                static_cast<size_t>(stamp.macroBlockIndex) < macroOut_.size()) {
+                macroVolts = macroOut_[static_cast<size_t>(stamp.macroBlockIndex)];
+                const ComposedDc* dcPtr =
+                    blockScratch_[static_cast<size_t>(stamp.macroBlockIndex)].composedDcPtr;
+                if (dcPtr != nullptr) dcBias = dcPtr->dcOperatingPoint;
             }
             rhs[row] = (macroVolts + dcBias) * sourceScale;
             break;
@@ -3620,22 +3708,11 @@ void Engine::applyStamp(
             double prevCap = OPAMP_MAX_DIFFERENTIAL_STEP * linearWidth;
             bool hasPrev = false;
 
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->opampHistory.size())) {
-                const auto& h = scratchPtr->opampHistory[stampIdx];
-                prevDiff = h.differential;
-                prevStep = h.step;
-                prevCap = (h.cap > 0.0) ? h.cap : (OPAMP_MAX_DIFFERENTIAL_STEP * linearWidth);
-                hasPrev = (h.cap > 0.0);
-            } else {
-                uint64_t opampKey = packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output);
-                auto it = opampHistory_.find(opampKey);
-                if (it != opampHistory_.end()) {
-                    hasPrev = true;
-                    prevDiff = it->second.differential;
-                    prevStep = it->second.step;
-                    prevCap = it->second.cap;
-                }
-            }
+            const auto& h = scratch.opampHistory[static_cast<size_t>(stampIdx)];
+            prevDiff = h.differential;
+            prevStep = h.step;
+            prevCap = (h.cap > 0.0) ? h.cap : (OPAMP_MAX_DIFFERENTIAL_STEP * linearWidth);
+            hasPrev = (h.cap > 0.0);
 
             double rawDiff = solution[stamp.plus] - solution[stamp.minus];
             double band = OPAMP_DIFFERENTIAL_BAND * linearWidth;
@@ -3658,8 +3735,8 @@ void Engine::applyStamp(
             if (limited || folded) {
                 // Mirrors reference-runtime.ts `limitedOpamp`: the fold candidate for `iterate`.
                 limitedOpamp_ = LimitedOpamp{
+                    blockIndex,
                     stampIdx,
-                    packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output),
                     stamp.output,
                     centre,
                     vcc,
@@ -3671,29 +3748,19 @@ void Engine::applyStamp(
                 limitedOpampValid_ = true;
             }
             double diff = limited ? (prevDiff + (step > 0.0 ? 1.0 : -1.0) * cap) : bounded;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->opampHistory.size())) {
-                scratchPtr->opampHistory[stampIdx] = OpAmpHistory{ diff, step, cap };
-            } else {
-                uint64_t opampKey = packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output);
-                opampHistory_[opampKey] = OpAmpHistory{ diff, step, cap };
-            }
+            scratch.opampHistory[static_cast<size_t>(stampIdx)] = OpAmpHistory{ diff, step, cap };
 
-            double rawPrev = 0.0;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->opampRawState.size())) {
-                rawPrev = scratchPtr->opampRawState[stampIdx];
-            } else {
-                uint64_t opampKey = packHistoryKey3(blockIndex, stamp.plus, stamp.minus, stamp.output);
-                auto rawIt = opampRawState_.find(opampKey);
-                rawPrev = (rawIt != opampRawState_.end()) ? rawIt->second : 0.0;
-            }
+            double rawPrev = scratch.opampRawState[static_cast<size_t>(stampIdx)];
             double raw = boundOpAmpRaw(
                 dc ? (stamp.openLoopGain * diff) : (alpha * stamp.openLoopGain * diff + (1.0 - alpha) * rawPrev),
                 halfSwing);
             double scaled = raw / halfSwing;
             double shape = std::tanh(scaled);
             double outVal = centre + halfSwing * shape;
-            double derivShape = std::tanh(clamp(scaled, -OPAMP_SATURATION_BAND, OPAMP_SATURATION_BAND));
-            double slope = effectiveGain * (1.0 - derivShape * derivShape);
+            // The second tanh is the first one again: boundOpAmpRaw clamps raw to
+            // ±(OPAMP_SATURATION_BAND * halfSwing), so |scaled| <= 8 always and the
+            // clamp is the identity on every reachable input. derivShape = shape.
+            double slope = effectiveGain * (1.0 - shape * shape);
 
             // Mirrors reference-runtime.ts: the tangent passes through the limited differential while
             // the step limiter is active, else through the actual previous differential -- even beyond
@@ -3711,31 +3778,15 @@ void Engine::applyStamp(
             int32_t sign = (stamp.polarity == "pnp") ? -1 : 1;
             double vt = stamp.thermalVoltage;
             double is = stamp.saturationCurrent;
-            double prevVbe = 0.0;
-            double prevVbc = 0.0;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->bjtHistory.size())) {
-                prevVbe = scratchPtr->bjtHistory[stampIdx].first;
-                prevVbc = scratchPtr->bjtHistory[stampIdx].second;
-            } else {
-                uint64_t bjtKey = packHistoryKey3(blockIndex, stamp.base, stamp.collector, stamp.emitter);
-                auto it = bjtHistory_.find(bjtKey);
-                if (it != bjtHistory_.end()) {
-                    prevVbe = it->second.first;
-                    prevVbc = it->second.second;
-                }
-            }
+            double prevVbe = scratch.bjtHistory[static_cast<size_t>(stampIdx)].first;
+            double prevVbc = scratch.bjtHistory[static_cast<size_t>(stampIdx)].second;
 
             double rawVbe = sign * (solution[stamp.base] - solution[stamp.emitter]);
             double rawVbc = sign * (solution[stamp.base] - solution[stamp.collector]);
             double vbe = limitJunction(rawVbe, prevVbe, vt, is);
             double vbc = limitJunction(rawVbc, prevVbc, vt, is);
             if (vbe != rawVbe || vbc != rawVbc) limitedIterate_ = true;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->bjtHistory.size())) {
-                scratchPtr->bjtHistory[stampIdx] = {vbe, vbc};
-            } else {
-                uint64_t bjtKey = packHistoryKey3(blockIndex, stamp.base, stamp.collector, stamp.emitter);
-                bjtHistory_[bjtKey] = {vbe, vbc};
-            }
+            scratch.bjtHistory[static_cast<size_t>(stampIdx)] = {vbe, vbc};
 
             double expBe = std::exp(std::min(vbe / vt, 60.0));
             double expBc = std::exp(std::min(vbc / vt, 60.0));
@@ -3784,22 +3835,10 @@ void Engine::applyStamp(
             double rawVgs = sign * (solution[stamp.gate] - solution[stamp.source]);
             double rawVds = sign * (solution[stamp.drain] - solution[stamp.source]);
 
-            double prevVgs = stamp.thresholdVolts;
-            double prevVds = 0.0;
-            double prevVsd = 0.0;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->fetHistory.size())) {
-                prevVgs = scratchPtr->fetHistory[stampIdx].vgs;
-                prevVds = scratchPtr->fetHistory[stampIdx].vds;
-                prevVsd = scratchPtr->fetHistory[stampIdx].vsd;
-            } else {
-                uint64_t fetKey = packHistoryKey3(blockIndex, stamp.gate, stamp.drain, stamp.source);
-                auto it = fetHistory_.find(fetKey);
-                if (it != fetHistory_.end()) {
-                    prevVgs = it->second.vgs;
-                    prevVds = it->second.vds;
-                    prevVsd = it->second.vsd;
-                }
-            }
+            const auto& fh = scratch.fetHistory[static_cast<size_t>(stampIdx)];
+            double prevVgs = fh.vgs;
+            double prevVds = fh.vds;
+            double prevVsd = fh.vsd;
 
             double vgs = limitFetGate(rawVgs, prevVgs, stamp.thresholdVolts);
             bool conducting = (vgs - stamp.thresholdVolts > 0.0) && (rawVds >= 0.0);
@@ -3958,12 +3997,7 @@ void Engine::applyStamp(
                 rhs[bodyAnode] -= bodyEquivalent;
                 rhs[bodyCathode] += bodyEquivalent;
             }
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->fetHistory.size())) {
-                scratchPtr->fetHistory[stampIdx] = FetHistory{ vgs, vds, vsd };
-            } else {
-                uint64_t fetKey = packHistoryKey3(blockIndex, stamp.gate, stamp.drain, stamp.source);
-                fetHistory_[fetKey] = FetHistory{ vgs, vds, vsd };
-            }
+            scratch.fetHistory[static_cast<size_t>(stampIdx)] = FetHistory{ vgs, vds, vsd };
             break;
         }
 
@@ -4106,19 +4140,9 @@ void Engine::applyStamp(
             double cathodeVolts = solution[stamp.cathode];
             double rawVgk = solution[stamp.grid] - cathodeVolts;
             double rawVpk = solution[stamp.plate] - cathodeVolts;
-            double prevVgk = 0.0;
-            double prevVpk = 0.0;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->triodeHistory.size())) {
-                prevVgk = scratchPtr->triodeHistory[stampIdx].vgk;
-                prevVpk = scratchPtr->triodeHistory[stampIdx].vpk;
-            } else {
-                uint64_t triodeKey = packHistoryKey3(blockIndex, stamp.grid, stamp.cathode, stamp.plate);
-                auto it = triodeHistory_.find(triodeKey);
-                if (it != triodeHistory_.end()) {
-                    prevVgk = it->second.vgk;
-                    prevVpk = it->second.vpk;
-                }
-            }
+            const auto& th = scratch.triodeHistory[static_cast<size_t>(stampIdx)];
+            double prevVgk = th.vgk;
+            double prevVpk = th.vpk;
 
             double vgk = dc ? rawVgk : limitTriodeGridStep(rawVgk, prevVgk);
             bool conducting = rawVpk > 0.0 && rawVgk > kTriodeGridCutoffThresholdVolts;
@@ -4127,12 +4151,7 @@ void Engine::applyStamp(
             if (vgk != rawVgk || vpk != rawVpk) {
                 limitedIterate_ = true;
             }
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->triodeHistory.size())) {
-                scratchPtr->triodeHistory[stampIdx] = TriodeHistory{ vgk, vpk, 0.0 };
-            } else {
-                uint64_t triodeKey = packHistoryKey3(blockIndex, stamp.grid, stamp.cathode, stamp.plate);
-                triodeHistory_[triodeKey] = TriodeHistory{ vgk, vpk, 0.0 };
-            }
+            scratch.triodeHistory[static_cast<size_t>(stampIdx)] = TriodeHistory{ vgk, vpk, 0.0 };
 
             double denominator = std::sqrt(stamp.kvb + vpk * vpk);
             double inner = stamp.kp * (1.0 / stamp.mu + (vgk + stamp.contactPotentialVolts) / denominator);
@@ -4199,22 +4218,10 @@ void Engine::applyStamp(
             double rawVgk = solution[stamp.grid] - cathodeVolts;
             double rawVsk = solution[stamp.screen] - cathodeVolts;
             double rawVpk = solution[stamp.plate] - cathodeVolts;
-            double prevVgk = 0.0;
-            double prevVpk = 0.0;
-            double prevVsk = rawVsk;
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->triodeHistory.size())) {
-                prevVgk = scratchPtr->triodeHistory[stampIdx].vgk;
-                prevVpk = scratchPtr->triodeHistory[stampIdx].vpk;
-                prevVsk = scratchPtr->triodeHistory[stampIdx].vsk;
-            } else {
-                uint64_t pentodeKey = packHistoryKey3(blockIndex, stamp.grid, stamp.cathode, stamp.plate);
-                auto it = triodeHistory_.find(pentodeKey);
-                if (it != triodeHistory_.end()) {
-                    prevVgk = it->second.vgk;
-                    prevVpk = it->second.vpk;
-                    prevVsk = it->second.vsk;
-                }
-            }
+            const auto& pth = scratch.triodeHistory[static_cast<size_t>(stampIdx)];
+            double prevVgk = pth.vgk;
+            double prevVpk = pth.vpk;
+            double prevVsk = pth.vsk;
 
             double vgk = dc ? rawVgk : limitTriodeGridStep(rawVgk, prevVgk);
             bool conducting = rawVpk > 0.0 && rawVgk > kTriodeGridCutoffThresholdVolts;
@@ -4224,12 +4231,7 @@ void Engine::applyStamp(
             if (vgk != rawVgk || vpk != rawVpk || vsk != rawVsk) {
                 limitedIterate_ = true;
             }
-            if (scratchPtr && stampIdx >= 0 && stampIdx < static_cast<int32_t>(scratchPtr->triodeHistory.size())) {
-                scratchPtr->triodeHistory[stampIdx] = TriodeHistory{ vgk, vpk, vsk };
-            } else {
-                uint64_t pentodeKey = packHistoryKey3(blockIndex, stamp.grid, stamp.cathode, stamp.plate);
-                triodeHistory_[pentodeKey] = TriodeHistory{ vgk, vpk, vsk };
-            }
+            scratch.triodeHistory[static_cast<size_t>(stampIdx)] = TriodeHistory{ vgk, vpk, vsk };
 
             double vpkEff = std::max(vpk, 0.0);
             double vskEff = std::max(vsk, 0.0);
@@ -4333,11 +4335,10 @@ void Engine::applyStamp(
 
         case StampKind::LogicDivider: {
             int32_t stateIdx = stamp.stateIndex;
-            std::string dividerKey = block.id + "_ff_" + std::to_string(stateIdx);
-            auto lsIt = lastShiftedSample_.find(dividerKey);
-            int64_t lastShifted = (lsIt != lastShiftedSample_.end()) ? lsIt->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != lastShifted) {
-                lastShiftedSample_[dividerKey] = static_cast<int64_t>(elapsedSamples_);
+            // Once-per-sample guard by stamp slot (was a string-keyed map lookup per call).
+            int64_t& guard = scratch.shiftGuard[static_cast<size_t>(stampIdx)];
+            if (static_cast<int64_t>(elapsedSamples_) != guard) {
+                guard = static_cast<int64_t>(elapsedSamples_);
                 double vClkPrev = state[stateIdx + 1];
                 double vClk = solution[stamp.clockNode] - solution[stamp.gndNode];
                 if (vClkPrev < stamp.thresholdVolts && vClk >= stamp.thresholdVolts) {
@@ -4364,11 +4365,10 @@ void Engine::applyStamp(
             // supply is read solved every sample -- driven high is the VDD pin's
             // voltage, input threshold the CMOS half-supply of the solved span.
             int32_t stateIdx = stamp.stateIndex;
-            std::string dffKey = block.id + "_dff_" + std::to_string(stateIdx);
-            auto dffIt = lastShiftedSample_.find(dffKey);
-            int64_t dffLast = (dffIt != lastShiftedSample_.end()) ? dffIt->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != dffLast) {
-                lastShiftedSample_[dffKey] = static_cast<int64_t>(elapsedSamples_);
+            // Once-per-sample guard by stamp slot (was a string-keyed map lookup per call).
+            int64_t& guard = scratch.shiftGuard[static_cast<size_t>(stampIdx)];
+            if (static_cast<int64_t>(elapsedSamples_) != guard) {
+                guard = static_cast<int64_t>(elapsedSamples_);
                 double vSup = solution[stamp.vddNode] - solution[stamp.vssNode];
                 double vThr = solution[stamp.vssNode] + vSup / 2.0;
                 double vClkPrev = state[stateIdx + 2];
@@ -4491,11 +4491,10 @@ void Engine::applyStamp(
             // derivative. Leaving-positive KCL like the diode; the physical
             // current ENTERS the output node, so terms are negated once.
             int32_t dbxBaseIdx = stamp.stateIndex;
-            std::string ctrlKeyDbx = block.id + "_dbxc_" + std::to_string(dbxBaseIdx);
-            auto ctrlItDbx = lastShiftedSample_.find(ctrlKeyDbx);
-            int64_t ctrlLastDbx = (ctrlItDbx != lastShiftedSample_.end()) ? ctrlItDbx->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != ctrlLastDbx) {
-                lastShiftedSample_[ctrlKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+            // Four once-per-sample guards by stamp slot (were four string-keyed map lookups).
+            int64_t& ctrlGuardDbx = scratch.dbxGuard[static_cast<size_t>(stampIdx)][0];
+            if (static_cast<int64_t>(elapsedSamples_) != ctrlGuardDbx) {
+                ctrlGuardDbx = static_cast<int64_t>(elapsedSamples_);
                 double vCtrlNowDbx = solution[stamp.controlNode];
                 double ctrlPrevDbx = state[dbxBaseIdx];
                 double ctrlTcDbx = vCtrlNowDbx > ctrlPrevDbx ? stamp.attackSeconds : stamp.releaseSeconds;
@@ -4507,11 +4506,9 @@ void Engine::applyStamp(
             double kneeHeldDbx = stamp.kneeBaseVolts + stamp.kneeTrack * (vCtrlHeldDbx - 4.65);
             double vInInstDbx = solution[stamp.plus] - solution[stamp.minus];
             double iInInstDbx = vInInstDbx * stamp.inputSiemens;
-            std::string primeKeyDbx = block.id + "_dbxp_" + std::to_string(dbxBaseIdx);
-            auto primeItDbx = lastShiftedSample_.find(primeKeyDbx);
-            int64_t primeLastDbx = (primeItDbx != lastShiftedSample_.end()) ? primeItDbx->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != primeLastDbx) {
-                lastShiftedSample_[primeKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+            int64_t& primeGuardDbx = scratch.dbxGuard[static_cast<size_t>(stampIdx)][1];
+            if (static_cast<int64_t>(elapsedSamples_) != primeGuardDbx) {
+                primeGuardDbx = static_cast<int64_t>(elapsedSamples_);
                 double primeTargetDbx = std::abs(iInInstDbx) > stamp.primeRefCurrent ? 0.0 : 1.0;
                 double primePrevDbx = state[dbxBaseIdx + 2];
                 double primeTcDbx = primeTargetDbx > primePrevDbx ? stamp.primeRiseSeconds : stamp.primeFallSeconds;
@@ -4522,11 +4519,9 @@ void Engine::applyStamp(
             double primeHeldDbx = state[dbxBaseIdx + 2];
             if (primeHeldDbx < 0.0) primeHeldDbx = 0.0;
             if (primeHeldDbx > 1.0) primeHeldDbx = 1.0;
-            std::string envKeyDbx = block.id + "_dbxe_" + std::to_string(dbxBaseIdx);
-            auto envItDbx = lastShiftedSample_.find(envKeyDbx);
-            int64_t envLastDbx = (envItDbx != lastShiftedSample_.end()) ? envItDbx->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != envLastDbx) {
-                lastShiftedSample_[envKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+            int64_t& envGuardDbx = scratch.dbxGuard[static_cast<size_t>(stampIdx)][2];
+            if (static_cast<int64_t>(elapsedSamples_) != envGuardDbx) {
+                envGuardDbx = static_cast<int64_t>(elapsedSamples_);
                 double absInDbx = std::abs(iInInstDbx);
                 double envTargetDbx = absInDbx > 0.0
                     ? std::max(0.0, stamp.envelopeSlope * std::log(absInDbx * 1e6) + kneeHeldDbx)
@@ -4543,11 +4538,9 @@ void Engine::applyStamp(
                 state[dbxBaseIdx + 1] = envPrevDbx + (envTargetDbx - envPrevDbx) * envKDbx;
             }
             double envHeldDbx = state[dbxBaseIdx + 1];
-            std::string shutKeyDbx = block.id + "_dbxs_" + std::to_string(dbxBaseIdx);
-            auto shutItDbx = lastShiftedSample_.find(shutKeyDbx);
-            int64_t shutLastDbx = (shutItDbx != lastShiftedSample_.end()) ? shutItDbx->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != shutLastDbx) {
-                lastShiftedSample_[shutKeyDbx] = static_cast<int64_t>(elapsedSamples_);
+            int64_t& shutGuardDbx = scratch.dbxGuard[static_cast<size_t>(stampIdx)][3];
+            if (static_cast<int64_t>(elapsedSamples_) != shutGuardDbx) {
+                shutGuardDbx = static_cast<int64_t>(elapsedSamples_);
                 double absPeakDbx = std::abs(iInInstDbx);
                 double peakTargetDbx = absPeakDbx > 0.0
                     ? std::max(0.0, stamp.envelopeSlope * std::log(absPeakDbx * 1e6) + kneeHeldDbx)
@@ -4635,11 +4628,10 @@ void Engine::applyStamp(
             int32_t stateIdx = stamp.stateIndex;
             double vref = solution[stamp.vref];
 
-            std::string envelopeKey = block.id + "_env_" + std::to_string(stateIdx);
-            auto it = lastShiftedSample_.find(envelopeKey);
-            int64_t lastShifted = (it != lastShiftedSample_.end()) ? it->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != lastShifted) {
-                lastShiftedSample_[envelopeKey] = static_cast<int64_t>(elapsedSamples_);
+            // Once-per-sample guard by stamp slot (was a string-keyed map lookup per call).
+            int64_t& guard = scratch.shiftGuard[static_cast<size_t>(stampIdx)];
+            if (static_cast<int64_t>(elapsedSamples_) != guard) {
+                guard = static_cast<int64_t>(elapsedSamples_);
                 state[stateIdx] = std::abs(solution[stamp.rectIn] - vref) / stamp.r1;
                 double iG = std::max(0.0, (2.0 * solution[stamp.rectCap]) / stamp.r5);
                 state[stateIdx + 1] = iG / stamp.iBias / stamp.r2;
@@ -4671,11 +4663,10 @@ void Engine::applyStamp(
             double fScale = vOx1 > 0.0 ? vOx1 / 2.5 : 1.0;
             double f = std::max(1000.0, std::min(500000.0, stamp.defaultFrequency * fScale));
 
-            std::string lastShiftedKey = block.id + "_clk_" + std::to_string(stamp.sourceIndex);
-            auto lsIt = lastShiftedSample_.find(lastShiftedKey);
-            int64_t lastShifted = (lsIt != lastShiftedSample_.end()) ? lsIt->second : -1;
-            if (static_cast<int64_t>(elapsedSamples_) != lastShifted) {
-                lastShiftedSample_[lastShiftedKey] = static_cast<int64_t>(elapsedSamples_);
+            // Once-per-sample guard by stamp slot (was a string-keyed map lookup per call).
+            int64_t& guard = scratch.shiftGuard[static_cast<size_t>(stampIdx)];
+            if (static_cast<int64_t>(elapsedSamples_) != guard) {
+                guard = static_cast<int64_t>(elapsedSamples_);
                 theta = std::fmod(theta + dt * f, 1.0);
                 state[stateIdx] = theta;
             }
@@ -4781,10 +4772,8 @@ void Engine::applyStamp(
             matrix[stamp.outputMinus * size + row] -= 1.0;
             matrix[row * size + row] -= stamp.outputOhms;
 
-            std::string key = block.id + ":" + std::to_string(stamp.sourceIndex);
-            auto it = springOutputVolts_.find(key);
-            double outVolts = (it != springOutputVolts_.end()) ? it->second : 0.0;
-            rhs[row] = outVolts * sourceScale;
+            // Tank output by stamp slot (was a string-keyed map lookup per call).
+            rhs[row] = scratch.springOut[static_cast<size_t>(stampIdx)] * sourceScale;
             break;
         }
 
@@ -4793,11 +4782,14 @@ void Engine::applyStamp(
     }
 }
 
-void Engine::advanceSpringReverb(const Block& block, const Stamp& stamp, const double* solution, double sampleRate) {
-    std::string key = block.id + ":" + std::to_string(stamp.sourceIndex);
-    auto it = springStates_.find(key);
-    if (it == springStates_.end()) {
-        SpringTankState st;
+void Engine::advanceSpringReverb(size_t blockIdx, const Stamp& stamp, int32_t stampIdx, const double* solution, double sampleRate) {
+    // Slot-owned tank state: indexed by the stamp at prepare, built lazily on first
+    // advance exactly as the map version was. The two maps are gone.
+    auto& scratch = blockScratch_.at(blockIdx);
+    SpringTankState& state = scratch.springState[static_cast<size_t>(stampIdx)];
+    double& outVoltsSlot = scratch.springOut[static_cast<size_t>(stampIdx)];
+    char& live = scratch.springLive[static_cast<size_t>(stampIdx)];
+    if (!live) {
         for (double ratio : { 1.0, 34.0 / 29.0, 41.0 / 29.0 }) {
             int32_t samples = std::max(1, static_cast<int32_t>(std::round(stamp.delaySeconds * ratio * sampleRate)));
             double transit = static_cast<double>(samples) / sampleRate;
@@ -4808,16 +4800,14 @@ void Engine::advanceSpringReverb(const Block& block, const Stamp& stamp, const d
             line.feedback = feedback;
             line.allpassX.resize(stamp.dispersionStages, 0.0);
             line.allpassY.resize(stamp.dispersionStages, 0.0);
-            st.lines.push_back(std::move(line));
+            state.lines.push_back(std::move(line));
         }
-        st.transduction = std::sqrt(std::max(stamp.outputOhms, MIN_STAMP_OHMS) / std::max(stamp.inputOhms, MIN_STAMP_OHMS));
-        st.driveX1 = 0.0;
-        st.driveY1 = 0.0;
-        springStates_[key] = std::move(st);
-        it = springStates_.find(key);
+        state.transduction = std::sqrt(std::max(stamp.outputOhms, MIN_STAMP_OHMS) / std::max(stamp.inputOhms, MIN_STAMP_OHMS));
+        state.driveX1 = 0.0;
+        state.driveY1 = 0.0;
+        live = 1;
     }
 
-    auto& state = it->second;
     double rawDrive = solution[stamp.inputPlus] - solution[stamp.inputMinus];
     double r = std::exp((-2.0 * M_PI * 5.0) / sampleRate);
     double drive = rawDrive - state.driveX1 + r * state.driveY1;
@@ -4842,7 +4832,7 @@ void Engine::advanceSpringReverb(const Block& block, const Stamp& stamp, const d
         }
     }
     double outVolts = state.lines.empty() ? 0.0 : (state.transduction * sum) / state.lines.size();
-    springOutputVolts_[key] = outVolts;
+    outVoltsSlot = outVolts;
 }
 
 double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
@@ -4989,7 +4979,6 @@ double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
             state[stamp.stateIndex] = across;
             state[stamp.stateIndex + 1] = prevCurrent + g * (across + prevAcross);
         } else if (stamp.kind == StampKind::IdealOpAmp && stamp.railHigh.has_value() && stamp.railLow.has_value()) {
-            uint64_t key = packHistoryKey3(static_cast<int32_t>(blockIdx), stamp.plus, stamp.minus, stamp.output);
             double alpha = opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
             double differential = stateSource[stamp.plus] - stateSource[stamp.minus];
             double prevRaw = (static_cast<size_t>(sIdx) < scratch.opampRawState.size()) ? scratch.opampRawState[sIdx] : 0.0;
@@ -4999,9 +4988,8 @@ double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
             if (static_cast<size_t>(sIdx) < scratch.opampRawState.size()) {
                 scratch.opampRawState[sIdx] = nextRaw;
             }
-            opampRawState_[key] = nextRaw;
         } else if (stamp.kind == StampKind::SpringReverb) {
-            advanceSpringReverb(block, stamp, stateSource, options_.sampleRate);
+            advanceSpringReverb(blockIdx, stamp, sIdx, stateSource, options_.sampleRate);
         }
     }
 
@@ -5140,6 +5128,7 @@ bool Engine::composedDcTransfer(size_t blockIdx, double tap, double& gain, doubl
 
 void Engine::processComposedBlock(size_t blockIdx) {
     const auto& block = program_.blocks[blockIdx];
+    auto& scratch = blockScratch_[blockIdx];
     if (block.positions.empty()) return;
     // Which program is running, read from the selector pin the knob drives. Resolved
     // once per sample rather than per op: a mode cannot change mid-sample, and
@@ -5160,9 +5149,9 @@ void Engine::processComposedBlock(size_t blockIdx) {
         if (router.port.has_value()) {
             if (router.port->referenceVolts > 0.0) {
                 double volts = 0.0;
-                auto sIt = blockIndexById_.find(router.port->block);
-                if (sIt != blockIndexById_.end()) {
-                    size_t sIdx = sIt->second;
+                if (scratch.routerBlockIdx >= 0 &&
+                    static_cast<size_t>(scratch.routerBlockIdx) < blockOperatingPoints_.size()) {
+                    size_t sIdx = static_cast<size_t>(scratch.routerBlockIdx);
                     int32_t node = router.port->node;
                     if (node >= 0 && node < static_cast<int32_t>(blockOperatingPoints_[sIdx].size())) {
                         volts = blockOperatingPoints_[sIdx][node];
@@ -5173,7 +5162,11 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 readable = false;
             }
         } else {
-            fraction = getControl(router.controlId);
+            // Scanned control by resolved index (was a string map lookup per sample).
+            fraction = (scratch.routerControlIdx >= 0 &&
+                        static_cast<size_t>(scratch.routerControlIdx) < controlValues_.size())
+                ? controlValues_[static_cast<size_t>(scratch.routerControlIdx)]
+                : getControl(router.controlId);
         }
         if (readable && std::isfinite(fraction)) {
             // **Detents, not an even split across declared programs.** An N-detent control
@@ -5191,9 +5184,9 @@ void Engine::processComposedBlock(size_t blockIdx) {
 
     double tap = 0.0;
     if (block.audioIn.has_value()) {
-        auto inIt = blockIndexById_.find(block.audioIn->block);
-        if (inIt != blockIndexById_.end()) {
-            size_t inIdx = inIt->second;
+        if (scratch.audioInBlockIdx >= 0 &&
+            static_cast<size_t>(scratch.audioInBlockIdx) < blockOperatingPoints_.size()) {
+            size_t inIdx = static_cast<size_t>(scratch.audioInBlockIdx);
             int32_t node = block.audioIn->node;
             if (node >= 0 && node < static_cast<int32_t>(blockOperatingPoints_[inIdx].size())) {
                 tap = blockOperatingPoints_[inIdx][node];
@@ -5203,16 +5196,12 @@ void Engine::processComposedBlock(size_t blockIdx) {
 
     // A hold sampler's recording is erased when its program is selected afresh, as the TS console.
     {
-        auto lastIt = lastComposedPosition_.find(block.id);
-        if (lastIt == lastComposedPosition_.end() || lastIt->second != posIdx) {
-            lastComposedPosition_[block.id] = posIdx;
-            auto kIt = composedStateKeys_.find(block.id);
-            if (kIt != composedStateKeys_.end() && posIdx >= 0 && static_cast<size_t>(posIdx) < kIt->second.size()) {
-                auto lIt = composedLines_.find(kIt->second[static_cast<size_t>(posIdx)]);
-                if (lIt != composedLines_.end()) {
-                    for (auto& [_, line] : lIt->second) {
-                        line.holdState = 0; line.holdLength = 0; line.holdIndex = 0; line.holdGateWas = false;
-                    }
+        if (scratch.lastComposedPos != posIdx) {
+            scratch.lastComposedPos = posIdx;
+            if (posIdx >= 0 && static_cast<size_t>(posIdx) < scratch.composedLineMaps.size() &&
+                scratch.composedLineMaps[static_cast<size_t>(posIdx)] != nullptr) {
+                for (auto& [_, line] : *scratch.composedLineMaps[static_cast<size_t>(posIdx)]) {
+                    line.holdState = 0; line.holdLength = 0; line.holdIndex = 0; line.holdGateWas = false;
                 }
             }
         }
@@ -5221,33 +5210,52 @@ void Engine::processComposedBlock(size_t blockIdx) {
         // A detent the source declares no program for. The chip is doing something the packet
         // does not model, so the block makes no claim and passes its input through. Publishing
         // zero would be silence, which is indistinguishable from a severed net.
-        macroOutputVolts_[block.id] = tap;
+        macroOut_[blockIdx] = tap;
         return;
     }
 
     const auto& position = block.positions[static_cast<size_t>(posIdx)];
-    auto keysIt = composedStateKeys_.find(block.id);
-    if (keysIt == composedStateKeys_.end() ||
-        static_cast<size_t>(posIdx) >= keysIt->second.size()) return;
-    const std::string& stateKey = keysIt->second[static_cast<size_t>(posIdx)];
-    auto linesIt = composedLines_.find(stateKey);
-    if (linesIt == composedLines_.end()) return;
-    auto& lines = linesIt->second;
+    if (static_cast<size_t>(posIdx) >= scratch.composedLineMaps.size() ||
+        scratch.composedLineMaps[static_cast<size_t>(posIdx)] == nullptr) return;
     double sampleRate = options_.sampleRate > 0.0 ? options_.sampleRate : 48000.0;
 
-
-    std::vector<double> temps(position.ops.size(), 0.0);
+    // Reused publish buffer, sized to the widest position at prepare (was a per-sample vector).
+    // The bounds check still uses this position's op count, exactly as before.
+    double* tempsData = scratch.composedTemps.data();
+    int32_t tempsSize = static_cast<int32_t>(position.ops.size());
+    std::fill(scratch.composedTemps.begin(), scratch.composedTemps.end(), 0.0);
     auto publish = [&](int32_t index, double value) {
-        if (index < 0 || index >= static_cast<int32_t>(temps.size())) {
+        if (index < 0 || index >= tempsSize) {
             throw std::runtime_error("composed block \"" + block.id + "\" addresses temp " + std::to_string(index) + " outside its op list");
         }
-        temps[index] = value;
+        tempsData[index] = value;
     };
     auto readSource = [&](const PrimitiveOp::Source& source) -> double {
         if (source.kind == PrimitiveOp::Source::Kind::Input) return tap;
         if (source.kind == PrimitiveOp::Source::Kind::Const) return source.value;
-        if (source.temp >= 0 && source.temp < static_cast<int32_t>(temps.size())) return temps[source.temp];
+        if (source.temp >= 0 && source.temp < tempsSize) return tempsData[source.temp];
         return 0.0;
+    };
+    // Pre-resolved per-position op references (end of prepare): line pointers, gate and
+    // mix-sweep control indices, filter/pitch/tracker pointers. Missing lines read as
+    // nullptr and abort the publish exactly as the map misses did.
+    const std::vector<ComposedLine*>* opLines = (static_cast<size_t>(posIdx) < scratch.composedOpLines.size())
+        ? &scratch.composedOpLines[static_cast<size_t>(posIdx)] : nullptr;
+    const std::vector<int32_t>* opGateIdx = (static_cast<size_t>(posIdx) < scratch.composedOpGateIdx.size())
+        ? &scratch.composedOpGateIdx[static_cast<size_t>(posIdx)] : nullptr;
+    const std::vector<std::vector<int32_t>>* mixTermIdx = (static_cast<size_t>(posIdx) < scratch.composedMixTermIdx.size())
+        ? &scratch.composedMixTermIdx[static_cast<size_t>(posIdx)] : nullptr;
+    auto readControlByIdx = [&](int32_t idx, const std::string& fallbackId) -> double {
+        if (idx >= 0 && static_cast<size_t>(idx) < controlValues_.size()) return controlValues_[static_cast<size_t>(idx)];
+        return getControl(fallbackId);
+    };
+    auto taperOf = [&](int32_t idx) -> TaperKind {
+        if (idx >= 0 && static_cast<size_t>(idx) < controlTapers_.size()) return controlTapers_[static_cast<size_t>(idx)];
+        return TaperKind::Linear;
+    };
+    auto tableOf = [&](int32_t idx) -> const std::vector<TaperTablePoint>* {
+        if (idx >= 0 && static_cast<size_t>(idx) < controlTaperTables_.size()) return controlTaperTables_[static_cast<size_t>(idx)];
+        return nullptr;
     };
     // Read length with kernel shaping: DDL rounds whole samples above 1,
     // BBD reads fractionally above 0 with two headroom slots, and only its
@@ -5271,17 +5279,16 @@ void Engine::processComposedBlock(size_t blockIdx) {
         }
         if (mode == PrimitiveOp::LengthMode::Modulation && block.modulation.has_value()) {
             double modVolts = 0.0;
-            auto mIt = blockIndexById_.find(block.modulation->block);
-            if (mIt != blockIndexById_.end()) {
-                size_t mIdx = mIt->second;
+            if (scratch.modBlockIdx >= 0 &&
+                static_cast<size_t>(scratch.modBlockIdx) < blockOperatingPoints_.size()) {
+                size_t mIdx = static_cast<size_t>(scratch.modBlockIdx);
                 int32_t node = block.modulation->node;
                 if (node >= 0 && node < static_cast<int32_t>(blockOperatingPoints_[mIdx].size())) {
                     modVolts = blockOperatingPoints_[mIdx][node];
                 }
             }
-            auto dcIt = composedDc_.find(block.id);
-            if (dcIt == composedDc_.end()) return cap;
-            auto& dc = dcIt->second;
+            if (scratch.composedDcPtr == nullptr) return cap;
+            auto& dc = *scratch.composedDcPtr;
             if (!dc.modSeeded) {
                 dc.modDcEstimate = modVolts;
                 dc.modSeeded = true;
@@ -5302,9 +5309,9 @@ void Engine::processComposedBlock(size_t blockIdx) {
             // `clock-law` branch guard for guard; the law constants travel in
             // the program, the 1e-9 floors are the contract between consoles.
             double volts = 0.0;
-            auto cIt = blockIndexById_.find(block.clockLaw->block);
-            if (cIt != blockIndexById_.end()) {
-                size_t cIdx = cIt->second;
+            if (scratch.clockLawBlockIdx >= 0 &&
+                static_cast<size_t>(scratch.clockLawBlockIdx) < blockOperatingPoints_.size()) {
+                size_t cIdx = static_cast<size_t>(scratch.clockLawBlockIdx);
                 int32_t node = block.clockLaw->node;
                 if (node >= 0 && node < static_cast<int32_t>(blockOperatingPoints_[cIdx].size())) {
                     volts = blockOperatingPoints_[cIdx][node];
@@ -5330,8 +5337,13 @@ void Engine::processComposedBlock(size_t blockIdx) {
             bool driven = false;
             double scale = 0.0;
             if (line.hasSweep && line.sweepTapped) {
-                auto tIt = tapState_.find(line.sweepControl);
-                double interval = (tIt != tapState_.end() && tIt->second.intervalSeconds > 0.0) ? tIt->second.intervalSeconds : -1.0;
+                // Tap interval by resolved control index (was a string map lookup per sample).
+                double interval = -1.0;
+                if (line.sweepControlIndex >= 0 &&
+                    static_cast<size_t>(line.sweepControlIndex) < tapByControl_.size()) {
+                    const auto& tapSt = tapByControl_[static_cast<size_t>(line.sweepControlIndex)];
+                    if (tapSt.intervalSeconds > 0.0) interval = tapSt.intervalSeconds;
+                }
                 if (interval <= 0.0) {
                     // Untapped: the law's stated default interval, as the TS console.
                     for (const auto& ctrl : program_.controls) {
@@ -5346,18 +5358,17 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 return cap;
             }
             if (line.hasSweep) {
-                TaperKind taper = TaperKind::Linear;
-                const std::vector<TaperTablePoint>* table = nullptr;
-                for (const auto& ctrl : program_.controls) {
-                    if (ctrl.id == line.sweepControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
-                }
-                scale = controlTaperFraction(taper, table, getControl(line.sweepControl));
+                // Taper, table and position by resolved control index (was a program scan
+                // plus a string map lookup per sample). A missing index reads the 0.5
+                // default, exactly as getControl did.
+                scale = controlTaperFraction(taperOf(line.sweepControlIndex), tableOf(line.sweepControlIndex),
+                                             readControlByIdx(line.sweepControlIndex, line.sweepControl));
                 driven = true;
             } else if (block.parameter.has_value() && block.parameter->referenceVolts > 0.0) {
                 double volts = 0.0;
-                auto pIt = blockIndexById_.find(block.parameter->block);
-                if (pIt != blockIndexById_.end()) {
-                    size_t pIdx = pIt->second;
+                if (scratch.paramBlockIdx >= 0 &&
+                    static_cast<size_t>(scratch.paramBlockIdx) < blockOperatingPoints_.size()) {
+                    size_t pIdx = static_cast<size_t>(scratch.paramBlockIdx);
                     int32_t node = block.parameter->node;
                     if (node >= 0 && node < static_cast<int32_t>(blockOperatingPoints_[pIdx].size())) {
                         volts = blockOperatingPoints_[pIdx][node];
@@ -5375,11 +5386,18 @@ void Engine::processComposedBlock(size_t blockIdx) {
     };
 
     int32_t opPosition = 0;
-    for (const auto& op : position.ops) {
+    ComposedFilter* filterPtr = (static_cast<size_t>(posIdx) < scratch.composedFilterPtrs.size())
+        ? scratch.composedFilterPtrs[static_cast<size_t>(posIdx)] : nullptr;
+    std::unordered_map<int32_t, ComposedPitch>* pitchPtr = (static_cast<size_t>(posIdx) < scratch.composedPitchPtrs.size())
+        ? scratch.composedPitchPtrs[static_cast<size_t>(posIdx)] : nullptr;
+    std::unordered_map<int32_t, ComposedTracker>* trackerPtr = (static_cast<size_t>(posIdx) < scratch.composedTrackerPtrs.size())
+        ? scratch.composedTrackerPtrs[static_cast<size_t>(posIdx)] : nullptr;
+    for (size_t oIdx = 0; oIdx < position.ops.size(); ++oIdx) {
+        const auto& op = position.ops[oIdx];
+        ComposedLine* opLine = (opLines != nullptr && oIdx < opLines->size()) ? (*opLines)[oIdx] : nullptr;
         if (op.op == PrimitiveOp::Op::DelayTap || op.op == PrimitiveOp::Op::DelayTapFractional) {
-            auto lIt = lines.find(op.line);
-            if (lIt == lines.end()) return;
-            auto& line = lIt->second;
+            if (opLine == nullptr) return;
+            auto& line = *opLine;
             bool fractional = (op.op == PrimitiveOp::Op::DelayTapFractional);
             double effectiveLength;
             if (!fractional) {
@@ -5397,9 +5415,8 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 publish(op.out, s0 + frac * (s1 - s0));
             }
         } else if (op.op == PrimitiveOp::Op::DelayTapReverse) {
-            auto lIt = lines.find(op.line);
-            if (lIt == lines.end()) return;
-            auto& line = lIt->second;
+            if (opLine == nullptr) return;
+            auto& line = *opLine;
             // Same law as the TS console's `reverseRead`: two heads half an even segment apart,
             // reading 2p + 1 back, weighted sin^2(pi p / L) so the weights sum to 1.
             double lengthSamples = tapLength(op.length, line, 2.0, 0.0, true);
@@ -5416,15 +5433,12 @@ void Engine::processComposedBlock(size_t blockIdx) {
             line.reversePhase = (phase + 1) % segment;
             publish(op.out, out);
         } else if (op.op == PrimitiveOp::Op::HoldLoop) {
-            auto lIt = lines.find(op.line);
-            if (lIt == lines.end()) return;
-            auto& line = lIt->second;
-            TaperKind taper = TaperKind::Linear;
-            const std::vector<TaperTablePoint>* table = nullptr;
-            for (const auto& ctrl : program_.controls) {
-                if (ctrl.id == op.gateControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
-            }
-            const bool gate = op.gateMin + controlTaperFraction(taper, table, getControl(op.gateControl)) * (op.gateMax - op.gateMin) >= 0.5;
+            if (opLine == nullptr) return;
+            auto& line = *opLine;
+            // Gate control by resolved index (was a program scan + map lookup per sample).
+            int32_t gateIdx = (opGateIdx != nullptr && oIdx < opGateIdx->size()) ? (*opGateIdx)[oIdx] : -1;
+            const bool gate = op.gateMin + controlTaperFraction(taperOf(gateIdx), tableOf(gateIdx),
+                readControlByIdx(gateIdx, op.gateControl)) * (op.gateMax - op.gateMin) >= 0.5;
             const bool rising = gate && !line.holdGateWas;
             line.holdGateWas = gate;
             // Same state machine as the TS console's `holdLoop`.
@@ -5453,9 +5467,8 @@ void Engine::processComposedBlock(size_t blockIdx) {
             }
             publish(op.out, out);
         } else if (op.op == PrimitiveOp::Op::DelayPush) {
-            auto lIt = lines.find(op.line);
-            if (lIt == lines.end()) return;
-            auto& line = lIt->second;
+            if (opLine == nullptr) return;
+            auto& line = *opLine;
             line.buffer[line.writeIndex] = readSource(op.input);
             line.writeIndex = (line.writeIndex + 1) % line.capacity;
             } else if (op.op == PrimitiveOp::Op::Mix) {
@@ -5463,20 +5476,17 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 // A direct input term enters AC-coupled: the block's operating
                 // point rides the output (added back at the macro source), so
                 // the line must not carry it a second time. Mirrors TS.
-                double inputDc = 0.0;
-                auto dIt = composedDc_.find(block.id);
-                if (dIt != composedDc_.end()) inputDc = dIt->second.dcOperatingPoint;
-                for (const auto& term : op.terms) {
+                double inputDc = (scratch.composedDcPtr != nullptr) ? scratch.composedDcPtr->dcOperatingPoint : 0.0;
+                for (size_t tIdx = 0; tIdx < op.terms.size(); ++tIdx) {
+                    const auto& term = op.terms[tIdx];
                     double gain = term.gain;
                     if (term.swept) {
                         // Same reading as the TS console: the knob's position through its
-                        // own taper, spread across the declared range.
-                        TaperKind taper = TaperKind::Linear;
-                        const std::vector<TaperTablePoint>* table = nullptr;
-                        for (const auto& ctrl : program_.controls) {
-                            if (ctrl.id == term.sweepControl) { taper = ctrl.taper; table = ctrl.taperTable.size() >= 2 ? &ctrl.taperTable : nullptr; break; }
-                        }
-                        gain = term.sweepMin + controlTaperFraction(taper, table, getControl(term.sweepControl)) * (term.sweepMax - term.sweepMin);
+                        // own taper, spread across the declared range. Index pre-resolved.
+                        int32_t sweepIdx = (mixTermIdx != nullptr && oIdx < mixTermIdx->size() &&
+                                            tIdx < (*mixTermIdx)[oIdx].size()) ? (*mixTermIdx)[oIdx][tIdx] : -1;
+                        gain = term.sweepMin + controlTaperFraction(taperOf(sweepIdx), tableOf(sweepIdx),
+                            readControlByIdx(sweepIdx, term.sweepControl)) * (term.sweepMax - term.sweepMin);
                     }
                     double value = readSource(term.source);
                     if (term.source.kind == PrimitiveOp::Source::Kind::Input) value -= inputDc;
@@ -5484,28 +5494,25 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 }
                 publish(op.out, acc);
             } else if (op.op == PrimitiveOp::Op::FilterDcblock) {
-            auto dcIt = composedDc_.find(block.id);
-            if (dcIt == composedDc_.end()) return;
-            auto& dc = dcIt->second;
+            if (scratch.composedDcPtr == nullptr) return;
+            auto& dc = *scratch.composedDcPtr;
                 double x = readSource(op.input);
                 double alpha = 1.0 / (1.0 * sampleRate);
                 dc.dcEstimate += alpha * (x - dc.dcEstimate);
                 publish(op.out, x - dc.dcEstimate);
         } else if (op.op == PrimitiveOp::Op::Comb) {
-            auto fIt = composedFilters_.find(stateKey);
-            if (fIt == composedFilters_.end()) return;
-            if (op.index < 0 || op.index >= static_cast<int32_t>(fIt->second.combs.size())) return;
-            auto& st = fIt->second.combs[op.index];
+            if (filterPtr == nullptr) return;
+            if (op.index < 0 || op.index >= static_cast<int32_t>(filterPtr->combs.size())) return;
+            auto& st = filterPtr->combs[op.index];
             double inVal = readSource(op.input);
             double delayed = st.buffer[st.index];
                 st.buffer[st.index] = inVal + st.gain * delayed;
                 st.index = (st.index + 1) % static_cast<int32_t>(st.buffer.size());
                 publish(op.out, delayed);
         } else if (op.op == PrimitiveOp::Op::Allpass) {
-            auto fIt = composedFilters_.find(stateKey);
-            if (fIt == composedFilters_.end()) return;
-            if (op.index < 0 || op.index >= static_cast<int32_t>(fIt->second.allpasses.size())) return;
-            auto& st = fIt->second.allpasses[op.index];
+            if (filterPtr == nullptr) return;
+            if (op.index < 0 || op.index >= static_cast<int32_t>(filterPtr->allpasses.size())) return;
+            auto& st = filterPtr->allpasses[op.index];
             double inVal = readSource(op.input);
             double delayed = st.buffer[st.index];
             double out = delayed - REVERB_ALLPASS_GAIN * inVal;
@@ -5513,10 +5520,9 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 st.index = (st.index + 1) % static_cast<int32_t>(st.buffer.size());
                 publish(op.out, out);
         } else if (op.op == PrimitiveOp::Op::PitchShift) {
-            auto pIt = composedPitch_.find(stateKey);
-            if (pIt == composedPitch_.end()) return;
-            auto sIt = pIt->second.find(opPosition);
-            if (sIt == pIt->second.end()) return;
+            if (pitchPtr == nullptr) return;
+            auto sIt = pitchPtr->find(opPosition);
+            if (sIt == pitchPtr->end()) return;
             auto& st = sIt->second;
             // Static transposition by asynchronous resampling (row 5),
             // mirroring the TS interpreter op for op: write takes every
@@ -5544,19 +5550,20 @@ void Engine::processComposedBlock(size_t blockIdx) {
                 st.readAbs += PITCH_WINDOW;
             }
         } else if (op.op == PrimitiveOp::Op::PitchTracker) {
-            auto tIt = composedTracker_.find(stateKey);
-            if (tIt == composedTracker_.end()) return;
-            auto sIt = tIt->second.find(opPosition);
-            if (sIt == tIt->second.end()) return;
+            if (trackerPtr == nullptr) return;
+            auto sIt = trackerPtr->find(opPosition);
+            if (sIt == trackerPtr->end()) return;
             auto& st = sIt->second;
             st.buffer[st.writeAbs % TRACK_WINDOW] = readSource(op.input);
             st.writeAbs += 1;
             st.sinceUpdate += 1;
             if (st.sinceUpdate >= TRACK_HOP) {
                 st.sinceUpdate = 0;
-                std::vector<double> window(TRACK_WINDOW);
+                // Reused estimator window (was a per-sample vector allocation).
+                std::vector<double>& window = scratch.pitchWindow;
+                window.assign(TRACK_WINDOW, 0.0);
                 for (int32_t i = 0; i < TRACK_WINDOW; ++i) {
-                    window[i] = st.buffer[(st.writeAbs + i) % TRACK_WINDOW];
+                    window[static_cast<size_t>(i)] = st.buffer[(st.writeAbs + i) % TRACK_WINDOW];
                 }
                 st.estimate = trackPitchFundamental(window, sampleRate);
             }
@@ -5566,10 +5573,10 @@ void Engine::processComposedBlock(size_t blockIdx) {
         }
         opPosition += 1;
     }
-    if (position.out >= 0 && position.out < static_cast<int32_t>(temps.size())) {
-        macroOutputVolts_[block.id] = temps[position.out];
+    if (position.out >= 0 && position.out < tempsSize) {
+        macroOut_[blockIdx] = tempsData[position.out];
     } else {
-        macroOutputVolts_[block.id] = 0.0;
+        macroOut_[blockIdx] = 0.0;
     }
 }
 

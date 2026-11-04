@@ -154,6 +154,10 @@ struct Stamp {
     TaperKind taper = TaperKind::Linear;
     std::string side; // "upper" | "lower"
     std::string macroId;
+    // Prepare-resolved index of macroId in program_.blocks (-1 = none/missing).
+    // Same pattern as controlIndex: a runtime cache, never serialized, so the
+    // macro-audio-source stamp reads macroOut_ by index instead of a string map lookup.
+    int32_t macroBlockIndex = -1;
 
     // Numeric Parameters
     double siemens = 0.0;

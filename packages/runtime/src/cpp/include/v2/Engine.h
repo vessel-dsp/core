@@ -3,6 +3,7 @@
 #include "v2/GeneratedKernels.h"
 #include "v2/Program.h"
 #include "v2/Resample.h"
+#include <array>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -47,6 +48,93 @@ struct FetHistory {
     double vds = 0.0;
     // The body diode's own previous across, under the fet's single history key.
     double vsd = 0.0;
+};
+
+// Spring-reverb and composed-block state, at namespace scope so BlockScratch can own
+// per-stamp/per-block slots of it (previously every audio-path read went through a
+// string-keyed engine map). These are plain state; the maps below stay for prepare/DC.
+struct SpringLine {
+    std::vector<double> buffer;
+    int32_t writeIndex = 0;
+    double feedback = 0.0;
+    std::vector<double> allpassX;
+    std::vector<double> allpassY;
+};
+struct SpringTankState {
+    std::vector<SpringLine> lines;
+    double transduction = 1.0;
+    double driveX1 = 0.0;
+    double driveY1 = 0.0;
+};
+struct ReverbState {
+    std::vector<std::vector<double>> combBuffers;
+    std::vector<int32_t> combIndices;
+    std::vector<double> combGains;
+    std::vector<std::vector<double>> allpassBuffers;
+    std::vector<int32_t> allpassIndices;
+};
+/** One composed block's delay lines, DC seed, and Schroeder sections
+ * (board-p3 row 4). Same rings, estimator, and tables as the macro
+ * kernels, factored per op rather than per model. */
+struct ComposedLine {
+    std::vector<double> buffer;
+    int32_t writeIndex = 0;
+    int32_t capacity = 0;
+    /** The declared-maximum capacity a tap length clamps to; `capacity` is twice this on a
+     *  line a reverse tap reads. */
+    int32_t lengthCapacity = 0;
+    /** A reverse tap's segment phase, in samples. */
+    int32_t reversePhase = 0;
+    /** A hold sampler: 0 idle, 1 recording, 2 looping; its length, index and last gate. */
+    int32_t holdState = 0;
+    int32_t holdLength = 0;
+    int32_t holdIndex = 0;
+    bool holdGateWas = false;
+    /** The cited floor a `parameter` read sweeps up from, in samples. */
+    double floorSamples = 0.0;
+    /** The line's own control (see ComposedPosition::LineSweep), if any. */
+    bool hasSweep = false;
+    bool sweepTapped = false;
+    double sweepRatio = 1.0;
+    std::string sweepControl;
+    // Prepare-resolved index of sweepControl in controlValues_ (-1 = none/missing).
+    // Replaces the per-sample linear scan over program_.controls in tapLength.
+    int32_t sweepControlIndex = -1;
+    double targetLengthSamples = 0.0;
+    double currentLengthSamples = 0.0;
+};
+struct ComposedDc {
+    double dcEstimate = 0.0;
+    double dcOperatingPoint = 0.0;
+    double modDcEstimate = 0.0;
+    bool modSeeded = false;
+};
+struct ComposedComb {
+    std::vector<double> buffer;
+    int32_t index = 0;
+    double gain = 0.0;
+};
+struct ComposedAllpass {
+    std::vector<double> buffer;
+    int32_t index = 0;
+};
+struct ComposedFilter {
+    std::vector<ComposedComb> combs;
+    std::vector<ComposedAllpass> allpasses;
+};
+/** Pitch resampling state per block then op position (row 5). */
+struct ComposedPitch {
+    std::vector<double> buffer;
+    int64_t writeAbs = 0;
+    double readAbs = 0.0;
+    double ratio = 1.0;
+};
+/** Pitch estimator state per block then op position (row 6). */
+struct ComposedTracker {
+    std::vector<double> buffer;
+    int64_t writeAbs = 0;
+    int32_t sinceUpdate = 0;
+    double estimate = 0.0;
 };
 
 struct BlockScratch {
@@ -113,6 +201,41 @@ struct BlockScratch {
     std::vector<OpAmpHistory> opampHistory;
     std::vector<double> opampRawState;
     std::vector<FetHistory> fetHistory;
+    // Once-per-sample guards (indexed by stamp index within block): the divider, d-flip-flop,
+    // compandor envelope and clock-driver theta each advance once per sample no matter how many
+    // Newton iterations the sample takes. Previously a string-keyed map (`block.id + suffix`)
+    // looked up on every call; the slot is written at prepare and hit by index here.
+    std::vector<int64_t> shiftGuard;
+    // The dbx-vca's four smoothed states each carry their own once-per-sample guard.
+    std::vector<std::array<int64_t, 4>> dbxGuard;
+    // Spring-reverb tank state, per spring stamp: previously two string-keyed maps
+    // (`block.id + ":" + sourceIndex`) hit on every stamp call and every sample advance.
+    std::vector<SpringTankState> springState;
+    std::vector<double> springOut;
+    std::vector<char> springLive;
+    // Reusable publish buffer for composed blocks (one per block, sized to the widest
+    // position): replaces the per-sample `std::vector<double> temps` allocation.
+    std::vector<double> composedTemps;
+    // Reused pitch-estimator window (was a per-sample vector allocation on tracker updates).
+    std::vector<double> pitchWindow;
+    // The position this composed block ran last sample (mode-change edge detection).
+    // Previously the string-keyed `lastComposedPosition_` map.
+    int32_t lastComposedPos = INT32_MIN;
+    // Pre-resolved composed-block references (end of prepare, so no per-sample lookup):
+    std::vector<std::unordered_map<std::string, ComposedLine>*> composedLineMaps;
+    std::vector<std::vector<ComposedLine*>> composedOpLines;
+    std::vector<std::vector<int32_t>> composedOpGateIdx;
+    std::vector<std::vector<std::vector<int32_t>>> composedMixTermIdx;
+    std::vector<ComposedFilter*> composedFilterPtrs;
+    std::vector<std::unordered_map<int32_t, ComposedPitch>*> composedPitchPtrs;
+    std::vector<std::unordered_map<int32_t, ComposedTracker>*> composedTrackerPtrs;
+    ComposedDc* composedDcPtr = nullptr;
+    int32_t routerBlockIdx = -1;
+    int32_t routerControlIdx = -1;
+    int32_t audioInBlockIdx = -1;
+    int32_t modBlockIdx = -1;
+    int32_t paramBlockIdx = -1;
+    int32_t clockLawBlockIdx = -1;
 
     // Sparse schedule buffers
     std::vector<double> sparseValues;
@@ -361,7 +484,9 @@ private:
     uint64_t elapsedSamples_ = 0;
     /** Per momentary control: sample of the last press, and the last interval in seconds (<0 none). */
     struct TapState { int64_t lastPress = -1; double intervalSeconds = -1.0; int64_t runStart = -1; int32_t runCount = 0; };
-    std::unordered_map<std::string, TapState> tapState_;
+    // Tap state per control index (parallel to controlValues_): replaces the string-keyed
+    // tapState_ map. Written by setControl, read by the composed publish path by resolved index.
+    std::vector<TapState> tapByControl_;
     double timeSeconds_ = 0.0;
     int32_t lastIterationCount_ = 0;
     bool lastConverged_ = false;
@@ -381,6 +506,9 @@ private:
     // declares none. Resolved beside `controlValues_` so the sample loop pays no lookup;
     // stamps keep their denormalized kind and the table joins it here.
     std::vector<const std::vector<TaperTablePoint>*> controlTaperTables_;
+    // The taper kind per control index, parallel to controlValues_/controlTaperTables_,
+    // so the composed publish path reads kind + table + value by resolved index.
+    std::vector<TaperKind> controlTapers_;
     std::unordered_map<std::string, size_t> blockIndexById_;
 
     // Per-block state & scratch
@@ -389,15 +517,18 @@ private:
     std::vector<std::vector<double>> blockOperatingPoints_; // last solved operating point
     std::vector<size_t> orderedBlockIndices_;
 
-    // Macro blocks
-    std::unordered_map<std::string, double> macroOutputVolts_;
+    // Macro blocks: published output per block index (parallel to program_.blocks).
+    // Replaces the string-keyed macroOutputVolts_ map hit on every macro-audio-source
+    // stamp call and every composed publish. Resolved at prepare via Stamp::macroBlockIndex.
+    std::vector<double> macroOut_;
 
     // Limiter telemetry & history
     bool limitedIterate_ = false;
     // Mirrors reference-runtime.ts `limitedOpamp`: the op-amp whose limiter fired this iteration.
+    // stampIdx indexes the block's scratch slot directly; no packed history key is kept.
     struct LimitedOpamp {
+        int32_t blockIndex = -1;
         int32_t stampIdx = -1;
-        uint64_t key = 0;
         int32_t output = 0;
         double centre = 0.0;
         double railHigh = 0.0;
@@ -409,13 +540,9 @@ private:
     LimitedOpamp limitedOpamp_;
     bool limitedOpampValid_ = false;
     double opAmpStepDamping(size_t blockIdx, const double* current, const double* next, double dt, bool dc);
-    std::unordered_map<uint64_t, double> diodeHistory_;
-    std::unordered_map<uint64_t, std::pair<double, double>> bjtHistory_;
-    std::unordered_map<uint64_t, TriodeHistory> triodeHistory_;
-    std::unordered_map<uint64_t, OpAmpHistory> opampHistory_;
-    std::unordered_map<uint64_t, double> opampRawState_;
-    std::unordered_map<uint64_t, FetHistory> fetHistory_;
-    std::unordered_map<std::string, int64_t> lastShiftedSample_;
+    // Per-block nonlinear history lives in BlockScratch slots indexed at prepare (the diode's
+    // shape since the beginning); the string/numeric-keyed engine maps are gone, single path.
+    // (No members here: see BlockScratch::diodeHistory et al.)
 
 #ifdef V2_PROFILE_TIMERS
     mutable uint64_t profile_assemble_ns_ = 0;
@@ -426,78 +553,16 @@ private:
     mutable uint64_t profile_totalSamples_ = 0;
 #endif
 
-    // Spring reverb, digital reverb & BBD state
-    struct SpringLine {
-        std::vector<double> buffer;
-        int32_t writeIndex = 0;
-        double feedback = 0.0;
-        std::vector<double> allpassX;
-        std::vector<double> allpassY;
-    };
-    struct SpringTankState {
-        std::vector<SpringLine> lines;
-        double transduction = 1.0;
-        double driveX1 = 0.0;
-        double driveY1 = 0.0;
-    };
-    struct ReverbState {
-        std::vector<std::vector<double>> combBuffers;
-        std::vector<int32_t> combIndices;
-        std::vector<double> combGains;
-        std::vector<std::vector<double>> allpassBuffers;
-        std::vector<int32_t> allpassIndices;
-    };
-    std::unordered_map<std::string, SpringTankState> springStates_;
-    std::unordered_map<std::string, double> springOutputVolts_;
+    // Spring reverb, digital reverb & BBD state (structs live at namespace scope now,
+    // beside BlockScratch, which owns the audio-path slots; the maps stay for prepare/DC)
     std::unordered_map<std::string, ReverbState> reverbStates_;
     std::unordered_map<std::string, std::vector<double>> bbdBuffers_;
 
     /** One composed block's delay lines, DC seed, and Schroeder sections
      * (board-p3 row 4). Same rings, estimator, and tables as the macro
-     * kernels, factored per op rather than per model. */
-    struct ComposedLine {
-        std::vector<double> buffer;
-        int32_t writeIndex = 0;
-        int32_t capacity = 0;
-        /** The declared-maximum capacity a tap length clamps to; `capacity` is twice this on a
-         *  line a reverse tap reads. */
-        int32_t lengthCapacity = 0;
-        /** A reverse tap's segment phase, in samples. */
-        int32_t reversePhase = 0;
-        /** A hold sampler: 0 idle, 1 recording, 2 looping; its length, index and last gate. */
-        int32_t holdState = 0;
-        int32_t holdLength = 0;
-        int32_t holdIndex = 0;
-        bool holdGateWas = false;
-        /** The cited floor a `parameter` read sweeps up from, in samples. */
-        double floorSamples = 0.0;
-        /** The line's own control (see ComposedPosition::LineSweep), if any. */
-        bool hasSweep = false;
-        bool sweepTapped = false;
-        double sweepRatio = 1.0;
-        std::string sweepControl;
-        double targetLengthSamples = 0.0;
-        double currentLengthSamples = 0.0;
-    };
-    struct ComposedDc {
-        double dcEstimate = 0.0;
-        double dcOperatingPoint = 0.0;
-        double modDcEstimate = 0.0;
-        bool modSeeded = false;
-    };
-    struct ComposedComb {
-        std::vector<double> buffer;
-        int32_t index = 0;
-        double gain = 0.0;
-    };
-    struct ComposedAllpass {
-        std::vector<double> buffer;
-        int32_t index = 0;
-    };
-    struct ComposedFilter {
-        std::vector<ComposedComb> combs;
-        std::vector<ComposedAllpass> allpasses;
-    };
+     * kernels, factored per op rather than per model. State structs live at
+     * namespace scope; the maps stay for prepare/DC while BlockScratch carries
+     * the audio-path pointers. */
     /**
      * Per-block, per-position state keys, built once at prepare.
      *
@@ -508,28 +573,14 @@ private:
      */
     std::unordered_map<std::string, std::vector<std::string>> composedStateKeys_;
     std::unordered_map<std::string, std::unordered_map<std::string, ComposedLine>> composedLines_;
-    /** The position each composed block ran last sample, to know when a mode was just selected. */
-    std::unordered_map<std::string, int32_t> lastComposedPosition_;
     std::unordered_map<std::string, ComposedDc> composedDc_;
     std::unordered_map<std::string, ComposedFilter> composedFilters_;
-    /** Pitch resampling state per block then op position (row 5). */
-    struct ComposedPitch {
-        std::vector<double> buffer;
-        int64_t writeAbs = 0;
-        double readAbs = 0.0;
-        double ratio = 1.0;
-    };
+    /** Pitch resampling state per block then op position (row 5). Struct at namespace scope. */
     std::unordered_map<std::string, std::unordered_map<int32_t, ComposedPitch>> composedPitch_;
-    /** Pitch estimator state per block then op position (row 6). */
-    struct ComposedTracker {
-        std::vector<double> buffer;
-        int64_t writeAbs = 0;
-        int32_t sinceUpdate = 0;
-        double estimate = 0.0;
-    };
+    /** Pitch estimator state per block then op position (row 6). Struct at namespace scope. */
     std::unordered_map<std::string, std::unordered_map<int32_t, ComposedTracker>> composedTracker_;
 
-    void advanceSpringReverb(const Block& block, const Stamp& stamp, const double* solution, double sampleRate);
+    void advanceSpringReverb(size_t blockIdx, const Stamp& stamp, int32_t stampIdx, const double* solution, double sampleRate);
 
     // Core solver methods
     void solveOperatingPoint();
