@@ -585,3 +585,37 @@ describe("the shipping catalog's output-swing table is applied exactly", () => {
 		}
 	});
 });
+
+describe("the TL022 swing pair reaches the stamp (owner decision 2026-11-04)", () => {
+	const source = (part: string) =>
+		nonInvertingStage({ rfOhms: 9000, rgOhms: 1000, partNumber: part });
+
+	it("TL022CP stamps 2.0 V inside each rail, carried from its 30 V print", () => {
+		expect(registryOpampSwing(pedalPartCatalog, "TL022CP")).toEqual({
+			highVolts: 2.0,
+			lowVolts: 2.0,
+			printed: { supplyVolts: 30, loadOhms: 10_000, translation: "constant" },
+		});
+		const [low, high] = railsOf(source("TL022CP"), pedalPartCatalog);
+		expect(high).toBeCloseTo(RAIL - 2.0, 9);
+		expect(low).toBeCloseTo(-RAIL + 2.0, 9);
+		expect(itemsOf(source("TL022CP"), pedalPartCatalog)).toEqual([
+			{
+				device: "U1",
+				reason: "stated-at-other-supply",
+				printedSupplyVolts: 30,
+				circuitSupplyVolts: SPAN,
+			},
+		]);
+	});
+
+	it("TL072CP still states no pair and swings the full supply (negative control)", () => {
+		expect(registryOpampSwing(pedalPartCatalog, "TL072CP")).toBeNull();
+		const [low, high] = railsOf(source("TL072CP"), pedalPartCatalog);
+		expect(high).toBe(RAIL);
+		expect(low).toBe(-RAIL);
+		expect(itemsOf(source("TL072CP"), pedalPartCatalog)).toEqual([
+			{ device: "U1", reason: "not-stated" },
+		]);
+	});
+});

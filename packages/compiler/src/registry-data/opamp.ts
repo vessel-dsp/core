@@ -254,6 +254,36 @@ export const opampRegistryRecords: readonly OpampRegistryRecord[] = defineOpampR
 				"TL022/datasheets/ti-tl022.pdf (TI SLOS076, rev Sep 1990) p3, VCC+-=+-15V, TA=25C: 'B1 | Unity-gain " +
 				"bandwidth | TL022C TYP 0.5 | TL022M TYP 0.5 | MHz'.",
 		},
+		outputSwingDropHighVolts: {
+			value: 2.0,
+			basis: "datasheet",
+			source:
+				"TL022/datasheets/ti-tl022.pdf (TI SLOS076, Sep 1973 rev Sep 1990) p3, electrical characteristics at VCC+- = +-15 V, TA = 25C: " +
+				"'VO(PP) | Maximum peak-to-peak output voltage swing | RL = 10 kOhm | 25C | TL022C MIN 20 TYP 26 | TL022M MIN 20 TYP 26 | V' " +
+				"(full range MIN 20 both grades). A peak-to-peak row states both sides at once: (30 - 26) / 2 = 2.0 V a side " +
+				"(the MIN row gives (30 - 20) / 2 = 5.0 V a side). The ids are the gain-bandwidth row's, whose convention this follows. " +
+				"'constant' is the TL061/TL062 convention (owner decision 2026-10-17, row 16, D3) applied to this TI low-power family: " +
+				"the sheet prints no figure below +-15 V (the 'Power Dissipation With +-2-V Supplies' bullet and Figure 2 are dissipation, not swing). " +
+				"Owner decision 2026-11-04: the D4 freeze is lifted for TL022 only, for the boss-oc-2 comparator stage.",
+		},
+		outputSwingDropLowVolts: {
+			value: 2.0,
+			basis: "datasheet",
+			source:
+				"TL022/datasheets/ti-tl022.pdf (TI SLOS076, Sep 1973 rev Sep 1990) p3, electrical characteristics at VCC+- = +-15 V, TA = 25C: " +
+				"'VO(PP) | Maximum peak-to-peak output voltage swing | RL = 10 kOhm | 25C | TL022C MIN 20 TYP 26 | TL022M MIN 20 TYP 26 | V' " +
+				"(full range MIN 20 both grades). A peak-to-peak row states both sides at once: (30 - 26) / 2 = 2.0 V a side " +
+				"(the MIN row gives (30 - 20) / 2 = 5.0 V a side). The ids are the gain-bandwidth row's, whose convention this follows. " +
+				"'constant' is the TL061/TL062 convention (owner decision 2026-10-17, row 16, D3) applied to this TI low-power family: " +
+				"the sheet prints no figure below +-15 V (the 'Power Dissipation With +-2-V Supplies' bullet and Figure 2 are dissipation, not swing). " +
+				"Owner decision 2026-11-04: the D4 freeze is lifted for TL022 only, for the boss-oc-2 comparator stage.",
+		},
+		outputSwingPrinted: {
+			supplyVolts: 30,
+			loadOhms: 10000,
+			translation: "constant",
+			column: "TL022C, TYP",
+		},
 	},
 	{
 		partIds: ["OP07CP", "OP07DP", "OP07DN"],
@@ -780,10 +810,6 @@ export const opampOutputSwingAbsent: ReadonlyArray<{
 	{
 		partIds: ["NE5532", "NE5532P", "NE5532D"],
 		reason: "TI SLOS075K (Dec 2025) removed the output-swing row; its revision history says so.",
-	},
-	{
-		partIds: ["TL022", "TL022C", "TL022CP", "TL022CD", "TL022CN"],
-		reason: "TI SLOS076 prints VO(PP) as a peak-to-peak figure only (20 min / 26 typ at RL = 10 kOhm, +-15 V): no per-side figure.",
 	},
 	{
 		partIds: ["LF353", "LF353N", "LF353M", "LM741", "UA741", "uA741", "TA7504S", "TA7504", "BA718", "CA1458", "CA1458E", "CA1458T", "LM741CN"],
