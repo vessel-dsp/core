@@ -71,3 +71,38 @@ worker's gate record (this repo's sibling worktree
 4. Nothing loose in `~`; scratch only under `/tmp/release-0180-worker/` and the
    `tmp/release-0180/` tree.
 5. **No push.**
+
+## Release record (published 2026-11-04, workbench release-0180 worker)
+
+**Status: PUBLISHED.** Main pushed fast-forward `128797a` -> `25b3391`
+(no force); three tags pushed one at a time in order, each watched to success
+before the next, each confirmed on npm before proceeding. No reruns, no tag
+moves, no compiler tag (compiler unchanged), no core tag (core unchanged).
+
+| package | version | tag | publish run | npm time (UTC) |
+|---|---|---|---|---|
+| runtime | 0.18.0 | `runtime-v0.18.0` | 41893617644 success | 2026-11-04T19:14:14 |
+| chain | 0.1.27 | `chain-v0.1.27` | 41895023991 success | 2026-11-04T19:18:04 |
+| player | 0.2.25 | `player-v0.2.25` | 41895698566 success | 2026-11-04T19:23:42 |
+
+Acceptance in an empty dir (`npm i` all five at the new versions): `npm ls
+--all` clean, one copy of each, deduped, no nested older core or compiler.
+
+Published wasm proof: published 0.18.0 `dist/wasm/v2_dsp.wasm` sha256
+`aae2fcd17d3bf1d8c6c67ba9bca399d83b82647e3088900aa6c2fd3d878232fc`
+(1,594,643 bytes) -- differs from the clone's local emcc 6.0.4 build
+`e486c911…` (1,609,968 bytes; CI builds with emcc 3.1.74), as expected for a
+toolchain difference with no source difference on that path.
+
+Phase-1 controls (workbench, logged in the release-0180 report): kernel-table
+regen from the clean-extract programs gives 137 kernels / 556 blocks with an
+empty diff against the committed table (compiler untouched); program control
+145/145 byte-identical (control compiler vs clone compiler over the clean
+extract); solver-plan pivot fallbacks 0, abandoned 0, dropped 0 on pedals
+(108 sparse of 496 blocks) and amps (30 sparse of 61 blocks); catalog A/B
+(published 0.17.0 engine vs clone A+B, both consoles, hashed wasm) outside the
+Newton tolerance band on exactly the four named rounding-sensitive packets
+(`boss-tw-1`, `moogerfooger-mf-102`, `mxr-blue-box` ts+wasm, `boss-dd-3b` wasm
+only), 0 silent/plays verdict moves; wasm parity 4/4 r=1.000000 + mutate
+caught against the hashed clone build; newton-deadline OC-2 peak 13 / steady
+3.4, AW-2 peak 14 / steady 2.9, 0 cap hits both arms.
