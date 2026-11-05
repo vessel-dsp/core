@@ -1766,6 +1766,31 @@ void Engine::prepare(const EngineOptions& options) {
         // change every sample while the rest of the matrix does not. Registering their cells lets
         // the per-sample assembly refresh those alone.
         collectTouchedCells(block, size, scratch.sampleLinearStampIndices, scratch.touchedSampleMatrixOffsets, scratch.touchedSampleRhsRows);
+        // The iteration-0 union (board-p2 row 16): every cell a standard
+        // audio pass can leave differing between `sampleMatrix` and `matrix`.
+        // The nonlinear half is already trusted by the iterations->=1
+        // selective copy and the sample half by the per-sample refresh, so
+        // the union needs no new coverage argument. Sorted for a stable,
+        // cache-forward copy order, like the sets it unions.
+        {
+            std::unordered_set<int32_t> unionMat(
+                scratch.touchedNonlinearMatrixOffsets.begin(),
+                scratch.touchedNonlinearMatrixOffsets.end());
+            unionMat.insert(
+                scratch.touchedSampleMatrixOffsets.begin(),
+                scratch.touchedSampleMatrixOffsets.end());
+            scratch.touchedUnionMatrixOffsets.assign(unionMat.begin(), unionMat.end());
+            std::sort(scratch.touchedUnionMatrixOffsets.begin(), scratch.touchedUnionMatrixOffsets.end());
+            std::unordered_set<int32_t> unionRhs(
+                scratch.touchedNonlinearRhsRows.begin(),
+                scratch.touchedNonlinearRhsRows.end());
+            unionRhs.insert(
+                scratch.touchedSampleRhsRows.begin(),
+                scratch.touchedSampleRhsRows.end());
+            scratch.touchedUnionRhsRows.assign(unionRhs.begin(), unionRhs.end());
+            std::sort(scratch.touchedUnionRhsRows.begin(), scratch.touchedUnionRhsRows.end());
+        }
+        scratch.matrixNeedsFullCopy = true;
         scratch.matrix = scratch.baseMatrix;
         scratch.rhs = scratch.baseRhs;
         scratch.controlMatrix = scratch.baseMatrix;
@@ -2221,6 +2246,10 @@ void Engine::reset() {
         scratch.cachedControlGeneration = -1;
         scratch.matrix = scratch.baseMatrix;
         scratch.rhs = scratch.baseRhs;
+        // Board-p2 row 16: reset restores the base matrix (and the pivot
+        // settle below re-solves DC over it), so the next audio solve must
+        // take the full iteration-0 copy; see `iterate`.
+        scratch.matrixNeedsFullCopy = true;
         // The predictor ring is streaming state: a reset run starts with no history.
         scratch.predictorX1.clear();
         scratch.predictorX2.clear();
@@ -2752,8 +2781,36 @@ Engine::SolveResult Engine::iterate(
 
         if (isStandardAudioPass) {
             if (iter == 0) {
-                std::memcpy(scratch.matrix.data(), scratch.sampleMatrix.data(), size * size * sizeof(double));
-                std::memcpy(scratch.rhs.data(), scratch.sampleRhs.data(), size * sizeof(double));
+                // Board-p2 row 16: iteration 0 restores only the cells that
+                // can differ (the prepare-computed union of nonlinear and
+                // per-sample-linear cells) instead of the whole dense matrix.
+                // Valid only once every outside-union cell already holds its
+                // sampleMatrix value, tracked by matrixNeedsFullCopy: after
+                // prepare()/reset() the matrix is the base matrix, after a
+                // control rebuild the control cells are stale, and after a DC
+                // pass or a dense fallback (which reads the whole matrix) any
+                // outside-union cell can hold a stale value -- so all of those
+                // paths keep the full copy and the flag re-arms it. Guarded by
+                // canUseSelectiveMatrixCopy like the existing iterations->=1
+                // selective path, so blocks without a schedule, abandoned
+                // schedules, eliminated blocks and every non-standard pass
+                // keep the full copy. The Newton-start predictor needs no
+                // guard: it changes only the seed vector, never which cells
+                // differ, and the iterations->=1 selective copy already runs
+                // under it.
+                bool useUnionCopy = scratch.canUseSelectiveMatrixCopy && !scratch.matrixNeedsFullCopy;
+                if (useUnionCopy) {
+                    for (int32_t offset : scratch.touchedUnionMatrixOffsets) {
+                        scratch.matrix[offset] = scratch.sampleMatrix[offset];
+                    }
+                    for (int32_t row : scratch.touchedUnionRhsRows) {
+                        scratch.rhs[row] = scratch.sampleRhs[row];
+                    }
+                } else {
+                    std::memcpy(scratch.matrix.data(), scratch.sampleMatrix.data(), size * size * sizeof(double));
+                    std::memcpy(scratch.rhs.data(), scratch.sampleRhs.data(), size * sizeof(double));
+                    scratch.matrixNeedsFullCopy = false;
+                }
             } else {
                 if (scratch.canUseSelectiveMatrixCopy && !scratch.touchedNonlinearMatrixOffsets.empty()) {
                     for (int32_t offset : scratch.touchedNonlinearMatrixOffsets) {
@@ -4889,6 +4946,12 @@ double Engine::processMnaBlock(size_t blockIdx, double inputSample) {
             scratch.controlRhs[0] = 0.0;
             scratch.cachedControlGen = controlGeneration_;
             controlsRebuilt = true;
+            // Board-p2 row 16: a wholesale control rebuild invalidates every
+            // untouched cell of sampleMatrix (restored by the full copy
+            // below) and, with it, every outside-union cell the iteration-0
+            // union copy would leave in place -- so the next solve re-arms
+            // the full matrix copy. See `iterate`.
+            scratch.matrixNeedsFullCopy = true;
         }
 
         // **CALIBRATION SHOT (2026-09-12): the per-sample N^2 copy, removed.**

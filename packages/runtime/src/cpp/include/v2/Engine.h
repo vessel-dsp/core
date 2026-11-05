@@ -175,6 +175,16 @@ struct BlockScratch {
     // from `controlMatrix` instead of copied whole. See Engine.cpp's per-sample assembly.
     std::vector<int32_t> touchedSampleMatrixOffsets;
     std::vector<int32_t> touchedSampleRhsRows;
+    // Union of the nonlinear and per-sample-linear touched cells: every cell
+    // of `sampleMatrix` that can differ from `matrix` at the start of a solve
+    // (board-p2 row 16). Sorted, like the sets it unions. Iteration 0 of a
+    // standard audio pass restores exactly these instead of the whole matrix.
+    std::vector<int32_t> touchedUnionMatrixOffsets;
+    std::vector<int32_t> touchedUnionRhsRows;
+    // True until the first full matrix copy after prepare()/reset()/control
+    // rebuild: the union copy is only valid once every outside-union cell
+    // already holds its sampleMatrix value (see `iterate`).
+    bool matrixNeedsFullCopy = true;
     std::vector<int32_t> statefulStampIndices;
     uint64_t cachedControlGen = 0;
     bool canUseSelectiveMatrixCopy = false;
