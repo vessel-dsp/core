@@ -211,6 +211,19 @@ struct BlockScratch {
     std::vector<OpAmpHistory> opampHistory;
     std::vector<double> opampRawState;
     std::vector<FetHistory> fetHistory;
+    // Board-p2 row 20 (stamp-hoists), candidate A: prepare-hoisted per-call
+    // constants for the nonlinear device laws, indexed by stamp index within
+    // block. Every value depends only on load-time stamp constants (and, for
+    // the op-amp pair, the prepare-time rate), so it is filled once in
+    // prepare() and read on every Newton iteration. Each fill evaluates the
+    // identical per-call expression, so the hoisted bits are identical.
+    std::vector<double> nlCritical; // limitJunction critical per stamp (diode/BJT/FET-body)
+    std::vector<double> diodeLogXplusX; // log(x)+x, x=(Is*rs)/scale (diode series-R path)
+    std::vector<double> diodeLogZx; // log(zx), zx=(ITEST*rs)/scale (diode zener path)
+    std::vector<double> opampAlpha; // opAmpPoleAlpha at the prepare rate (railed ideal-opamp)
+    std::vector<double> opampLinearWidth; // halfSwing/(alpha*gain) (railed ideal-opamp)
+    std::vector<int32_t> opampStampIndices; // railed ideal-opamp stamps, ascending (damping scan)
+    std::vector<int32_t> nlSign; // BJT/FET device sign (+1/-1 from polarity/channel), 0 otherwise
     // Once-per-sample guards (indexed by stamp index within block): the divider, d-flip-flop,
     // compandor envelope and clock-driver theta each advance once per sample no matter how many
     // Newton iterations the sample takes. Previously a string-keyed map (`block.id + suffix`)

@@ -536,14 +536,14 @@ inline double limitTriodeGridStep(double next, double previous) {
     return limitTriodeStep(next, previous, kTriodeGridStepVolts);
 }
 
-inline double limitJunction(
+inline double limitJunctionCore(
     double next,
     double previous,
     double thermalVoltage,
     double saturationCurrent,
+    double critical,
     double seriesResistance = 0.0
 ) {
-    double critical = thermalVoltage * std::log(thermalVoltage / (M_SQRT2 * saturationCurrent));
     if (seriesResistance > 1e-6 && previous > 0.0) {
         double criticalTerminal = critical + thermalVoltage / M_SQRT2;
         if (next > criticalTerminal && std::abs(next - previous) > 2.0 * thermalVoltage) {
@@ -576,6 +576,17 @@ inline double limitJunction(
         return arg < 0.0 ? -thermalVoltage * std::log(-arg) : -thermalVoltage;
     }
     return next;
+}
+
+inline double limitJunction(
+    double next,
+    double previous,
+    double thermalVoltage,
+    double saturationCurrent,
+    double seriesResistance = 0.0
+) {
+    double critical = thermalVoltage * std::log(thermalVoltage / (M_SQRT2 * saturationCurrent));
+    return limitJunctionCore(next, previous, thermalVoltage, saturationCurrent, critical, seriesResistance);
 }
 
 inline double lambertW0(double z) {
@@ -1613,6 +1624,74 @@ void Engine::prepare(const EngineOptions& options) {
         scratch.opampHistory.assign(block.stamps.size(), OpAmpHistory{});
         scratch.opampRawState.assign(block.stamps.size(), 0.0);
         scratch.fetHistory.assign(block.stamps.size(), FetHistory{});
+        // Board-p2 row 20 (stamp-hoists), candidate A: hoist the per-call
+        // constants the nonlinear device laws recompute on every Newton
+        // iteration. Each fill evaluates the identical per-call expression,
+        // so the hoisted bits are identical. All inputs are load-time stamp
+        // constants (thermalVoltage, saturationCurrent, emissionCoefficient,
+        // seriesResistance, openLoopGain, gainBandwidthHz, polarity, channel:
+        // set by ProgramJson at load, never written by setControl, setSupply
+        // or the sample loop; temperature and the thermistor fold at compile
+        // time, so no control can move them at run time) plus the
+        // prepare-time rate for the op-amp pair, so no re-arm is needed.
+        scratch.nlCritical.assign(block.stamps.size(), 0.0);
+        scratch.diodeLogXplusX.assign(block.stamps.size(), 0.0);
+        scratch.diodeLogZx.assign(block.stamps.size(), 0.0);
+        scratch.opampAlpha.assign(block.stamps.size(), 0.0);
+        scratch.opampLinearWidth.assign(block.stamps.size(), 0.0);
+        scratch.nlSign.assign(block.stamps.size(), 0);
+        scratch.opampStampIndices.clear();
+        {
+            double dtPrep = 1.0 / options_.sampleRate;
+            for (size_t sIdx = 0; sIdx < block.stamps.size(); ++sIdx) {
+                const auto& stamp = block.stamps[sIdx];
+                switch (stamp.kind) {
+                    case StampKind::Diode: {
+                        double scale = stamp.emissionCoefficient * stamp.thermalVoltage;
+                        scratch.nlCritical[sIdx] =
+                            scale * std::log(scale / (M_SQRT2 * stamp.saturationCurrent));
+                        double rs = stamp.seriesResistance;
+                        if (rs > 1e-6) {
+                            double x = (stamp.saturationCurrent * rs) / scale;
+                            scratch.diodeLogXplusX[sIdx] = std::log(x) + x;
+                            double zx = (ZENER_TEST_CURRENT_AMPS * rs) / scale;
+                            scratch.diodeLogZx[sIdx] = std::log(zx);
+                        }
+                        break;
+                    }
+                    case StampKind::Bjt: {
+                        double vt = stamp.thermalVoltage;
+                        double is = stamp.saturationCurrent;
+                        scratch.nlCritical[sIdx] =
+                            vt * std::log(vt / (M_SQRT2 * is));
+                        scratch.nlSign[sIdx] = (stamp.polarity == "pnp") ? -1 : 1;
+                        break;
+                    }
+                    case StampKind::Fet: {
+                        if (stamp.bodySaturationCurrent > 0.0 && stamp.bodyEmissionCoefficient > 0.0) {
+                            double bodyScale = stamp.bodyEmissionCoefficient * 0.025852;
+                            scratch.nlCritical[sIdx] =
+                                bodyScale * std::log(bodyScale / (M_SQRT2 * stamp.bodySaturationCurrent));
+                        }
+                        scratch.nlSign[sIdx] = (stamp.channel == "n") ? 1 : -1;
+                        break;
+                    }
+                    case StampKind::IdealOpAmp: {
+                        if (stamp.railHigh.has_value() && stamp.railLow.has_value()) {
+                            double alpha = opAmpPoleAlpha(
+                                stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dtPrep, options_.sampleRate);
+                            scratch.opampAlpha[sIdx] = alpha;
+                            double halfSwing = opAmpHalfSwing(*stamp.railHigh, *stamp.railLow);
+                            scratch.opampLinearWidth[sIdx] = halfSwing / (alpha * stamp.openLoopGain);
+                            scratch.opampStampIndices.push_back(static_cast<int32_t>(sIdx));
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+        }
         // Once-per-sample guards start un-run (-1 never equals a sample count).
         scratch.shiftGuard.assign(block.stamps.size(), -1);
         scratch.dbxGuard.assign(block.stamps.size(), {-1, -1, -1, -1});
@@ -2691,16 +2770,21 @@ double Engine::opAmpStepDamping(size_t blockIdx, const double* current, const do
     const auto& block = program_.blocks[blockIdx];
     const auto& scratch = blockScratch_[blockIdx];
     double damping = 1.0;
-    for (size_t sIdx = 0; sIdx < block.stamps.size(); ++sIdx) {
-        const auto& stamp = block.stamps[sIdx];
-        if (stamp.kind != StampKind::IdealOpAmp || !stamp.railHigh.has_value() || !stamp.railLow.has_value()) continue;
-        if (sIdx >= scratch.opampHistory.size()) continue;
-        const auto& h = scratch.opampHistory[sIdx];
+    // Board-p2 row 20 (stamp-hoists), candidate A: scan the prepare-built
+    // railed-op-amp index list instead of every stamp of the block, and read
+    // the hoisted pole alpha and linear width. The visited set is the same
+    // stamps in the same ascending order, and damping is a min over them, so
+    // the result is identical.
+    for (int32_t sIdx : scratch.opampStampIndices) {
+        const auto& stamp = block.stamps[static_cast<size_t>(sIdx)];
+        if (static_cast<size_t>(sIdx) >= scratch.opampHistory.size()) continue;
+        const auto& h = scratch.opampHistory[static_cast<size_t>(sIdx)];
         if (!(h.cap > 0.0)) continue;
         double halfSwing = opAmpHalfSwing(*stamp.railHigh, *stamp.railLow);
-        double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
+        double alpha = dc ? 1.0 : scratch.opampAlpha[static_cast<size_t>(sIdx)];
         double effectiveGain = alpha * stamp.openLoopGain;
-        double linearWidth = halfSwing / effectiveGain;
+        double linearWidth = dc ? (halfSwing / effectiveGain)
+                                : scratch.opampLinearWidth[static_cast<size_t>(sIdx)];
         double band = OPAMP_DIFFERENTIAL_BAND * linearWidth;
         double nextDifferential = clamp(next[stamp.plus] - next[stamp.minus], -band, band);
         double magnitude = std::abs(nextDifferential - h.differential);
@@ -3601,15 +3685,18 @@ void Engine::applyStamp(
             double raw = solution[stamp.anode] - solution[stamp.cathode];
             double prevAcross = scratch.diodeHistory[static_cast<size_t>(stampIdx)];
             double rs = stamp.seriesResistance;
-            double across = limitJunction(raw, prevAcross, scale, stamp.saturationCurrent, rs);
+            // Board-p2 row 20 (stamp-hoists), candidate A: the junction
+            // critical is hoisted to prepare time (identical expression).
+            double across = limitJunctionCore(
+                raw, prevAcross, scale, stamp.saturationCurrent,
+                scratch.nlCritical[static_cast<size_t>(stampIdx)], rs);
             if (across != raw) limitedIterate_ = true;
             scratch.diodeHistory[static_cast<size_t>(stampIdx)] = across;
 
             double forwardCurrent = 0.0;
             double forwardConductance = 0.0;
             if (rs > 1e-6) {
-                double x = (stamp.saturationCurrent * rs) / scale;
-                double logZ = std::log(x) + x + across / scale;
+                double logZ = scratch.diodeLogXplusX[static_cast<size_t>(stampIdx)] + across / scale;
                 double w = lambertW0FromLogZ(logZ);
                 forwardCurrent = (scale / rs) * w - stamp.saturationCurrent;
                 forwardConductance = w / (rs * (1.0 + w));
@@ -3626,8 +3713,8 @@ void Engine::applyStamp(
                 if (rs > 1e-6) {
                     // I = Itest * exp((beyond - I*Rs) / scale) in closed form; mirrors the TS
                     // console, which carries the reasoning.
-                    double zx = (ZENER_TEST_CURRENT_AMPS * rs) / scale;
-                    double zw = lambertW0FromLogZ(std::log(zx) + beyond / scale);
+                    double zw = lambertW0FromLogZ(
+                        scratch.diodeLogZx[static_cast<size_t>(stampIdx)] + beyond / scale);
                     bdCurrent = -(scale / rs) * zw;
                     bdConductance = zw / (rs * (1.0 + zw));
                 } else {
@@ -3761,9 +3848,14 @@ void Engine::applyStamp(
             double vee = *stamp.railLow;
             double centre = (vcc + vee) / 2.0;
             double halfSwing = opAmpHalfSwing(vcc, vee);
-            double alpha = dc ? 1.0 : opAmpPoleAlpha(stamp.openLoopGain, opAmpGainBandwidthHz(stamp), dt, options_.sampleRate);
+            // Board-p2 row 20 (stamp-hoists), candidate A: the pole alpha
+            // and the linear width are hoisted to prepare time (identical
+            // expressions at the prepare rate). The DC solve keeps alpha 1
+            // and derives the width from it, exactly as before.
+            double alpha = dc ? 1.0 : scratch.opampAlpha[static_cast<size_t>(stampIdx)];
             double effectiveGain = alpha * stamp.openLoopGain;
-            double linearWidth = halfSwing / effectiveGain;
+            double linearWidth = dc ? (halfSwing / effectiveGain)
+                                    : scratch.opampLinearWidth[static_cast<size_t>(stampIdx)];
 
             double prevDiff = 0.0;
             double prevStep = 0.0;
@@ -3837,7 +3929,9 @@ void Engine::applyStamp(
         }
 
         case StampKind::Bjt: {
-            int32_t sign = (stamp.polarity == "pnp") ? -1 : 1;
+            // Board-p2 row 20 (stamp-hoists), candidate A: the device sign
+            // and the junction critical are hoisted to prepare time.
+            int32_t sign = scratch.nlSign[static_cast<size_t>(stampIdx)];
             double vt = stamp.thermalVoltage;
             double is = stamp.saturationCurrent;
             double prevVbe = scratch.bjtHistory[static_cast<size_t>(stampIdx)].first;
@@ -3845,8 +3939,9 @@ void Engine::applyStamp(
 
             double rawVbe = sign * (solution[stamp.base] - solution[stamp.emitter]);
             double rawVbc = sign * (solution[stamp.base] - solution[stamp.collector]);
-            double vbe = limitJunction(rawVbe, prevVbe, vt, is);
-            double vbc = limitJunction(rawVbc, prevVbc, vt, is);
+            double critical = scratch.nlCritical[static_cast<size_t>(stampIdx)];
+            double vbe = limitJunctionCore(rawVbe, prevVbe, vt, is, critical);
+            double vbc = limitJunctionCore(rawVbc, prevVbc, vt, is, critical);
             if (vbe != rawVbe || vbc != rawVbc) limitedIterate_ = true;
             scratch.bjtHistory[static_cast<size_t>(stampIdx)] = {vbe, vbc};
 
@@ -3893,7 +3988,9 @@ void Engine::applyStamp(
         }
 
         case StampKind::Fet: {
-            double sign = (stamp.channel == "n") ? 1.0 : -1.0;
+            // Board-p2 row 20 (stamp-hoists), candidate A: the device sign
+            // is hoisted to prepare time (identical comparison).
+            double sign = static_cast<double>(scratch.nlSign[static_cast<size_t>(stampIdx)]);
             double rawVgs = sign * (solution[stamp.gate] - solution[stamp.source]);
             double rawVds = sign * (solution[stamp.drain] - solution[stamp.source]);
 
@@ -4036,10 +4133,15 @@ void Engine::applyStamp(
             if (stamp.bodySaturationCurrent > 0.0 && stamp.bodyEmissionCoefficient > 0.0) {
                 double bodyIs = stamp.bodySaturationCurrent;
                 double bodyScale = stamp.bodyEmissionCoefficient * 0.025852;
-                int32_t bodyAnode = (stamp.channel == "n") ? sNode : d;
-                int32_t bodyCathode = (stamp.channel == "n") ? d : sNode;
+                // Board-p2 row 20 (stamp-hoists), candidate A: channel side
+                // and body critical hoisted to prepare time.
+                bool isN = scratch.nlSign[static_cast<size_t>(stampIdx)] > 0;
+                int32_t bodyAnode = isN ? sNode : d;
+                int32_t bodyCathode = isN ? d : sNode;
                 double rawBody = solution[bodyAnode] - solution[bodyCathode];
-                double acrossBody = limitJunction(rawBody, vsd, bodyScale, bodyIs);
+                double acrossBody = limitJunctionCore(
+                    rawBody, vsd, bodyScale, bodyIs,
+                    scratch.nlCritical[static_cast<size_t>(stampIdx)]);
                 if (acrossBody != rawBody) {
                     limitedIterate_ = true;
                 }
