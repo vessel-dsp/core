@@ -612,14 +612,7 @@ SparseSchedule parseSparseSchedule(const JsonValue& obj) {
         ss.gatherOffsets[i] = ss.gatherRow[i] * ss.size + ss.gatherColumn[i];
     }
 
-    size_t numOps = ss.ops.size() / 4;
-    ss.structuredOps.resize(numOps);
-    for (size_t i = 0; i < numOps; ++i) {
-        ss.structuredOps[i].op = ss.ops[i * 4];
-        ss.structuredOps[i].a = ss.ops[i * 4 + 1];
-        ss.structuredOps[i].b = ss.ops[i * 4 + 2];
-        ss.structuredOps[i].c = ss.ops[i * 4 + 3];
-    }
+    buildSparseRecords(ss);
     return ss;
 }
 

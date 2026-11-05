@@ -241,12 +241,6 @@ std::optional<SparseSchedule> computeNumericRepivot(
         out.ops.push_back(a);
         out.ops.push_back(b);
         out.ops.push_back(c);
-        SparseOp structured;
-        structured.op = op;
-        structured.a = a;
-        structured.b = b;
-        structured.c = c;
-        out.structuredOps.push_back(structured);
     };
     for (const auto& pivot : pivots) {
         push(6, slot(pivot.first, pivot.second), 0, 0);
@@ -295,6 +289,7 @@ std::optional<SparseSchedule> computeNumericRepivot(
     out.sparseOps = sparseOps;
     out.denseOps = (size * size * size - size) / 3;
     out.unprovenPivots = 0;
+    buildSparseRecords(out);
     return out;
 }
 
@@ -901,37 +896,35 @@ inline bool runSparseSchedule(
         values[i] = matrix[offsets[i]];
     }
     std::memcpy(scratchRhs, rhs, size * sizeof(double));
-    double accumulator = 0.0;
-    const SparseOp* __restrict op = schedule.structuredOps.data();
-    const SparseOp* __restrict opEnd = op + schedule.structuredOps.size();
-    for (; op != opEnd; ++op) {
-        switch (op->op) {
-            case 1:
-                values[op->a] -= factors[op->b] * values[op->c];
-                break;
-            case 0:
-                factors[op->a] = values[op->b] / values[op->c];
-                break;
-            case 2:
-                scratchRhs[op->a] -= factors[op->b] * scratchRhs[op->c];
-                break;
-            case 4:
-                accumulator -= values[op->a] * out[op->b];
-                break;
-            case 3:
-                accumulator = scratchRhs[op->a];
-                break;
-            case 5:
-                out[op->a] = accumulator / values[op->b];
-                break;
-            case 6:
-                if (__builtin_expect(std::abs(values[op->a]) < SCHEDULE_PIVOT_FLOOR, 0)) {
-                    return false;
-                }
-                break;
-            default:
-                break;
+    // Record replay: one dispatch per pivot instead of one per op. The order
+    // and the arithmetic are the interpreter's: per pivot, its check, then per
+    // factor row its division, its multiply-adds (the row's factor held in a
+    // register -- an op-1's `b` is its row's factor slot by construction),
+    // and its right-hand-side update; then back-substitution rows in order.
+    const int32_t* __restrict updA = schedule.updateA.data();
+    const int32_t* __restrict updC = schedule.updateC.data();
+    const int32_t* __restrict termSlot = schedule.backTermSlot.data();
+    const int32_t* __restrict termOut = schedule.backTermOut.data();
+    for (const SparsePivotCheck& pivot : schedule.forwardPivots) {
+        if (__builtin_expect(std::abs(values[pivot.checkSlot]) < SCHEDULE_PIVOT_FLOOR, 0)) {
+            return false;
         }
+        for (int32_t r = pivot.rowBegin; r < pivot.rowEnd; ++r) {
+            const SparsePivotRow& row = schedule.pivotRows[static_cast<size_t>(r)];
+            const double f = values[row.numSlot] / values[row.denSlot];
+            factors[row.factorSlot] = f;
+            for (int32_t u = row.updateBegin; u < row.updateEnd; ++u) {
+                values[updA[u]] -= f * values[updC[u]];
+            }
+            scratchRhs[row.rhsRow] -= f * scratchRhs[row.pivotRhsRow];
+        }
+    }
+    for (const SparseBackRow& row : schedule.backRows) {
+        double accumulator = scratchRhs[row.rhsRow];
+        for (int32_t t = row.termBegin; t < row.termEnd; ++t) {
+            accumulator -= values[termSlot[t]] * out[termOut[t]];
+        }
+        out[row.outRow] = accumulator / values[row.divSlot];
     }
     return true;
 }

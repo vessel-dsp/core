@@ -303,16 +303,60 @@ struct StampPartition {
     std::vector<int32_t> dynamicStampIndices;
 };
 
-struct SparseOp {
-    int32_t op = 0;
-    int32_t a = 0;
-    int32_t b = 0;
-    int32_t c = 0;
+/**
+ * Per-pivot record for the interpreted sparse solve (`runSparseSchedule`).
+ *
+ * The interpreter used to dispatch once per op over `structuredOps` (one
+ * unpredictable `switch` branch per op, ~4 ns/op on the OC-2 schedule). These
+ * records dispatch once per pivot instead, with the inner work in tight loops:
+ * one factor division, its multiply-adds sharing the factor in a register, and
+ * its right-hand-side update. The order and the arithmetic are exactly the
+ * interpreter's (and the generated kernels'): each update is still
+ * `values[a] -= factors[b] * values[c]` as two roundings, no FMA, no
+ * reassociation.
+ *
+ * Records are derived from `ops` at schedule load (never serialized, never a
+ * Program-format change): `parseSparseSchedule` in `ProgramJson.cpp` and
+ * `computeNumericRepivot` in `Engine.cpp` both end by calling
+ * `buildSparseRecords`. Both writers emit the same shape the compiler does --
+ * all forward ops (6/0/1/2) in pivot order, then all back-substitution ops
+ * (3/4/5) in reverse pivot order -- and the builder replays that scan order,
+ * so the record solve is the op solve with the dispatch hoisted.
+ *
+ * Invariants the builder relies on (true of both writers by construction):
+ * an op-1's `b` is its row's factor slot (the row's factor is loaded once
+ * into a register for all its updates), and an op-6 check slot is read after
+ * all earlier pivots' updates to it -- pivot checks are NOT hoisted out of
+ * the per-pivot loop. Measured on OC-2+1R: 48 of 102 check slots were written
+ * by an earlier pivot's updates, so hoisting the checks would change the
+ * fallback verdict and the solved values.
+ */
+struct SparsePivotCheck {
+    int32_t checkSlot = 0;
+    int32_t rowBegin = 0;
+    int32_t rowEnd = 0;
+};
+
+struct SparsePivotRow {
+    int32_t factorSlot = 0;
+    int32_t numSlot = 0;
+    int32_t denSlot = 0;
+    int32_t rhsRow = 0;
+    int32_t pivotRhsRow = 0;
+    int32_t updateBegin = 0;
+    int32_t updateEnd = 0;
+};
+
+struct SparseBackRow {
+    int32_t rhsRow = 0;
+    int32_t outRow = 0;
+    int32_t divSlot = 0;
+    int32_t termBegin = 0;
+    int32_t termEnd = 0;
 };
 
 struct SparseSchedule {
     std::vector<int32_t> ops;
-    std::vector<SparseOp> structuredOps;
     int32_t slots = 0;
     int32_t factorCount = 0;
     std::vector<int32_t> gatherRow;
@@ -322,7 +366,104 @@ struct SparseSchedule {
     int32_t sparseOps = 0;
     int32_t denseOps = 0;
     int32_t unprovenPivots = 0;
+    std::vector<SparsePivotCheck> forwardPivots;
+    std::vector<SparsePivotRow> pivotRows;
+    std::vector<int32_t> updateA;
+    std::vector<int32_t> updateC;
+    std::vector<SparseBackRow> backRows;
+    std::vector<int32_t> backTermSlot;
+    std::vector<int32_t> backTermOut;
 };
+
+/**
+ * Derive the interpreter records from the flat op stream, preserving scan
+ * order: forward ops append to the current pivot/row, back-substitution ops
+ * append to the current back row. Unknown opcodes are ignored exactly as the
+ * interpreter's `default: break` ignores them.
+ */
+inline void buildSparseRecords(SparseSchedule& schedule) {
+    schedule.forwardPivots.clear();
+    schedule.pivotRows.clear();
+    schedule.updateA.clear();
+    schedule.updateC.clear();
+    schedule.backRows.clear();
+    schedule.backTermSlot.clear();
+    schedule.backTermOut.clear();
+    SparseSchedule& s = schedule;
+    int32_t pivot = -1;
+    int32_t row = -1;
+    int32_t back = -1;
+    const size_t numOps = s.ops.size() / 4;
+    for (size_t i = 0; i < numOps; ++i) {
+        const int32_t op = s.ops[i * 4];
+        const int32_t a = s.ops[i * 4 + 1];
+        const int32_t b = s.ops[i * 4 + 2];
+        const int32_t c = s.ops[i * 4 + 3];
+        switch (op) {
+            case 6:
+                s.forwardPivots.push_back(SparsePivotCheck());
+                pivot = static_cast<int32_t>(s.forwardPivots.size()) - 1;
+                s.forwardPivots[static_cast<size_t>(pivot)].checkSlot = a;
+                s.forwardPivots[static_cast<size_t>(pivot)].rowBegin =
+                    static_cast<int32_t>(s.pivotRows.size());
+                s.forwardPivots[static_cast<size_t>(pivot)].rowEnd =
+                    static_cast<int32_t>(s.pivotRows.size());
+                row = -1;
+                break;
+            case 0:
+                if (pivot < 0) break;
+                s.pivotRows.push_back(SparsePivotRow());
+                row = static_cast<int32_t>(s.pivotRows.size()) - 1;
+                s.pivotRows[static_cast<size_t>(row)].factorSlot = a;
+                s.pivotRows[static_cast<size_t>(row)].numSlot = b;
+                s.pivotRows[static_cast<size_t>(row)].denSlot = c;
+                s.pivotRows[static_cast<size_t>(row)].updateBegin =
+                    static_cast<int32_t>(s.updateA.size());
+                s.pivotRows[static_cast<size_t>(row)].updateEnd =
+                    static_cast<int32_t>(s.updateA.size());
+                s.forwardPivots[static_cast<size_t>(pivot)].rowEnd =
+                    static_cast<int32_t>(s.pivotRows.size());
+                break;
+            case 1:
+                if (row < 0) break;
+                s.updateA.push_back(a);
+                s.updateC.push_back(c);
+                s.pivotRows[static_cast<size_t>(row)].updateEnd =
+                    static_cast<int32_t>(s.updateA.size());
+                break;
+            case 2:
+                if (row < 0) break;
+                s.pivotRows[static_cast<size_t>(row)].rhsRow = a;
+                s.pivotRows[static_cast<size_t>(row)].pivotRhsRow = c;
+                row = -1;
+                break;
+            case 3:
+                s.backRows.push_back(SparseBackRow());
+                back = static_cast<int32_t>(s.backRows.size()) - 1;
+                s.backRows[static_cast<size_t>(back)].rhsRow = a;
+                s.backRows[static_cast<size_t>(back)].termBegin =
+                    static_cast<int32_t>(s.backTermSlot.size());
+                s.backRows[static_cast<size_t>(back)].termEnd =
+                    static_cast<int32_t>(s.backTermSlot.size());
+                break;
+            case 4:
+                if (back < 0) break;
+                s.backTermSlot.push_back(a);
+                s.backTermOut.push_back(b);
+                s.backRows[static_cast<size_t>(back)].termEnd =
+                    static_cast<int32_t>(s.backTermSlot.size());
+                break;
+            case 5:
+                if (back < 0) break;
+                s.backRows[static_cast<size_t>(back)].outRow = a;
+                s.backRows[static_cast<size_t>(back)].divSlot = b;
+                back = -1;
+                break;
+            default:
+                break;
+        }
+    }
+}
 
 struct OperatingPointSeed {
     NodeId node = -1;
