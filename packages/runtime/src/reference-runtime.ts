@@ -5136,6 +5136,9 @@ export class ReferenceRuntime {
 		let used = 0;
 		let worstNode = -1;
 		let worstDelta = 0;
+		// Board-p2 row 22 (exact-levers), lever B: the merged convergence
+		// pass writes here (allocated once per solve, not per iteration).
+		const pass = { converged: true, maxDelta: 0, worstIndex: -1 };
 		// Sized once in `prepare` per block id; every block reaching `iterate` was walked
 		// there, so a missing entry means `prepare` was skipped, not a legitimate state.
 		const scratch = this.iterationScratch.get(block.id);
@@ -5431,8 +5434,9 @@ export class ReferenceRuntime {
 					next[i] = current[i] + alpha * (next[i] - current[i]);
 				}
 			}
-			const delta = maxAbsDifference(next, current);
-			worstNode = worstDifferenceIndex(next, current);
+			convergencePass(next, current, pass);
+			const delta = pass.maxDelta;
+			worstNode = pass.worstIndex;
 			worstDelta = delta;
 			// **Non-contracting means circling, not marching (2026-10-11).** The brake was fitted
 			// for an iterate that circles or stalls, and `delta` failing to fall cannot tell that
@@ -5512,7 +5516,7 @@ export class ReferenceRuntime {
 			//
 			// The residual is what separates them, and a stalled sample stops rather than
 			// spending the remaining budget on an iterate that has already stopped moving.
-			const withinDelta = withinTolerance(next, current);
+			const withinDelta = pass.converged;
 			if (withinDelta && this.limitedIterate && !block.linear) {
 				lastBlockedResidual = residualAtCurrent;
 			}
@@ -5810,7 +5814,7 @@ export class ReferenceRuntime {
 	 * convergence test without re-deriving anything.
 	 *
 	 * **What must stay identical to `iterate` for the exactness gate to mean anything**: the
-	 * convergence test (`withinTolerance` plus `!limitedIterate`, same functions), the
+	 * convergence test (`convergencePass` plus `!limitedIterate`, same functions), the
 	 * limiter/history side effects (the same `applyStamp`, the same history maps, so a
 	 * limited iterate here is limited for the identical reason it would be in `iterate`), and
 	 * the return contract (`solution` is the latest iterate whether or not it converged,
@@ -5987,6 +5991,9 @@ export class ReferenceRuntime {
 		let used = 0;
 		let worstNode = -1;
 		let worstDelta = 0;
+		// Board-p2 row 22 (exact-levers), lever B: the merged convergence
+		// pass writes here (allocated once per solve, not per iteration).
+		const pass = { converged: true, maxDelta: 0, worstIndex: -1 };
 		let current = scratch.fullCurrent;
 		let next = scratch.fullNext;
 		let yCurrentArr = scratch.yCurrent;
@@ -6068,8 +6075,9 @@ export class ReferenceRuntime {
 			}
 			reconstructFull(yNextArr, next);
 
-			const delta = maxAbsDifference(next, current);
-			worstNode = worstDifferenceIndex(next, current);
+			convergencePass(next, current, pass);
+			const delta = pass.maxDelta;
+			worstNode = pass.worstIndex;
 			worstDelta = delta;
 			if (delta < bestDelta * 0.999) {
 				bestDelta = delta;
@@ -6105,8 +6113,7 @@ export class ReferenceRuntime {
 				this.limitedIterationCount += this.limitedIterate ? 1 : 0;
 				this.limitedIterationPerSample.push(this.limitedIterate ? 1 : 0);
 			}
-			const convergedNow =
-				withinTolerance(next, current) && !this.limitedIterate;
+			const convergedNow = pass.converged && !this.limitedIterate;
 
 			const swapFull = current;
 			current = next;
@@ -9679,66 +9686,58 @@ function extrapolateNewtonStart(
 	return true;
 }
 
-function withinTolerance(
+/**
+ * Board-p2 row 22 (exact-levers), lever B: one pass for the convergence check.
+ * `withinTolerance` + `worstDifferenceIndex` (+ `maxAbsDifference` for the
+ * delta) walked the same unknowns two to three times on every Newton
+ * iteration. This evaluates the identical expressions in the identical order
+ * per element -- ties and NaN handling identical (first index wins via strict
+ * `>`, a NaN diff fails neither comparison, a NaN ratio never leads; the max
+ * accumulates through the same `Math.max` so a NaN poisons it exactly as
+ * `maxAbsDifference` did), with the same division per element so the same
+ * index wins.
+ *
+ * Which unknown is **furthest outside its own allowance**, so a failure names
+ * the node that is actually blocking convergence: not the largest absolute
+ * delta, which is a different unknown whenever a circuit spans several decades
+ * of voltage (in a tube amp a 300 V plate moving 0.2 V is *inside* its 0.3 V
+ * allowance while a millivolt grid moving 2 mV is far outside its own).
+ * Ratio, not difference, so the answer is comparable across unknowns: > 1 is
+ * a real violation, and the largest ratio is the one to fix first.
+ */
+function convergencePass(
 	next: readonly number[],
 	previous: readonly number[],
-): boolean {
+	// Reused across Newton iterations (allocated once per `iterate` call, not
+	// per iteration): the merged pass writes its three results here.
+	out: { converged: boolean; maxDelta: number; worstIndex: number },
+): void {
+	let converged = true;
+	let maxDelta = 0;
+	let worstIndex = -1;
+	let worst = -1;
 	for (let index = 0; index < next.length; index += 1) {
 		const a = next[index] ?? 0;
 		const b = previous[index] ?? 0;
+		const absA = Math.abs(a);
+		const absB = Math.abs(b);
+		const diff = Math.abs(a - b);
+		maxDelta = Math.max(maxDelta, diff);
 		const allowance =
-			NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(a), Math.abs(b)) +
+			NEWTON_RELATIVE_TOLERANCE * Math.max(absA, absB) +
 			NEWTON_VOLTAGE_TOLERANCE;
-		if (Math.abs(a - b) > allowance) {
-			return false;
+		if (diff > allowance) {
+			converged = false;
 		}
-	}
-	return true;
-}
-
-/**
- * Which unknown is **furthest outside its own allowance**, so a failure names the node that
- * is actually blocking convergence.
- *
- * Not the largest absolute delta, which is what this used to report and is a different
- * unknown whenever a circuit spans several decades of voltage. `withinTolerance` judges each
- * unknown against `reltol * |v| + vntol`, so in a tube amp a 300 V plate moving 0.2 V is
- * *inside* its 0.3 V allowance while a millivolt grid moving 2 mV is far outside its own --
- * and the old rule reported the plate. Every amp non-convergence investigated through this
- * telemetry was therefore pointed at a node that had already converged, which is why
- * `tube-plate-step-limiter-deadlocks-a-converged-solve.md`'s "What It Left" could not find a
- * cause: the evidence named the wrong node.
- *
- * Ratio, not difference, so the answer is comparable across unknowns: > 1 is a real
- * violation, and the largest ratio is the one to fix first.
- */
-function worstDifferenceIndex(
-	a: readonly number[],
-	b: readonly number[],
-): number {
-	let index = -1;
-	let worst = -1;
-	for (let position = 0; position < a.length; position += 1) {
-		const x = a[position] ?? 0;
-		const y = b[position] ?? 0;
-		const allowance =
-			NEWTON_RELATIVE_TOLERANCE * Math.max(Math.abs(x), Math.abs(y)) +
-			NEWTON_VOLTAGE_TOLERANCE;
-		const ratio = Math.abs(x - y) / allowance;
+		const ratio = diff / allowance;
 		if (ratio > worst) {
 			worst = ratio;
-			index = position;
+			worstIndex = index;
 		}
 	}
-	return index;
-}
-
-function maxAbsDifference(a: readonly number[], b: readonly number[]): number {
-	let largest = 0;
-	for (let index = 0; index < a.length; index += 1) {
-		largest = Math.max(largest, Math.abs((a[index] ?? 0) - (b[index] ?? 0)));
-	}
-	return largest;
+	out.converged = converged;
+	out.maxDelta = maxDelta;
+	out.worstIndex = worstIndex;
 }
 
 function clamp(value: number, low: number, high: number): number {

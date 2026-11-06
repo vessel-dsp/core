@@ -718,57 +718,39 @@ inline void stampConductance(double* matrix, int32_t size, int32_t a, int32_t b,
     matrix[b * size + a] -= g;
 }
 
-inline bool withinTolerance(const double* next, const double* prev, int32_t size) {
-    for (int32_t i = 0; i < size; ++i) {
-        double a = next[i];
-        double b = prev[i];
-        double allowance = NEWTON_RELATIVE_TOLERANCE * std::max(std::abs(a), std::abs(b)) + NEWTON_VOLTAGE_TOLERANCE;
-        if (std::abs(a - b) > allowance) {
-            return false;
-        }
-    }
-    return true;
-}
-
-inline bool checkConvergenceAndMaxDelta(const double* next, const double* prev, int32_t size, double& maxDelta) {
+// Board-p2 row 22 (exact-levers), lever B: one pass for the convergence check.
+// checkConvergenceAndMaxDelta and worstDifferenceIndex (and, on the eliminated
+// and unconverged paths, maxAbsDifference plus withinTolerance) walked the same
+// unknowns twice on every Newton iteration. This evaluates the identical
+// expressions in the identical order per element -- ties and NaN handling
+// identical (first index wins via strict >, a NaN diff fails neither the max
+// nor the tolerance comparison, a NaN ratio never leads), with the same
+// division per element so the same index wins.
+inline bool convergencePass(const double* next, const double* prev, int32_t size, double& maxDelta, int32_t& worstIndex) {
     bool converged = true;
     double maxD = 0.0;
-    for (int32_t i = 0; i < size; ++i) {
-        double a = next[i];
-        double b = prev[i];
-        double diff = std::abs(a - b);
-        if (diff > maxD) maxD = diff;
-        double allowance = NEWTON_RELATIVE_TOLERANCE * std::max(std::abs(a), std::abs(b)) + NEWTON_VOLTAGE_TOLERANCE;
-        if (diff > allowance) {
-            converged = false;
-        }
-    }
-    maxDelta = maxD;
-    return converged;
-}
-
-inline int32_t worstDifferenceIndex(const double* next, const double* prev, int32_t size) {
     int32_t worstIdx = -1;
     double worstRatio = -1.0;
     for (int32_t i = 0; i < size; ++i) {
         double a = next[i];
         double b = prev[i];
-        double allowance = NEWTON_RELATIVE_TOLERANCE * std::max(std::abs(a), std::abs(b)) + NEWTON_VOLTAGE_TOLERANCE;
-        double ratio = std::abs(a - b) / allowance;
+        double absA = std::abs(a);
+        double absB = std::abs(b);
+        double diff = std::abs(a - b);
+        if (diff > maxD) maxD = diff;
+        double allowance = NEWTON_RELATIVE_TOLERANCE * std::max(absA, absB) + NEWTON_VOLTAGE_TOLERANCE;
+        if (diff > allowance) {
+            converged = false;
+        }
+        double ratio = diff / allowance;
         if (ratio > worstRatio) {
             worstRatio = ratio;
             worstIdx = i;
         }
     }
-    return worstIdx;
-}
-
-inline double maxAbsDifference(const double* a, const double* b, int32_t size) {
-    double maxDiff = 0.0;
-    for (int32_t i = 0; i < size; ++i) {
-        maxDiff = std::max(maxDiff, std::abs(a[i] - b[i]));
-    }
-    return maxDiff;
+    maxDelta = maxD;
+    worstIndex = worstIdx;
+    return converged;
 }
 
 inline void solveDense(double* matrix, double* rhs, int32_t size, int32_t* rowOrder, double* out) {
@@ -3071,10 +3053,10 @@ Engine::SolveResult Engine::iterate(
         }
 
         double delta = 0.0;
-        bool withinTol = checkConvergenceAndMaxDelta(next, current, size, delta);
+        int32_t worstNodeNow = -1;
+        bool withinTol = convergencePass(next, current, size, delta, worstNodeNow);
         // Mirrors reference-runtime.ts: non-contracting means circling, not marching. The brake
         // engages and tightens only when the worst node's step has reversed since the last iteration.
-        const int32_t worstNodeNow = worstDifferenceIndex(next, current, size);
         const double worstStep = (worstNodeNow >= 0) ? (next[worstNodeNow] - current[worstNodeNow]) : 0.0;
         const int32_t worstSign = (worstStep > 0.0) ? 1 : (worstStep < 0.0 ? -1 : 0);
         const bool reversed = dc || (worstNodeNow == lastWorstNode && worstSign != 0 && lastWorstSign != 0 && worstSign != lastWorstSign);
@@ -3142,8 +3124,7 @@ Engine::SolveResult Engine::iterate(
     }
 
     if (!res.converged) {
-        res.worstDelta = maxAbsDifference(current, next, size);
-        res.worstNode = worstDifferenceIndex(current, next, size);
+        convergencePass(current, next, size, res.worstDelta, res.worstNode);
     }
 
     if (predictorPass) {
@@ -3509,8 +3490,7 @@ Engine::SolveResult Engine::iterateEliminated(
         }
         reconstructFull(yNextArr, next);
 
-        res.worstDelta = maxAbsDifference(next, current, size);
-        res.worstNode = worstDifferenceIndex(next, current, size);
+        bool elimWithinTol = convergencePass(next, current, size, res.worstDelta, res.worstNode);
         const double delta = res.worstDelta;
         if (delta < bestDelta * 0.999) {
             bestDelta = delta;
@@ -3539,7 +3519,7 @@ Engine::SolveResult Engine::iterateEliminated(
             }
         }
 
-        bool convergedNow = withinTolerance(next, current, size) && !limitedIterate_;
+        bool convergedNow = elimWithinTol && !limitedIterate_;
 #ifdef V2_PROFILE_TIMERS
         auto t_converge_end = std::chrono::high_resolution_clock::now();
         profile_converge_ns_ += std::chrono::duration_cast<std::chrono::nanoseconds>(t_converge_end - t_converge_start).count();
